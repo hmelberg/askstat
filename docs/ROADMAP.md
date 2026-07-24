@@ -241,6 +241,39 @@ prøve fra PyPI eller GitHub. Nivåene:
       json-stat2; samme kind + konvertering, kun base-URL/param-forskjeller.
       Vurder også `<dim>_label`-kolonner som opt-in og tabell-SØK
       (`/tables?query=`) i katalogen. Liten økt når Hans vil.
+- [ ] **Datacache-styring** (notert 2026-07-25). Status i dag: rå bytes
+      caches per URL på tvers av kjøringer i samme side-økt (_bufCache i
+      data-loader.js, modul-skopet — gjelder også pxweb-uttrekk), men
+      cachen dør ved side-reload, og BINDINGEN (bytes → FS → read_csv inn
+      i pandas/R) kjører på nytt per kjøring fordi «Kjør» bygger fersk
+      tolk. Tiltak i stigende ambisjon: (a) disk-persistent datacache via
+      Cache API med `# load …, cache(1d)`-opsjon og `refresh`-motstykke;
+      (b) `format(duckdb)` finnes allerede og unngår re-materialisering;
+      (c) varmere tolk-gjenbruk — se punktet under «Diverse / uavklart»,
+      som er den strukturelle løsningen på re-bindingen. Liten økt for (a).
+- [ ] **Eksport-gap: montering + pxweb** (notert 2026-07-25).
+      js/portable-export.js oversetter # connect/# load/require til
+      frittstående pandas/R-kode, men IKKE create-dataset/import/join og
+      ikke kind(pxweb) (json-stat2-konverteringen finnes bare i js/pxweb.js).
+      NB: pakke-sporet under kan overta hele jobben — eksporteren emitterer
+      da pakke-kall (én linje per direktiv) i stedet for håndrullet
+      requests-kode. Avvent pakke-diskusjonen før denne tas separat.
+- [ ] **openstat-pakke med load/connect-verbene i hvert språk** (under
+      designdiskusjon med Hans 2026-07-25 — se vurderingen i samtalen):
+      mål er at scriptet skal kunne tas UT av editoren og fortsatt virke i
+      vanlig python/R, og at samme verb virker i pyodide/webr/brython/
+      micropython. Retning: én kontrakt + delte test-fixtures, ren
+      CPython-referanseimplementasjon (requests+pandas, duckdb valgfri),
+      transport-adaptere per miljø (JS-broen inne i editoren). Ikke
+      besluttet — API-form, navn og R-verbnavn avklares med Hans først.
+- [ ] **Streaming-/levende kilder** (notert 2026-07-25). Trapp: (1)
+      polling — `# connect …, refresh(30s)` som re-henter og re-rendrer en
+      utpekt output; passer dagens batch-modell (fersk økt per kjøring) og
+      dekker det meste av statistikk-kilder; liten økt. (2) Ekte push
+      (websocket/SSE → løpende INSERT i duckdb-tabell + reaktiv visning) —
+      krever noe à la Perspective.js (wasm, streaming-tabeller m/ grid og
+      charts; passer LIB_REGISTRY-mønsteret som js-dep). Stort — egen spec
+      først, og avklar hvilke kilder som faktisk streamer.
 
 ## Diverse / uavklart
 

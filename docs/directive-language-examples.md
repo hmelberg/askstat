@@ -104,6 +104,64 @@ No `connect`/registration needed if the owner just hands you a URL and a key: th
 ```
 `offentlig` comes from the public SSB registry, `beskyttet` from a key-gated Anvil source, and `owid` from a plain public URL — each resolved independently by the same script.
 
+## 9b. API sources by kind — OECD, ECB, Norges Bank, Verdensbanken, DBnomics (2026-07-25)
+
+The registry carries the kind, so the source name is all you need — the user
+knows the source, not the protocol:
+
+```
+# connect oecd as o
+# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE/all?startPeriod=2020 as levealder
+
+# connect worldbank as wb
+# read wb/country/NOR;SWE/indicator/NY.GDP.MKTP.CD?date=2015:2024 as bnp
+
+# connect dbnomics as dbn
+# read dbn/IMF/WEO:latest/NOR.NGDP_RPCH as vekst
+```
+
+With a bare URL, name the kind explicitly — source names (`oecd`, `ecb`,
+`norgesbank`, `imf`) are aliases for the underlying protocol (`sdmx`), and
+`worldbank`/`dbnomics` are protocols of their own:
+
+```
+# connect https://data-api.ecb.europa.eu/service/data as ecb, kind(sdmx)
+# read ecb/EXR/D.USD.EUR.SP00.A?startPeriod=2026-01-01 as kurs
+```
+
+All deliver a tidy long-format frame (the API's own column names —
+`REF_AREA`/`TIME_PERIOD`/`OBS_VALUE` for SDMX sources, `indicator`/`country`/
+`date`/`value` for Verdensbanken, `series_code`/dimensions/`period`/`value`
+for DBnomics).
+
+## 9c. Canonical query vocabulary — translated per source (2026-07-25)
+
+`years(a:b)`, `countries(…)`, `regions(…)`, `indicators(…)` and
+`filters(k=v …)` on the `read` line are translated to each source's own
+query model — and fail loudly when a field can't be translated verifiably
+for that source (SDMX 2.1 APIs silently ignore unknown parameters, which
+would return wrong-but-plausible data):
+
+```
+# connect oecd as o
+# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE as le, countries(NOR SWE), years(2020:2023)
+
+# connect worldbank as wb
+# read wb as bnp, indicators(NY.GDP.MKTP.CD), countries(NOR SWE), years(2015:2024)
+
+# connect eurostat as eu
+# read eu/nama_10_gdp as bnp2, countries(NO), years(2020:), filters(na_item=B1GQ unit=CP_MEUR)
+
+# connect ssb
+# read ssb/05839 as bef, years(2007:), regions(0), indicators(Personer)
+```
+
+For SDMX sources, `countries()`/`indicators()`/`filters()` build the dotted
+key path automatically (one small `lastNObservations=1` probe reveals the
+dataflow's dimensions); `years(a:b)` maps to `startPeriod`/`endPeriod`
+(SDMX), `date=` (Verdensbanken), `sinceTimePeriod`/`untilTimePeriod`
+(Eurostat) and `valueCodes[Tid]` (PxWeb). Open ends work: `years(2020:)`.
+
 ## 10. Variable-level assembly — `create` / `add` / `join`
 
 A separate, richer directive set lets you assemble one analysis dataset out of *columns* pulled from multiple registered sources, rather than loading each source as a whole frame:

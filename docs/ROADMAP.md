@@ -270,12 +270,26 @@ prøve fra PyPI eller GitHub. Nivåene:
       norgesbank/worldbank/eurostat fikk kind+korrigert base_url).
       Verifisert live: eksportert CPython mot 4 API-er, nettleser-datalag
       mot alle 5, editor-run (webR) mot Verdensbanken.
-- [ ] **API-kinds fase 2: kanonisk vokabular** — years()/countries()/
-      regions()/indicators()/filters() oversatt per kind (spec §3);
-      hard-feil-regelen (aldri stille passthrough, jf. fellen over);
-      sdmx-nøkler via CSV-header-introspeksjon (lastNObservations=1).
-      WHO GHO utsatt (API-et svarte ikke 2026-07-25); IMF-liveverifisering
-      og katalog-/tab-probe for nye kilder åpne.
+- [x] **API-kinds fase 2: kanonisk vokabular** — LEVERT 2026-07-25 (spec
+      §3): years(a:b)/countries()/regions()/indicators()/filters(k=v …) på
+      read-linjen, oversatt per kind i translateCanonical (ren funksjon,
+      testet): worldbank (sti syntetiseres fra indicators+countries; date=;
+      åpne ender → 1900/2100, probet ok), eurostat (geo=, since/until­-
+      TimePeriod), pxweb (valueCodes[Region/ContentsCode]; years lukket →
+      eksplisitt liste — range() FINNES IKKE i v2 (probet 400); åpen start →
+      from(a), probet ok), sdmx (startPeriod/endPeriod; countries/
+      indicators/filters → punktumnøkkel via CSV-header-introspeksjon:
+      lastNObservations=1-probe, kolonnene mellom prefikset (DATAFLOW|
+      STRUCTURE,STRUCTURE_ID,ACTION|KEY) og TIME_PERIOD er nøkkeldimen-
+      sjonene i orden), dbnomics (years klient-side; resten hard feil med
+      maske-hint). Hard-feil-regelen overalt (jf. stille-ignorerings-
+      fellen). Eksporten emitterer runtime-introspeksjon (_sdmx_key_dims/
+      _sdmx_key i py+R) og dbnomics-årsfilter; openstat.py har full
+      paritet (delte fixtures sdmx_headers.json m.fl.). Verifisert live:
+      eksportert CPython ga KUN NOR/SWE fra OECD (168×21) — beviset på at
+      nøkkelen faktisk filtrerer; nettleser-loader det samme (43 rader NOR).
+      Åpent: WHO GHO (API-et svarte ikke 2026-07-25), IMF-liveverifisering,
+      katalog-/tab-probe for nye kilder, `<dim>_label`-kolonner.
 - [ ] Fortsatt åpent fra pxweb-økten: `<dim>_label`-kolonner som opt-in og
       tabell-SØK (`/tables?query=`) i katalogen.
 - [x] **Datacache-styring (a)** — LEVERT 2026-07-25: `cache(<ttl>)`-opsjon

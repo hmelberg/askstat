@@ -4547,7 +4547,7 @@
       // (1) `# meta` + kildens metadata (flettet av MetaInfo, direktiv-tekst øverst)
       html += window.MetaInfo.render(
         window.MetaInfo.merge(apiMeta, metaFreshMetas(), ds),
-        { commentTarget: ds, labels: metaLabels() });
+        { labels: metaLabels() });
       // (2) proveniens
       html += renderDatasetProvLine(prov);
       // (3) rader × kolonner

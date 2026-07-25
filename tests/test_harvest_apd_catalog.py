@@ -56,6 +56,27 @@ def test_normalize_entry_minimal_fields_absent_not_crash():
     assert entry["creator"] is None
 
 
+def test_normalize_entry_keywords_as_native_yaml_list():
+    raw = apd.yaml.safe_load(b"""\
+title: Some Dataset
+homepage: https://example.com
+category: Agriculture
+keywords:
+  - fruit
+  - quality
+  - lemon
+""")
+    entry = apd.normalize_entry("Agriculture", "Some-Dataset", raw)
+    assert entry["keywords"] == ["fruit", "quality", "lemon"]
+
+
+def test_normalize_entry_keywords_not_str_or_list_falls_back_to_empty():
+    raw = {"title": "T", "homepage": "https://example.com", "category": "Agriculture",
+           "keywords": {"not": "a list or string"}}
+    entry = apd.normalize_entry("Agriculture", "T", raw)
+    assert entry["keywords"] == []
+
+
 def test_description_truncated_at_200_chars():
     long_desc = "x" * 300
     raw = {"title": "T", "homepage": "https://example.com", "category": "Agriculture",

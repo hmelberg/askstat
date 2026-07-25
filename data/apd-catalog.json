@@ -1657,7 +1657,7 @@
     "creator": null,
     "category": "ComplexNetworks",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -1942,7 +1942,7 @@
     "creator": null,
     "category": "ComputerNetworks",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -2896,7 +2896,7 @@
     "creator": null,
     "category": "Economics",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -3287,7 +3287,16 @@
     "description": "Free API providing 44M+ property transactions from official government registries across 11 markets: UK (HM Land Registry), France (DVF), Singapore (HDB), NYC, Chicago, Miami, Philadelphia, Connect...",
     "url": "https://api.nwc-advisory.com/docs",
     "distributionUrl": "RESTful JSON API. Three endpoints: /v1/comps (comparable sales search), /v1/stats (area statistics), /v1/trends (monthly price trends). Each market uses its native location parameter (postcode, code_postal, zip_code, area_name).\n",
-    "keywords": [],
+    "keywords": [
+      "real estate",
+      "property prices",
+      "comparable sales",
+      "housing market",
+      "government data",
+      "open data",
+      "property transactions",
+      "global markets"
+    ],
     "license": "Open Data (varies by source registry)",
     "inLanguage": "en",
     "creator": "New Way Capital Advisory",
@@ -3417,7 +3426,7 @@
     "creator": null,
     "category": "Economics",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -3545,7 +3554,15 @@
     "description": "A comprehensive dataset providing ZIP-code-level real estate, rental, demographic, and mortgage market analytics across the United States. Prop-Metrics aggregates and normalizes open data from Zill...",
     "url": "https://www.prop-metrics.com",
     "distributionUrl": "Metrics stored in wide-format tables keyed by (zcta, metric, date). Each record contains standardized metric identifiers, value, and freshness metadata.\n",
-    "keywords": [],
+    "keywords": [
+      "real estate",
+      "housing market",
+      "rentals",
+      "demographics",
+      "mortgage data",
+      "Section 8",
+      "ZIP code analytics"
+    ],
     "license": "CC BY 4.0",
     "inLanguage": "en",
     "creator": "Prop-Metrics Analytics, LLC",
@@ -5065,7 +5082,14 @@
     "description": "Free US ZIP code database covering core fields (ZIP, city, state, county, latitude/longitude, classification) for every USPS ZIP. Account signup required for full download; no payment required. Fro...",
     "url": "https://www.zip-codes.com/free-zip-code-database.asp",
     "distributionUrl": "https://www.zip-codes.com/free-zip-code-database.asp",
-    "keywords": [],
+    "keywords": [
+      "zip-code",
+      "postal-code",
+      "usa",
+      "usps",
+      "geocoding",
+      "reference-data"
+    ],
     "license": null,
     "inLanguage": "en",
     "creator": "Zip-Codes.com",
@@ -5239,7 +5263,16 @@
     "description": "Time-stamped longitudinal observatory of French rental listings flagged as non-compliant with the loi ELAN rent-cap (encadrement des loyers) and the DPE F/G rental ban (loi Climat-Résilience). Dail...",
     "url": "https://www.data.gouv.fr/fr/datasets/annonces-de-location-francaises-non-conformes-observatoire-bailleurverif/",
     "distributionUrl": "https://github.com/Creariax5/bailleurverif/blob/main/README.md",
-    "keywords": [],
+    "keywords": [
+      "housing",
+      "rental",
+      "france",
+      "real-estate",
+      "regulatory-compliance",
+      "loi-elan",
+      "dpe",
+      "encadrement-loyer"
+    ],
     "license": "etalab-2.0",
     "inLanguage": "fr",
     "creator": "BailleurVerif",
@@ -6049,7 +6082,7 @@
     "creator": null,
     "category": "Government",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -6109,7 +6142,7 @@
     "creator": null,
     "category": "Government",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -6345,7 +6378,7 @@
     "creator": null,
     "category": "Government",
     "access_level": "public",
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -6474,7 +6507,17 @@
     "description": "Independent, non-official access layer for Spanish public mercantile data. OpenMercantil exposes searchable company records, BORME event timelines, source notes, sample CSV/JSON downloads and API/O...",
     "url": "https://openmercantil.es/descargas",
     "distributionUrl": "https://openmercantil.es/openapi.json",
-    "keywords": [],
+    "keywords": [
+      "Spain",
+      "company data",
+      "mercantile data",
+      "BORME",
+      "public records",
+      "open data",
+      "business registry",
+      "public procurement",
+      "API"
+    ],
     "license": null,
     "inLanguage": "es",
     "creator": [
@@ -6665,7 +6708,13 @@
     "description": "Open dataset of 3,649 US portable-restroom rental vendors across all 50 states + DC and 2,424 cities, plus a public-restroom finder. Free to access and cite. Includes per-vendor service flags (ADA-...",
     "url": "https://pottydirectory.com/data",
     "distributionUrl": null,
-    "keywords": [],
+    "keywords": [
+      "sanitation",
+      "portable toilet",
+      "public restroom",
+      "civic infrastructure",
+      "construction"
+    ],
     "license": "Free to access; attribution requested for redistribution",
     "inLanguage": null,
     "creator": "Lighthouse 27 LLC",
@@ -7074,7 +7123,14 @@
     "description": "Bond compliance status for 816,000+ Texas-licensed contractors and notaries, sourced from TDLR and Texas SOS public records. 29.3% non-compliance rate across 22 license types. Published by Quantum ...",
     "url": "https://contact219.github.io/texas-tdlr-bond-compliance-2026/",
     "distributionUrl": null,
-    "keywords": [],
+    "keywords": [
+      "Texas",
+      "surety bonds",
+      "contractor licensing",
+      "compliance",
+      "TDLR",
+      "government"
+    ],
     "license": "CC0",
     "inLanguage": "English",
     "creator": "Quantum Surety Bond Watch",
@@ -7321,7 +7377,22 @@
     "description": "UNESCO's official data catalog providing authoritative global statistics across all UNESCO domains including education, culture, science, communication and information. The comprehensive data hub o...",
     "url": "https://data.unesco.org",
     "distributionUrl": null,
-    "keywords": [],
+    "keywords": [
+      "education",
+      "culture",
+      "science",
+      "communication",
+      "information",
+      "sustainable development goals",
+      "SDG",
+      "international organizations",
+      "UNESCO",
+      "UN",
+      "global statistics",
+      "policy data",
+      "cultural heritage",
+      "scientific cooperation"
+    ],
     "license": "Open Data",
     "inLanguage": [
       "English",
@@ -7341,7 +7412,11 @@
     "description": "Verified catalog of US class-action and government refund settlements with claim deadlines, proof requirements, status, and official claim links. Public fields are free to use with attribution; per...",
     "url": "https://settlesignal.com/settlements/",
     "distributionUrl": null,
-    "keywords": [],
+    "keywords": [
+      "class action settlements",
+      "settlement claim deadlines",
+      "consumer refunds"
+    ],
     "license": "Free to use with attribution; per-field provenance licensed",
     "inLanguage": "en",
     "creator": "SettleSignal",
@@ -7573,7 +7648,15 @@
     "description": "Composite travel-safety risk score for 180 countries, combining UK FCDO travel advisories, US State Department travel advisories, the Global Peace Index 2025, and the World Bank Worldwide Governanc...",
     "url": "https://warnely.com/developers",
     "distributionUrl": "https://warnely.com/openapi.json",
-    "keywords": [],
+    "keywords": [
+      "travel safety",
+      "country risk",
+      "travel advisory",
+      "FCDO",
+      "State Department",
+      "Global Peace Index",
+      "geopolitics"
+    ],
     "license": "CC BY 4.0",
     "inLanguage": "en-GB",
     "creator": "Warnely",
@@ -8702,7 +8785,7 @@
     "creator": null,
     "category": "ImageProcessing",
     "access_level": "public",
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -10106,7 +10189,7 @@
     "creator": null,
     "category": "NaturalLanguage",
     "access_level": null,
-    "reachable": true,
+    "reachable": false,
     "checked_at": "2026-07-25"
   },
   {
@@ -10460,7 +10543,7 @@
     "creator": null,
     "category": "Physics",
     "access_level": null,
-    "reachable": false,
+    "reachable": true,
     "checked_at": "2026-07-25"
   },
   {
@@ -12103,7 +12186,7 @@
     "creator": null,
     "category": "SocialNetworks",
     "access_level": null,
-    "reachable": true,
+    "reachable": false,
     "checked_at": "2026-07-25"
   },
   {
@@ -12566,7 +12649,16 @@
     "description": "Verified federal and national government employee pay tables for 17 countries\n(US OPM GS/SES/FS/JUD, UK Cabinet Office SCS, Canadian Treasury Board core\npublic service, Australian APSC, Japanese Ji...",
     "url": "https://fedsalary.com",
     "distributionUrl": "https://fedsalary.com/api/openapi.json",
-    "keywords": [],
+    "keywords": [
+      "government",
+      "salary",
+      "compensation",
+      "public-sector",
+      "civil-service",
+      "reference-data",
+      "structured",
+      "canonical"
+    ],
     "license": "https://creativecommons.org/licenses/by/4.0/",
     "inLanguage": "en",
     "creator": "FedSalary",
@@ -12674,7 +12766,13 @@
     "description": "Structured bias scores for 212 news outlets across 37 framing dimensions (fear, credibility, political lean, etc.). Model-derived source-level scores from analyzed article corpora. Reproducible fea...",
     "url": "https://huggingface.co/datasets/HeliumTrades/helium-news-bias-corpus",
     "distributionUrl": null,
-    "keywords": [],
+    "keywords": [
+      "news",
+      "media bias",
+      "journalism",
+      "NLP",
+      "misinformation"
+    ],
     "license": "MIT",
     "inLanguage": "en",
     "creator": "Helium Trades",
@@ -13583,7 +13681,16 @@
     "description": "Open database of all mapped padel clubs across 9 European countries with GPS coordinates, indoor/outdoor court counts, and booking platform info (Playtomic and Anybuddy). Approximately 4,000 clubs ...",
     "url": "https://padelsnipe.com/fr/world",
     "distributionUrl": "https://padelsnipe.com/fr/world/api",
-    "keywords": [],
+    "keywords": [
+      "padel",
+      "clubs",
+      "sports",
+      "geolocation",
+      "europe",
+      "playtomic",
+      "anybuddy",
+      "bookings"
+    ],
     "license": "CC-BY-4.0",
     "inLanguage": "en, fr, es",
     "creator": "Padel Snipe",

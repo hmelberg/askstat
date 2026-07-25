@@ -26,10 +26,12 @@ def normalize_entry(category, slug, raw):
     schema.org/Dataset-feltskjemaet (spec §3). `raw` kan mangle alle felt
     utenom title/homepage/category."""
     keywords_raw = raw.get('keywords') or ''
-    keywords = (
-        [k.strip() for k in keywords_raw.split(',') if k.strip()]
-        if isinstance(keywords_raw, str) else []
-    )
+    if isinstance(keywords_raw, str):
+        keywords = [k.strip() for k in keywords_raw.split(',') if k.strip()]
+    elif isinstance(keywords_raw, list):
+        keywords = [str(k).strip() for k in keywords_raw if str(k).strip()]
+    else:
+        keywords = []
 
     org = raw.get('organization')
     if isinstance(org, list) and org and isinstance(org[0], dict):

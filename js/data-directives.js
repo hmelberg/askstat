@@ -42,6 +42,7 @@
       if (name === 'key') opts.key = val || 'ask';
       else if (name === 'exec') opts.exec = val.toLowerCase();
       else if (name === 'kind') opts.kind = val.toLowerCase();
+      else if (name === 'cache') opts.cache = val.toLowerCase();
     }
     return opts;
   }
@@ -86,7 +87,7 @@
       if (isUrlish(l.target)) {
         return { alias: l.alias, url: l.target,
                  viaProxy: l.target.indexOf('/api/hent?') === 0,
-                 key: lopts.key, exec: lopts.exec, kind: lopts.kind };
+                 key: lopts.key, exec: lopts.exec, kind: lopts.kind, cache: lopts.cache };
       }
       var slash = l.target.indexOf('/');
       var head = slash > 0 ? l.target.slice(0, slash) : l.target;
@@ -95,6 +96,7 @@
       if (!conn) return { alias: l.alias, url: '', viaProxy: false, error: 'ukjent kilde-alias «' + head + '» (mangler connect-linje?)' };
       var copts = conn.options || {};
       var key = lopts.key || copts.key, exec = lopts.exec || copts.exec, kind = lopts.kind || copts.kind;
+      var cache = lopts.cache || copts.cache;
       var base, viaProxy = false;
       if (isUrlish(conn.target)) {
         base = conn.target;
@@ -116,20 +118,20 @@
         if (base.charAt(base.length - 1) !== '/') base += '/';
         var qi = rest.indexOf('?');
         return { alias: l.alias, url: base + rest, viaProxy: viaProxy, key: key, exec: exec, kind: kind,
-                 table: qi >= 0 ? rest.slice(0, qi) : rest };
+                 cache: cache, table: qi >= 0 ? rest.slice(0, qi) : rest };
       }
       // duckdb/sqlite: én fil, flere tabeller — "stien" er tabellnavnet, ikke
       // en URL-sti (spec 2026-07-06-remote-columnar-sources-design §1).
       if (kind === 'duckdb' || kind === 'sqlite') {
         if (!rest) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
           error: '«' + l.alias + '»: duckdb/sqlite-kilder krever en tabell — «load ' + head + '/<tabell> as ' + l.alias + '»' };
-        return { alias: l.alias, url: base, viaProxy: viaProxy, key: key, exec: exec, kind: kind, table: rest };
+        return { alias: l.alias, url: base, viaProxy: viaProxy, key: key, exec: exec, kind: kind, cache: cache, table: rest };
       }
       if (rest) {
         if (base.charAt(base.length - 1) !== '/') base += '/';
         base += rest;
       }
-      return { alias: l.alias, url: base, viaProxy: viaProxy, key: key, exec: exec, kind: kind };
+      return { alias: l.alias, url: base, viaProxy: viaProxy, key: key, exec: exec, kind: kind, cache: cache };
     });
   }
 

@@ -77,6 +77,33 @@ test('resolve: kind(pxweb) krever tabell-id og setter table', () => {
   assert.match(feil.error, /tabell-id/);
 });
 
+// ── cache()-opsjonen (plan 2026-07-25-eksportgap-cache-openstatpy Task 1) ───
+test('parseOptions/resolve: cache() følger med fra connect og load', () => {
+  const p = DD.parse([
+    '# connect https://x/data.csv as k, kind(csv), cache(1d)',
+    '# load k as a',
+    '# load https://y/f.parquet as b, cache(30m)',
+    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb), cache(2h)',
+    '# load ssb/05839 as c',
+  ].join('\n'));
+  const r = DD.resolve(p, []);
+  assert.equal(r.find(x => x.alias === 'a').cache, '1d');    // arves fra connect
+  assert.equal(r.find(x => x.alias === 'b').cache, '30m');   // direkte på load
+  assert.equal(r.find(x => x.alias === 'c').cache, '2h');    // pxweb-grenen
+});
+
+test('parseCacheTtl: enheter, bust-verdier og ugyldig', () => {
+  assert.equal(DL._parseCacheTtl('90'), 90 * 1000);
+  assert.equal(DL._parseCacheTtl('30m'), 30 * 60 * 1000);
+  assert.equal(DL._parseCacheTtl('2h'), 2 * 3600 * 1000);
+  assert.equal(DL._parseCacheTtl('1d'), 24 * 3600 * 1000);
+  assert.equal(DL._parseCacheTtl('0'), 0);
+  assert.equal(DL._parseCacheTtl('no'), 0);
+  assert.equal(DL._parseCacheTtl('off'), 0);
+  assert.equal(DL._parseCacheTtl('snart'), null);
+  assert.equal(DL._parseCacheTtl(undefined), null);
+});
+
 test('fetchResolvedItems: pxweb henter json-stat2 fra /data og leverer csv-bytes', async () => {
   DL._resetCacheForTests();
   let seenUrl = null;

@@ -96,6 +96,57 @@
     }
   }
 
+  // cache(<ttl>)-opsjonen (plan 2026-07-25 Task 1): '90'/'90s'/'30m'/'2h'/'1d'
+  // -> millisekunder; '0'/'no'/'off' -> 0 (bust); ugyldig -> null (ingen cache).
+  function parseCacheTtl(v) {
+    var s = String(v == null ? '' : v).trim().toLowerCase();
+    if (!s) return null;
+    if (s === 'no' || s === 'off') return 0;
+    var m = /^(\d+)\s*(s|m|h|d)?$/.exec(s);
+    if (!m) return null;
+    var mult = { s: 1e3, m: 6e4, h: 36e5, d: 864e5 }[m[2] || 's'];
+    return parseInt(m[1], 10) * mult;
+  }
+
+  // Opt-in disk-L2 under _bufCache (Cache API i side-konteksten — overlever
+  // reload; SW-varianten blir aktuell først når pakke-sync-XHR skal dele
+  // cache, se ROADMAP). Hentetidspunktet ligger i x-m2py-fetched-at-headeren;
+  // ttl 0 sletter oppføringen og går på nett. Utenfor browser (node-tester)
+  // finnes ikke caches — ren nettvei, uendret oppførsel.
+  var DATA_CACHE = 'm2py-data';
+  async function fetchViaDiskCache(item, fetchImpl, deps, registry) {
+    var ttl = parseCacheTtl(item.cache);
+    var canDisk = typeof caches !== 'undefined' && ttl !== null;
+    if (canDisk) {
+      try {
+        var c = await caches.open(DATA_CACHE);
+        if (ttl === 0) { await c.delete(item.url); }
+        else {
+          var hit = await c.match(item.url);
+          if (hit) {
+            var at = Number(hit.headers.get('x-m2py-fetched-at') || 0);
+            if (at && (Date.now() - at) < ttl) {
+              var ab0 = await hit.arrayBuffer();
+              return { resp: hit, buf: new Uint8Array(ab0) };
+            }
+          }
+        }
+      } catch (e) { canDisk = false; }
+    }
+    var resp = await fetchLoadTarget(item, fetchImpl, deps.authToken || null, deps.anthropicKey || null, registry, deps.keysApi || null);
+    var ab = await resp.arrayBuffer();
+    var buf = new Uint8Array(ab);
+    if (canDisk && ttl > 0) {
+      try {
+        var hdrs = { 'x-m2py-fetched-at': String(Date.now()) };
+        var ct = resp.headers.get('content-type');
+        if (ct) hdrs['content-type'] = ct;
+        await (await caches.open(DATA_CACHE)).put(item.url, new Response(buf, { headers: hdrs }));
+      } catch (e2) {}
+    }
+    return { resp: resp, buf: buf };
+  }
+
   function sniffFormat(resp, url, kind) {
     // Eksplisitt kind() vinner alltid — sniffing er en heuristikk for de
     // uregistrerte tilfellene (spec 2026-07-06-remote-columnar-sources §4).
@@ -180,10 +231,7 @@
     function fetchBytes(item) {
       var k = item.url;
       if (!_bufCache[k]) {
-        _bufCache[k] = fetchLoadTarget(item, fetchImpl, deps.authToken || null, deps.anthropicKey || null, registry, deps.keysApi || null)
-          .then(function (resp) {
-            return resp.arrayBuffer().then(function (ab) { return { resp: resp, buf: new Uint8Array(ab) }; });
-          });
+        _bufCache[k] = fetchViaDiskCache(item, fetchImpl, deps, registry);
         // A failed fetch must NOT poison future runs — _bufCache is now
         // module-scoped (persists across runs, not just within one), so a
         // transient network error would otherwise be "cached" forever until
@@ -356,6 +404,7 @@
 
   global.DataLoader = { resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, _sniffFormat: sniffFormat,
+    _parseCacheTtl: parseCacheTtl,
     // Test-only: the cross-run fetch cache is module-scoped by design (see
     // _bufCache above), which is exactly wrong for a test file that evals
     // this module once and shares it across every Deno.test case — without

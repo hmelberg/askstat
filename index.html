@@ -4250,8 +4250,23 @@
       return Math.round(x * 1e6) / 1e6;
     }
 
-    function renderVariableDetailHtml(varName, data, cat) {
+    function renderVariableDetailHtml(dsName, varName, data, cat) {
       var parts = [];
+      // # meta-direktiver for denne variabelen (target === dsName, variable
+      // === varName) — tekst rendres øverst i panelet, lenker føyes til
+      // lenkeseksjonen sammen med «Mer informasjon»-knappen lenger ned.
+      var varMetas = metaFreshMetas().filter(function (m) { return m.target === dsName && m.variable === varName; });
+      var directiveTexts = [], directiveLinks = [];
+      varMetas.forEach(function (m) {
+        if (m.kind === 'text' && m.text) directiveTexts.push(m.text);
+        else if (m.kind === 'link' && m.url) directiveLinks.push({ url: m.url, label: m.label || m.url });
+      });
+      if (directiveTexts.length) {
+        var directiveHtml = directiveTexts.map(function (txt) {
+          return '<p class="var-detail-prose">' + escapeHtml(txt) + '</p>';
+        }).join('');
+        parts.push('<div class="meta-info-user">' + directiveHtml + '</div>');
+      }
       var docMap = buildVarAliasMap(scriptInput.value);
       var docKey = docMap[varName] || variableCatalogKey(varName);
       if (varName !== docKey) {
@@ -4284,6 +4299,14 @@
         var docUrl = MICRODATA_VARIABLE_DOC_BASE + docKey;
         parts.push('<div class="var-detail-doc-actions"><button type="button" class="btn btn-primary var-detail-doc-btn" data-doc-url="' + escapeHtml(docUrl) + '">Mer informasjon</button></div>');
       }
+      // Lenkeseksjon: direktiv-lenker (# meta ... <url>) + kommentarlenke
+      // (samme mål-konvensjon som sidebaren, spec §7) — vises alltid, uansett
+      // om docKey/«Mer informasjon» finnes.
+      var metaLinkItems = directiveLinks.map(function (l) {
+        return '<li><a href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a></li>';
+      });
+      metaLinkItems.push('<li><a href="' + escapeHtml(window.MetaInfo.commentUrl(dsName + '.' + varName)) + '" target="_blank" rel="noopener">' + escapeHtml(t('💬 Kommenter og se kommentarer')) + '</a></li>');
+      parts.push('<ul class="meta-info-links">' + metaLinkItems.join('') + '</ul>');
       if (data.kind === 'numeric' && (data.mean !== undefined || data.min !== undefined)) {
         parts.push('<div class="var-detail-section-title">Sammendrag</div>');
         var cards = [];
@@ -4473,7 +4496,7 @@ json.dumps(out)
           data = { dtype: dtypeStr, n: dsMeta.nrows, kind: inferKindFromDtype(dtypeStr), remote: true };
         }
         var cat = getVariableCatalogEntryForColumn(varName);
-        bodyEl.innerHTML = renderVariableDetailHtml(varName, data, cat);
+        bodyEl.innerHTML = renderVariableDetailHtml(datasetName, varName, data, cat);
       } catch (err) {
         bodyEl.innerHTML = '<p class="var-detail-prose" style="color:#e11d48">Kunne ikke hente variabelinfo: ' + escapeHtml(String(err.message || err)) + '</p>';
       }

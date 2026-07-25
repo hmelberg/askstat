@@ -141,15 +141,24 @@ const NB_EXR_DSD_FIXTURE = {
   },
 };
 
-function fakeSdmxFetch(payload: unknown): typeof fetch {
-  return (() => Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))) as typeof fetch;
+function fakeSdmxFetch(payload: unknown, capture: string[] = []): typeof fetch {
+  return ((input: string | URL | Request, init?: RequestInit) => {
+    capture.push(String(input));
+    capture.push(String((init?.headers as Record<string, string> | undefined)?.["Accept-Language"] ?? ""));
+    return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+  }) as typeof fetch;
 }
 
 Deno.test("sdmx metadata: kodeliste koblet via enumeration-URN, tidsdimensjon fra timeDimensions", async () => {
-  const meta = await tableMetadata("norgesbank", "NB/EXR", { registry: REG, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE) });
+  const calls: string[] = [];
+  const meta = await tableMetadata("norgesbank", "NB/EXR", { registry: REG, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE, calls) });
   const baseCur = meta.variables.find((v) => v.code === "BASE_CUR")!;
   assertEquals(baseCur.values, [{ code: "NOK", label: "Norwegian krone" }, { code: "USD", label: "US dollar" }]);
   const time = meta.variables.find((v) => v.code === "TIME_PERIOD")!;
   assertEquals(time.time, true);
   assertEquals(time.values, []);
+  assertEquals(calls[0], "https://data.norges-bank.no/api/dataflow/NB/EXR/latest?references=all");
+  // Verifisert 2026-07-25: OECDs strukturendepunkt svarer 500 uten denne
+  // headeren (Denos fetch, ikke curl) — sendes derfor alltid, for alle sdmx-kilder.
+  assertEquals(calls[1], "en");
 });

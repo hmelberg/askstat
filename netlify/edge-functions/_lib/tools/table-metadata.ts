@@ -149,7 +149,11 @@ async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetc
   const [agencyID, dataflowId] = dataflowKey.split("/");
   if (!agencyID || !dataflowId) throw new Error(`sdmx table_id må være '<agencyID>/<dataflowId>', fikk '${dataflowKey}'`);
   const url = `${src.base_url.replace(/data\/$/, "")}dataflow/${agencyID}/${dataflowId}/latest?references=all`;
-  const res = await f(url, { headers: { Accept: accept } });
+  // Verifisert 2026-07-25 (live smoke-test, oppdaget FØR push): OECDs
+  // ?references=all svarer 500 "languageTag1" på Denos fetch UTEN en
+  // eksplisitt Accept-Language — curl sender én implisitt og feilen var
+  // usynlig under research-fasen. Sendes alltid (harmløst for norgesbank).
+  const res = await f(url, { headers: { Accept: accept, "Accept-Language": "en" } });
   if (!res.ok) throw new Error(`sdmx metadata for ${dataflowKey} feilet: HTTP ${res.status}`);
   const json = await res.json();
   const dsd = json?.data?.dataStructures?.[0];

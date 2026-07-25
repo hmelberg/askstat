@@ -215,11 +215,17 @@ function sdmxStructureBase(baseUrl: string): string {
   return baseUrl.replace(/data\/$/, "");
 }
 
+// Verifisert 2026-07-25 (live smoke-test, oppdaget FØR push): OECDs
+// strukturendepunkt (særlig ?references=all) svarer 500 "languageTag1" på
+// Denos fetch UTEN en eksplisitt Accept-Language-header — curl sender én
+// implisitt og feilen var derfor usynlig under research-fasen. Sendes alltid
+// (også for norgesbank, der den er harmløs) for å unngå denne fellen.
+
 async function sdmxSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
   const accept = SDMX_STRUCTURE_ACCEPT[src.id];
   if (!accept) throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
   const url = `${sdmxStructureBase(src.base_url)}dataflow/all/all/latest?references=none`;
-  const res = await f(url, { headers: { Accept: accept } });
+  const res = await f(url, { headers: { Accept: accept, "Accept-Language": "en" } });
   if (!res.ok) throw new Error(`sdmx dataflow-liste for ${src.id} feilet: HTTP ${res.status}`);
   const json = await res.json();
   const flows = (json?.data?.dataflows ?? []) as Record<string, unknown>[];

@@ -276,21 +276,25 @@ const NB_DATAFLOW_FIXTURE = {
   },
 };
 
-function fakeSdmxFetch(payload: unknown, capture: string[] = []): typeof fetch {
+function fakeSdmxFetch(payload: unknown, capture: { accept: string; lang: string }[] = []): typeof fetch {
   return ((input: string | URL | Request, init?: RequestInit) => {
-    capture.push(String((init?.headers as Record<string, string> | undefined)?.Accept ?? ""));
+    const headers = init?.headers as Record<string, string> | undefined;
+    capture.push({ accept: headers?.Accept ?? "", lang: headers?.["Accept-Language"] ?? "" });
     return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
   }) as typeof fetch;
 }
 
-Deno.test("sdmxSearch: filtrerer dataflow-navn, bruker kilde-spesifikk Accept-versjon", async () => {
-  const calls: string[] = [];
+Deno.test("sdmxSearch: filtrerer dataflow-navn, bruker kilde-spesifikk Accept-versjon + Accept-Language", async () => {
+  const calls: { accept: string; lang: string }[] = [];
   // NB: "exchange" alene ville også truffet ANN_FX_SPU ("foreign exchange
   // transactions") — "exchange rates" er spesifikk nok til å skille de to.
   const hits = await searchCatalog("norgesbank", "exchange rates", { registry: REG, origin: "https://app.test", fetchImpl: fakeSdmxFetch(NB_DATAFLOW_FIXTURE, calls) });
   assertEquals(hits.length, 1);
   assertEquals(hits[0].id, "NB/EXR");
-  assertEquals(calls[0], "application/vnd.sdmx.structure+json;version=1.0.0");
+  assertEquals(calls[0].accept, "application/vnd.sdmx.structure+json;version=1.0.0");
+  // Verifisert 2026-07-25: OECDs strukturendepunkt svarer 500 uten denne
+  // headeren (Denos fetch, ikke curl) — sendes derfor alltid, for alle sdmx-kilder.
+  assertEquals(calls[0].lang, "en");
 });
 
 Deno.test("sdmxSearch: ecb (utenfor SDMX_STRUCTURE_ACCEPT) kaster tydelig feil", async () => {

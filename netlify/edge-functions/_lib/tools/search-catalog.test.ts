@@ -245,6 +245,26 @@ Deno.test("statfinSearch: rekurserer inn i mapper, treffer på tabelltittel", as
   assertEquals(hits[0].id, "tyti/11pk.px");
 });
 
+function fakeStatfinRootFailureFetch(): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith("StatFin/")) {
+      return Promise.resolve(new Response("server error", { status: 500 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("statfinSearch: rot-mappe feiler (HTTP 500) kaster feil, returnerer ikke tom liste", async () => {
+  let threw = "";
+  try {
+    await searchCatalog("statfin", "employment", { registry: REG, origin: "https://app.test", fetchImpl: fakeStatfinRootFailureFetch() });
+  } catch (e) {
+    threw = String(e);
+  }
+  if (!threw.includes("statfin mappeliste feilet")) throw new Error(`ventet 'statfin mappeliste feilet'-feil, fikk: ${threw}`);
+});
+
 // --- sdmx adapter (Task 5) ---
 
 const NB_DATAFLOW_FIXTURE = {

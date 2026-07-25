@@ -185,7 +185,10 @@ async function statfinSearch(src: DataSource, query: string, f: typeof fetch): P
     if (hits.length >= MAX_HITS || folderFetches >= MAX_FOLDER_FETCHES) return;
     folderFetches++;
     const res = await f(new URL(path, src.base_url).toString());
-    if (!res.ok) return; // én feilet undermappe stopper ikke resten av søket
+    if (!res.ok) {
+      if (path === "") throw new Error(`statfin mappeliste feilet: HTTP ${res.status}`);
+      return; // én feilet undermappe stopper ikke resten av søket
+    }
     const entries = await res.json() as StatfinEntry[];
     for (const e of entries) {
       if (hits.length >= MAX_HITS) return;

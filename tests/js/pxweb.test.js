@@ -82,7 +82,7 @@ test('resolve: kind(pxweb) krever tabell-id og setter table', () => {
   assert.equal(bef.table, '05839');
   assert.equal(bef.url, 'https://data.ssb.no/api/pxwebapi/v2/tables/05839?valueCodes[Tid]=2020');
   const feil = r.find(x => x.alias === 'feil');
-  assert.match(feil.error, /tabell-id/);
+  assert.match(feil.error, /ressurssti/);
 });
 
 // ── cache()-opsjonen (plan 2026-07-25-eksportgap-cache-openstatpy Task 1) ───
@@ -122,7 +122,7 @@ test('resolve: kind(eurostat) krever tabell-id, som pxweb', () => {
   const bnp = r.find(x => x.alias === 'bnp');
   assert.equal(bnp.kind, 'eurostat');
   assert.equal(bnp.table, 'nama_10_gdp');
-  assert.match(r.find(x => x.alias === 'feil').error, /tabell-id/);
+  assert.match(r.find(x => x.alias === 'feil').error, /ressurssti/);
 });
 
 test('fetchResolvedItems: eurostat henter json-stat2 og leverer csv-bytes', async () => {

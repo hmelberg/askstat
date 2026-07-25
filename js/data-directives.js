@@ -80,6 +80,16 @@
     return null;
   }
 
+  // API-kinds (spec 2026-07-25-api-kinds-design §1): registeret kan bære kind
+  // (`# connect worldbank` uten kind()), og kildenavn (oecd/ecb/norgesbank/
+  // imf) normaliseres til protokoll-kind (sdmx) via ApiKinds når modulen er
+  // lastet — brukeren kjenner kilden, ikke formatet.
+  function normalizeKind(kind, src) {
+    var k = kind || (src && src.kind) || undefined;
+    var AKD = global.ApiKinds;
+    return (k && AKD && AKD.kindAlias(k)) ? AKD.kindAlias(k) : k;
+  }
+
   function resolve(parsed, registry) {
     var byAlias = {};
     parsed.connects.forEach(function (c) { byAlias[c.alias] = c; });
@@ -88,7 +98,7 @@
       if (isUrlish(l.target)) {
         return { alias: l.alias, url: l.target,
                  viaProxy: l.target.indexOf('/api/hent?') === 0,
-                 key: lopts.key, exec: lopts.exec, kind: lopts.kind, cache: lopts.cache };
+                 key: lopts.key, exec: lopts.exec, kind: normalizeKind(lopts.kind, null), cache: lopts.cache };
       }
       var slash = l.target.indexOf('/');
       var head = slash > 0 ? l.target.slice(0, slash) : l.target;
@@ -98,24 +108,28 @@
       var copts = conn.options || {};
       var key = lopts.key || copts.key, exec = lopts.exec || copts.exec, kind = lopts.kind || copts.kind;
       var cache = lopts.cache || copts.cache;
-      var base, viaProxy = false;
+      var base, viaProxy = false, src = null;
       if (isUrlish(conn.target)) {
         base = conn.target;
       } else {
-        var src = findRegistrySource(registry, conn.target);
+        src = findRegistrySource(registry, conn.target);
         if (!src) {
           // Ikke i web-registeret: en registrert Anvil-kilde (spec §1, regel 3).
-          return { alias: l.alias, anvil: conn.target, key: key, exec: exec, kind: kind };
+          return { alias: l.alias, anvil: conn.target, key: key, exec: exec, kind: normalizeKind(kind, null) };
         }
         base = src.base_url;
         viaProxy = !!src.auth || src.cors === false;
       }
-      // pxweb (spec 2026-07-24-pxweb-sources-design §2): «stien» er
-      // tabell-id-en (evt. med PxWeb-query bak ?); lastelaget bygger
-      // /data- og /metadata-URL-ene selv (js/pxweb.js).
-      if (kind === 'pxweb' || kind === 'eurostat') {
+      kind = normalizeKind(kind, src);
+      // pxweb (spec 2026-07-24-pxweb-sources-design §2) og api-kinds (spec
+      // 2026-07-25-api-kinds-design §2): «stien» er tabell-id/ressurssti
+      // (evt. med kildens query bak ?); lastelaget bygger data-URL-ene selv.
+      if (kind === 'pxweb' || kind === 'eurostat' || kind === 'sdmx' || kind === 'dbnomics' || kind === 'worldbank') {
         if (!rest) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
-          error: '«' + l.alias + '»: ' + kind + '-kilder krever en tabell-id — «read ' + head + '/<tabellid> as ' + l.alias + '»' };
+          error: '«' + l.alias + '»: ' + kind + '-kilder krever en ressurssti — «read ' + head + '/<sti> as ' + l.alias + '» (f.eks. ' +
+            (kind === 'worldbank' ? 'country/NOR/indicator/NY.GDP.MKTP.CD' :
+             kind === 'dbnomics' ? 'IMF/WEO:latest/NOR.NGDP_RPCH' :
+             kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' : '<tabellid>') + ')' };
         if (base.charAt(base.length - 1) !== '/') base += '/';
         var qi = rest.indexOf('?');
         return { alias: l.alias, url: base + rest, viaProxy: viaProxy, key: key, exec: exec, kind: kind,

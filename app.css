@@ -673,6 +673,18 @@
     .sidebar-var-type-id svg { display: block; }
     .sidebar-var-name { flex: 1; min-width: 0; word-break: break-word; font-weight: 700; }
     .sidebar-empty { color: var(--text-muted); font-size: 12px; }
+    /* Stale datasett (Task 5, spec 2026-07-25-metadata-ui-datasett-flate-
+       design): fra en annen motor enn aktiv editor-modus — grået ut, sortert
+       nederst (updateSidebarDatasets), merkelapp «(fra <runtime>)». Notaten
+       som forklarer «kjør scriptet i denne modusen» settes inn som SØSKEN
+       rett etter .sidebar-dataset, ikke inni den — ellers ville den arvet
+       denne opacityen. */
+    .sidebar-dataset-stale { opacity: .55; }
+    .sidebar-dataset-stale-label { font-weight: 400; }
+    .sidebar-dataset-stale-note { margin: 4px 0 12px 2px; padding: 8px 10px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.4; color: var(--text); }
+    .sidebar-dataset-stale-note p { margin: 0 0 8px 0; }
+    .sidebar-dataset-stale-run-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; color: var(--text); font-size: 12px; line-height: 1.4; }
+    .sidebar-dataset-stale-run-btn:hover { border-color: var(--accent); color: var(--accent); }
     /* Metadata-container i «Tilkoblede kilder» (spec 2026-07-25-metadata-sidebar §5) */
     /* Hele navneraden er ETT klikkbart målpunkt (navn + ⓘ) → åpner containeren. */
     .sidebar-src-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; cursor: pointer; padding: 2px 4px; margin: 0 -4px; border-radius: 4px; }

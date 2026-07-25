@@ -791,4 +791,9 @@ window.M2PY_I18N.en = {
   "Fra fellesskapet": "From the community",
   "Kommentarer": "Comments",
   "Åpne på GitHub": "Open on GitHub",
+
+  // ── Stale datasett i sidebaren (spec 2026-07-25-metadata-ui-datasett-flate-design, Task 5) ──
+  "fra {rt}": "from {rt}",
+  "Datasettet ble lastet i {rt}-modus. Kjør scriptet i denne modusen for å hente det inn (mellomlagrede data gjør det raskt).": "The dataset was loaded in {rt} mode. Run the script in this mode to fetch it (cached data makes this fast).",
+  "Kjør scriptet": "Run the script",
 };

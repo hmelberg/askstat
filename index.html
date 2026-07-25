@@ -4375,8 +4375,22 @@
         return;
       }
       emptyEl.style.display = 'none';
-      datasetsEl.innerHTML = names.map(function(dsName) {
+      // Stale-sortering (Task 5, spec 2026-07-25-metadata-ui-datasett-flate-
+      // design): et datasett lastet av en ANNEN motor enn aktiv editor-modus
+      // kan ikke leses av gjeldende motor (hver motor har sin egen VM/økt).
+      // DatasetOrder.order() (js/dataset-order.js) deler navnene i active/
+      // stale; RUNTIME_TAGS er samme vokabular som nonPyRuntime under bruker
+      // for et enkelt datasetts egen runtime-tag (udefinert → 'python').
+      var RUNTIME_TAGS = ['r', 'duckdb', 'brython', 'micropython', 'javascript'];
+      var activeRuntime = RUNTIME_TAGS.indexOf(activeEditorMode) >= 0 ? activeEditorMode : 'python';
+      var ord = window.DatasetOrder ? window.DatasetOrder.order(info, activeRuntime) : { active: names, stale: [] };
+      var staleSet = {};
+      ord.stale.forEach(function (n) { staleSet[n] = true; });
+      var orderedNames = ord.active.concat(ord.stale);
+      datasetsEl.innerHTML = orderedNames.map(function(dsName) {
         var meta = info[dsName];
+        var isStale = !!staleSet[dsName];
+        var dsRuntime = (meta && meta.runtime) || 'python';
         var columns = meta.columns || [];
         var dtypes = meta.dtypes || {};
         var colsOrdered = sortColumnsWithIdsFirst(columns, dtypes);
@@ -4388,10 +4402,16 @@
           var typeCell = getSidebarTypeCellHtml(v, dtypeStr);
           return '<div class="sidebar-var-row" data-ds="' + escapeHtml(dsName) + '" data-var="' + escapeHtml(v) + '">' + typeCell + '<span class="sidebar-var-name">' + escapeHtml(v) + '</span></div>';
         }).join('');
-        var badgeHtml = badge ? ' <span style="opacity:.55;font-size:11px;font-weight:400">(' + escapeHtml(badge) + ')</span>' : '';
-        return '<div class="sidebar-dataset">' +
+        // Badgen (kaller-oppgitt, gjelder hele kallet) utelates for stale
+        // rader — (fra <runtime>) under er den PRESISE per-datasett-taggen,
+        // og de to ville ellers motsi hverandre (f.eks. «(JS)» ved siden av
+        // et datasett som faktisk er stale fra brython).
+        var badgeHtml = (!isStale && badge) ? ' <span style="opacity:.55;font-size:11px;font-weight:400">(' + escapeHtml(badge) + ')</span>' : '';
+        var staleLabelHtml = isStale ? ' <span class="sidebar-dataset-stale-label">(' + escapeHtml(t('fra {rt}', { rt: dsRuntime })) + ')</span>' : '';
+        var staleAttr = isStale ? ' data-stale-rt="' + escapeHtml(dsRuntime) + '"' : '';
+        return '<div class="sidebar-dataset' + (isStale ? ' sidebar-dataset-stale' : '') + '"' + staleAttr + '>' +
           '<div class="sidebar-dataset-name" data-ds="' + escapeHtml(dsName) + '">' +
-            '<span class="sidebar-dataset-name-text">' + escapeHtml(dsName) + badgeHtml + '</span>' +
+            '<span class="sidebar-dataset-name-text">' + escapeHtml(dsName) + staleLabelHtml + badgeHtml + '</span>' +
             '<button class="meta-info-btn" data-meta-ds="' + escapeHtml(dsName) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>' +
           '</div>' +
           '<div class="meta-info-container" data-meta-ds-container="' + escapeHtml(dsName) + '" style="display:none"></div>' +
@@ -4405,11 +4425,42 @@
       // (gates stille inne i showVariableDetail).
       function nonPyRuntime(ds) {
         var m = window.lastDatasetInfo && window.lastDatasetInfo[ds];
-        return (m && ['r', 'duckdb', 'brython', 'micropython', 'javascript'].indexOf(m.runtime) >= 0) ? m.runtime : null;
+        return (m && RUNTIME_TAGS.indexOf(m.runtime) >= 0) ? m.runtime : null;
+      }
+      // Stale datasett (Task 5): var-rad-klikk og ⓘ viser en liten inline
+      // «kjør scriptet i denne modusen»-forklaring i stedet for panelet/
+      // metadata-containeren, satt inn som SØSKEN rett etter .sidebar-dataset
+      // (ikke inni den) — ellers ville notatens tekst arvet .sidebar-dataset-
+      // stale sin opacity:.55 og blitt vanskelig å lese. Én knapp for både
+      // kilde- og beregnede datasett: btnRun.click() kjører hele scriptet på
+      // nytt, som materialiserer begge (kildebytene er allerede cachet i
+      // DataLoader sin _bufCache — rask gjeninnhenting).
+      function showStaleRunExplanation(dsDiv, dsName, rt) {
+        var next = dsDiv.nextElementSibling;
+        if (next && next.classList.contains('sidebar-dataset-stale-note') && next.getAttribute('data-stale-note-for') === dsName) {
+          next.remove();
+          return;
+        }
+        var openNote = datasetsEl.querySelector('.sidebar-dataset-stale-note');
+        if (openNote) openNote.remove();
+        var note = document.createElement('div');
+        note.className = 'sidebar-dataset-stale-note';
+        note.setAttribute('data-stale-note-for', dsName);
+        note.innerHTML = '<p>' + escapeHtml(t('Datasettet ble lastet i {rt}-modus. Kjør scriptet i denne modusen for å hente det inn (mellomlagrede data gjør det raskt).', { rt: rt })) + '</p>' +
+          '<button type="button" class="sidebar-dataset-stale-run-btn">' + escapeHtml(t('Kjør scriptet')) + '</button>';
+        dsDiv.parentNode.insertBefore(note, dsDiv.nextSibling);
+        note.querySelector('button').addEventListener('click', function (e) {
+          e.stopPropagation();
+          var btn = document.getElementById('btnRun');
+          if (btn) btn.click();
+        });
       }
       datasetsEl.querySelectorAll('.sidebar-var-row').forEach(function(el) {
         el.addEventListener('click', function() {
           var ds = this.getAttribute('data-ds');
+          var dsDiv = this.closest('.sidebar-dataset');
+          var staleRt = dsDiv && dsDiv.getAttribute('data-stale-rt');
+          if (staleRt) { showStaleRunExplanation(dsDiv, ds, staleRt); return; }
           var v = this.getAttribute('data-var');
           showVariableDetail(ds, v);
         });
@@ -4423,12 +4474,17 @@
           if (ds) showIndividataModal(ds);
         });
       });
-      // ⓘ på datasettraden: åpner metadata-containeren (lazy). stopPropagation
-      // hindrer at datasett-navnets individata-klikk fyrer samtidig. Samme
-      // per-element-idiom som .sidebar-var-row-wiringen over.
+      // ⓘ på datasettraden: åpner metadata-containeren (lazy) — eller, for et
+      // stale datasett, samme inline «kjør scriptet»-forklaring som var-rad-
+      // klikket over. stopPropagation hindrer at datasett-navnets individata-
+      // klikk fyrer samtidig. Samme per-element-idiom som .sidebar-var-row-
+      // wiringen over.
       datasetsEl.querySelectorAll('.meta-info-btn').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
+          var dsDiv = this.closest('.sidebar-dataset');
+          var staleRt = dsDiv && dsDiv.getAttribute('data-stale-rt');
+          if (staleRt) { showStaleRunExplanation(dsDiv, this.getAttribute('data-meta-ds'), staleRt); return; }
           metaToggleDataset(this);
         });
       });
@@ -11852,6 +11908,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/data-directives.js"></script>
   <script src="js/meta-info.js"></script>
   <script src="js/comments.js"></script>
+  <script src="js/dataset-order.js"></script>
   <script src="js/pxweb.js"></script>
   <script src="js/enc-crypto.js"></script>
   <script src="js/data-loader.js"></script>

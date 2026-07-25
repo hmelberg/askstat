@@ -153,3 +153,30 @@ Deno.test("parseAssembly: inline-URL load is NOT assembly (stays on the old path
   assertEquals(spec.datasets, []);
   assertEquals(spec.sources, []);
 });
+
+Deno.test("meta-direktiv: tekst, lenke m/etikett, variabel-nivå, akkumulering", () => {
+  const p = DD.parse([
+    "# read https://x.example/lonn.csv as lonn",
+    "# meta lonn Spørreundersøkelse om lønn, innsamlet 2024",
+    "# meta lonn https://x.example/skjema.pdf Spørreskjema",
+    "# meta lonn.alder Alder ved utgangen av inntektsåret",
+    "-- meta lonn.alder https://x.example/kodebok#alder",
+  ].join("\n"));
+  assertEquals(p.metas.length, 4);
+  assertEquals(p.metas[0], { target: "lonn", variable: null, kind: "text",
+    text: "Spørreundersøkelse om lønn, innsamlet 2024", url: undefined, label: undefined,
+    line: "# meta lonn Spørreundersøkelse om lønn, innsamlet 2024" });
+  assertEquals(p.metas[1].kind, "link");
+  assertEquals(p.metas[1].url, "https://x.example/skjema.pdf");
+  assertEquals(p.metas[1].label, "Spørreskjema");
+  assertEquals(p.metas[2].target, "lonn");
+  assertEquals(p.metas[2].variable, "alder");
+  assertEquals(p.metas[3].kind, "link");
+  assertEquals(p.metas[3].label, undefined); // ingen etikett etter URL
+});
+
+Deno.test("meta-direktiv: split på FØRSTE punktum, // og -- kommentartegn, tom linje ignoreres", () => {
+  const p = DD.parse("// meta d.a.b tekst her\n# meta   \n# meta d");
+  assertEquals(p.metas.length, 1);           // de to ufullstendige droppes (mangler innhold)
+  assertEquals(p.metas[0].variable, "a.b");  // alt etter første punktum er variabelnavn
+});

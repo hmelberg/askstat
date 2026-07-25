@@ -31,6 +31,11 @@
   var JOIN_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*join[ \t]+([A-Za-z_]\w*)[ \t]+into[ \t]+([A-Za-z_]\w*)[ \t]+on[ \t]+([A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
   var LOADAS_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:read|load)[ \t]+([A-Za-z_]\w*(?:\/[A-Za-z_]\w*)?)[ \t]+as[ \t]+([A-Za-z_]\w*)[ \t]*$/gim;
 
+  // # meta <alias>[.<variabel>] <innhold> — spec 2026-07-25-metadata-sidebar-design §3.
+  // Innhold som starter med http(s):// er en lenke (resten = valgfri etikett),
+  // ellers beskrivelsestekst. Gjentatte direktiver akkumulerer.
+  var META_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*meta[ \t]+([A-Za-z_]\w*(?:\.\S+)?)[ \t]+(\S.*)$/gim;
+
   function isUrlish(target) {
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;
   }
@@ -163,7 +168,23 @@
       if (verb === 'require' && !isUrlish(m[2])) continue;
       loads.push({ verb: verb, target: m[2], alias: m[3], options: parseOptions(m[4]), line: m[0].trim() });
     }
-    return { connects: connects, loads: loads, errors: errors };
+    var metas = [];
+    META_RE.lastIndex = 0;
+    while ((m = META_RE.exec(script)) !== null) {
+      var dot = m[1].indexOf('.');
+      var tgt = dot > 0 ? m[1].slice(0, dot) : m[1];
+      var variable = dot > 0 ? m[1].slice(dot + 1) : null;
+      var content = m[2].trim();
+      var um = content.match(/^(https?:\/\/\S+)(?:[ \t]+(.*))?$/i);
+      if (um) {
+        metas.push({ target: tgt, variable: variable, kind: 'link',
+                     url: um[1], label: (um[2] || '').trim() || undefined, text: undefined, line: m[0].trim() });
+      } else {
+        metas.push({ target: tgt, variable: variable, kind: 'text',
+                     url: undefined, label: undefined, text: content, line: m[0].trim() });
+      }
+    }
+    return { connects: connects, loads: loads, metas: metas, errors: errors };
   }
 
   function findRegistrySource(registry, id) {

@@ -90,7 +90,49 @@
     return cols;
   }
 
+  // ── dbnomics (spec §1): series.docs[] med period/value-arrayer;
+  // observations=1 må tvinges (uten den kommer bare metadata). CSV-varianten
+  // deres er BRED med avsnitts-lange kolonnenavn — derfor JSON + flatener.
+  function dbnomicsDataUrl(url) {
+    var u = splitUrl(url);
+    var parts = stripParam(u.query, 'observations');
+    parts.push('observations=1');
+    return u.base + '?' + parts.join('&');
+  }
+  function dbnomicsColumns(doc) {
+    var series = (doc || {}).series || {};
+    var docs = series.docs || [];
+    if (series.num_found > docs.length) {
+      throw new Error('DBnomics-spørringen traff ' + series.num_found + ' serier, men API-et ' +
+        'leverer maks ' + (series.limit || docs.length) + ' — snevre inn med dimensjonsfiltre i stien');
+    }
+    // dimensjonskolonner: union over docs, sortert for stabil orden på tvers
+    // av JS/Python (objektnøkkel-orden er ellers innsettingsavhengig)
+    var dimNames = [];
+    docs.forEach(function (d) {
+      Object.keys(d.dimensions || {}).forEach(function (k) {
+        if (dimNames.indexOf(k) < 0) dimNames.push(k);
+      });
+    });
+    dimNames.sort();
+    var cols = { series_code: [] };
+    dimNames.forEach(function (k) { cols[k] = []; });
+    cols.period = []; cols.value = [];
+    docs.forEach(function (d) {
+      var periods = d.period || [], values = d.value || [];
+      for (var i = 0; i < periods.length; i++) {
+        cols.series_code.push(d.series_code || '');
+        dimNames.forEach(function (k) { cols[k].push(String((d.dimensions || {})[k] || '')); });
+        cols.period.push(String(periods[i]));
+        var v = values[i];
+        cols.value.push(v === undefined || v === null || v === 'NA' ? null : v);
+      }
+    });
+    return cols;
+  }
+
   var api = { kindAlias: kindAlias, SDMX_ACCEPT: SDMX_ACCEPT,
+              dbnomicsDataUrl: dbnomicsDataUrl, dbnomicsColumns: dbnomicsColumns,
               sdmxNeedsFallback: sdmxNeedsFallback, sdmxFallbackUrl: sdmxFallbackUrl,
               worldbankDataUrl: worldbankDataUrl, worldbankPageUrl: worldbankPageUrl,
               worldbankMeta: worldbankMeta, worldbankColumns: worldbankColumns };

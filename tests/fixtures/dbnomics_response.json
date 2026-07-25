@@ -1,0 +1,32 @@
+{
+  "_kommentar": "Trimmet EKTE svar fra api.db.nomics.world/v22/series probet 2026-07-25 (IMF/WEO NOR.NGDP_RPCH), utvidet med serie nr. 2 og null-verdi for flatener-testen; 'overflow' tester num_found > docs. Deles av tests/js/api-kinds.test.js og tests/test_openstat.py — samme tall begge steder ER paritetskontrakten.",
+  "ok": {
+    "series": {
+      "limit": 1000, "num_found": 2, "offset": 0,
+      "docs": [
+        {
+          "provider_code": "IMF", "dataset_code": "WEO:2025-04",
+          "series_code": "NOR.NGDP_RPCH.pcent_change",
+          "series_name": "Norway – Gross domestic product, constant prices – Percent change",
+          "dimensions": {"unit": "pcent_change", "weo-country": "NOR", "weo-subject": "NGDP_RPCH"},
+          "period": ["2024", "2025", "2026"],
+          "value": [2.058, 1.531, null]
+        },
+        {
+          "provider_code": "IMF", "dataset_code": "WEO:2025-04",
+          "series_code": "SWE.NGDP_RPCH.pcent_change",
+          "series_name": "Sweden – Gross domestic product, constant prices – Percent change",
+          "dimensions": {"unit": "pcent_change", "weo-country": "SWE", "weo-subject": "NGDP_RPCH"},
+          "period": ["2024", "2025", "2026"],
+          "value": [0.981, 2.297, 2.363]
+        }
+      ]
+    }
+  },
+  "overflow": {
+    "series": {
+      "limit": 1000, "num_found": 1500, "offset": 0,
+      "docs": []
+    }
+  }
+}

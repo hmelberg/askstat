@@ -70,6 +70,32 @@ test('worldbankColumns: flater sider til koder + value, null bevart', () => {
   assert.equal(cols.value[6], null);
 });
 
+// ── dbnomics (spec §1): series.docs[] med period/value-arrayer ──────────────
+const DBN = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'dbnomics_response.json'), 'utf8'));
+
+test('dbnomicsDataUrl: observations=1 tvinges på', () => {
+  assert.equal(AK.dbnomicsDataUrl('https://api.db.nomics.world/v22/series/IMF/WEO:latest/NOR.NGDP_RPCH'),
+    'https://api.db.nomics.world/v22/series/IMF/WEO:latest/NOR.NGDP_RPCH?observations=1');
+  assert.equal(AK.dbnomicsDataUrl('https://x/v22/series/A/B/C?observations=0&limit=5'),
+    'https://x/v22/series/A/B/C?limit=5&observations=1');
+});
+
+test('dbnomicsColumns: én rad per (serie, periode); dimensjoner som kolonner; null bevart', () => {
+  const cols = AK.dbnomicsColumns(DBN.ok);
+  assert.deepEqual(Object.keys(cols), ['series_code', 'unit', 'weo-country', 'weo-subject', 'period', 'value']);
+  assert.equal(cols.series_code.length, 6);
+  assert.equal(cols.series_code[0], 'NOR.NGDP_RPCH.pcent_change');
+  assert.equal(cols['weo-country'][0], 'NOR');
+  assert.equal(cols['weo-country'][3], 'SWE');
+  assert.equal(cols.period[0], '2024');
+  assert.equal(cols.value[0], 2.058);
+  assert.equal(cols.value[2], null);
+});
+
+test('dbnomicsColumns: num_found > docs → ærlig norsk feil', () => {
+  assert.throws(() => AK.dbnomicsColumns(DBN.overflow), /1500 serier/);
+});
+
 test('sdmxFallbackUrl: format=csvdata legges på, eksisterende format strippes', () => {
   assert.equal(AK.sdmxFallbackUrl('https://x/data/EXR/D.USD?startPeriod=2026'),
     'https://x/data/EXR/D.USD?startPeriod=2026&format=csvdata');

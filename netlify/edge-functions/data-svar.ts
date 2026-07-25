@@ -129,7 +129,7 @@ export default async (request: Request): Promise<Response> => {
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_catalog") {
-      return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry }));
+      return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin }));
     }
     if (name === "table_metadata") {
       return JSON.stringify(await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), { registry }));

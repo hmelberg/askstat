@@ -1,6 +1,8 @@
 // search_catalog tool: per-source-type adapters over live catalog APIs.
-// Adapters exist for pxweb (SSB & friends) and ckan (Felles datakatalog).
-// Other tilgang values are reached via web_search + probe (prompt rule).
+// Adapters exist for pxweb (SSB & friends), ckan (Felles datakatalog), og
+// apd (lokal, forhåndshøstet katalog — se
+// docs/superpowers/specs/2026-07-25-apd-catalog-design.md). Andre tilgang-
+// verdier nås via web_search + probe (prompt-regel).
 import { findSource, type DataSource } from "../registry.ts";
 
 export interface CatalogHit {
@@ -13,6 +15,7 @@ export interface CatalogHit {
 
 export interface CatalogDeps {
   registry: DataSource[];
+  origin: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -25,12 +28,15 @@ export async function searchCatalog(
 ): Promise<CatalogHit[]> {
   const src = findSource(deps.registry, sourceId);
   if (!src) throw new Error(`ukjent kilde '${sourceId}' — bruk en id fra kilderegisteret`);
-  if (!src.sok_endepunkt) throw new Error(`kilden '${sourceId}' er ikke søkbar — bruk web_search + probe i stedet`);
   const f = deps.fetchImpl ?? fetch;
+  if (!src.sok_endepunkt && src.kind !== "apd") {
+    throw new Error(`kilden '${sourceId}' er ikke søkbar — bruk web_search + probe i stedet`);
+  }
   switch (src.tilgang) {
     case "pxweb": return pxwebSearch(src, query, f);
     case "ckan": return fdkSearch(src, query, f);
     default:
+      if (src.kind === "apd") return apdSearch(query, deps.origin, f);
       throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
   }
 }
@@ -71,4 +77,41 @@ async function fdkSearch(src: DataSource, query: string, f: typeof fetch): Promi
       url: String(h.uri ?? ""),
     };
   });
+}
+
+interface ApdCatalogEntry {
+  identifier: string;
+  name: string;
+  description: string;
+  url: string;
+  keywords: string[];
+  category: string;
+}
+
+let _apdCache: ApdCatalogEntry[] | null = null;
+export function clearApdCatalogCache(): void { _apdCache = null; }
+
+async function loadApdCatalog(origin: string, f: typeof fetch): Promise<ApdCatalogEntry[]> {
+  if (_apdCache) return _apdCache;
+  const res = await f(new URL("/data/apd-catalog.json", origin).toString());
+  if (!res.ok) throw new Error(`kunne ikke hente apd-katalog: HTTP ${res.status}`);
+  _apdCache = await res.json() as ApdCatalogEntry[];
+  return _apdCache;
+}
+
+async function apdSearch(query: string, origin: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const catalog = await loadApdCatalog(origin, f);
+  const q = query.toLowerCase();
+  const hits = catalog.filter((e) =>
+    e.name.toLowerCase().includes(q) ||
+    e.description.toLowerCase().includes(q) ||
+    e.category.toLowerCase().includes(q) ||
+    e.keywords.some((k) => k.toLowerCase().includes(q))
+  );
+  return hits.slice(0, MAX_HITS).map((e) => ({
+    source: "apd",
+    id: e.identifier,
+    title: e.name,
+    url: e.url,
+  }));
 }

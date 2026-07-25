@@ -114,6 +114,27 @@ Deno.test("apdSearch: caps at 20 hits", async () => {
   clearApdCatalogCache();
 });
 
+Deno.test("apdSearch: caches the catalog across repeated calls (no re-fetch)", async () => {
+  clearApdCatalogCache();
+  let fetchCount = 0;
+  const countingFetch = ((input: string | URL | Request, init?: RequestInit) => {
+    fetchCount++;
+    return Promise.resolve(new Response(JSON.stringify(APD_FIXTURE), { status: 200 }));
+  }) as typeof fetch;
+
+  // First call should fetch the catalog
+  const hits1 = await searchCatalog("apd", "fruit", { registry: REG, origin: ORIGIN, fetchImpl: countingFetch });
+  assertEquals(hits1.length, 1);
+  assertEquals(fetchCount, 1);
+
+  // Second call with different query should use cached catalog (no additional fetch)
+  const hits2 = await searchCatalog("apd", "gdp", { registry: REG, origin: ORIGIN, fetchImpl: countingFetch });
+  assertEquals(hits2.length, 1);
+  assertEquals(fetchCount, 1, "Second call should use cached catalog, not fetch again");
+
+  clearApdCatalogCache();
+});
+
 Deno.test("source without sok_endepunkt or apd-kind is not searchable", async () => {
   let threw = "";
   try { await searchCatalog("owid", "co2", { registry: REG, origin: ORIGIN }); } catch (e) { threw = String(e); }

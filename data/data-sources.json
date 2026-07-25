@@ -1,142 +1,270 @@
 [
   {
-    "id": "ssb", "navn": "Statistisk sentralbyrå (PxWebApi 2)", "utgiver": "SSB",
-    "tillit": "offisiell", "tilgang": "pxweb",
+    "id": "ssb",
+    "navn": "Statistisk sentralbyrå (PxWebApi 2)",
+    "utgiver": "SSB",
+    "tillit": "offisiell",
+    "tilgang": "pxweb",
     "base_url": "https://data.ssb.no/api/pxwebapi/v2-beta/",
     "sok_endepunkt": "https://data.ssb.no/api/pxwebapi/v2-beta/tables?query={q}&lang=no",
     "cors": false,
-    "join_nokler": ["kommunenummer", "fylkesnummer", "år"],
+    "join_nokler": [
+      "kommunenummer",
+      "fylkesnummer",
+      "år"
+    ],
     "sporrings_url_mal": "https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv",
     "quirks": "GET med valueCodes per dimensjon; outputFormat=csv gir CSV direkte. Verifisert 2026-07-03: /v2-beta/.../data probet gjentatte ganger til å feile (bruk /v2/ uten -beta for selve datauttrekket — søk og /metadata funker fint på v2-beta); data-endepunktet sender ingen Access-Control-Allow-Origin, så uttrekk MÅ gå via /api/hent-proxy uansett hva denne cors-flagget sier andre steder i registeret."
   },
   {
-    "id": "eurostat", "navn": "Eurostat (dissemination API)", "utgiver": "Eurostat",
-    "tillit": "offisiell", "tilgang": "rest",
-    "base_url": "https://ec.europa.eu/eurostat/api/dissemination/",
+    "id": "eurostat",
+    "navn": "Eurostat (dissemination API)",
+    "utgiver": "Eurostat",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/",
     "cors": true,
-    "join_nokler": ["geo (NUTS/ISO2)", "time"],
+    "join_nokler": [
+      "geo (NUTS/ISO2)",
+      "time"
+    ],
     "sporrings_url_mal": "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&{dim}={kode}",
-    "quirks": "SDMX-CSV via format=SDMX-CSV; dimensjonsfiltre i sti/spørring"
+    "quirks": "kind(eurostat): json-stat2 via statistics/1.0/data/<kode>?format=JSON&lang=en + direkte dimensjonsfiltre (geo=NO&na_item=B1GQ — ikke valueCodes); sinceTimePeriod/untilTimePeriod for tid; katalog-proben bruker lastTimePeriod=1 og 400-er kombinert med brukerens tidsfiltre (strippes av proben). base_url endret 2026-07-25 til data-endepunktet (før: dissemination-roten) så «connect eurostat» virker uten full URL.",
+    "kind": "eurostat"
   },
   {
-    "id": "worldbank", "navn": "World Bank Open Data", "utgiver": "Verdensbanken",
-    "tillit": "offisiell", "tilgang": "rest",
+    "id": "worldbank",
+    "navn": "World Bank Open Data",
+    "utgiver": "Verdensbanken",
+    "tillit": "offisiell",
+    "tilgang": "rest",
     "base_url": "https://api.worldbank.org/v2/",
     "cors": true,
-    "join_nokler": ["iso3c (land)", "date (år)"],
+    "join_nokler": [
+      "iso3c (land)",
+      "date (år)"
+    ],
     "sporrings_url_mal": "https://api.worldbank.org/v2/country/{land}/indicator/{id}?format=json&per_page=20000",
-    "quirks": "JSON er [meta, rader]; per_page må settes høyt; land som 'all' eller ISO-koder adskilt med ;"
+    "quirks": "JSON er [meta, rader]; per_page-default er 50 — adapteren setter 20000 og følger meta.pages (tak 10 sider); land som ISO-koder adskilt med ; eller 'all'; feilform [{message:[…]}] surfaces som norsk feil. Utenfor openstat: python-pakkene wbgapi/dbnomics.",
+    "kind": "worldbank"
   },
   {
-    "id": "oecd", "navn": "OECD SDMX", "utgiver": "OECD",
-    "tillit": "offisiell", "tilgang": "sdmx",
-    "base_url": "https://sdmx.oecd.org/public/rest/",
+    "id": "oecd",
+    "navn": "OECD SDMX",
+    "utgiver": "OECD",
+    "tillit": "offisiell",
+    "tilgang": "sdmx",
+    "base_url": "https://sdmx.oecd.org/public/rest/data/",
     "cors": true,
-    "join_nokler": ["LOCATION (ISO3)", "TIME_PERIOD"],
-    "quirks": "SDMX-JSON/CSV; dataflow-id + nøkkel i sti; format=csvfile for CSV"
+    "join_nokler": [
+      "LOCATION (ISO3)",
+      "TIME_PERIOD"
+    ],
+    "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow>[,<versjon>]/<nøkkel> — nøkkelen er punktumdelt med ett ledd per dimensjon (422-teksten sier antallet, f.eks. «expecting 13»); /all + startPeriod=/endPeriod= virker alltid. Adapteren henter CSV via Accept-header (application/vnd.sdmx.data+csv;labels=id — verifisert 2026-07-25); c[DIM]=filtre ignoreres STILLE (SDMX 3.0-syntaks, API-et er 2.1) — bruk nøkkelstien. CORS: reflektert origin.",
+    "kind": "sdmx"
   },
   {
-    "id": "who", "navn": "WHO Global Health Observatory (OData)", "utgiver": "WHO",
-    "tillit": "offisiell", "tilgang": "rest",
+    "id": "who",
+    "navn": "WHO Global Health Observatory (OData)",
+    "utgiver": "WHO",
+    "tillit": "offisiell",
+    "tilgang": "rest",
     "base_url": "https://ghoapi.azureedge.net/api/",
     "cors": true,
-    "join_nokler": ["SpatialDim (ISO3)", "TimeDim (år)"],
+    "join_nokler": [
+      "SpatialDim (ISO3)",
+      "TimeDim (år)"
+    ],
     "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste"
   },
   {
-    "id": "owid", "navn": "Our World in Data (grapher-CSV)", "utgiver": "OWID",
-    "tillit": "etablert", "tilgang": "fil",
+    "id": "owid",
+    "navn": "Our World in Data (grapher-CSV)",
+    "utgiver": "OWID",
+    "tillit": "etablert",
+    "tilgang": "fil",
     "base_url": "https://ourworldindata.org/grapher/",
     "cors": true,
-    "join_nokler": ["Entity/Code (land)", "Year"],
+    "join_nokler": [
+      "Entity/Code (land)",
+      "Year"
+    ],
     "sporrings_url_mal": "https://ourworldindata.org/grapher/{slug}.csv",
     "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk"
   },
   {
-    "id": "fred", "navn": "FRED (St. Louis Fed)", "utgiver": "Federal Reserve",
-    "tillit": "etablert", "tilgang": "rest",
+    "id": "fred",
+    "navn": "FRED (St. Louis Fed)",
+    "utgiver": "Federal Reserve",
+    "tillit": "etablert",
+    "tilgang": "rest",
     "base_url": "https://api.stlouisfed.org/fred/",
     "cors": false,
-    "join_nokler": ["date"],
+    "join_nokler": [
+      "date"
+    ],
     "sporrings_url_mal": "https://api.stlouisfed.org/fred/series/observations?series_id={id}&file_type=json",
-    "auth": { "type": "api_key", "env": "FRED_API_KEY", "plassering": "query:api_key" },
+    "auth": {
+      "type": "api_key",
+      "env": "FRED_API_KEY",
+      "plassering": "query:api_key"
+    },
     "quirks": "krever api_key (injiseres av /api/hent); file_type=json"
   },
   {
-    "id": "norgesbank", "navn": "Norges Bank (SDMX)", "utgiver": "Norges Bank",
-    "tillit": "offisiell", "tilgang": "sdmx",
-    "base_url": "https://data.norges-bank.no/api/",
+    "id": "norgesbank",
+    "navn": "Norges Bank (SDMX)",
+    "utgiver": "Norges Bank",
+    "tillit": "offisiell",
+    "tilgang": "sdmx",
+    "base_url": "https://data.norges-bank.no/api/data/",
     "cors": true,
-    "join_nokler": ["TIME_PERIOD"],
-    "quirks": "SDMX; format=csv støttes på data-endepunktet"
+    "join_nokler": [
+      "TIME_PERIOD"
+    ],
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP) + startPeriod=. Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette.",
+    "kind": "sdmx"
   },
   {
-    "id": "datanorge", "navn": "data.norge.no (Felles datakatalog)", "utgiver": "Digdir",
-    "tillit": "offisiell", "tilgang": "ckan",
+    "id": "ecb",
+    "navn": "ECB Data Portal (SDMX)",
+    "utgiver": "Den europeiske sentralbanken",
+    "tillit": "offisiell",
+    "tilgang": "sdmx",
+    "kind": "sdmx",
+    "base_url": "https://data-api.ecb.europa.eu/service/data/",
+    "cors": true,
+    "join_nokler": [
+      "TIME_PERIOD"
+    ],
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/D.USD.EUR.SP00.A) + startPeriod=. Verifisert 2026-07-25: 406 på sdmx-csv-Accept — adapterens format=csvdata-fallback tar den. CORS *."
+  },
+  {
+    "id": "datanorge",
+    "navn": "data.norge.no (Felles datakatalog)",
+    "utgiver": "Digdir",
+    "tillit": "offisiell",
+    "tilgang": "ckan",
     "base_url": "https://data.norge.no/",
     "sok_endepunkt": "https://search.api.fellesdatakatalog.digdir.no/search",
     "cors": true,
     "quirks": "katalog over datasett fra offentlige etater; selve datafilene ligger hos utgiver (probe før bruk); søke-API: POST-body bruker felt 'q' (ikke 'query'), og filters.type.value='datasets' må settes — uten dette domineres treff av CONCEPT/andre entitetstyper"
   },
   {
-    "id": "githubraw", "navn": "GitHub raw-filer", "utgiver": "(varierer)",
-    "tillit": "funnet", "tilgang": "fil",
+    "id": "githubraw",
+    "navn": "GitHub raw-filer",
+    "utgiver": "(varierer)",
+    "tillit": "funnet",
+    "tilgang": "fil",
     "base_url": "https://raw.githubusercontent.com/",
     "cors": true,
     "quirks": "discovery via web_search; ALLTID probe før bruk; tillit avhenger av repo-eier"
   },
   {
-    "id": "wikipedia", "navn": "Wikipedia (tabeller i artikler)", "utgiver": "Wikimedia",
-    "tillit": "etablert", "tilgang": "fil",
+    "id": "wikipedia",
+    "navn": "Wikipedia (tabeller i artikler)",
+    "utgiver": "Wikimedia",
+    "tillit": "etablert",
+    "tilgang": "fil",
     "base_url": "https://en.wikipedia.org/wiki/",
     "cors": false,
-    "oppskrift": { "python": "# load /api/hent?url=<url-enkodet artikkel-URL> as raw_html  →  import micropip; await micropip.install('lxml'); tabeller = pd.read_html(io.StringIO(raw_html)); df = tabeller[i]" },
+    "oppskrift": {
+      "python": "# load /api/hent?url=<url-enkodet artikkel-URL> as raw_html  →  import micropip; await micropip.install('lxml'); tabeller = pd.read_html(io.StringIO(raw_html)); df = tabeller[i]"
+    },
     "quirks": "tabeller er load-bare via /api/hent + pd.read_html (lxml via micropip); velg riktig tabellindeks; no.wikipedia.org for norske artikler"
   },
   {
-    "id": "kaggle", "navn": "Kaggle Datasets", "utgiver": "(varierer — Kaggle-brukere)",
-    "tillit": "etablert", "tilgang": "rest",
+    "id": "kaggle",
+    "navn": "Kaggle Datasets",
+    "utgiver": "(varierer — Kaggle-brukere)",
+    "tillit": "etablert",
+    "tilgang": "rest",
     "base_url": "https://www.kaggle.com/api/v1/",
     "cors": false,
-    "auth": { "type": "api_key", "user": true, "valgfri": true, "plassering": "basic" },
+    "auth": {
+      "type": "api_key",
+      "user": true,
+      "valgfri": true,
+      "plassering": "basic"
+    },
     "nokkel_hint": "brukernavn:nøkkel — lag på kaggle.com → Settings → API",
     "sporrings_url_mal": "https://www.kaggle.com/api/v1/datasets/download/{eier}/{slug}/{filnavn}",
     "quirks": "krever brukernøkkel (Basic auth via /api/hent); åpne datasett kan hentes uten nøkkel; privat-/konkurransedata krever registrert nøkkel; nedlasting redirecter til Google Storage (proxyen følger); enkeltfil-URL gir fila, uten {filnavn} kommer hele datasettet som zip (unngå); datasett er ofte uoffisielle kopier — foretrekk primærkilder og sjekk lisens; discovery via web_search + probe"
   },
   {
-    "id": "scb", "navn": "Statistikmyndigheten SCB (PxWebApi 2)", "utgiver": "SCB",
-    "tillit": "offisiell", "tilgang": "pxweb",
+    "id": "scb",
+    "navn": "Statistikmyndigheten SCB (PxWebApi 2)",
+    "utgiver": "SCB",
+    "tillit": "offisiell",
+    "tilgang": "pxweb",
     "base_url": "https://api.scb.se/ov0104/v2beta/api/v2/",
     "sok_endepunkt": "https://api.scb.se/ov0104/v2beta/api/v2/tables?query={q}&lang=sv",
     "cors": true,
-    "join_nokler": ["region", "år", "kön"],
+    "join_nokler": [
+      "region",
+      "år",
+      "kön"
+    ],
     "sporrings_url_mal": "https://api.scb.se/ov0104/v2beta/api/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv&lang=sv",
     "quirks": "Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {\"tables\":[{id,label,firstPeriod,lastPeriod,...}]} — adapter-kompatibel; i motsetning til SSB virker /data på SAMME v2beta-sti (ingen v2/v2-beta-splitt); outputFormat=csv gir CSV direkte uten filter, og med valueCodes[dim]=kode når man vil begrense; dataendepunktet sender Access-Control-Allow-Origin: * (CORS OK, verifisert med curl -sI mot .../data); valueCodes-nøkler må være metadata-dimensjonskoder (f.eks. 'Alder', 'Kon', 'Tid' — fra /tables/{id}/metadata), IKKE søkeresultatets variableNames-etiketter (som er små bokstaver, f.eks. 'region', 'år', 'kön'); mangler obligatorisk dimensjon gir HTTP 400 'Missing selection for mandantory variable'."
   },
   {
-    "id": "statfin", "navn": "Statistikcentralen StatFin", "utgiver": "Tilastokeskus",
-    "tillit": "offisiell", "tilgang": "rest",
+    "id": "statfin",
+    "navn": "Statistikcentralen StatFin",
+    "utgiver": "Tilastokeskus",
+    "tillit": "offisiell",
+    "tilgang": "rest",
     "base_url": "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/",
     "cors": false,
-    "join_nokler": ["Vuosi (år)", "Alue (region)"],
+    "join_nokler": [
+      "Vuosi (år)",
+      "Alue (region)"
+    ],
     "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk."
   },
   {
-    "id": "dst", "navn": "Danmarks Statistik (StatBank API)", "utgiver": "Danmarks Statistik",
-    "tillit": "offisiell", "tilgang": "rest",
+    "id": "dst",
+    "navn": "Danmarks Statistik (StatBank API)",
+    "utgiver": "Danmarks Statistik",
+    "tillit": "offisiell",
+    "tilgang": "rest",
     "base_url": "https://api.statbank.dk/v1/",
     "cors": true,
-    "join_nokler": ["TID (år/kvartal)", "OMRÅDE"],
+    "join_nokler": [
+      "TID (år/kvartal)",
+      "OMRÅDE"
+    ],
     "sporrings_url_mal": "https://api.statbank.dk/v1/data/{tabell}/CSV?{var}={koder}",
     "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog."
   },
   {
-    "id": "fhi", "navn": "Folkehelseinstituttet (statistikk-data.fhi.no åpne API)", "utgiver": "Folkehelseinstituttet",
-    "tillit": "offisiell", "tilgang": "rest",
+    "id": "fhi",
+    "navn": "Folkehelseinstituttet (statistikk-data.fhi.no åpne API)",
+    "utgiver": "Folkehelseinstituttet",
+    "tillit": "offisiell",
+    "tilgang": "rest",
     "base_url": "https://statistikk-data.fhi.no/api/open/v1/",
     "cors": true,
-    "join_nokler": ["AAR (år)", "GEO"],
+    "join_nokler": [
+      "AAR (år)",
+      "GEO"
+    ],
     "sporrings_url_mal": "https://statistikk-data.fhi.no/api/open/v1/{register}/table/{tabell}/data",
     "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw"
+  },
+  {
+    "id": "dbnomics",
+    "navn": "DBnomics (aggregator, ~80 kilder)",
+    "utgiver": "DBnomics/Cepremap",
+    "tillit": "etablert",
+    "tilgang": "rest",
+    "kind": "dbnomics",
+    "base_url": "https://api.db.nomics.world/v22/series/",
+    "cors": true,
+    "join_nokler": [
+      "period",
+      "series_code"
+    ],
+    "quirks": "Ressurssti = <provider>/<dataset>/<serie-maske> (f.eks. IMF/WEO:latest/NOR.NGDP_RPCH); :latest 302-redirecter til versjonert dataset (fetch følger). Adapteren tvinger observations=1 og flater til langt format (series_code + dimensjoner + period + value); maks 1000 serier per kall — flere gir norsk feil med hint. Datafriskhet avhenger av DBnomics' høsting. Utenfor openstat: python-pakken dbnomics, R-pakken rdbnomics."
   }
 ]

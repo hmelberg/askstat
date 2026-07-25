@@ -7486,7 +7486,7 @@ async def _run_duck_sql(_sql, _fresh=True):
       // csv — pushdown, composite-joins og format(duckdb)-views virker da
       // uendret. Ærlig unntak: px-uttrekk er API-nedlastinger; «null
       // minnekost» gjelder remote parquet, ikke pxweb.
-      var _pxKeys = Object.keys(so.descriptors).filter(function (k) { return so.descriptors[k].format === 'pxweb' || so.descriptors[k].format === 'eurostat'; });
+      var _pxKeys = Object.keys(so.descriptors).filter(function (k) { return ['pxweb', 'eurostat', 'sdmx', 'dbnomics', 'worldbank'].indexOf(so.descriptors[k].format) >= 0; });
       if (_pxKeys.length) {
         if (statusEl) setStatus(statusEl, t('Henter PxWeb-uttrekk…'));
         var _pxItems = _pxKeys.map(function (k) {

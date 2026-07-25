@@ -19,6 +19,8 @@ const REG = parseRegistry([
     kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
   { id: "dst", navn: "DST", utgiver: "DST", tillit: "offisiell", tilgang: "rest",
     kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
+  { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", tillit: "offisiell", tilgang: "rest",
+    kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
 ]);
 
 // PxWebApi v2 /tables response shape (subset)
@@ -208,4 +210,33 @@ Deno.test("dstSearch: filtrerer tabellisten på tittel", async () => {
   const hits = await searchCatalog("dst", "kvartalet", { registry: REG, origin: "https://app.test", fetchImpl: fakeDstFetch() });
   assertEquals(hits.length, 1);
   assertEquals(hits[0].id, "FOLK1A");
+});
+
+// --- statfin adapter (Task 4) ---
+
+function fakeStatfinFetch(): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith("StatFin/")) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { id: "tyti", type: "l", text: "Labour force survey" },
+        { id: "synt", type: "l", text: "Births" },
+      ]), { status: 200 }));
+    }
+    if (url.endsWith("StatFin/tyti/")) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { id: "11pk.px", type: "t", text: "Employees aged 15-74 by type of employment relationship and sex, 2009-2025", updated: "2026-07-01T18:34:06" },
+      ]), { status: 200 }));
+    }
+    if (url.endsWith("StatFin/synt/")) {
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("statfinSearch: rekurserer inn i mapper, treffer på tabelltittel", async () => {
+  const hits = await searchCatalog("statfin", "employment", { registry: REG, origin: "https://app.test", fetchImpl: fakeStatfinFetch() });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "tyti/11pk.px");
 });

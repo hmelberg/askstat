@@ -214,6 +214,7 @@
     "utgiver": "Tilastokeskus",
     "tillit": "offisiell",
     "tilgang": "rest",
+    "kind": "statfin",
     "base_url": "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/",
     "cors": false,
     "join_nokler": [

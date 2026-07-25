@@ -34,6 +34,7 @@ export async function tableMetadata(
       switch (src.kind) {
         case "fhi": return fhiMetadata(src, tableId, f);
         case "dst": return dstMetadata(src, tableId, f);
+        case "statfin": return statfinMetadata(src, tableId, f);
         default:
           throw new Error(
             `table_metadata støtter ikke '${sourceId}' ennå — bruk probe på data-URL-en for å se kolonner`,
@@ -113,4 +114,25 @@ async function dstMetadata(src: DataSource, tableId: string, f: typeof fetch): P
     valuesTruncated: v.values.length > MAX_VALUES,
   }));
   return { source: src.id, id: tableId, title: json.text ?? tableId, variables };
+}
+
+interface StatfinVariable { code: string; text: string; values: string[]; valueTexts?: string[]; time?: boolean; }
+
+async function statfinMetadata(src: DataSource, tableId: string, f: typeof fetch): Promise<TableMeta> {
+  const url = new URL(tableId, src.base_url).toString();
+  const res = await f(url);
+  if (!res.ok) throw new Error(`statfin metadata for ${tableId} feilet: HTTP ${res.status}`);
+  const json = await res.json() as { title?: string; variables?: StatfinVariable[] };
+  const variables: TableVariable[] = (json.variables ?? []).map((v) => {
+    const codes = v.values ?? [];
+    const labels = v.valueTexts ?? codes;
+    return {
+      code: v.code,
+      label: v.text,
+      time: !!v.time,
+      values: codes.slice(0, MAX_VALUES).map((c, i) => ({ code: c, label: labels[i] ?? c })),
+      valuesTruncated: codes.length > MAX_VALUES,
+    };
+  });
+  return { source: src.id, id: tableId, title: json.title ?? tableId, variables };
 }

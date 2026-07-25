@@ -40,6 +40,7 @@ export async function searchCatalog(
         case "apd": return apdSearch(query, deps.origin, f);
         case "fhi": return fhiSearch(src, query, f);
         case "dst": return dstSearch(src, query, f);
+        case "statfin": return statfinSearch(src, query, f);
         default:
           throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
       }
@@ -165,4 +166,36 @@ async function dstSearch(src: DataSource, query: string, f: typeof fetch): Promi
       title: t.text,
       url: new URL(`data/${t.id}/CSV`, src.base_url).toString(),
     }));
+}
+
+interface StatfinEntry { id: string; type: string; text: string; }
+
+const MAX_FOLDER_FETCHES = 50; // hardt tak — unngå å hamre StatFin på brede søk
+
+async function statfinSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const q = query.toLowerCase();
+  const hits: CatalogHit[] = [];
+  let folderFetches = 0;
+  async function walk(path: string): Promise<void> {
+    if (hits.length >= MAX_HITS || folderFetches >= MAX_FOLDER_FETCHES) return;
+    folderFetches++;
+    const res = await f(new URL(path, src.base_url).toString());
+    if (!res.ok) return; // én feilet undermappe stopper ikke resten av søket
+    const entries = await res.json() as StatfinEntry[];
+    for (const e of entries) {
+      if (hits.length >= MAX_HITS) return;
+      if (e.type === "t" && e.text.toLowerCase().includes(q)) {
+        hits.push({
+          source: src.id,
+          id: `${path}${e.id}`,
+          title: e.text,
+          url: new URL(`${path}${e.id}`, src.base_url).toString(),
+        });
+      } else if (e.type === "l" && folderFetches < MAX_FOLDER_FETCHES) {
+        await walk(`${path}${e.id}/`);
+      }
+    }
+  }
+  await walk("");
+  return hits;
 }

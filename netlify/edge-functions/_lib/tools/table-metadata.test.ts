@@ -12,6 +12,8 @@ const REG = parseRegistry([
     kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
   { id: "dst", navn: "DST", utgiver: "DST", tillit: "offisiell", tilgang: "rest",
     kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
+  { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", tillit: "offisiell", tilgang: "rest",
+    kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -91,4 +93,25 @@ Deno.test("dst metadata: time-flagg direkte per variabel", async () => {
   const meta = await tableMetadata("dst", "FOLK1A", { registry: REG, fetchImpl });
   assertEquals(meta.variables.find((v) => v.code === "Tid")!.time, true);
   assertEquals(meta.variables.find((v) => v.code === "OMRÅDE")!.time, false);
+});
+
+// --- statfin adapter (Task 4) ---
+
+Deno.test("statfin metadata: parallelle values/valueTexts-arrayer", async () => {
+  const fetchImpl = ((input: string | URL | Request) => {
+    if (String(input).includes("tyti/11pk.px")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        title: "Employees by sex",
+        variables: [
+          { code: "sukupuoli", text: "Sex", values: ["1", "2"], valueTexts: ["Men", "Women"], elimination: true },
+          { code: "timeperiod_m", text: "Month", values: ["2025M01"], valueTexts: ["2025M01"], time: true },
+        ],
+      }), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  const meta = await tableMetadata("statfin", "tyti/11pk.px", { registry: REG, fetchImpl });
+  const sex = meta.variables.find((v) => v.code === "sukupuoli")!;
+  assertEquals(sex.values, [{ code: "1", label: "Men" }, { code: "2", label: "Women" }]);
+  assertEquals(meta.variables.find((v) => v.code === "timeperiod_m")!.time, true);
 });

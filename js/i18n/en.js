@@ -775,4 +775,13 @@ window.M2PY_I18N.en = {
   "Portabelt script kopiert til utklippstavlen": "Portable script copied to the clipboard",
   "Microdata-blokker støttes ikke i OpenStat. Bruk microdata-appen (https://hmelberg.github.io/microdata/) for å øve på microdata.no-syntaks.": "Microdata blocks are not supported in OpenStat. Use the microdata app (https://hmelberg.github.io/microdata/) to practice microdata.no syntax.",
   "Kjør skrittvis støttes ikke i denne modusen — bruk Kjør.": "Step-by-step run is not supported in this mode — use Run.",
+
+  // ── Metadata-sidebar (spec 2026-07-25-metadata-sidebar-design) ──
+  "Vis metadata": "Show metadata",
+  "(kunne ikke hente kildemetadata)": "(could not fetch source metadata)",
+  "⚠ # meta: ukjent mål «{mal}»": "⚠ # meta: unknown target «{mal}»",
+  "💬 Kommenter og se kommentarer": "💬 Comment and see comments",
+  "Lenker": "Links",
+  "Felter": "Fields",
+  "Laster …": "Loading …",
 };

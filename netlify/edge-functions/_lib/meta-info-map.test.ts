@@ -3,7 +3,7 @@
 // rules): docs/superpowers/specs/2026-07-25-metadata-sidebar-design.md.
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { parseRegistry } from "./registry.ts";
-import { mapToMetaInfo } from "./meta-info-map.ts";
+import { isValidTableId, mapToMetaInfo } from "./meta-info-map.ts";
 import type { TableMeta } from "./tools/table-metadata.ts";
 
 const REG = parseRegistry([
@@ -85,4 +85,25 @@ Deno.test("mapToMetaInfo med TableMeta: tom variables-liste er OK", () => {
   const mi = mapToMetaInfo(SRC, tm);
   assertEquals(mi.tittel, "Tom tabell");
   assertEquals(mi.variabler, []);
+});
+
+// isValidTableId — SSRF-gate for /api/metadata sin `table`-parameter (§4):
+// må godta de reelle id-formene på tvers av adaptere, og avvise alt som kan
+// overstyre src.base_url via new URL(tableId, base_url) i statfin-adapteren.
+Deno.test("isValidTableId: godtar reelle id-former på tvers av adaptere", () => {
+  assertEquals(isValidTableId("05839"), true); // ssb/pxweb
+  assertEquals(isValidTableId("FOLK1A"), true); // dst
+  assertEquals(isValidTableId("tyti/135y.px"), true); // statfin: slash + punktum
+  assertEquals(isValidTableId("daar/754"), true); // fhi: register/tallId
+  assertEquals(isValidTableId("DSD_LFS@DF_IALFS,1.0"), true); // sdmx-dataflow: @ , . -
+  assertEquals(isValidTableId("EXR"), true); // sdmx: enkel id
+});
+
+Deno.test("isValidTableId: avviser SSRF-forsøk og andre ugyldige former", () => {
+  assertEquals(isValidTableId("https://attacker.example/x"), false); // absolutt URL
+  assertEquals(isValidTableId("//attacker.example/x"), false); // protokoll-relativ
+  assertEquals(isValidTableId("../../etc"), false); // leading . + ".."
+  assertEquals(isValidTableId("a b"), false); // whitespace
+  assertEquals(isValidTableId("x?y=z"), false); // querystring-tegn
+  assertEquals(isValidTableId("a".repeat(129)), false); // over 128 tegn
 });

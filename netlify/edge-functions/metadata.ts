@@ -8,7 +8,7 @@ import { checkRateLimit } from "./_lib/rate-limit.ts";
 import { clientIp } from "./_lib/auth.ts";
 import { findSource, isSearchableSource, loadRegistry, type DataSource } from "./_lib/registry.ts";
 import { tableMetadata, type TableMeta } from "./_lib/tools/table-metadata.ts";
-import { mapToMetaInfo } from "./_lib/meta-info-map.ts";
+import { isValidTableId, mapToMetaInfo } from "./_lib/meta-info-map.ts";
 
 export default async (request: Request): Promise<Response> => {
   if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
@@ -26,6 +26,13 @@ export default async (request: Request): Promise<Response> => {
   const table = (u.searchParams.get("table") ?? "").trim();
   if (!/^[a-z0-9_-]{1,32}$/.test(sourceId)) {
     return new Response("Ugyldig source", { status: 400 });
+  }
+  // SSRF-vakt: statfin-adapteren (tools/table-metadata.ts) bygger
+  // `new URL(tableId, src.base_url)` — en absolutt eller protokoll-relativ
+  // `table` ville overstyrt vertsnavnet. isValidTableId dekker alle reelle
+  // id-former (pxweb/dst/statfin/fhi/sdmx) uten å åpne for rå URL-er.
+  if (table && !isValidTableId(table)) {
+    return new Response("Ugyldig table", { status: 400 });
   }
 
   let registry: DataSource[];

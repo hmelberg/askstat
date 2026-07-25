@@ -44,6 +44,24 @@ export interface MetaInfo {
   variabler: MetaVariabel[];
 }
 
+// isValidTableId: strukturell sjekk av `table`-parameteren til /api/metadata,
+// FØR den når noen adapter. statfin-adapteren (tools/table-metadata.ts) bygger
+// `new URL(tableId, src.base_url)` — en absolutt (`https://attacker.example/x`)
+// eller protokoll-relativ (`//attacker.example/x`) id ville overstyrt
+// vertsnavnet og gitt SSRF på et offentlig, uautentisert endepunkt. Første
+// tegn må være alfanumerisk (blokkerer ledende / \ .); resten er begrenset
+// til et tillatt tegnsett som dekker alle reelle id-former: pxweb ("05839"),
+// dst ("FOLK1A"), statfin/fhi ("tyti/135y.px", "register/tallId" — slash og
+// punktum), sdmx-dataflow-ider ("DSD_LFS@DF_IALFS,1.0" — @ , . - _). ":", "?",
+// "#", "\" og whitespace/kontrolltegn er dermed alltid avvist (ikke i settet).
+const TABLE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9/_.@,-]*$/;
+export function isValidTableId(s: string): boolean {
+  if (!s || s.length > 128) return false;
+  if (!TABLE_ID_RE.test(s)) return false;
+  if (s.includes("..")) return false;
+  return true;
+}
+
 function mapVariable(v: TableVariable): MetaVariabel {
   const out: MetaVariabel = {
     navn: v.code,

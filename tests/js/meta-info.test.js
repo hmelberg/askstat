@@ -116,6 +116,24 @@ test('render: ingen lenkeliste når verken lenker eller commentTarget finnes', (
   assert.ok(!html.includes('meta-info-links'));
 });
 
+// Ekstra: escaper anførselstegn i attributt-posisjon (href), ikke bare i
+// tekst-noder — en direktiv-URL med et rått anførselstegn kunne ellers bryte
+// ut av href-attributtet (spec: index.html setter innerHTML rått).
+test('render: escaper anførselstegn i href (attributt-posisjon), ikke bare tekst', () => {
+  const metas = [linkDirective('x', null, 'https://example.com/"><script>alert(1)</script>', '<script>alert(2)</script>')];
+  const mi = MI.merge(null, metas, 'x');
+  const html = MI.render(mi, { labels: {} });
+  // href-attributtets verdi er fullt escapet: hverken anførselstegnet eller
+  // <script> slipper gjennom rått.
+  const hrefMatch = html.match(/href="([^"]*)"/);
+  assert.ok(hrefMatch, 'forventet en href-attributt i outputen');
+  assert.ok(hrefMatch[1].includes('&quot;'));
+  assert.ok(hrefMatch[1].includes('&lt;script&gt;'));
+  assert.ok(html.includes('&lt;script&gt;alert(2)&lt;/script&gt;')); // label (tekst-node)
+  assert.ok(!html.includes('"><script>alert(1)</script>'));
+  assert.ok(!html.includes('<script>alert(2)</script>'));
+});
+
 // Ekstra: variabel-antall vises som rent tall (ingen hardkodet norsk
 // UI-tekst — i18n skjer i index.html per global constraint).
 test('render: variabel-antall er et rent tall', () => {

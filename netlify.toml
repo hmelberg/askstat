@@ -87,3 +87,7 @@
 [[edge_functions]]
   function = "data-svar"
   path = "/api/data-svar"
+
+[[edge_functions]]
+  function = "metadata"
+  path = "/api/metadata"

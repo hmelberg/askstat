@@ -22,6 +22,8 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
 - `hent` → `/api/hent?url=…[&body=…]` — SSRF-herdet GET-proxy (kun admin).
   Injiserer API-nøkler server-side for register-kilder (host-matchet);
   `body` GET-innpakker POST-json (PxWeb v1 o.l.).
+- `metadata` → `/api/metadata` — offentlig MetaInfo-oppslag (kilde+tabell) for
+  sidebaren, rate-limited.
 
 ## Forutsetninger
 

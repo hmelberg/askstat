@@ -174,6 +174,48 @@
       }
       return out.lines;
     }
+    // api-kinds (spec 2026-07-25-api-kinds-design §4.7): sdmx = SAMME
+    // Accept-header som appen (urllib/download.file med headers=) så rammen
+    // blir byte-identisk — format-param duger ikke (navnet varierer per
+    // kilde, og NBs format=csv gir semikolon+labels). worldbank/dbnomics =
+    // URL på transpile-tid + emittert flatener som speiler js/api-kinds.js.
+    if (item.kind === 'sdmx' || item.kind === 'worldbank' || item.kind === 'dbnomics') {
+      var AK = global.ApiKinds;
+      if (!AK) {
+        out.lines.push('# (' + item.kind + '-kilde «' + item.alias + '»: intern feil — js/api-kinds.js er ikke lastet)');
+        warnings.push('«' + item.alias + '»: ' + item.kind + '-transpilering utilgjengelig (js/api-kinds.js mangler)');
+        return out.lines;
+      }
+      if (item.kind === 'sdmx') {
+        if (mode === 'python') {
+          needs.pandas = true; needs.io = true; needs.sdmxHelperPy = true;
+          out.lines.push(item.alias + ' = _sdmx_frame(' + pyStr(url) + ')');
+          out.lines.push('# (faller API-et tilbake til XML/406: prøv ?format=csvdata på URL-en)');
+        } else {
+          needs.sdmxHelperR = true;
+          out.lines.push(item.alias + ' <- sdmx_frame_(' + rStr(url) + ')');
+        }
+      } else if (item.kind === 'worldbank') {
+        var wu = AK.worldbankDataUrl(url);
+        if (mode === 'python') {
+          needs.requests = true; needs.pandas = true; needs.wbHelperPy = true;
+          out.lines.push(item.alias + ' = _wb_frame(' + pyStr(wu) + ')');
+        } else {
+          needs.wbHelperR = true;
+          out.lines.push(item.alias + ' <- wb_frame_(' + rStr(wu) + ')  # krever jsonlite');
+        }
+      } else {
+        var dbu = AK.dbnomicsDataUrl(url);
+        if (mode === 'python') {
+          needs.requests = true; needs.pandas = true; needs.dbnHelperPy = true;
+          out.lines.push(item.alias + ' = _dbn_frame(' + pyStr(dbu) + ')');
+        } else {
+          needs.dbnHelperR = true;
+          out.lines.push(item.alias + ' <- dbn_frame_(' + rStr(dbu) + ')  # krever jsonlite');
+        }
+      }
+      return out.lines;
+    }
     // fmt regnes ut FØR ev. nøkkel-plassering markerer url som variabel
     // (__URLVAR__), slik at endelsesniffing i formatFor fortsatt ser den
     // ekte URL-en.
@@ -263,10 +305,138 @@
     '  grid',
     '}',
   ];
+  // api-kinds-hjelpere (spec 2026-07-25-api-kinds-design §4.7) — speiler
+  // js/api-kinds.js-flatenerne 1:1 (paritetskontrakten: samme fixtures gir
+  // samme rammer i JS-testene og pytest).
+  var SDMX_HELPER_PY = [
+    '',
+    'def _sdmx_frame(url):',
+    '    # samme Accept som appen (labels=id gir rene koder; NBs format=csv',
+    '    # ville gitt semikolon+labels, Accept text/csv gir XML). User-Agent',
+    '    # kreves: OECD 403-er urllibs default (verifisert 2026-07-25).',
+    '    import urllib.request',
+    '    def _get(u, hdr):',
+    '        hdr = dict(hdr, **{"User-Agent": "openstat"})',
+    '        return urllib.request.urlopen(urllib.request.Request(u, headers=hdr)).read()',
+    '    try:',
+    '        raw = _get(url, {"Accept": "application/vnd.sdmx.data+csv;labels=id"})',
+    '    except Exception:',
+    '        sep = "&" if "?" in url else "?"',
+    '        raw = _get(url + sep + "format=csvdata", {})  # ECB-veien',
+    '    return pd.read_csv(io.BytesIO(raw))',
+  ];
+  var SDMX_HELPER_R = [
+    '',
+    'sdmx_frame_ <- function(url) {',
+    '  tf <- tempfile(fileext = ".csv")',
+    '  ok <- tryCatch({',
+    '    download.file(url, tf, quiet = TRUE, headers = c(Accept = "application/vnd.sdmx.data+csv;labels=id"))',
+    '    TRUE',
+    '  }, error = function(e) FALSE)',
+    '  if (!ok) {  # ECB-veien: format=csvdata-param i stedet for Accept',
+    '    sep <- if (grepl("\\\\?", url)) "&" else "?"',
+    '    download.file(paste0(url, sep, "format=csvdata"), tf, quiet = TRUE)',
+    '  }',
+    '  read.csv(tf)',
+    '}',
+  ];
+  var WB_HELPER_PY = [
+    '',
+    'def _wb_frame(url):',
+    '    # Verdensbanken: [meta, rader] med sideløkke (meta["pages"])',
+    '    docs = [requests.get(url).json()]',
+    '    if docs[0] and isinstance(docs[0][0], dict) and "message" in docs[0][0]:',
+    '        raise ValueError("Verdensbanken avviste spørringen: " + str(docs[0][0]["message"]))',
+    '    for p in range(2, int(docs[0][0].get("pages", 1)) + 1):',
+    '        docs.append(requests.get(url + "&page=" + str(p)).json())',
+    '    cols = {"indicator": [], "country": [], "countryiso3code": [], "date": [], "value": []}',
+    '    for doc in docs:',
+    '        for r in (doc[1] or []):',
+    '            cols["indicator"].append((r.get("indicator") or {}).get("id", ""))',
+    '            cols["country"].append((r.get("country") or {}).get("id", ""))',
+    '            cols["countryiso3code"].append(r.get("countryiso3code", ""))',
+    '            cols["date"].append(r.get("date", ""))',
+    '            cols["value"].append(r.get("value"))',
+    '    return pd.DataFrame(cols)',
+  ];
+  var WB_HELPER_R = [
+    '',
+    'wb_frame_ <- function(url) {',
+    '  doc <- jsonlite::fromJSON(url, simplifyVector = FALSE)',
+    '  if (!is.null(doc[[1]]$message)) stop("Verdensbanken avviste spørringen")',
+    '  docs <- list(doc)',
+    '  pages <- as.integer(doc[[1]]$pages %||% 1)',
+    '  if (length(pages) && pages > 1) for (p in 2:pages) {',
+    '    docs[[p]] <- jsonlite::fromJSON(paste0(url, "&page=", p), simplifyVector = FALSE)',
+    '  }',
+    '  rows <- do.call(c, lapply(docs, function(d) d[[2]]))',
+    '  data.frame(',
+    '    indicator = vapply(rows, function(r) r$indicator$id %||% "", ""),',
+    '    country = vapply(rows, function(r) r$country$id %||% "", ""),',
+    '    countryiso3code = vapply(rows, function(r) r$countryiso3code %||% "", ""),',
+    '    date = vapply(rows, function(r) r$date %||% "", ""),',
+    '    value = vapply(rows, function(r) if (is.null(r$value)) NA_real_ else as.numeric(r$value), 0),',
+    '    stringsAsFactors = FALSE)',
+    '}',
+    'if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a',
+  ];
+  var DBN_HELPER_PY = [
+    '',
+    'def _dbn_frame(url):',
+    '    # DBnomics: series.docs[] med period/value-arrayer → langt format',
+    '    series = (requests.get(url).json() or {}).get("series") or {}',
+    '    docs = series.get("docs") or []',
+    '    if series.get("num_found", 0) > len(docs):',
+    '        raise ValueError("DBnomics-spørringen traff " + str(series["num_found"]) +',
+    '                         " serier (maks " + str(series.get("limit")) + ") — snevre inn")',
+    '    dim_names = sorted({k for d in docs for k in (d.get("dimensions") or {})})',
+    '    cols = {"series_code": []}',
+    '    for k in dim_names:',
+    '        cols[k] = []',
+    '    cols["period"] = []; cols["value"] = []',
+    '    for d in docs:',
+    '        for i, per in enumerate(d.get("period") or []):',
+    '            cols["series_code"].append(d.get("series_code", ""))',
+    '            for k in dim_names:',
+    '                cols[k].append(str((d.get("dimensions") or {}).get(k, "")))',
+    '            cols["period"].append(str(per))',
+    '            v = (d.get("value") or [None] * (i + 1))[i]',
+    '            cols["value"].append(None if v in (None, "NA") else v)',
+    '    return pd.DataFrame(cols)',
+  ];
+  var DBN_HELPER_R = [
+    '',
+    'dbn_frame_ <- function(url) {',
+    '  s <- jsonlite::fromJSON(url, simplifyVector = FALSE)$series',
+    '  docs <- s$docs',
+    '  if (!is.null(s$num_found) && s$num_found > length(docs)) stop("DBnomics: for mange serier — snevre inn")',
+    '  dims <- sort(unique(unlist(lapply(docs, function(d) names(d$dimensions)))))',
+    '  do.call(rbind, lapply(docs, function(d) {',
+    '    n <- length(d$period)',
+    '    row <- data.frame(series_code = rep(d$series_code, n),',
+    '      period = vapply(d$period, as.character, ""),',
+    '      value = vapply(d$value, function(v) if (is.null(v) || identical(v, "NA")) NA_real_ else as.numeric(v), 0),',
+    '      stringsAsFactors = FALSE)',
+    '    for (k in dims) row[[k]] <- as.character(d$dimensions[[k]] %||% "")',
+    '    row[, c("series_code", dims, "period", "value")]',
+    '  }))',
+    '}',
+    'if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a',
+  ];
   function pxHelperLines(mode, needs) {
-    if (mode === 'python' && needs.pxHelperPy) return PX_HELPER_PY;
-    if (mode === 'r' && needs.pxHelperR) return PX_HELPER_R;
-    return [];
+    var lines = [];
+    if (mode === 'python') {
+      if (needs.pxHelperPy) lines = lines.concat(PX_HELPER_PY);
+      if (needs.sdmxHelperPy) lines = lines.concat(SDMX_HELPER_PY);
+      if (needs.wbHelperPy) lines = lines.concat(WB_HELPER_PY);
+      if (needs.dbnHelperPy) lines = lines.concat(DBN_HELPER_PY);
+    } else {
+      if (needs.pxHelperR) lines = lines.concat(PX_HELPER_R);
+      if (needs.sdmxHelperR) lines = lines.concat(SDMX_HELPER_R);
+      if (needs.wbHelperR) lines = lines.concat(WB_HELPER_R);
+      if (needs.dbnHelperR) lines = lines.concat(DBN_HELPER_R);
+    }
+    return lines;
   }
 
   function emitR(item, url, body, fmt, out) {

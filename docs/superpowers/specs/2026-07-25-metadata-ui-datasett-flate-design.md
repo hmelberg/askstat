@@ -111,6 +111,22 @@ til Datasett-listen.
   TILLEGG til giscus (giscus = tråden; høsting = kuraterte notater).
 - `hasTableMetadata`-predikatet og 502-klartekst-beslutningen fra
   A-reviewen (åpne Hans-beslutninger, uendret av dette designet).
+- **Kilde-kanonisering av `# meta`** (avklart med Hans 2026-07-26):
+  aliaset forblir skrivemåten, men målet resolves internt til kilden
+  (URL/register-id via load-linjen) slik at alle datasett med samme
+  proveniens deler notatene (`# read url as a` + `as b`, på tvers av
+  motorer). Mål uten kilde forblir datasett-skopede notater (legitimt for
+  beregnede datasett). Henger sammen med de to neste punktene.
+- **Kildelisten viser ALLE distinkte kilder**, ikke bare `# connect`-linjer
+  — én rad per URL/register-tabell scriptet refererer (read/load/connect).
+  Først da er «Tilkoblede kilder» ærlig en kildeliste.
+- **Opphavsstempling for avledede datasett** (python-eksperiment):
+  `df.attrs["origin"]` settes ved lasting; pandas propagerer attrs gjennom
+  subsetting/rename (ikke merge/concat). Panelet viser «opprinnelig kilde:
+  … (arvet)» KUN der stempelet beviselig overlever — aldri gjetting.
+  Merk: navnebaserte beskrivelser (`variable_metadata`, globalt per
+  kolonnenavn) følger subsett automatisk allerede; `# meta` er
+  navn-skopet og arves ikke — det er dagens bevisste semantikk.
 
 ## §7 Testing
 

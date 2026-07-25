@@ -784,6 +784,8 @@ window.M2PY_I18N.en = {
   "Lenker": "Links",
   "Felter": "Fields",
   "Laster …": "Loading …",
+  "Kilde": "Source",
+  "{rows} rader × {cols} kolonner": "{rows} rows × {cols} columns",
 
   // ── Variabelpanel: «Fra fellesskapet»-ramme (giscus-tråd) ──
   "Fra fellesskapet": "From the community",

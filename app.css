@@ -651,9 +651,18 @@
       line-height: 1.35;
       padding: 6px 8px;
       border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
     }
     .sidebar-dataset-name:hover { filter: brightness(1.08); }
     body[data-theme="dark"] .sidebar-dataset-name { background: #475569; }
+    .sidebar-dataset-name-text { flex: 1; min-width: 0; word-break: break-word; }
+    /* ⓘ på datasettraden: hvit på den fargede raden, aldri understreket av
+       den klikkbare (individata) linjestilen */
+    .sidebar-dataset-name .meta-info-btn { color: inherit; opacity: 0.8; text-decoration: none; }
+    .sidebar-dataset-name .meta-info-btn:hover { color: inherit; opacity: 1; }
     .sidebar-dataset-meta { font-size: 11px; color: var(--text-muted); margin: 6px 0 6px 2px; line-height: 1.35; }
     .sidebar-vars { margin-left: 4px; margin-top: 2px; }
     .sidebar-var-row { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; padding: 3px 4px; margin: 0 -4px; border-radius: 4px; color: var(--text); font-size: 12px; }
@@ -689,6 +698,10 @@
     /* Variabel-antallet gjentar kildehodet + radene rett under — skjul i containeren. */
     .meta-info-container .meta-info-varcount { display: none; }
     .meta-info-note { color: var(--text-muted); font-style: italic; font-size: 11px; margin-top: 6px; }
+    /* Proveniens-linje (kilde-URL/register-form) + rader×kolonner i datasett-ⓘ */
+    .meta-info-container .meta-info-prov, .meta-info-container .meta-info-dims { font-size: 11px; color: var(--text-muted); margin: 6px 0 0 0; line-height: 1.4; }
+    .meta-info-container .meta-info-prov a { color: var(--accent); }
+    .meta-info-container .meta-info-prov-fmt { opacity: 0.85; }
     .meta-info-warn { color: var(--danger); font-size: 11px; margin: 6px 0 0 2px; line-height: 1.35; }
     /* «Fra fellesskapet»-ramme (giscus-tråd): tydelig adskilt fra kildens
        metadata — stiplet ramme + eget merke, aldri forvekselbar (tillitsregel). */

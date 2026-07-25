@@ -4327,16 +4327,7 @@
       // tømmer sitt mål, så overskrift + «Åpne på GitHub»-fallback holdes
       // UTENFOR mount-et (i hodet) og består selv når tråden er åpen.
       var commentTarget = dsName + '.' + varName;
-      parts.push(
-        '<div class="meta-info-community">' +
-          '<div class="meta-info-community-head">' +
-            '<span class="meta-info-community-title">' + escapeHtml(t('Fra fellesskapet')) + '</span>' +
-            '<a class="meta-info-community-link" href="' + escapeHtml(window.MetaInfo.commentUrl(commentTarget)) + '" target="_blank" rel="noopener">' + escapeHtml(t('Åpne på GitHub')) + '</a>' +
-          '</div>' +
-          '<button type="button" class="meta-info-comment-btn" data-comment-target="' + escapeHtml(commentTarget) + '">💬 ' + escapeHtml(t('Kommentarer')) + '</button>' +
-          '<div class="meta-info-community-thread"></div>' +
-        '</div>'
-      );
+      parts.push(metaCommunityFrame(commentTarget));
       if (data.kind === 'numeric' && (data.mean !== undefined || data.min !== undefined)) {
         parts.push('<div class="var-detail-section-title">Sammendrag</div>');
         var cards = [];
@@ -4399,7 +4390,11 @@
         }).join('');
         var badgeHtml = badge ? ' <span style="opacity:.55;font-size:11px;font-weight:400">(' + escapeHtml(badge) + ')</span>' : '';
         return '<div class="sidebar-dataset">' +
-          '<div class="sidebar-dataset-name" data-ds="' + escapeHtml(dsName) + '">' + escapeHtml(dsName) + badgeHtml + '</div>' +
+          '<div class="sidebar-dataset-name" data-ds="' + escapeHtml(dsName) + '">' +
+            '<span class="sidebar-dataset-name-text">' + escapeHtml(dsName) + badgeHtml + '</span>' +
+            '<button class="meta-info-btn" data-meta-ds="' + escapeHtml(dsName) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>' +
+          '</div>' +
+          '<div class="meta-info-container" data-meta-ds-container="' + escapeHtml(dsName) + '" style="display:none"></div>' +
           metaLine +
           '<div class="sidebar-vars">' + varsHtml + '</div></div>';
       }).join('');
@@ -4428,7 +4423,156 @@
           if (ds) showIndividataModal(ds);
         });
       });
+      // ⓘ på datasettraden: åpner metadata-containeren (lazy). stopPropagation
+      // hindrer at datasett-navnets individata-klikk fyrer samtidig. Samme
+      // per-element-idiom som .sidebar-var-row-wiringen over.
+      datasetsEl.querySelectorAll('.meta-info-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          metaToggleDataset(this);
+        });
+      });
       if (window.__applyShowIndividataToSidebar) window.__applyShowIndividataToSidebar();
+    }
+
+    // ── Datasett-ⓘ: metadata-container i Datasett-listen (spec 2026-07-25-
+    // metadata-ui-datasett-flate-design §1). ⓘ ved datasettnavnet åpner en
+    // container med brukerens `# meta`-innhold + kildens metadata (LAZY fra
+    // /api/metadata), proveniens, rader×kolonner og en «Fra fellesskapet»-
+    // ramme (giscus). All fletting/rendring gjøres av MetaInfo; denne koden
+    // henter, cacher og setter inn DOM. Ligger i samme skop som
+    // updateSidebarDatasets (datasetProvenance konsumeres også av Task 5).
+    var METADATA_REGISTER_KINDS = ['pxweb', 'eurostat', 'sdmx', 'dbnomics', 'worldbank'];
+
+    // datasetProvenance(dsName) -> {url, kind, table, registerId}|null: slår opp
+    // aliasets load-linje i editoren (Global Constraints — Task 5 «kjent kilde»-
+    // sjekken bruker samme form).
+    function datasetProvenance(dsName) {
+      try {
+        var p = window.DataDirectives.parse(scriptInput.value);
+        var res = window.DataDirectives.resolve(p, []);
+        var i = res.findIndex(function (r) { return r.alias === dsName; });
+        if (i < 0) return null;
+        return {
+          url: res[i].url,
+          kind: res[i].kind,
+          table: res[i].table,
+          registerId: String(p.loads[i].target).split('/')[0]
+        };
+      } catch (e) { return null; }
+    }
+
+    // «Fra fellesskapet»-ramme (Task 2-tillitsregelen, gjenbrukt her og av
+    // renderVariableDetailHtml): 💬-knappen toggler giscus-tråden inn/ut i det
+    // indre .meta-info-community-thread; overskrift + «Åpne på GitHub»-fallback
+    // holdes UTENFOR mount-et så de består når Comments.open() tømmer tråden.
+    function metaCommunityFrame(target) {
+      return '<div class="meta-info-community">' +
+          '<div class="meta-info-community-head">' +
+            '<span class="meta-info-community-title">' + escapeHtml(t('Fra fellesskapet')) + '</span>' +
+            '<a class="meta-info-community-link" href="' + escapeHtml(window.MetaInfo.commentUrl(target)) + '" target="_blank" rel="noopener">' + escapeHtml(t('Åpne på GitHub')) + '</a>' +
+          '</div>' +
+          '<button type="button" class="meta-info-comment-btn" data-comment-target="' + escapeHtml(target) + '">💬 ' + escapeHtml(t('Kommentarer')) + '</button>' +
+          '<div class="meta-info-community-thread"></div>' +
+        '</div>';
+    }
+
+    // Proveniens-linjen (§1 punkt 2): kilde-URL som lenke + format, ELLER
+    // register-form (registerId/tabell + kind).
+    function renderDatasetProvLine(prov) {
+      if (!prov) return '';
+      var label = escapeHtml(t('Kilde')) + ': ';
+      if (prov.table) {
+        var form = prov.registerId + '/' + prov.table;
+        return '<div class="meta-info-prov">' + label + escapeHtml(form)
+          + (prov.kind ? ' <span class="meta-info-prov-fmt">(' + escapeHtml(prov.kind) + ')</span>' : '') + '</div>';
+      }
+      if (prov.url) {
+        var fmt = prov.kind || (/\.parquet(\?|$)/i.test(prov.url) ? 'parquet' : /\.csv(\?|$)/i.test(prov.url) ? 'csv' : '');
+        return '<div class="meta-info-prov">' + label
+          + '<a href="' + escapeHtml(prov.url) + '" target="_blank" rel="noopener">' + escapeHtml(prov.url) + '</a>'
+          + (fmt ? ' <span class="meta-info-prov-fmt">(' + escapeHtml(fmt) + ')</span>' : '') + '</div>';
+      }
+      return '';
+    }
+
+    function metaToggleDataset(btn) {
+      var nameDiv = btn.closest('.sidebar-dataset-name');
+      var container = nameDiv && nameDiv.nextElementSibling;
+      if (!container || !container.classList.contains('meta-info-container')) return;
+      if (container.style.display !== 'none') {
+        var openThread = container.querySelector('.meta-info-community-thread');
+        if (openThread && window.Comments && window.Comments.isOpen(openThread)) window.Comments.close();
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = '';
+      metaPopulateDataset(container, btn.getAttribute('data-meta-ds'));
+    }
+
+    // Lazy: kildemetadata hentes KUN ved første ⓘ-klikk på et register-datasett
+    // og caches på window.__datasetMetaCache (nøkkel registerId/tableForMeta).
+    // sdmx-item.table har «/nøkkel»-suffiks og komma-separert agency,dataflow —
+    // endepunktet vil ha «agency/dataflow» (verifisert med curl 2026-07-26).
+    function metaPopulateDataset(container, ds) {
+      var prov = datasetProvenance(ds);
+      var needFetch = !!(prov && prov.registerId && prov.table && METADATA_REGISTER_KINDS.indexOf(prov.kind) >= 0);
+      var cacheKey = null;
+      if (needFetch) {
+        var tableForMeta = prov.kind === 'sdmx'
+          ? prov.table.split('/')[0].split(',').slice(0, 2).join('/')
+          : prov.table;
+        cacheKey = prov.registerId + '/' + tableForMeta;
+        window.__datasetMetaCache = window.__datasetMetaCache || {};
+        if (!(cacheKey in window.__datasetMetaCache)) {
+          container.innerHTML = '<div class="meta-info-note">' + escapeHtml(t('Laster …')) + '</div>';
+          var kk = cacheKey;
+          fetch('/api/metadata?source=' + encodeURIComponent(prov.registerId) + '&table=' + encodeURIComponent(tableForMeta))
+            .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json(); })
+            .then(function (json) { window.__datasetMetaCache[kk] = json; })
+            .catch(function (e) { window.__datasetMetaCache[kk] = { __error: true }; console.warn('kildemetadata (' + kk + '):', e); })
+            .then(function () { if (container.style.display !== 'none') metaRenderDataset(container, ds, prov, kk); });
+          return;
+        }
+      }
+      metaRenderDataset(container, ds, prov, cacheKey);
+    }
+
+    function metaRenderDataset(container, ds, prov, cacheKey) {
+      var cache = window.__datasetMetaCache || {};
+      var cached = cacheKey ? cache[cacheKey] : null;
+      var apiMeta = (cached && !cached.__error) ? cached : null;
+      var failed = !!(cacheKey && cached && cached.__error);
+      var html = '';
+      // (1) `# meta` + kildens metadata (flettet av MetaInfo, direktiv-tekst øverst)
+      html += window.MetaInfo.render(
+        window.MetaInfo.merge(apiMeta, metaFreshMetas(), ds),
+        { commentTarget: ds, labels: metaLabels() });
+      // (2) proveniens
+      html += renderDatasetProvLine(prov);
+      // (3) rader × kolonner
+      var dsMeta = (window.lastDatasetInfo || {})[ds];
+      if (dsMeta) {
+        var ncols = (dsMeta.columns || []).length;
+        var nrows = dsMeta.nrows != null ? dsMeta.nrows : 0;
+        html += '<div class="meta-info-dims">' + escapeHtml(t('{rows} rader × {cols} kolonner', { rows: nrows, cols: ncols })) + '</div>';
+      }
+      // (4) grasiøs degradering: dempet melding KUN ved et faktisk feilet forsøk
+      if (failed) {
+        html += '<div class="meta-info-note">' + escapeHtml(t('(kunne ikke hente kildemetadata)')) + '</div>';
+      }
+      // (5) 💬-knapp + community-ramme (mål = dsName)
+      html += metaCommunityFrame(ds);
+      container.innerHTML = html;
+      var cbtn = container.querySelector('.meta-info-comment-btn');
+      if (cbtn) cbtn.addEventListener('click', function () {
+        var frame = cbtn.closest('.meta-info-community');
+        var thread = frame && frame.querySelector('.meta-info-community-thread');
+        if (thread && window.Comments) {
+          if (window.Comments.isOpen(thread)) window.Comments.close();
+          else window.Comments.open(thread, cbtn.getAttribute('data-comment-target'));
+        }
+      });
     }
 
     // Art fra dtype-strengen alene — brukes for remote-datasett der bare

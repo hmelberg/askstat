@@ -159,6 +159,26 @@
       "file": "brython/bry31_choropleth.txt",
       "label": "plotly — choropleth (land + norske kommuner)",
       "group": null
+    },
+    {
+      "file": "brython/bry32_meta_csv.txt",
+      "label": "«# meta» — dokumentér en CSV-kilde",
+      "group": null
+    },
+    {
+      "file": "brython/bry33_meta_ssb.txt",
+      "label": "«# meta» + SSB — metadata hentes fra kilden",
+      "group": null
+    },
+    {
+      "file": "brython/bry34_meta_variabelpanel.txt",
+      "label": "«# meta» — notater i variabelpanelet (uten kilder)",
+      "group": null
+    },
+    {
+      "file": "brython/bry35_meta_lenker_advarsel.txt",
+      "label": "«# meta» — flere lenker, akkumulering og advarsel",
+      "group": null
     }
   ],
   "duckdb": [
@@ -369,6 +389,11 @@
       "group": null
     },
     {
+      "file": "python/py31_assembly.txt",
+      "label": "Assembly — import single variables",
+      "group": null
+    },
+    {
       "file": "python/py_containers.txt",
       "label": "Containers — explicit layout",
       "group": null
@@ -416,11 +441,6 @@
     {
       "file": "python/py_widgets_ui.txt",
       "label": "Widgets — ui.slider/dropdown (notebook)",
-      "group": null
-    },
-    {
-      "file": "python/py31_assembly.txt",
-      "label": "Assembly — import single variables",
       "group": null
     }
   ],

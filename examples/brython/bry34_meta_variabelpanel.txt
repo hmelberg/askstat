@@ -1,0 +1,12 @@
+# label: «# meta» — notater i variabelpanelet (uten kilder)
+# Eksempel: `# meta` trenger ingen «# connect» — et datasett lastet rett
+# med `# read` får ingen oppføring under «Tilkoblede kilder», men
+# variabelnotatene virker likevel: klikk en variabel (f.eks. species)
+# under «penguins» i Datasett-listen — notatet vises øverst i panelet,
+# med 💬-lenke til felles kommentartråd (github.com/hmelberg/openstat-metadata).
+# read https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
+# meta penguins.species Art: Adelie, Chinstrap eller Gentoo
+# meta penguins.flipper_length_mm Sveivelengde i mm — god artsskiller
+import pandas_brython as pd
+
+show(penguins.groupby("species")["flipper_length_mm"].mean())

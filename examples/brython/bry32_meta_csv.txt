@@ -1,0 +1,15 @@
+# label: «# meta» — dokumentér en CSV-kilde
+# Eksempel: `# meta` legger egne notater og lenker på kilder og variabler.
+# Åpne sidepanelet (Datasett) og trykk ⓘ ved «peng» under «Tilkoblede
+# kilder» — notatet og lenken vises øverst i containeren. Klikk en
+# variabelrad (f.eks. peng/species) for variabelnotatet, og klikk
+# variabelen i Datasett-listen for samme notat i variabelpanelet.
+# connect https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as peng
+# read https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as peng
+# meta peng Palmer-pingvinene: 344 pingviner fra Palmer-stasjonen, Antarktis (2007-2009)
+# meta peng https://allisonhorst.github.io/palmerpenguins/ Om datasettet
+# meta peng.species Art: Adelie, Chinstrap eller Gentoo
+# meta peng.body_mass_g Kroppsvekt i gram, målt ved fangst
+import pandas_brython as pd
+
+show(peng.groupby("species")["body_mass_g"].mean())

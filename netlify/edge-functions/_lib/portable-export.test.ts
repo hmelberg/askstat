@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-for (const f of ["data-directives.js", "portable-export.js"]) {
+for (const f of ["data-directives.js", "pxweb.js", "portable-export.js"]) {
   (0, eval)(await Deno.readTextFile(new URL(`../../../js/${f}`, import.meta.url)));
 }
 // deno-lint-ignore no-explicit-any
@@ -235,4 +235,35 @@ Deno.test("fast-path: malformet direktiv m/ key-literal scrubbes også uten pars
   if (out.code.includes("supersecret123")) throw new Error("nøkkelliteral lekket via fast-path");
   if (!out.code.includes("key(***)")) throw new Error("maskering mangler");
   if (!out.code.includes("print('hei')")) throw new Error("resten mangler");
+});
+
+// ── pxweb-eksport (plan 2026-07-25 Task 2) ──────────────────────────────────
+const PX_SCRIPT = [
+  "# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)",
+  "# load ssb/05839 as bef",
+  "print(bef.head())",
+].join("\n");
+
+Deno.test("pxweb python: _px_frame-helper + data-URL med json-stat2", () => {
+  const out = PE.transpile(PX_SCRIPT, "python", []);
+  if (!out.code.includes("def _px_frame(ds):")) throw new Error("mangler helper:\n" + out.code);
+  if (!out.code.includes('bef = _px_frame(requests.get("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?lang=no&outputFormat=json-stat2").json())')) {
+    throw new Error("feil emisjon:\n" + out.code);
+  }
+  if (!out.code.includes("import requests")) throw new Error("mangler requests-import");
+  if (!out.code.includes("import pandas as pd")) throw new Error("mangler pandas-import");
+});
+
+Deno.test("pxweb python: helperen emitteres ÉN gang ved to pxweb-loads", () => {
+  const s2 = PX_SCRIPT + "\n# load ssb/07459 as pop\n";
+  const out = PE.transpile(s2, "python", []);
+  assertEquals(out.code.split("def _px_frame(ds):").length - 1, 1);
+});
+
+Deno.test("pxweb r: px_frame_-helper + jsonlite-lesing", () => {
+  const out = PE.transpile(PX_SCRIPT.replace("print(bef.head())", "head(bef)"), "r", []);
+  if (!out.code.includes("px_frame_ <- function(ds)")) throw new Error("mangler helper:\n" + out.code);
+  if (!out.code.includes('bef <- px_frame_(jsonlite::fromJSON("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?lang=no&outputFormat=json-stat2", simplifyVector = FALSE))')) {
+    throw new Error("feil emisjon:\n" + out.code);
+  }
 });

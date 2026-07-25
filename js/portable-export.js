@@ -152,6 +152,28 @@
       warnings.push('«' + item.alias + '»: ' + item.kind + '-kilder eksporteres ikke i v1');
       return out.lines;
     }
+    // pxweb (plan 2026-07-25 Task 2): data-URL-en bygges på transpile-tid
+    // (js/pxweb.js), konverteringen json-stat2 → langt format emitteres som
+    // hjelpefunksjon én gang (needs.pxHelperPy/R) — selvforsynt eksport.
+    if (item.kind === 'pxweb') {
+      var PX = global.PxWeb;
+      if (!PX) {
+        out.lines.push('# (pxweb-kilde «' + item.alias + '»: intern feil — js/pxweb.js er ikke lastet)');
+        warnings.push('«' + item.alias + '»: pxweb-transpilering utilgjengelig (js/pxweb.js mangler)');
+        return out.lines;
+      }
+      var du = PX.dataUrl(url);
+      if (mode === 'python') {
+        needs.requests = true;
+        needs.pandas = true;
+        needs.pxHelperPy = true;
+        out.lines.push(item.alias + ' = _px_frame(requests.get(' + pyStr(du) + ').json())');
+      } else {
+        needs.pxHelperR = true;
+        out.lines.push(item.alias + ' <- px_frame_(jsonlite::fromJSON(' + rStr(du) + ', simplifyVector = FALSE))  # krever jsonlite');
+      }
+      return out.lines;
+    }
     // fmt regnes ut FØR ev. nøkkel-plassering markerer url som variabel
     // (__URLVAR__), slik at endelsesniffing i formatFor fortsatt ser den
     // ekte URL-en.
@@ -189,6 +211,63 @@
   }
 
   function rStr(s) { return JSON.stringify(s); }
+
+  // json-stat2 → langt format (koder + value) — speiler js/pxweb.js
+  // columnsFromJsonStat: koder i posisjonsorden (index som objekt ELLER
+  // array), row-major-ekspansjon etter id/size, sparse value-objekt → NA.
+  var PX_HELPER_PY = [
+    '',
+    'def _px_frame(ds):',
+    '    ids = ds.get("id") or []',
+    '    size = ds.get("size") or []',
+    '    def _codes(dim):',
+    '        idx = (dim.get("category") or {}).get("index")',
+    '        if isinstance(idx, list):',
+    '            return [str(c) for c in idx]',
+    '        return [c for c, _ in sorted((idx or {}).items(), key=lambda kv: kv[1])]',
+    '    dims = [_codes((ds.get("dimension") or {}).get(i) or {}) for i in ids]',
+    '    total = 1',
+    '    for s in size:',
+    '        total *= s',
+    '    val = ds.get("value")',
+    '    cols = {i: [] for i in ids}',
+    '    vals = []',
+    '    for flat in range(total):',
+    '        rest = flat',
+    '        for d in range(len(ids) - 1, -1, -1):',
+    '            cols[ids[d]].append(dims[d][rest % size[d]])',
+    '            rest //= size[d]',
+    '        v = val[flat] if isinstance(val, list) else (val or {}).get(str(flat))',
+    '        vals.append(v)',
+    '    cols["value"] = vals',
+    '    return pd.DataFrame(cols)',
+  ];
+  var PX_HELPER_R = [
+    '',
+    'px_frame_ <- function(ds) {',
+    '  ids <- unlist(ds$id); size <- unlist(ds$size)',
+    '  codes_ <- function(dim) {',
+    '    idx <- dim$category$index',
+    '    if (is.null(names(idx))) as.character(unlist(idx)) else names(sort(unlist(idx)))',
+    '  }',
+    '  dims <- lapply(ids, function(i) codes_(ds$dimension[[i]]))',
+    '  grid <- rev(expand.grid(rev(setNames(dims, ids)), stringsAsFactors = FALSE))',
+    '  v <- ds$value',
+    '  if (!is.null(names(v))) {',
+    '    vals <- rep(NA, prod(size))',
+    '    vals[as.integer(names(v)) + 1] <- unlist(v)',
+    '  } else {',
+    '    vals <- unlist(lapply(v, function(x) if (is.null(x)) NA else x))',
+    '  }',
+    '  grid$value <- vals',
+    '  grid',
+    '}',
+  ];
+  function pxHelperLines(mode, needs) {
+    if (mode === 'python' && needs.pxHelperPy) return PX_HELPER_PY;
+    if (mode === 'r' && needs.pxHelperR) return PX_HELPER_R;
+    return [];
+  }
 
   function emitR(item, url, body, fmt, out) {
     if (body !== null) {
@@ -274,7 +353,7 @@
       head.push(mode === 'python' ? (name + ' = "SETT-INN-EGEN-NØKKEL"') : (name + ' <- "SETT-INN-EGEN-NØKKEL"'));
     });
     var imports = mode === 'python' ? pythonImports(needs, script) : rImports(needs, script); // rImports: Task 2
-    var code = head.concat(imports.length ? imports : []).concat(['']).join('\n') + outLines.join('\n');
+    var code = head.concat(imports.length ? imports : []).concat(pxHelperLines(mode, needs)).concat(['']).join('\n') + outLines.join('\n');
     return { code: code, warnings: warnings };
   }
 

@@ -248,12 +248,34 @@ prøve fra PyPI eller GitHub. Nivåene:
       Eurostat 400-er ved kombinerte tidsvinduer, funnet i verifiseringen).
       Verifisert live i CPython og editor: norsk BNP (6×6, 470 358,7 MEUR
       i 2025). CORS er * (verifisert).
-- [ ] **OECD som egen kind** — IKKE pxweb-gjenbruk likevel (verifisert
-      2026-07-25): OECD-API-et er SDMX-JSON med 13-delte nøkkelstier
-      (`/data/<flow>/<A..NOR.S1..B1GQ......>`), et annet format enn
-      json-stat2 — krever egen konverterer og egen URL-/nøkkelmodell.
-      Egen økt hvis behovet melder seg; Verdensbanken (enkel JSON) er
-      trolig billigere som neste kilde.
+- [x] **API-kinds fase 1 (sdmx/dbnomics/worldbank)** — LEVERT 2026-07-25
+      (spec 2026-07-25-api-kinds-design.md). Generalisert etter Hans'
+      innspill: protokoll-adaptere i js/api-kinds.js fremfor kilde-kinds,
+      og kildenavn som inngang (`# connect oecd` — registeret bærer kind;
+      `kind(oecd)` aliases til sdmx). Premisset fra forrige økt («OECD
+      krever egen SDMX-JSON-konverterer») var FORELDET: API-et leverer
+      SDMX-CSV direkte via Accept-header (application/vnd.sdmx.data+csv;
+      labels=id) — null konverterer. kind(sdmx) dekker OECD + Norges Bank
+      (Accept-veien) + ECB (406 på Accept → format=csvdata-fallback) og
+      trolig IMF (uverifisert); kind(dbnomics) dekker ~80 kilder (JSON →
+      lang-format-flatener, observations=1 tvinges, maks 1000 serier);
+      kind(worldbank) (JSON [meta,rader], per_page=20000-default,
+      sideløkke). VIKTIG FELLE (styrer alt videre): SDMX 2.1-API-ene
+      ignorerer ukjente parametre STILLE (c[DIM]=-filtre ga Colombia/HUF/
+      AUD-rader der NOR/USD var bedt om) — send aldri uverifiserte
+      parametre. Dekker lastelag (Accept via item.fetchHeaders + hent-core
+      videresender accept), montering, eksport (_sdmx_frame m/UA openstat —
+      urllib 403-er hos OECD uten! + _wb_frame/_dbn_frame), openstat.py
+      (paritet, delte fixtures), register (ecb+dbnomics nye; oecd/
+      norgesbank/worldbank/eurostat fikk kind+korrigert base_url).
+      Verifisert live: eksportert CPython mot 4 API-er, nettleser-datalag
+      mot alle 5, editor-run (webR) mot Verdensbanken.
+- [ ] **API-kinds fase 2: kanonisk vokabular** — years()/countries()/
+      regions()/indicators()/filters() oversatt per kind (spec §3);
+      hard-feil-regelen (aldri stille passthrough, jf. fellen over);
+      sdmx-nøkler via CSV-header-introspeksjon (lastNObservations=1).
+      WHO GHO utsatt (API-et svarte ikke 2026-07-25); IMF-liveverifisering
+      og katalog-/tab-probe for nye kilder åpne.
 - [ ] Fortsatt åpent fra pxweb-økten: `<dim>_label`-kolonner som opt-in og
       tabell-SØK (`/tables?query=`) i katalogen.
 - [x] **Datacache-styring (a)** — LEVERT 2026-07-25: `cache(<ttl>)`-opsjon

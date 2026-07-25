@@ -256,12 +256,95 @@ neste, ikke alt i én PR:
 
 ## §7 Bevisst utenfor økten (oppsummert)
 
-- **ECB** — mangler JSON-støtte for strukturspørringer (kun XML); egen,
-  senere oppfølging som krever XML-parsing (se §1a). Fortsetter på
-  web_search+probe som i dag.
+- ~~**ECB**~~ — LEVERT i en oppfølgingsøkt samme dag, se §8.
 - Statisk snarveisliste (fase C) — vent på bruksdata.
 - worldbank/who/fred/kaggle/dbnomics/owid/githubraw/wikipedia-adaptere.
 - Langhale-oppdagelse (awesome-public-datasets) — egen spec.
 - `<dim>_label`-kolonner i dataeksporten.
 - Eurostats DCAT-AP-katalog / CKAN-generalisering utover datanorge — ingen
   konkret kilde i registeret trenger det i dag.
+
+## §8 ECB (oppfølgingsøkt samme dag): XML-støtte
+
+Alt under er verifisert LIVE 2026-07-25 (curl + faktisk Deno-parsing), ikke antatt.
+
+### Hvorfor XML nå
+
+§1a utsatte ECB fordi strukturspørringer (dataflow-liste, DSD/kodelister)
+KUN svarer XML (`Acceptable representations: [application/xml,
+application/vnd.sdmx.structure+xml;version=2.1]`) — ingen JSON-variant,
+ulikt norgesbank/oecd. Kodebasen hadde ingen XML-parser. Løsningen: en
+lettvekts, velprøvd XML→JS-parser i stedet for en håndrullet parser.
+
+### Bibliotek: `fast-xml-parser` via esm.sh
+
+Verifisert å fungere i Deno mot ekte ECB-XML (214 dataflows parset
+korrekt). Kodebasen har allerede presedens for esm.sh-hostede avhengigheter
+i produksjon (`_lib/rate-limit.ts` importerer `@netlify/blobs` derfra) —
+dette er IKKE en ny type avhengighet arkitektonisk sett.
+
+```ts
+import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
+const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+```
+
+### Verifiserte XML-fasonger
+
+**Dataflow-liste** (`GET <strukturrot>dataflow/all/all/latest?references=none`,
+`Accept: application/xml`, INGEN Accept-Language nødvendig for ECB — det
+var kun en OECD/JSON-kvirk):
+
+```
+doc["mes:Structure"]["mes:Structures"]["str:Dataflows"]["str:Dataflow"]
+  → array (eller ett objekt hvis kun ett treff — sjekk Array.isArray)
+  → per flow: { id, agencyID, version, "com:Name": {"#text": "...", "xml:lang": "en"},
+                "str:Structure": { Ref: { agencyID, id, version, package: "datastructure" } } }
+```
+
+VIKTIG forskjell fra JSON-sporet: DSD-referansen (`str:Structure.Ref.id`/
+`.agencyID`) er ALLEREDE på selve dataflow-elementet — ingen behov for et
+eget `references=all`-kall bare for å finne DSD-ID-en (JSON-sporet trengte
+det siden dataflow-ID og DSD-ID kan avvike der òg, men XML-svaret gir
+begge deler i samme respons som søket).
+
+**DSD + kodelister** (`GET <strukturrot>dataflow/{agencyID}/{dataflowId}/latest?references=all`):
+
+```
+doc["mes:Structure"]["mes:Structures"]["str:DataStructures"]["str:DataStructure"]
+  → { id, agencyID,
+      "str:DataStructureComponents": {
+        "str:DimensionList": {
+          "str:Dimension": [ { id, "str:LocalRepresentation": {
+              "str:Enumeration": { Ref: { id: "<kodeliste-ID>", agencyID, version } } } }, ... ],
+          "str:TimeDimension": { id, ... }  // ALDRI i samme array som str:Dimension
+        }
+      }
+    }
+
+doc["mes:Structure"]["mes:Structures"]["str:Codelists"]["str:Codelist"]
+  → array, per kodeliste: { id, "str:Code": [ { id, "com:Name": {"#text": "...", "xml:lang": "en"} }, ... ] }
+```
+
+Kodeliste-kobling er ENKLERE enn JSON-sporet: `Dimension.str:LocalRepresentation
+.str:Enumeration.Ref.id` gir kodeliste-ID-en DIREKTE som et attributt —
+ingen URN-regex-parsing nødvendig (JSON-sporet må parse en URN-streng for
+samme informasjon).
+
+### Arkitektur: `ecbSearch`/`ecbMetadata` som egne funksjoner
+
+`sdmxSearch`/`sdmxMetadata` (fra Task 5) blir "familie-rutere": sjekker
+`SDMX_STRUCTURE_ACCEPT[src.id]` (JSON-kilder) FØRST, faller til en ny
+`SDMX_XML_SOURCES`-sjekk (foreløpig kun `{"ecb"}`) og delegerer til
+`ecbSearch`/`ecbMetadata` — IKKE dual JSON/XML-logikk inni selve
+sdmx-funksjonene (for mye forgrening i én funksjon). Samme `CatalogHit`/
+`TableMeta`-returformer som alle andre adaptere — ingen endring i
+promptlaget.
+
+`isSearchableSource` (registry.ts) utvides: `tilgang === "sdmx" &&
+(id in SDMX_STRUCTURE_ACCEPT || SDMX_XML_SOURCES.has(id))`.
+
+### Bevisst utenfor denne oppfølgingsøkten
+
+- Andre XML-only SDMX-kilder enn ECB — ingen kjent i registeret i dag.
+- Concept-scheme-oppslag for pen dimensjons-label (koden brukes som label,
+  samme forenkling som for norgesbank/oecd i Task 5).

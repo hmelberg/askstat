@@ -187,10 +187,31 @@
         return out.lines;
       }
       if (item.kind === 'sdmx') {
-        if (mode === 'python') {
+        var nk = item.needsSdmxKey;
+        if (nk) {
+          // Kanonisk countries()/indicators()/filters() (spec §3): nøkkelen
+          // bygges ved KJØRING fra CSV-headeren til en lastNObservations=1-
+          // probe — samme introspeksjon som appen gjør, selvforsynt.
+          var want = {};
+          if (nk.countries) want.REF_AREA = nk.countries.join('+');
+          if (nk.indicators) want.MEASURE = nk.indicators.join('+');
+          Object.keys(nk.filters || {}).forEach(function (fk) { want[fk] = String(nk.filters[fk]); });
+          var sq = url.indexOf('?');
+          var sBase = (sq >= 0 ? url.slice(0, sq) : url).replace(/\/+$/, '');
+          var sQuery = sq >= 0 ? url.slice(sq) : '';
+          if (mode === 'python') {
+            needs.pandas = true; needs.io = true; needs.sdmxHelperPy = true; needs.sdmxKeyHelperPy = true;
+            out.lines.push('_dims_' + item.alias + ' = _sdmx_key_dims(_sdmx_frame(' + pyStr(sBase + '/all?lastNObservations=1') + ').columns)');
+            out.lines.push(item.alias + ' = _sdmx_frame(' + pyStr(sBase + '/') + ' + _sdmx_key(_dims_' + item.alias + ', ' + JSON.stringify(want) + ')' + (sQuery ? ' + ' + pyStr(sQuery) : '') + ')');
+          } else {
+            needs.sdmxHelperR = true; needs.sdmxKeyHelperR = true;
+            var wantR = 'c(' + Object.keys(want).map(function (wk) { return wk + ' = ' + rStr(want[wk]); }).join(', ') + ')';
+            out.lines.push('dims_' + item.alias + '_ <- sdmx_key_dims_(names(sdmx_frame_(' + rStr(sBase + '/all?lastNObservations=1') + ')))');
+            out.lines.push(item.alias + ' <- sdmx_frame_(paste0(' + rStr(sBase + '/') + ', sdmx_key_(dims_' + item.alias + '_, ' + wantR + ')' + (sQuery ? ', ' + rStr(sQuery) : '') + '))');
+          }
+        } else if (mode === 'python') {
           needs.pandas = true; needs.io = true; needs.sdmxHelperPy = true;
           out.lines.push(item.alias + ' = _sdmx_frame(' + pyStr(url) + ')');
-          out.lines.push('# (faller API-et tilbake til XML/406: prøv ?format=csvdata på URL-en)');
         } else {
           needs.sdmxHelperR = true;
           out.lines.push(item.alias + ' <- sdmx_frame_(' + rStr(url) + ')');
@@ -212,6 +233,24 @@
         } else {
           needs.dbnHelperR = true;
           out.lines.push(item.alias + ' <- dbn_frame_(' + rStr(dbu) + ')  # krever jsonlite');
+        }
+        if (item.clientYears) {
+          // years() for dbnomics filtreres klient-side i appen — speil det,
+          // ellers avviker eksportert ramme (parity-garantien).
+          var cyF = item.clientYears.from, cyT = item.clientYears.to;
+          if (mode === 'python') {
+            out.lines.push('_yr = pd.to_numeric(' + item.alias + '["period"].astype(str).str[:4], errors="coerce")');
+            var conds = [];
+            if (cyF) conds.push('(_yr.isna() | (_yr >= ' + parseInt(cyF, 10) + '))');
+            if (cyT) conds.push('(_yr.isna() | (_yr <= ' + parseInt(cyT, 10) + '))');
+            out.lines.push(item.alias + ' = ' + item.alias + '[' + conds.join(' & ') + '].reset_index(drop=True)');
+          } else {
+            out.lines.push('yr_ <- suppressWarnings(as.numeric(substr(as.character(' + item.alias + '$period), 1, 4)))');
+            var condsR = [];
+            if (cyF) condsR.push('(is.na(yr_) | yr_ >= ' + parseInt(cyF, 10) + ')');
+            if (cyT) condsR.push('(is.na(yr_) | yr_ <= ' + parseInt(cyT, 10) + ')');
+            out.lines.push(item.alias + ' <- ' + item.alias + '[' + condsR.join(' & ') + ', ]');
+          }
         }
       }
       return out.lines;
@@ -423,16 +462,49 @@
     '}',
     'if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a',
   ];
+  // Nøkkelbygging fra CSV-header (speiler js/api-kinds.js sdmxKeyDims/
+  // sdmxKeyPath — brukes av kanonisk countries()/indicators()/filters()).
+  var SDMX_KEY_HELPER_PY = [
+    '',
+    'def _sdmx_key_dims(cols):',
+    '    cols = list(cols)',
+    '    t = cols.index("TIME_PERIOD")',
+    '    start = 3 if cols[:3] == ["STRUCTURE", "STRUCTURE_ID", "ACTION"] else (1 if cols[0] in ("DATAFLOW", "KEY") else 0)',
+    '    return cols[start:t]',
+    '',
+    'def _sdmx_key(dims, want):',
+    '    for k in want:',
+    '        if k not in dims:',
+    '            raise ValueError(k + " finnes ikke i dataflowen — dimensjonene er " + ", ".join(dims))',
+    '    return ".".join(want.get(d, "") for d in dims)',
+  ];
+  var SDMX_KEY_HELPER_R = [
+    '',
+    'sdmx_key_dims_ <- function(cols) {',
+    '  t <- match("TIME_PERIOD", cols)',
+    '  start <- if (length(cols) >= 3 && identical(cols[1:3], c("STRUCTURE", "STRUCTURE_ID", "ACTION"))) 4',
+    '           else if (cols[1] %in% c("DATAFLOW", "KEY")) 2 else 1',
+    '  cols[start:(t - 1)]',
+    '}',
+    '',
+    'sdmx_key_ <- function(dims, want) {',
+    '  mangler <- setdiff(names(want), dims)',
+    '  if (length(mangler)) stop(paste0(mangler[1], " finnes ikke i dataflowen — dimensjonene er ", paste(dims, collapse = ", ")))',
+    '  paste(ifelse(dims %in% names(want), want[dims], ""), collapse = ".")',
+    '}',
+  ];
   function pxHelperLines(mode, needs) {
     var lines = [];
     if (mode === 'python') {
       if (needs.pxHelperPy) lines = lines.concat(PX_HELPER_PY);
       if (needs.sdmxHelperPy) lines = lines.concat(SDMX_HELPER_PY);
+      if (needs.sdmxKeyHelperPy) lines = lines.concat(SDMX_KEY_HELPER_PY);
       if (needs.wbHelperPy) lines = lines.concat(WB_HELPER_PY);
       if (needs.dbnHelperPy) lines = lines.concat(DBN_HELPER_PY);
     } else {
       if (needs.pxHelperR) lines = lines.concat(PX_HELPER_R);
       if (needs.sdmxHelperR) lines = lines.concat(SDMX_HELPER_R);
+      if (needs.sdmxKeyHelperR) lines = lines.concat(SDMX_KEY_HELPER_R);
       if (needs.wbHelperR) lines = lines.concat(WB_HELPER_R);
       if (needs.dbnHelperR) lines = lines.concat(DBN_HELPER_R);
     }

@@ -203,3 +203,75 @@ def test_connect_read_sdmx_accept_og_fallback(monkeypatch):
     assert calls[1][0].endswith("format=csvdata")
     assert df.shape == (1, 4)
     assert list(df.columns) == ["KEY", "FREQ", "TIME_PERIOD", "OBS_VALUE"]
+
+
+# ── kanonisk vokabular fase 2 (spec §3): paritet med translateCanonical
+# og sdmx-headerintrospeksjonen i JS — samme fixtures, samme feiltekster. ────
+
+HDR_FIX = json.loads((pathlib.Path(__file__).parent / "fixtures" / "sdmx_headers.json").read_text())
+
+
+def test_sdmx_key_dims_alle_tre_prefiksformene():
+    assert len(ost.sdmx_key_dims(HDR_FIX["oecd"])) == 13
+    assert ost.sdmx_key_dims(HDR_FIX["oecd"])[0] == "REF_AREA"
+    assert ost.sdmx_key_dims(HDR_FIX["nb"]) == ["FREQ", "BASE_CUR", "QUOTE_CUR", "TENOR"]
+    assert ost.sdmx_key_dims(HDR_FIX["ecb"]) == ["FREQ", "CURRENCY", "CURRENCY_DENOM", "EXR_TYPE", "EXR_SUFFIX"]
+    assert ost.sdmx_key_dims("A,B,C") == []
+
+
+def test_sdmx_key_path_paritet():
+    dims = ost.sdmx_key_dims(HDR_FIX["oecd"])
+    assert ost.sdmx_key_path(dims, {"countries": ["NOR", "SWE"]}) == "NOR+SWE" + "." * 12
+    ecb = ost.sdmx_key_dims(HDR_FIX["ecb"])
+    assert ost.sdmx_key_path(ecb, {"filters": {"CURRENCY": "USD", "FREQ": "D"}}) == "D.USD..."
+    with pytest.raises(ValueError, match="ingen REF_AREA"):
+        ost.sdmx_key_path(ecb, {"countries": ["NOR"]})
+
+
+def test_translate_canonical_worldbank_og_eurostat():
+    rest, params, _, _ = ost._translate_canonical(
+        "worldbank", "", {"indicators": ["NY.GDP.MKTP.CD"], "countries": ["NOR", "SWE"],
+                          "years": {"from": "2015", "to": "2024"}})
+    assert rest == "country/NOR;SWE/indicator/NY.GDP.MKTP.CD"
+    assert params == ["date=2015:2024"]
+    with pytest.raises(ValueError, match="én form"):
+        ost._translate_canonical("worldbank", "country/NOR/indicator/A", {"indicators": ["B"]})
+    _, ep, _, _ = ost._translate_canonical(
+        "eurostat", "nama_10_gdp", {"countries": ["NO", "SE"], "years": {"from": "2020", "to": None},
+                                    "filters": {"na_item": "B1GQ"}})
+    assert "geo=NO" in ep and "geo=SE" in ep and "sinceTimePeriod=2020" in ep and "na_item=B1GQ" in ep
+
+
+def test_translate_canonical_pxweb_aar():
+    _, p1, _, _ = ost._translate_canonical("pxweb", "05839", {"years": {"from": "2007", "to": "2009"}})
+    assert p1 == ["valueCodes[Tid]=2007,2008,2009"]
+    _, p2, _, _ = ost._translate_canonical("pxweb", "05839", {"years": {"from": "2007", "to": None}})
+    assert p2 == ["valueCodes[Tid]=from(2007)"]
+    with pytest.raises(ValueError, match="startår"):
+        ost._translate_canonical("pxweb", "05839", {"years": {"from": None, "to": "2009"}})
+
+
+def test_read_sdmx_kanonisk_med_introspeksjon(monkeypatch):
+    calls = []
+
+    def fake(url, headers=None):
+        calls.append(url)
+        if "lastNObservations=1" in url:
+            return (HDR_FIX["oecd"] + "\nOECD.X:Y(1.1),COL,A,LFEXP,Y,Y0,M,_Z,_Z,_Z,_Z,_Z,_Z,_Z,2023,73.8,1,,,,0\n").encode()
+        return ("DATAFLOW,REF_AREA,TIME_PERIOD,OBS_VALUE\nX:Y(1.1),NOR,2023,84.2\n").encode()
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    o = ost.connect("https://sdmx.oecd.org/public/rest/data", kind="oecd")
+    df = o.read("OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE", countries=["NOR", "SWE"], years="2020:2023")
+    assert "/all?lastNObservations=1" in calls[0]
+    assert "/NOR+SWE" + "." * 12 + "?" in calls[1]
+    assert "startPeriod=2020" in calls[1] and "endPeriod=2023" in calls[1]
+    assert df.shape == (1, 4)
+
+
+def test_read_dbnomics_kanonisk_aarsfilter(monkeypatch):
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: json.dumps(DBN_FIX["ok"]).encode())
+    dbn = ost.connect("https://api.db.nomics.world/v22/series", kind="dbnomics")
+    df = dbn.read("IMF/WEO:latest/NOR.NGDP_RPCH", years="2025:2026")
+    assert list(df["period"]) == ["2025", "2026", "2025", "2026"]

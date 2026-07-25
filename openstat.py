@@ -18,6 +18,7 @@ fixture (tests/fixtures/pxweb_dataset.json) i begge testsuitene.
 
 import io
 import json as _json
+import re as _re
 import sys
 
 import pandas as pd
@@ -198,6 +199,149 @@ def dbnomics_data_url(url):
     return base + "?" + "&".join(parts)
 
 
+def sdmx_key_dims(header_line):
+    """Nøkkeldimensjonene fra SDMX-CSV-headeren (paritet med js/api-kinds.js
+    sdmxKeyDims): kolonnene mellom prefikset (DATAFLOW | STRUCTURE,
+    STRUCTURE_ID,ACTION | KEY) og TIME_PERIOD."""
+    cols = str(header_line or "").rstrip("\r").split(",")
+    if "TIME_PERIOD" not in cols:
+        return []
+    t = cols.index("TIME_PERIOD")
+    start = 0
+    if cols[0] == "STRUCTURE" and len(cols) > 1 and cols[1] == "STRUCTURE_ID":
+        start = 3 if len(cols) > 2 and cols[2] == "ACTION" else 2
+    elif cols[0] in ("DATAFLOW", "KEY"):
+        start = 1
+    return cols[start:t]
+
+
+def sdmx_key_path(dims, canonical):
+    """countries → REF_AREA, indicators → MEASURE, filters → navngitt
+    dimensjon; flere verdier med + (SDMX-ELLER). Ukjent dimensjon → ValueError
+    som lister gyldige (hard-feil-regelen)."""
+    want = {}
+
+    def put(dim_id, values, label):
+        if dim_id not in dims:
+            raise ValueError(label + ": dataflowen har ingen " + dim_id +
+                             "-dimensjon — dimensjonene er " + ", ".join(dims))
+        want[dims.index(dim_id)] = "+".join(values)
+
+    if canonical.get("countries"):
+        put("REF_AREA", canonical["countries"], "countries()")
+    if canonical.get("indicators"):
+        put("MEASURE", canonical["indicators"], "indicators()")
+    for k, v in (canonical.get("filters") or {}).items():
+        put(k, [v], "filters(" + k + "=…)")
+    return ".".join(want.get(i, "") for i in range(len(dims)))
+
+
+_CANONICAL_KEYS = ("years", "countries", "regions", "indicators", "filters")
+
+
+def _as_code_list(v):
+    if isinstance(v, (list, tuple)):
+        return [str(x) for x in v]
+    return [s for s in _re.split(r"[\s,]+", str(v)) if s]
+
+
+def _canonical_from_query(query):
+    """Trekk kanoniske felt ut av read(**query) — muterer query."""
+    c = {}
+    for k in _CANONICAL_KEYS:
+        if k not in query:
+            continue
+        v = query.pop(k)
+        if k == "years":
+            if isinstance(v, (list, tuple)) and len(v) == 2:
+                c["years"] = {"from": str(v[0]) if v[0] else None, "to": str(v[1]) if v[1] else None}
+            else:
+                s = str(v)
+                a, sep, b = s.partition(":")
+                c["years"] = {"from": a.strip() or None,
+                              "to": (b.strip() or None) if sep else (a.strip() or None)}
+        elif k == "filters":
+            c["filters"] = {str(fk): str(fv) for fk, fv in dict(v).items()}
+        else:
+            c[k] = _as_code_list(v)
+    return c or None
+
+
+def _translate_canonical(kind, rest, c):
+    """Paritet med js/data-directives.js translateCanonical — samme regler,
+    samme feiltekster; -> (rest, params, needs_key, client_years)."""
+    params, needs_key, client_years = [], None, None
+    y = c.get("years")
+    if kind == "worldbank":
+        if c.get("regions"):
+            raise ValueError("regions() støttes ikke for worldbank — bruk landkoder i countries()")
+        if c.get("indicators"):
+            if rest:
+                raise ValueError("både ressurssti og indicators() angitt — velg én form")
+            rest = ("country/" + (";".join(c["countries"]) if c.get("countries") else "all") +
+                    "/indicator/" + ";".join(c["indicators"]))
+        elif c.get("countries"):
+            raise ValueError("countries() uten indicators() for worldbank — angi indikatoren også, "
+                             "eller bygg stien selv (country/NOR/indicator/…)")
+        if y:
+            params.append("date=" + (y["from"] or "1900") + ":" + (y["to"] or "2100"))
+        for k, v in (c.get("filters") or {}).items():
+            params.append(k + "=" + v)
+    elif kind == "eurostat":
+        if c.get("indicators"):
+            raise ValueError("Eurostat har ikke et felles indikatorbegrep — bruk filters(na_item=…) "
+                             "e.l. for dette datasettet")
+        for g in (c.get("countries") or []) + (c.get("regions") or []):
+            params.append("geo=" + g)
+        if y and y["from"]:
+            params.append("sinceTimePeriod=" + y["from"])
+        if y and y["to"]:
+            params.append("untilTimePeriod=" + y["to"])
+        for k, v in (c.get("filters") or {}).items():
+            params.append(k + "=" + v)
+    elif kind == "pxweb":
+        if c.get("countries"):
+            raise ValueError("countries() gjelder ikke pxweb-kilder (SSB er norske data) — "
+                             "bruk regions() eller filters(<variabel>=…)")
+        if c.get("regions"):
+            params.append("valueCodes[Region]=" + ",".join(c["regions"]))
+        if c.get("indicators"):
+            params.append("valueCodes[ContentsCode]=" + ",".join(c["indicators"]))
+        if y:
+            if y["from"] and y["to"]:
+                a, b = int(y["from"]), int(y["to"])
+                if b < a or b - a > 500:
+                    raise ValueError("years(%s:%s): kan ikke enumerere intervallet for pxweb — bruk "
+                                     "filters(Tid=…)" % (y["from"], y["to"]))
+                params.append("valueCodes[Tid]=" + ",".join(str(x) for x in range(a, b + 1)))
+            elif y["from"]:
+                params.append("valueCodes[Tid]=from(" + y["from"] + ")")
+            else:
+                raise ValueError("years(:%s) for pxweb: angi startår også — from()-uttrykket har "
+                                 "ingen bakover-variant" % y["to"])
+        for k, v in (c.get("filters") or {}).items():
+            params.append("valueCodes[" + k + "]=" + v)
+    elif kind == "sdmx":
+        if c.get("regions"):
+            raise ValueError("regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) "
+                             "eller filters(<DIM>=…)")
+        if y and y["from"]:
+            params.append("startPeriod=" + y["from"])
+        if y and y["to"]:
+            params.append("endPeriod=" + y["to"])
+        if c.get("countries") or c.get("indicators") or c.get("filters"):
+            needs_key = {"countries": c.get("countries"), "indicators": c.get("indicators"),
+                         "filters": c.get("filters")}
+    elif kind == "dbnomics":
+        if c.get("countries") or c.get("indicators") or c.get("regions") or c.get("filters"):
+            raise ValueError("countries()/indicators()/filters() støttes ikke for dbnomics — "
+                             "dimensjonene ligger i serie-masken i stien "
+                             "(f.eks. IMF/WEO:latest/NOR+SWE.NGDP_RPCH)")
+        if y:
+            client_years = y
+    return rest, params, needs_key, client_years
+
+
 def dbnomics_columns(doc):
     series = (doc or {}).get("series") or {}
     docs = series.get("docs") or []
@@ -248,15 +392,34 @@ class Source:
         kind = self.kind or _sniff_kind(self.url)
         kind = _KIND_ALIAS.get(str(kind).lower(), kind)
         if kind in ("sdmx", "worldbank", "dbnomics"):
-            if not table:
-                raise ValueError(kind + "-kilder krever en ressurssti: kilde.read('EXR/D.USD.EUR.SP00.A')")
+            canonical = _canonical_from_query(query)
+            rest = str(table) if table else ""
+            needs_key = client_years = None
             qs = ["%s=%s" % (k, v) for k, v in query.items()]
-            target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
-            if kind == "sdmx":
+            if canonical:
+                rest, cparams, needs_key, client_years = _translate_canonical(kind, rest, canonical)
+                qs += cparams
+            if not rest:
+                raise ValueError(kind + "-kilder krever en ressurssti: kilde.read('EXR/D.USD.EUR.SP00.A')")
+            target = self.url.rstrip("/") + "/" + rest + (("?" + "&".join(qs)) if qs else "")
+
+            def _sdmx_csv(url):
                 try:
-                    raw = _fetch_bytes(target, headers={"Accept": SDMX_ACCEPT})
+                    return _fetch_bytes(url, headers={"Accept": SDMX_ACCEPT})
                 except Exception:
-                    raw = _fetch_bytes(sdmx_fallback_url(target))   # ECB-veien
+                    return _fetch_bytes(sdmx_fallback_url(url))   # ECB-veien
+            if kind == "sdmx":
+                if needs_key:
+                    # Kanonisk countries()/indicators()/filters(): nøkkelen
+                    # bygges fra CSV-headeren til en lastNObservations=1-probe
+                    # (query-params ville blitt STILLE ignorert, spec §0).
+                    base = self.url.rstrip("/") + "/" + rest
+                    probe = _sdmx_csv(base + "/all?lastNObservations=1")
+                    dims = sdmx_key_dims(probe.decode("utf-8").split("\n")[0])
+                    if not dims:
+                        raise ValueError("fant ikke dimensjonene i kildens CSV-header — angi nøkkelstien selv")
+                    target = base + "/" + sdmx_key_path(dims, needs_key) + (("?" + "&".join(qs)) if qs else "")
+                raw = _sdmx_csv(target)
                 df = pd.read_csv(io.BytesIO(raw))
             elif kind == "worldbank":
                 docs = [_json.loads(_fetch_bytes(worldbank_data_url(target)).decode("utf-8"))]
@@ -270,16 +433,31 @@ class Source:
             else:
                 doc = _json.loads(_fetch_bytes(dbnomics_data_url(target)).decode("utf-8"))
                 df = pd.DataFrame(dbnomics_columns(doc))
+                if client_years is not None and len(df):
+                    # years() for dbnomics: API-et har ikke tidsvindu-parametre
+                    # — filtrer klient-side (trygt: vi holder alle radene).
+                    # Ikke-numeriske perioder beholdes (kan ikke bedømmes).
+                    yr = pd.to_numeric(df["period"].astype(str).str[:4], errors="coerce")
+                    keep = pd.Series(True, index=df.index)
+                    if client_years["from"]:
+                        keep &= yr.isna() | (yr >= int(client_years["from"]))
+                    if client_years["to"]:
+                        keep &= yr.isna() | (yr <= int(client_years["to"]))
+                    df = df[keep].reset_index(drop=True)
             return df[list(columns)] if columns else df
         if kind in ("pxweb", "eurostat"):
             if not table:
                 raise ValueError(kind + "-kilder krever tabell-id: kilde.read('05839')")
+            canonical_px = _canonical_from_query(query)
             qs = []
             for k, v in query.items():
                 if isinstance(v, dict):
                     qs += [str(k) + "[" + str(dk) + "]=" + str(dv) for dk, dv in v.items()]
                 else:
                     qs.append(str(k) + "=" + str(v))
+            if canonical_px:
+                _, cparams_px, _, _ = _translate_canonical(kind, str(table), canonical_px)
+                qs += cparams_px
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
             ds = _json.loads(_fetch_bytes(du).decode("utf-8"))

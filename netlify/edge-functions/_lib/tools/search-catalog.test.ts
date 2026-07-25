@@ -15,6 +15,8 @@ const REG = parseRegistry([
     tilgang: "fil", kind: "apd", base_url: "https://github.com/awesomedata/apd-core", cors: false },
   { id: "owid", navn: "OWID", utgiver: "OWID", tillit: "etablert", tilgang: "fil",
     base_url: "https://ourworldindata.org/grapher/", cors: true },
+  { id: "fhi", navn: "FHI", utgiver: "FHI", tillit: "offisiell", tilgang: "rest",
+    kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
 ]);
 
 // PxWebApi v2 /tables response shape (subset)
@@ -139,4 +141,48 @@ Deno.test("source without sok_endepunkt or apd-kind is not searchable", async ()
   let threw = "";
   try { await searchCatalog("owid", "co2", { registry: REG, origin: ORIGIN }); } catch (e) { threw = String(e); }
   if (!threw.includes("ikke søkbar")) throw new Error("ventet 'ikke søkbar': " + threw);
+});
+
+// --- fhi adapter (Task 2) ---
+
+function fakeFhiFetch(): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith("Common/source")) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { id: "daar", title: "Dødsårsaksregisteret (DÅR)", description: "...", aboutUrl: "https://www.fhi.no/op/dodsarsaksregisteret/", publishedBy: "FHI" },
+        { id: "nokkel", title: "Folkehelsestatistikk", description: "...", aboutUrl: "https://www.fhi.no/op/nokkel/", publishedBy: "FHI" },
+      ]), { status: 200 }));
+    }
+    if (url.endsWith("daar/table")) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { tableId: 754, title: "D5c_hjertekar_rater", publishedAt: "2026-04-27T05:00:00Z", modifiedAt: "2026-05-26T13:25:14Z" },
+        { tableId: 868, title: "D6a_kreft_krg", publishedAt: "2026-04-27T05:00:00Z", modifiedAt: "2026-04-22T11:17:35Z" },
+      ]), { status: 200 }));
+    }
+    if (url.endsWith("nokkel/table")) {
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    }
+    if (url.includes("daar/table/754/dimension")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        dimensions: [
+          { code: "DAAR", label: "Dødsår", categories: [{ label: "2020", value: "2020", children: [] }, { label: "2021", value: "2021", children: [] }] },
+          { code: "KJONN", label: "Kjønn", categories: [{ label: "Menn", value: "1", children: [] }, { label: "Kvinner", value: "2", children: [] }] },
+        ],
+      }), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("fhiSearch: søker over alle registre, treffer på tittel", async () => {
+  const hits = await searchCatalog("fhi", "hjertekar", { registry: REG, origin: "https://app.test", fetchImpl: fakeFhiFetch() });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "daar/754");
+  assertEquals(hits[0].source, "fhi");
+});
+
+Deno.test("fhiSearch: ingen treff gir tom liste", async () => {
+  const hits = await searchCatalog("fhi", "zzznomatch", { registry: REG, origin: "https://app.test", fetchImpl: fakeFhiFetch() });
+  assertEquals(hits, []);
 });

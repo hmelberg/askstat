@@ -36,8 +36,12 @@ export async function searchCatalog(
     case "pxweb": return pxwebSearch(src, query, f);
     case "ckan": return fdkSearch(src, query, f);
     default:
-      if (src.kind === "apd") return apdSearch(query, deps.origin, f);
-      throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
+      switch (src.kind) {
+        case "apd": return apdSearch(query, deps.origin, f);
+        case "fhi": return fhiSearch(src, query, f);
+        default:
+          throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
+      }
   }
 }
 
@@ -114,4 +118,32 @@ async function apdSearch(query: string, origin: string, f: typeof fetch): Promis
     title: e.name,
     url: e.url,
   }));
+}
+
+interface FhiRegister { id: string; title: string; }
+interface FhiTable { tableId: number; title: string; }
+
+async function fhiSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const registersRes = await f(new URL("Common/source", src.base_url).toString());
+  if (!registersRes.ok) throw new Error(`fhi registerliste feilet: HTTP ${registersRes.status}`);
+  const registers = await registersRes.json() as FhiRegister[];
+  const q = query.toLowerCase();
+  const hits: CatalogHit[] = [];
+  for (const reg of registers) {
+    const tablesRes = await f(new URL(`${reg.id}/table`, src.base_url).toString());
+    if (!tablesRes.ok) continue; // ett register feiler ikke søket i de andre
+    const tables = await tablesRes.json() as FhiTable[];
+    for (const t of tables) {
+      if (t.title.toLowerCase().includes(q)) {
+        hits.push({
+          source: src.id,
+          id: `${reg.id}/${t.tableId}`,
+          title: t.title,
+          url: new URL(`${reg.id}/table/${t.tableId}/data`, src.base_url).toString(),
+        });
+        if (hits.length >= MAX_HITS) return hits;
+      }
+    }
+  }
+  return hits;
 }

@@ -243,6 +243,7 @@
     "utgiver": "Folkehelseinstituttet",
     "tillit": "offisiell",
     "tilgang": "rest",
+    "kind": "fhi",
     "base_url": "https://statistikk-data.fhi.no/api/open/v1/",
     "cors": true,
     "join_nokler": [

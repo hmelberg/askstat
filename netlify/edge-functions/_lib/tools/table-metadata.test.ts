@@ -8,6 +8,8 @@ const REG = parseRegistry([
     sporrings_url_mal: "https://data.ssb.no/api/pxwebapi/v2-beta/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv" },
   { id: "owid", navn: "OWID", utgiver: "OWID", tillit: "etablert", tilgang: "fil",
     base_url: "https://ourworldindata.org/grapher/", cors: true },
+  { id: "fhi", navn: "FHI", utgiver: "FHI", tillit: "offisiell", tilgang: "rest",
+    kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -50,4 +52,21 @@ Deno.test("non-pxweb source throws with probe guidance", async () => {
   let threw = "";
   try { await tableMetadata("owid", "co2", { registry: REG }); } catch (e) { threw = String(e); }
   if (!threw.includes("probe")) throw new Error("ventet probe-henvisning: " + threw);
+});
+
+Deno.test("fhi metadata: kode fra categories[].value, ingen tids-flagg", async () => {
+  const fetchImpl = ((input: string | URL | Request) => {
+    if (String(input).includes("daar/table/754/dimension")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        dimensions: [
+          { code: "DAAR", label: "Dødsår", categories: [{ label: "2020", value: "2020", children: [] }] },
+        ],
+      }), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  const meta = await tableMetadata("fhi", "daar/754", { registry: REG, fetchImpl });
+  const daar = meta.variables.find((v) => v.code === "DAAR")!;
+  assertEquals(daar.time, false);
+  assertEquals(daar.values[0], { code: "2020", label: "2020" });
 });

@@ -41,8 +41,24 @@ forkastet — ingen offentlig søke-API (kun webgrensesnitt) per juli 2026.
 ## §1 Omfang
 
 **I denne økten:**
-- `sdmx` (oecd, ecb, norgesbank) — delt adapter, ekte SDMX 2.1 hos alle tre.
+- `sdmx` (oecd, norgesbank — se §1a, ECB er UTSATT) — delt adapter, ekte SDMX 2.1.
 - `statfin`, `dst`, `fhi` — hver sin bespoke adapter.
+
+### §1a ECB utsatt — verifisert 2026-07-25 (implementering)
+
+Live-verifisering ved implementeringstidspunktet avdekket at struktur-
+spørringer (dataflow-liste OG DSD/kodelister) ligger på et SØSKEN-nivå til
+data-endepunktet, ikke under `<base_url>/dataflow/...` som først antatt —
+dette gjelder alle tre (strip `data/` fra slutten av `base_url`). Norges
+Bank og OECD støtter SDMX-JSON for disse spørringene (ulik versjonsstreng i
+Accept-headeren: NB vil ha `version=1.0.0`, OECD vil ha `version=1.0`).
+**ECB støtter derimot IKKE JSON for strukturspørringer i det hele tatt**
+(kun `application/vnd.sdmx.structure+xml`) — verken for dataflow-liste
+(søk) eller DSD/kodelister (metadata). Hans besluttet 2026-07-25: bygg for
+Norges Bank+OECD nå (JSON-basert); ECB fortsetter på web_search+probe som i
+dag. XML-parsing for ECB er en egen, senere oppfølging — ingen XML-parser
+finnes i kodebasen i dag, og det er en annen type kompleksitet enn resten
+av denne økten.
 
 **Bevisst utenfor:**
 - worldbank/who/fred/kaggle/dbnomics/owid/githubraw/wikipedia — ingen
@@ -63,19 +79,29 @@ forkastet — ingen offentlig søke-API (kun webgrensesnitt) per juli 2026.
 konsistens, i stedet for å grene på `id` direkte:
 
 - Registeret får `"kind": "statfin"`, `"kind": "dst"`, `"kind": "fhi"` på de
-  tre oppføringene (de mangler `kind` i dag).
-- `search_catalog`/`table_metadata` sin switch grener FØRST på `tilgang`
-  (pxweb/ckan/sdmx — delt protokoll, flere kilder), deretter på `kind` for
-  resten (bespoke, én kilde hver):
+  tre oppføringene (de mangler `kind` i dag; oecd/ecb/norgesbank har
+  allerede `"kind": "sdmx"` fra api-kinds-økten).
+- Siden apd-katalog-økten (levert samme dag) allerede innførte to-nivås
+  dispatchen i `search_catalog` (tilgang→kind, med kun en `apd`-gren i
+  `default`), UTVIDES den — ikke gjenoppfinnes:
 
 ```ts
+const SDMX_STRUCTURE_ACCEPT: Record<string, string> = {
+  norgesbank: "application/vnd.sdmx.structure+json;version=1.0.0",
+  oecd: "application/vnd.sdmx.structure+json;version=1.0",
+  // ecb bevisst UTELATT — kun XML for strukturspørringer, se §1a. Egen
+  // oppfølging senere; sdmxSearch/sdmxMetadata kaster en tydelig feil for
+  // kilder som ikke er i dette kartet, i stedet for å prøve og få 406.
+};
+
 switch (src.tilgang) {
   case "pxweb": return pxwebSearch(src, query, f);
   case "ckan":  return fdkSearch(src, query, f);
-  case "sdmx":  return sdmxSearch(src, query, f);
+  case "sdmx":  return sdmxSearch(src, query, f);  // kaster internt for ukjente ider (se over)
   default:
     switch (src.kind) {
-      case "statfin": return statfinSearch(src, query, f);
+      case "apd":      return apdSearch(query, deps.origin, f);   // uendret fra apd-katalog-økten
+      case "statfin":  return statfinSearch(src, query, f);
       case "dst":      return dstSearch(src, query, f);
       case "fhi":      return fhiSearch(src, query, f);
       default: throw new Error(`ingen søkeadapter for '${src.id}' — bruk web_search + probe`);
@@ -83,12 +109,17 @@ switch (src.tilgang) {
 }
 ```
 
-- `registry.ts`s `renderRegistryBlock` sin "søkbar via search_catalog"-sjekk
-  (i dag `if (s.sok_endepunkt)`) utvides til også å telle kilder med
-  `tilgang==="sdmx"` eller kjent `kind` som søkbare — teksten i
-  systemprompten må stemme med hva verktøyet faktisk støtter.
+- **Søkbarhets-sjekken samles i ÉN delt funksjon** (helhets-reviewen av
+  apd-katalog-økten pekte allerede på dette som en fremtidig koblings-fare):
+  `isSearchableSource(src): boolean` i `registry.ts`, brukt BÅDE av
+  `renderRegistryBlock` (prompt-hintet) OG av `search_catalog`s vakt-sjekk
+  (i dag to separate, hardkodede `s.kind === "apd"`-uttrykk) — slik at de
+  to stedene ikke kan drifte fra hverandre. Logikk: `sok_endepunkt` til
+  stede, ELLER `tilgang === "sdmx"` OG `id` er i `SDMX_STRUCTURE_ACCEPT`
+  (altså IKKE ecb), ELLER `kind` er i `{apd, statfin, dst, fhi}`.
 - `table_metadata`s harde `if (src.tilgang !== "pxweb") throw` (i dag i
-  `table-metadata.ts:30`) erstattes med samme to-nivås dispatch.
+  `table-metadata.ts:30`) erstattes med samme to-nivås dispatch (uten
+  apd-grenen — apd støtter ikke table_metadata, se apd-katalog-spec-en).
 
 Returtypene endres IKKE: alle nye adaptere returnerer `CatalogHit[]`
 (sok) / `TableMeta` (metadata) — nøyaktig samme form pxweb bruker i dag.
@@ -97,25 +128,43 @@ derfor ingen endring utover søkbarhets-sjekken over.
 
 ## §3 Per-kilde-adaptere
 
-### SDMX (oecd, ecb, norgesbank) — delt, `tilgang: sdmx`
+### SDMX (oecd, norgesbank — ECB utsatt, se §1a) — delt, `tilgang: sdmx`
 
-- **search:** `GET <base>/dataflow/all/all/latest` (SDMX-JSON,
-  `?references=none` for å slippe tunge cross-refs) → liste av
-  `{id, agencyID, name}`. Ingen fritekst-søk finnes i SDMX 2.1 selv —
-  filtrer på delstreng mot `name` i adapteren. Cache i minnet UTEN TTL,
-  nøyaktig samme mønster som `registry.ts:loadRegistry` (modul-cache til
-  eksplisitt clear — dataflow-lister endrer seg sjelden nok til at det er
-  riktig avveining) — Norges Bank (~20 flows) og ECB (~90) er trivielt
-  små; OECD (~1000+) er fortsatt ett HTTP-kall, bare et større svar å
-  filtrere.
-- **metadata:** `GET <base>/datastructure/{agencyID}/{id}` (DSD) → dimensjoner
-  + tilhørende kodelister (`{code, label}` per dimensjon, values fra
-  `Codelist`-delen av responsen). Dette er reelt NY informasjon
-  (jf. §0) — gir modellen gyldige koder, ikke bare kolonnenavn.
-- **Gjenkjente quirks (gjenbruk fra `js/api-kinds.js`):** OECD krever
-  User-Agent-header (403 uten); Norges Bank/ECB Accept-header-fallbacks
-  (`SDMX_ACCEPT`/`sdmxFallbackUrl`) gjelder DATAUTTREKKET, ikke
-  DSD-hentingen, som er egen kode — men samme UA-fiks kan trengs for OECD.
+Alt nedenfor er verifisert LIVE 2026-07-25 (curl mot ekte endepunkter),
+ikke antatt fra spec-en sin første versjon.
+
+- **Struktur-rot ≠ data-rot:** dataflow-/DSD-spørringer ligger IKKE under
+  `<base_url>/dataflow/...` — `base_url` peker på data-endepunktet
+  (f.eks. NBs `https://data.norges-bank.no/api/data/`). Strukturroten er
+  et søsken-nivå: strip det siste `data/`-segmentet
+  (`https://data.norges-bank.no/api/`), deretter `dataflow/…`/`datastructure/…`
+  derfra. Samme mønster hos OECD (`.../public/rest/data/` → `.../public/rest/`).
+- **search:** `GET <strukturrot>/dataflow/all/all/latest?references=none`
+  med header `Accept: application/vnd.sdmx.structure+json;version=X` —
+  **X er PER KILDE**: Norges Bank vil ha `1.0.0`, OECD vil ha `1.0` (406
+  ellers, med feilmeldingen som lister akseptable verdier — gjenbruk det
+  mønsteret om en tredje kilde legges til senere). Svar:
+  `{data: {dataflows: [{id, agencyID, name, names, structure: "urn:…DataStructure=<agency>:<dsdId>(<v>)"}]}}`.
+  Ingen fritekst-søk finnes i SDMX 2.1 selv — filtrer på delstreng mot
+  `name` i adapteren. Cache i minnet UTEN TTL (samme mønster som
+  `registry.ts:loadRegistry`) — Norges Bank (~20 flows) er trivielt lite;
+  OECD (~1000+) er fortsatt ett HTTP-kall.
+- **metadata:** ÉTT kall løser BÅDE dimensjoner og kodelister —
+  `GET <strukturrot>/dataflow/{agencyID}/{dataflowId}/latest?references=all`
+  (samme Accept-header som over). Responsen inneholder
+  `data.dataStructures[0].dataStructureComponents.dimensionList.dimensions[]`
+  (hver med `id` og `localRepresentation.enumeration` = en URN,
+  f.eks. `urn:sdmx:…Codelist=NB:CL_CURRENCY(1.0)`) OG `data.codelists[]`
+  (hver `{id, codes: [{id, name, names}]}`). Match dimensjon→kodeliste ved
+  å trekke kodeliste-ID-en ut av URN-en (regex på `Codelist=[^:]+:([^(]+)\(`)
+  og slå opp i `data.codelists` på `id`. Dette ER den nye informasjonen
+  spec-en sikter til i §0 — dataflow-ID-en alene forteller IKKE hvilken
+  DSD-ID den bruker (f.eks. NBs `EXR`-dataflow → `DSD_EXR`), derfor trengs
+  dataflow-spørringen med `references=all`, ikke et gjetta
+  `datastructure/{agencyID}/{id}`-kall.
+- **Gjenkjente quirks:** OECD krever User-Agent-header for datauttrekket
+  (`js/api-kinds.js`) — verifiser om samme UA trengs for struktur-kallene
+  (ikke bekreftet ennå, billig å teste under implementering).
 - **`TableMeta.queryUrlTemplate`:** sdmx-kildene har ikke
   `sporrings_url_mal` i registeret i dag (query bygges av
   `js/api-kinds.js` kjøretid via `sdmxKeyPath`) — la feltet stå tomt/utelatt
@@ -123,31 +172,51 @@ derfor ingen endring utover søkbarhets-sjekken over.
 
 ### StatFin (`kind: statfin`)
 
+Verifisert live 2026-07-25:
+
 - **search:** `GET <base>/<mappe>/` (rekursivt), JSON-liste
-  `{id, type, text, updated}`; `type: "l"` = mappe (rekurser), `type: "t"` =
-  tabell (kandidat). Filtrer på delstreng mot `text`.
-- **metadata:** `GET <base>/<mappe>/<tabell>.px` → PXWeb v1-metadata
+  `{id, type, text, updated?}`; `type: "l"` = mappe (rekurser), `type: "t"` =
+  tabell (kandidat, `updated` til stede). Filtrer på delstreng mot `text`.
+  MERK: tabell-`id` inneholder ALLEREDE `.px`-endelsen (f.eks. `"11pk.px"`)
+  — ikke legg til `.px` en gang til ved bygging av metadata-URL-en.
+- **metadata:** `GET <base>/<mappe>/<tabell-id-med-.px>` → PXWeb v1-metadata
   (samme `variables[].values`/`valueTexts`-form som v2, strukturen er
   eldre men konseptuelt lik — gjenbruk parsing-logikken fra
   `tableMetadata` der formen matcher, egne felt-navn der den ikke gjør).
 
 ### DST (`kind: dst`)
 
+Verifisert live 2026-07-25:
+
 - **search:** `GET /v1/tables?format=JSON` → hele tabellisten
-  (`{id, text, firstPeriod, lastPeriod, variables}`) — ingen
-  søkeparameter finnes; filtrer på delstreng mot `text` i adapteren.
-- **metadata:** `GET /v1/tableinfo/{tabell}?format=JSON` → variabler+koder.
+  (`{id, text, unit, updated, active, firstPeriod, lastPeriod, variables}`)
+  — ingen søkeparameter finnes; filtrer på delstreng mot `text` i adapteren.
+- **metadata:** `GET /v1/tableinfo/{tabell}?format=JSON` →
+  `{variables: [{id, text, elimination, time, map?, values: [{id, text}]}]}`
+  — MERK: `time`-flagget er DIREKTE til stede per variabel (ingen behov for
+  en separat `role.time`-liste som i PxWeb v2); `values[].id`/`.text` er
+  kode/label akkurat som ventet.
 
 ### FHI (`kind: fhi`)
 
-- **search:** kilde-URL-en er allerede register-spesifikk
-  (`{register}/table/{tabell}/data` i `sporrings_url_mal`) — hent
-  register-liste fra `Common/source`, deretter `{register}/table` per
-  register, filtrert på delstreng. NB: FHI har FLERE registre (daar,
-  nokkel, npr, msis, sysvak, …) — søket må gå over alle, ikke ett.
-- **metadata:** `GET {register}/table/{id}/dimension` → dimensjonskoder +
-  kategorier. NB fra quirks: FHI avviser CSV, kun `json-stat2` — gjelder
-  selve dataeksporten (uendret av denne økten), ikke metadata-endepunktet.
+Verifisert live 2026-07-25 — skjemaet er IKKE identisk med statfin/dst
+(egen bespoke API, ikke PxWeb-slektning):
+
+- **search:** `GET Common/source` → registerliste
+  `{id, title, description, aboutUrl, publishedBy}` (id = registerkode,
+  f.eks. `daar`, `nokkel`, `npr`, `msis`, `sysvak`, …). Deretter
+  `GET {register}/table` PER register →
+  `{tableId: <number>, title, publishedAt, modifiedAt}` — MERK: feltnavn er
+  `tableId` (tall) og `title`, IKKE `id`/`text` som statfin/dst. Søket må gå
+  over ALLE registre (ikke bare ett), filtrert på delstreng mot `title`.
+- **metadata:** `GET {register}/table/{tableId}/dimension` →
+  `{dimensions: [{code, label, categories: [{label, value, children}]}]}`
+  — MERK: kode er `categories[].value` (ikke `.id`/`.code`), label er
+  `.label`. Ingen eksplisitt tids-flagg i responsen (ulikt DST) — sett
+  `time: false` for alle FHI-dimensjoner inntil et pålitelig signal finnes
+  (ærlig forenkling, ikke en gjetting forkledd som sikker).
+- NB fra quirks: FHI avviser CSV, kun `json-stat2` — gjelder selve
+  dataeksporten (uendret av denne økten), ikke metadata-endepunktet.
 
 ## §4 Feilhåndtering
 
@@ -187,6 +256,9 @@ neste, ikke alt i én PR:
 
 ## §7 Bevisst utenfor økten (oppsummert)
 
+- **ECB** — mangler JSON-støtte for strukturspørringer (kun XML); egen,
+  senere oppfølging som krever XML-parsing (se §1a). Fortsetter på
+  web_search+probe som i dag.
 - Statisk snarveisliste (fase C) — vent på bruksdata.
 - worldbank/who/fred/kaggle/dbnomics/owid/githubraw/wikipedia-adaptere.
 - Langhale-oppdagelse (awesome-public-datasets) — egen spec.

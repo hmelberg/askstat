@@ -9375,6 +9375,22 @@ exec(compile(np_code, "notebook_prose.py", "exec"), sys.modules["notebook_prose"
           window.__notebookProseLoaded = true;
         } catch (e) { console.warn('notebook_prose register:', e); }
       }
+      // openstat-pakken (ring 1, ROADMAP 2026-07-25): connect/read/dataset-
+      // verbene tilgjengelig i editor-python — NØYAKTIG samme fil kjører i
+      // CPython (transporten bytter selv til synkron XHR i emscripten).
+      const openstatResp = await fetch(base + 'openstat.py' + _cb).catch(function() { return { ok: false }; });
+      if (openstatResp && openstatResp.ok) {
+        try {
+          const openstatCode = await openstatResp.text();
+          await pyodide.runPythonAsync(`
+import sys, importlib.util
+ost_code = ${JSON.stringify(openstatCode)}
+spec_ost = importlib.util.spec_from_loader("openstat", loader=None)
+sys.modules["openstat"] = importlib.util.module_from_spec(spec_ost)
+exec(compile(ost_code, "openstat.py", "exec"), sys.modules["openstat"].__dict__)
+`);
+        } catch (e) { console.warn('openstat register:', e); }
+      }
       setStatus(leftStatus, 'Ready.');
       return pyodide;
     }

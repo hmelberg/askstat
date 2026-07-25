@@ -4,6 +4,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 const PX = require('../../js/pxweb.js');
 
 test('dataUrl: /data + json-stat2 tvinges + lang=no default', () => {
@@ -21,18 +23,10 @@ test('metadataUrl: /metadata + lang=no default, query bevares', () => {
   assert.equal(PX.metadataUrl('https://x/tables/05839?lang=en'), 'https://x/tables/05839/metadata?lang=en');
 });
 
-// 2×2×1-fixture: id/size i row-major-orden (json-stat2 §value).
-const FIX = {
-  version: '2.0', class: 'dataset',
-  id: ['Kjonn', 'Tid', 'ContentsCode'],
-  size: [2, 2, 1],
-  dimension: {
-    Kjonn: { category: { index: { '1': 0, '2': 1 } } },
-    Tid: { category: { index: ['2020', '2021'] } },   // array-form er også lovlig
-    ContentsCode: { category: { index: { Personer: 0 } } },
-  },
-  value: [10, 11, 20, 21],
-};
+// 2×2×1-fixture: id/size i row-major-orden (json-stat2 §value). DELT med
+// pytest (tests/test_openstat.py) — kontrakts-frøet fra pakke-diskusjonen:
+// js/pxweb.js og openstat.py må gi samme svar på samme dokument.
+const FIX = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/pxweb_dataset.json'), 'utf8'));
 
 test('columnsFromJsonStat: row-major-ekspansjon med koder + value', () => {
   const cols = PX.columnsFromJsonStat(FIX);
@@ -56,8 +50,6 @@ test('columnsToCsv: header + rader, null → tom celle, quoting ved behov', () =
 // ── resolve + lastelag for kind(pxweb) (samme eval-mønster som deno-testene:
 // data-loader.js er et rent browser-script som setter globalThis) ───────────
 require('../../js/data-directives.js');
-const fs = require('node:fs');
-const path = require('node:path');
 (0, eval)(fs.readFileSync(path.join(__dirname, '../../js/data-loader.js'), 'utf8'));
 const DD = globalThis.DataDirectives;
 const DL = globalThis.DataLoader;

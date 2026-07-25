@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "class": "dataset",
+  "id": ["Kjonn", "Tid", "ContentsCode"],
+  "size": [2, 2, 1],
+  "dimension": {
+    "Kjonn": { "category": { "index": { "1": 0, "2": 1 } } },
+    "Tid": { "category": { "index": ["2020", "2021"] } },
+    "ContentsCode": { "category": { "index": { "Personer": 0 } } }
+  },
+  "value": [10, 11, 20, 21]
+}

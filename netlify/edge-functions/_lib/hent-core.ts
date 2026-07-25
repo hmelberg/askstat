@@ -75,6 +75,12 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
     }
   }
   if (bodyParam) headers["content-type"] = "application/json";
+  // sdmx-kilder trenger Accept-headeren sin også via proxy (spec
+  // 2026-07-25-api-kinds-design §4.4): headers bygges fra bunnen her og
+  // ville ellers mistet den — videresend innkommende accept (ufarlig,
+  // ingen hemmelighet; default */* hoppes over).
+  const acc = request.headers.get("accept");
+  if (acc && acc !== "*/*") headers["accept"] = acc;
 
   try {
     const res = await fetchGuarded(finalUrl, {

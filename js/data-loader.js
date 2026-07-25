@@ -71,7 +71,9 @@
 
   async function fetchLoadTarget(item, fetchImpl, authToken, anthropicKey, registry, keysApi) {
     var srcKey = sourceKeyHeader(item.url, registry, keysApi);   // kaster ved manglende nøkkel
-    function hdrs() { return Object.assign({}, proxyHeaders(authToken, anthropicKey), srcKey); }
+    // item.fetchHeaders (api-kinds-spec §1): per-item-headere (sdmx-Accept) —
+    // sendes både direkte og via proxy (hent-core videresender accept).
+    function hdrs() { return Object.assign({}, proxyHeaders(authToken, anthropicKey), srcKey, item.fetchHeaders || {}); }
     async function viaProxy() {
       var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(item.url), { headers: hdrs() });
       if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + item.alias);
@@ -87,7 +89,7 @@
     // proxy-merket (den konsulterer ikke registeret for den greinen).
     if (item.viaProxy || srcKey['X-Source-Key']) return viaProxy();
     try {
-      var r1 = await fetchImpl(item.url);
+      var r1 = await fetchImpl(item.url, item.fetchHeaders ? { headers: item.fetchHeaders } : undefined);
       if (!r1.ok) throw new Error('HTTP ' + r1.status + ' for ' + item.alias + ' (' + item.url + ')');
       return r1;
     } catch (e) {
@@ -259,6 +261,47 @@
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
         return { alias: item.alias, bytes: new TextEncoder().encode(csvPx),
                  format: 'csv', table: item.table, kind: 'pxweb' };
+      }
+      // API-kinds (spec 2026-07-25-api-kinds-design §1): sdmx = CSV rett fra
+      // API-et (Accept-vei m/ format=csvdata-fallback — ECB 406-er på Accept,
+      // og 3.0-filtre ignoreres STILLE av 2.1-API-er, så vi sender aldri
+      // uverifiserte parametre); worldbank/dbnomics = JSON → flatener → CSV.
+      // Samme leveranseform som pxweb: CSV-bytes, alle konsumenter uendret.
+      if (item.kind === 'sdmx' || item.kind === 'worldbank' || item.kind === 'dbnomics') {
+        var AK = global.ApiKinds, PXc = global.PxWeb;
+        if (!AK || !PXc) throw new Error('ApiKinds/PxWeb-modulen mangler (js/api-kinds.js må lastes før data-loader.js)');
+        var csvText;
+        if (item.kind === 'sdmx') {
+          var f1 = null;
+          try {
+            f1 = await fetchBytes(Object.assign({}, item, { fetchHeaders: { 'Accept': AK.SDMX_ACCEPT } }));
+          } catch (eAcc) {
+            // 406 = kilden avviser Accept-veien (ECB) → param-fallback;
+            // alt annet er ekte feil (404 NoResultsFound, 422 nøkkelform …).
+            if (!/\b406\b/.test(String(eAcc && eAcc.message))) throw eAcc;
+          }
+          if (!f1 || AK.sdmxNeedsFallback(f1.resp.status, f1.resp.headers.get('content-type'))) {
+            var f2 = await fetchBytes(Object.assign({}, item, { url: AK.sdmxFallbackUrl(item.url) }));
+            csvText = new TextDecoder().decode(f2.buf);
+          } else {
+            csvText = new TextDecoder().decode(f1.buf);
+          }
+        } else if (item.kind === 'worldbank') {
+          var wbUrl = AK.worldbankDataUrl(item.url);
+          var d1 = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: wbUrl }))).buf));
+          var wbMeta = AK.worldbankMeta(d1);          // kaster norsk feil på WB-feilformen
+          if (wbMeta.pages > 10) throw new Error('«' + item.alias + '»: ' + wbMeta.total + ' rader fordelt på ' + wbMeta.pages + ' sider — snevre inn spørringen (date=…, færre land/indikatorer)');
+          var wbDocs = [d1];
+          for (var wp = 2; wp <= wbMeta.pages; wp++) {
+            wbDocs.push(JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.worldbankPageUrl(item.url, wp) }))).buf)));
+          }
+          csvText = PXc.columnsToCsv(AK.worldbankColumns(wbDocs));
+        } else {
+          var dj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dbnomicsDataUrl(item.url) }))).buf));
+          csvText = PXc.columnsToCsv(AK.dbnomicsColumns(dj));
+        }
+        return { alias: item.alias, bytes: new TextEncoder().encode(csvText),
+                 format: 'csv', table: item.table, kind: item.kind };
       }
       var fetched = await fetchBytes(item);
       var format = sniffFormat(fetched.resp, item.url, item.kind);

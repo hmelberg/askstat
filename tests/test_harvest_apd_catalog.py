@@ -129,6 +129,16 @@ def test_check_reachable_head_405_falls_back_to_get(monkeypatch):
     assert calls == ["HEAD", "GET"]
 
 
+def test_check_reachable_head_404_does_not_fallback_to_get(monkeypatch):
+    calls = []
+    def fake_urlopen(req, timeout=5):
+        calls.append(req.get_method())
+        raise apd.urllib.error.HTTPError(req.full_url, 404, "Not Found", None, None)
+    monkeypatch.setattr(apd.urllib.request, "urlopen", fake_urlopen)
+    assert apd.check_reachable("https://example.com") is False
+    assert calls == ["HEAD"]
+
+
 def test_check_reachable_unreachable_returns_false(monkeypatch):
     def fake_urlopen(req, timeout=5):
         raise OSError("timed out")

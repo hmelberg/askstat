@@ -51,7 +51,7 @@ lenkeliste, en del døde lenker"). Faktisk sjekk mot repoet viste noe bedre:
   fant ingen pålitelig maskinlesbar helsestatus i selve `apd-core`-repoet
   (sannsynligvis generert av deres eget `deploy/`-verktøy ved bygg, ikke
   eksponert som data). Høsteren gjør derfor sin EGEN lette
-  livstegn-sjekk (§3) i stedet for å stole på repoets ikoner.
+  livstegn-sjekk (§4) i stedet for å stole på repoets ikoner.
 
 ## §1 Hva dette løser og ikke løser
 
@@ -92,8 +92,9 @@ uavhengig, i hvilken rekkefølge som helst. Ingen konflikt uansett hvilken
   ```
 - **`search_catalog`s switch** (se forrige spec §2 for full kodeform):
   `default`-grenen får `case "apd": return apdSearch(query)` —
-  ren lokal filtrering (delstreng/nøkkelord mot title+description+keywords+
-  category, case-insensitiv) over `data/apd-catalog.json`, LEST ÉN GANG og
+  ren lokal filtrering (delstreng/nøkkelord mot name+description+keywords+
+  category, case-insensitiv — se §3 for feltskjema) over
+  `data/apd-catalog.json`, LEST ÉN GANG og
   cachet i modul-scope (samme `_cache`-mønster som `registry.ts`, siden
   filen kun endres ved re-høsting, ikke ved kjøretid). Ingen nettverkskall
   i selve verktøyet — derfor null latency-kostnad utover fil-lesing.
@@ -113,7 +114,53 @@ uavhengig, i hvilken rekkefølge som helst. Ingen konflikt uansett hvilken
   awesome-public-datasets fra web_search-forslagene, siden den nå er en
   ekte registerkilde.
 
-## §3 Høsteren (Python, engangsjobb + manuell re-kjøring)
+## §3 Metadatastandard: schema.org/Dataset, ikke DDI eller DCAT-AP
+
+Vurdert og forkastet:
+- **DDI** (Data Documentation Initiative) — standarden for spørreskjema-/
+  survey-metadata (spørsmålstekst, universe, missing-verdi-koder,
+  kodebøker). Feil verktøy her: apd-core-postene er stort sett IKKE
+  surveys — 35 kategorier spenner over bilde-datasett (ImageProcessing),
+  GIS-lag, sensordata, kjemi, biologi osv. DDI-feltene ville stå tomme
+  for de fleste av de 868. (DDI ER riktig referanse for en FREMTIDIG rik
+  variabelkatalog à la `variable_metadata.json` for statistikk-mikrodata —
+  men det er utenfor denne spec-en.)
+- **DCAT-AP** — RDF-basert europeisk profil laget for utveksling MELLOM
+  offentlige portaler. Vi trenger ikke portal-til-portal-utveksling, bare
+  en intern flat JSON-katalog — RDF/kontrollerte vokabularer hadde vært
+  ren seremoni uten gevinst.
+
+**Valgt:** feltnavnene i `data/apd-catalog.json` LÅNER schema.org/Dataset-
+vokabularet (lettvekts, JSON-nativt, ingen RDF/`@context`-seremoni
+nødvendig for intern bruk) — samme standard Google Dataset Search selv
+bygger på, så en fremtidig JSON-LD-eksport (om ønskelig) er nesten gratis
+siden kartleggingen allerede er gjort. To lokale tillegg utenfor
+standarden beholdes rått der schema.org ikke har noe naturlig
+ekvivalent-felt:
+
+| Katalogfelt        | schema.org/Dataset | Kilde (apd-core YAML-felt)          |
+|--------------------|---------------------|--------------------------------------|
+| `identifier`       | `identifier`        | avledet: `<kategori>/<fil-slug>`     |
+| `name`             | `name`               | `title`                              |
+| `description`      | `description`        | `description` (kuttet ~200 tegn)     |
+| `url`              | `url`                 | `homepage`                           |
+| `distributionUrl`  | *(ingen — lokalt)*   | `specification`/`data_dictionary` når til stede |
+| `keywords`         | `keywords`            | `keywords` (komma-streng → array)    |
+| `license`          | `license`             | `license`                            |
+| `inLanguage`       | `inLanguage`          | `language`                           |
+| `creator`          | `creator`             | `organization`/`publisher`, første som finnes |
+| `category`         | *(ingen — lokalt)*    | `category` (apd-cores egen 35-kategori-taksonomi) |
+| `access_level`     | *(ingen god 1:1 — lokalt)* | `access_level` (beholdes rått; `isAccessibleForFree` hadde mistet nyanse) |
+| `reachable`, `checked_at` | *(ingen — drift)* | høste-tids livstegn-sjekk, se §4 |
+
+`distributionUrl` er IKKE et schema.org-felt i seg selv (fulle
+schema.org-modellen har `distribution[].contentUrl`, men vi vet ikke
+pålitelig hvilket av `specification`/`data_dictionary` som faktisk er en
+direkte fil vs. enda en landingsside per post) — enkel, ærlig
+tilleggsopplysning fremfor en full `distribution`-array vi ikke kan fylle
+pålitelig for alle 868.
+
+## §4 Høsteren (Python, engangsjobb + manuell re-kjøring)
 
 **Fil:** `tools/harvest_apd_catalog.py` (samme stil/konvensjon som
 `tools/build_norge_geojson.py`: docstring med manuelt kjøre-kommando,
@@ -125,10 +172,10 @@ er ikke en ny type avhengighet i `tools/`).
   apd-core/archive/refs/heads/master.tar.gz`), IKKE 868 enkelt-fetches
   mot `raw.githubusercontent.com` — unngår rate-limiting og er høflig mot
   GitHub. Pakk ut i minne/temp, finn alle `core/**/*.yml`.
-- **Per fil:** parse YAML → normaliser til kompakt post:
-  `{id, title, category, description (kuttet ~200 tegn, samme konvensjon
-  som cleanDescription i catalog-format.ts), keywords, homepage, license,
-  access_level, language, publisher}`. `id` = `<kategori-slug>/<fil-slug>`
+- **Per fil:** parse YAML → normaliser til posten definert i §3-tabellen
+  (schema.org/Dataset-feltnavn + de to lokale tilleggene). `description`
+  kuttes til ~200 tegn (samme konvensjon som `cleanDescription` i
+  `catalog-format.ts`). `identifier` = `<kategori-slug>/<fil-slug>`
   (stabil, menneskelesbar, ingen kollisjon siden det speiler repoets egen
   mappestruktur).
 - **Lett livstegn-sjekk:** HTTP HEAD (fallback GET ved 405/501) mot
@@ -150,7 +197,7 @@ er ikke en ny type avhengighet i `tools/`).
   oppføringer (apd-core oppdateres av fellesskapet jevnlig, men ikke i et
   tempo som krever cron/CI ennå — matcher "korte sykluser"-stilen).
 
-## §4 Skala/token-kostnad
+## §5 Skala/token-kostnad
 
 868 oppføringer ligger KUN i `data/apd-catalog.json` (fillest, ikke i
 systemprompten — i motsetning til f.eks. `variable_metadata.json`s
@@ -160,7 +207,7 @@ den brukes av en egen "picker"-modell-runde). Her er det ikke nødvendig:
 et verktøyresultat, samme mønster som pxweb/ckan-søk i dag. Ingen
 tokenkostnad ved spørsmål som ikke trenger denne kilden.
 
-## §5 Testing
+## §6 Testing
 
 - **Python:** `tests/test_harvest_apd_catalog.py` (pytest, matcher
   `tests/test_gen_jmv_specs.py`-mønsteret) — fixture-YAML-filer (ikke
@@ -170,10 +217,10 @@ tokenkostnad ved spørsmål som ikke trenger denne kilden.
   `version`/`image`), livstegn-sjekk (mock HEAD-respons).
 - **TypeScript:** `_lib/tools/search-catalog.test.ts` får en `apdSearch`-
   seksjon med en LITEN fixture-katalog (3-5 poster), ikke hele 868 —
-  dekker: treff, tomt søk, delstreng-match på tvers av title/description/
+  dekker: treff, tomt søk, delstreng-match på tvers av name/description/
   keywords/category.
 
-## §6 Bevisst utenfor økten
+## §7 Bevisst utenfor økten
 
 - Variabel-/kolonneskjema for apd-oppføringer — iboende urealistisk å
   forhåndshøste pålitelig for 868 vilkårlige kilder; `web_fetch`+`probe`-

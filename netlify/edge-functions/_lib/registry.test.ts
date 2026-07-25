@@ -120,3 +120,12 @@ Deno.test("renderRegistryBlock: valgfri-kilde markeres som brukbar uten nøkkel"
   const med = renderRegistryBlock(reg, ["kaggle"]);
   if (!med.includes("valgfri (registrert)")) throw new Error("mangler registrert-markering:\n" + med);
 });
+
+Deno.test("renderRegistryBlock marks kind=apd as søkbar even without sok_endepunkt", () => {
+  const reg = parseRegistry([{
+    id: "apd", navn: "APD", utgiver: "apd-core", tillit: "funnet", tilgang: "fil",
+    kind: "apd", base_url: "https://github.com/awesomedata/apd-core", cors: false,
+  }]);
+  const block = renderRegistryBlock(reg);
+  if (!block.includes("søkbar via search_catalog")) throw new Error("apd skal markeres søkbar:\n" + block);
+});

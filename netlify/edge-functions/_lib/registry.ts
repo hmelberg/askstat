@@ -16,6 +16,7 @@ export interface DataSource {
   utgiver: string;
   tillit: "offisiell" | "etablert" | "funnet";
   tilgang: "pxweb" | "sdmx" | "rest" | "ckan" | "fil";
+  kind?: string;
   base_url: string;
   sok_endepunkt?: string;
   cors: boolean;
@@ -98,7 +99,7 @@ export function sourceForUrl(reg: DataSource[], url: string): DataSource | null 
 export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []): string {
   const lines = reg.map((s) => {
     const bits = [`${s.tilgang}, base ${s.base_url}`];
-    if (s.sok_endepunkt) bits.push("søkbar via search_catalog");
+    if (s.sok_endepunkt || s.kind === "apd") bits.push("søkbar via search_catalog");
     if (s.auth?.user && s.auth.valgfri) {
       bits.push(userKeys.includes(s.id)
         ? "brukernøkkel valgfri (registrert) → hentes alltid via /api/hent"

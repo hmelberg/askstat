@@ -55,6 +55,9 @@ ENDRINGSLOGG
 - 2026-07-23 (2): + MEMORY_URLS-blokk (kun nivå 2-leverandører uten websøk,
   spec 2026-07-23-llm-provider-tiers A4) mellom Søketips og registerblokken;
   TOOL_DEFS delt i CLIENT_TOOL_DEFS + hostede verktøy.
+- 2026-07-25: SEARCH_HINTS peker ikke lenger på awesome-public-datasets som
+  web_search-mål — den er nå en registerkilde (search_catalog(apd, …), se
+  docs/superpowers/specs/2026-07-25-apd-catalog-design.md).
 
 ### Uten websøk: modellkunnskaps-URL-er
 

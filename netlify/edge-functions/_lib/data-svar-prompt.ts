@@ -116,13 +116,13 @@ rad-tap er en klassisk feilkilde).`;
 const SEARCH_HINTS = `\
 ## Søketips utenfor registeret
 
-Når registeret og search_catalog ikke dekker temaet, er gode startpunkter for
-web_search/web_fetch: awesome-public-datasets
-(github.com/awesomedata/awesome-public-datasets — kategorisert lenkeliste, en
-del døde lenker), data.europa.eu (EU-landenes offisielle datasett) og Google
-Dataset Search (datasetsearch.research.google.com). Alt funnet denne veien er
-tillit=funnet: probe URL-en før bruk (som alltid), og foretrekk registerkilder
-når de dekker spørsmålet.`;
+awesome-public-datasets er en registerkilde (\`search_catalog(apd, …)\`),
+IKKE et web_search-mål lenger. Når registeret og search_catalog likevel ikke
+dekker temaet, er gode startpunkter for web_search/web_fetch: data.europa.eu
+(EU-landenes offisielle datasett) og Google Dataset Search
+(datasetsearch.research.google.com). Alt funnet denne veien er tillit=funnet:
+probe URL-en før bruk (som alltid), og foretrekk registerkilder når de
+dekker spørsmålet.`;
 
 const MODE_PY = `\
 ## Modus: Python (Pyodide)

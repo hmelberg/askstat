@@ -230,6 +230,10 @@
 
     function fetchBytes(item) {
       var k = item.url;
+      // cache(0)/cache(no) skal buste BEGGE lag: minne-L1 ville ellers
+      // skygget for både re-fetch og disk-slettingen (funnet i
+      // browser-verifiseringen 2026-07-25).
+      if (parseCacheTtl(item.cache) === 0) delete _bufCache[k];
       if (!_bufCache[k]) {
         _bufCache[k] = fetchViaDiskCache(item, fetchImpl, deps, registry);
         // A failed fetch must NOT poison future runs — _bufCache is now

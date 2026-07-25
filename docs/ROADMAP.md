@@ -241,23 +241,28 @@ prøve fra PyPI eller GitHub. Nivåene:
       json-stat2; samme kind + konvertering, kun base-URL/param-forskjeller.
       Vurder også `<dim>_label`-kolonner som opt-in og tabell-SØK
       (`/tables?query=`) i katalogen. Liten økt når Hans vil.
-- [ ] **Datacache-styring** (notert 2026-07-25). Status i dag: rå bytes
-      caches per URL på tvers av kjøringer i samme side-økt (_bufCache i
-      data-loader.js, modul-skopet — gjelder også pxweb-uttrekk), men
-      cachen dør ved side-reload, og BINDINGEN (bytes → FS → read_csv inn
-      i pandas/R) kjører på nytt per kjøring fordi «Kjør» bygger fersk
-      tolk. Tiltak i stigende ambisjon: (a) disk-persistent datacache via
-      Cache API med `# load …, cache(1d)`-opsjon og `refresh`-motstykke;
-      (b) `format(duckdb)` finnes allerede og unngår re-materialisering;
-      (c) varmere tolk-gjenbruk — se punktet under «Diverse / uavklart»,
-      som er den strukturelle løsningen på re-bindingen. Liten økt for (a).
-- [ ] **Eksport-gap: montering + pxweb** (notert 2026-07-25).
-      js/portable-export.js oversetter # connect/# load/require til
-      frittstående pandas/R-kode, men IKKE create-dataset/import/join og
-      ikke kind(pxweb) (json-stat2-konverteringen finnes bare i js/pxweb.js).
-      NB: pakke-sporet under kan overta hele jobben — eksporteren emitterer
-      da pakke-kall (én linje per direktiv) i stedet for håndrullet
-      requests-kode. Avvent pakke-diskusjonen før denne tas separat.
+- [x] **Datacache-styring (a)** — LEVERT 2026-07-25: `cache(<ttl>)`-opsjon
+      på connect/load (`90s`/`30m`/`2h`/`1d`; `cache(0)`/`cache(no)` buster
+      begge lag) — opt-in disk-L2 via Cache API ('m2py-data') under
+      _bufCache, overlever side-reload (browser-verifisert: identisk
+      x-m2py-fetched-at etter reload; bust fjerner oppføringen). Bevisst
+      opt-in: stille foreldede tall er verre enn en ekstra henting.
+      Gjenstår (c): varmere tolk-gjenbruk — se «Diverse / uavklart» —
+      re-bindingen per kjøring er fortsatt den strukturelle kostnaden.
+- [x] **Eksport-gap: montering + pxweb** — LEVERT 2026-07-25: eksporten
+      emitterer nå selvforsynt kode for kind(pxweb) (_px_frame/px_frame_-
+      hjelper, json-stat2 → langt format i både python og R) og for
+      montering (create-dataset/import/join → kildelesing + merge-kjeder
+      med composite keys; duckdb/sqlite-kilder får ærlig kommentar+warning).
+      VERIFISERT ved ekte kjøring: samme eksporterte script ga (360, 5) og
+      (360, 3) i både lokal CPython og Rscript mot live SSB-API.
+- [x] **openstat.py (pakke-punkt 1+2)** — LEVERT 2026-07-25: én fil (rot,
+      som duckdb_bridge.py) med connect/read/dataset/add/datasets — kjører
+      UENDRET i CPython (urllib) og Pyodide (synkron XHR; browser-verifisert
+      i editoren: import openstat → read('05839') → (360, 5)). Ring 1-ren:
+      stdlib+pandas; duckdb kun som valgfri parquet-pushdown. Preloades i
+      editor-python (notebook_prose-mønsteret). Kontrakts-fixture delt
+      mellom pytest og node (tests/fixtures/pxweb_dataset.json).
 - [ ] **openstat-pakken — konklusjoner fra designdiskusjonen (Hans+Claude
       2026-07-25):** Mål: script skal kunne tas UT av editoren og virke i
       vanlig python/R, og samme verb skal virke i pyodide/webr/brython/mpy.

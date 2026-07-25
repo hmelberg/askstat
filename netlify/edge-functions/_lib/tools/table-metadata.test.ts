@@ -16,6 +16,8 @@ const REG = parseRegistry([
     kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
   { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
+  { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell",
+    tilgang: "sdmx", kind: "sdmx", base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -161,4 +163,26 @@ Deno.test("sdmx metadata: kodeliste koblet via enumeration-URN, tidsdimensjon fr
   // Verifisert 2026-07-25: OECDs strukturendepunkt svarer 500 uten denne
   // headeren (Denos fetch, ikke curl) — sendes derfor alltid, for alle sdmx-kilder.
   assertEquals(calls[1], "en");
+});
+
+// --- ecb adapter (XML, Task 1) ---
+
+const ECB_EXR_DSD_XML = `<?xml version='1.0' encoding='UTF-8'?><mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><mes:Structures><str:DataStructures><str:DataStructure agencyID="ECB" id="ECB_EXR1"><com:Name xml:lang="en">Exchange Rates</com:Name><str:DataStructureComponents><str:DimensionList><str:Dimension id="CURRENCY"><str:LocalRepresentation><str:Enumeration><Ref agencyID="ECB" id="CL_CURRENCY" version="1.0" package="codelist"/></str:Enumeration></str:LocalRepresentation></str:Dimension><str:TimeDimension id="TIME_PERIOD"/></str:DimensionList></str:DataStructureComponents></str:DataStructure></str:DataStructures><str:Codelists><str:Codelist id="CL_CURRENCY"><str:Code id="NOK"><com:Name xml:lang="en">Norwegian krone</com:Name></str:Code><str:Code id="USD"><com:Name xml:lang="en">US dollar</com:Name></str:Code></str:Codelist></str:Codelists></mes:Structures></mes:Structure>`;
+
+function fakeEcbXmlMetaFetch(xml: string, capture: string[] = []): typeof fetch {
+  return ((input: string | URL | Request) => {
+    capture.push(String(input));
+    return Promise.resolve(new Response(xml, { status: 200 }));
+  }) as typeof fetch;
+}
+
+Deno.test("ecb metadata: kodeliste koblet via Ref.id (ingen URN-parsing), tidsdimensjon fra TimeDimension", async () => {
+  const calls: string[] = [];
+  const meta = await tableMetadata("ecb", "ECB/EXR", { registry: REG, fetchImpl: fakeEcbXmlMetaFetch(ECB_EXR_DSD_XML, calls) });
+  const currency = meta.variables.find((v) => v.code === "CURRENCY")!;
+  assertEquals(currency.values, [{ code: "NOK", label: "Norwegian krone" }, { code: "USD", label: "US dollar" }]);
+  const time = meta.variables.find((v) => v.code === "TIME_PERIOD")!;
+  assertEquals(time.time, true);
+  assertEquals(time.values, []);
+  assertEquals(calls[0], "https://data-api.ecb.europa.eu/service/dataflow/ECB/EXR/latest?references=all");
 });

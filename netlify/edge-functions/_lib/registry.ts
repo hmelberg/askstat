@@ -102,6 +102,11 @@ export const SDMX_STRUCTURE_ACCEPT: Record<string, string> = {
   oecd: "application/vnd.sdmx.structure+json;version=1.0",
 };
 
+/** SDMX-kilder som KUN støtter XML for strukturspørringer (ingen JSON) —
+ *  ecbSearch/ecbMetadata (search-catalog.ts/table-metadata.ts) håndterer
+ *  disse via fast-xml-parser. Verifisert 2026-07-25, se spec §8. */
+export const SDMX_XML_SOURCES = new Set(["ecb"]);
+
 const SEARCHABLE_KINDS = new Set(["apd", "statfin", "dst", "fhi"]);
 
 /** Én kilde til sannhet for "er denne kilden søkbar via search_catalog?" —
@@ -109,7 +114,7 @@ const SEARCHABLE_KINDS = new Set(["apd", "statfin", "dst", "fhi"]);
  *  sin dispatch-vakt, slik at de to ikke kan drifte fra hverandre. */
 export function isSearchableSource(src: DataSource): boolean {
   if (src.sok_endepunkt) return true;
-  if (src.tilgang === "sdmx" && src.id in SDMX_STRUCTURE_ACCEPT) return true;
+  if (src.tilgang === "sdmx" && (src.id in SDMX_STRUCTURE_ACCEPT || SDMX_XML_SOURCES.has(src.id))) return true;
   if (src.kind && SEARCHABLE_KINDS.has(src.kind)) return true;
   return false;
 }

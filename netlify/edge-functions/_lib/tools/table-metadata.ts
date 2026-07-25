@@ -1,6 +1,7 @@
 // table_metadata tool: variable-level lookup for a catalog hit, so the model
 // can build a MINIMAL query URL (spec: build datasets from variables).
-import { findSource, SDMX_STRUCTURE_ACCEPT, type DataSource } from "../registry.ts";
+import { findSource, SDMX_STRUCTURE_ACCEPT, SDMX_XML_SOURCES, type DataSource } from "../registry.ts";
+import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
 
 export interface TableVariable {
   code: string;
@@ -143,9 +144,27 @@ function sdmxCodelistIdFromUrn(urn: string): string | null {
   return m ? m[1] : null;
 }
 
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+
+function xmlText(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && "#text" in (v as Record<string, unknown>)) {
+    return String((v as Record<string, unknown>)["#text"] ?? "");
+  }
+  return "";
+}
+
+function asArray<T>(v: T | T[] | undefined): T[] {
+  if (v === undefined) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
 async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetch): Promise<TableMeta> {
   const accept = SDMX_STRUCTURE_ACCEPT[src.id];
-  if (!accept) throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  if (!accept) {
+    if (SDMX_XML_SOURCES.has(src.id)) return ecbMetadata(src, dataflowKey, f);
+    throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  }
   const [agencyID, dataflowId] = dataflowKey.split("/");
   if (!agencyID || !dataflowId) throw new Error(`sdmx table_id må være '<agencyID>/<dataflowId>', fikk '${dataflowKey}'`);
   const url = `${src.base_url.replace(/data\/$/, "")}dataflow/${agencyID}/${dataflowId}/latest?references=all`;
@@ -190,4 +209,52 @@ async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetc
     })),
   ];
   return { source: src.id, id: dataflowKey, title: String(dsd.name ?? dataflowKey), variables };
+}
+
+async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch): Promise<TableMeta> {
+  const [agencyID, dataflowId] = dataflowKey.split("/");
+  if (!agencyID || !dataflowId) throw new Error(`sdmx table_id må være '<agencyID>/<dataflowId>', fikk '${dataflowKey}'`);
+  const url = `${src.base_url.replace(/data\/$/, "")}dataflow/${agencyID}/${dataflowId}/latest?references=all`;
+  const res = await f(url, { headers: { Accept: "application/xml" } });
+  if (!res.ok) throw new Error(`sdmx (xml) metadata for ${dataflowKey} feilet: HTTP ${res.status}`);
+  const xml = await res.text();
+  const doc = xmlParser.parse(xml);
+  const structures = doc?.["mes:Structure"]?.["mes:Structures"];
+  const dsds = asArray(structures?.["str:DataStructures"]?.["str:DataStructure"]) as Record<string, unknown>[];
+  const dsd = dsds[0];
+  if (!dsd) throw new Error(`fant ingen datastruktur for ${dataflowKey}`);
+  const codelists = asArray(structures?.["str:Codelists"]?.["str:Codelist"]) as Record<string, unknown>[];
+  const dimList = (dsd["str:DataStructureComponents"] as Record<string, unknown> | undefined)?.["str:DimensionList"] as Record<string, unknown> | undefined ?? {};
+  const plainDims = asArray(dimList["str:Dimension"]) as Record<string, unknown>[];
+  const timeDims = asArray(dimList["str:TimeDimension"]) as Record<string, unknown>[];
+
+  const codesFor = (d: Record<string, unknown>) => {
+    const localRep = d["str:LocalRepresentation"] as Record<string, unknown> | undefined;
+    const enumeration = localRep?.["str:Enumeration"] as Record<string, unknown> | undefined;
+    const ref = enumeration?.Ref as Record<string, unknown> | undefined;
+    const clId = ref?.id;
+    const cl = codelists.find((c) => c.id === clId);
+    return asArray(cl?.["str:Code"]) as Record<string, unknown>[];
+  };
+
+  const variables: TableVariable[] = [
+    ...plainDims.map((d) => {
+      const codes = codesFor(d);
+      return {
+        code: String(d.id ?? ""),
+        label: String(d.id ?? ""),
+        time: false,
+        values: codes.slice(0, MAX_VALUES).map((c) => ({ code: String(c.id ?? ""), label: xmlText(c["com:Name"]) || String(c.id ?? "") })),
+        valuesTruncated: codes.length > MAX_VALUES,
+      };
+    }),
+    ...timeDims.map((d) => ({
+      code: String(d.id ?? ""),
+      label: String(d.id ?? ""),
+      time: true,
+      values: [] as { code: string; label: string }[],
+      valuesTruncated: false,
+    })),
+  ];
+  return { source: src.id, id: dataflowKey, title: xmlText(dsd["com:Name"]) || dataflowKey, variables };
 }

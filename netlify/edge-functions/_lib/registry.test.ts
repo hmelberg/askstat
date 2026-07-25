@@ -147,6 +147,14 @@ Deno.test("isSearchableSource: sok_endepunkt, kjent kind, eller sdmx+id i SDMX_S
   assertEquals(isSearchableSource(reg[0]), true);  // sok_endepunkt
   assertEquals(isSearchableSource(reg[1]), true);  // kind apd
   assertEquals(isSearchableSource(reg[2]), true);  // sdmx + norgesbank i SDMX_STRUCTURE_ACCEPT
-  assertEquals(isSearchableSource(reg[3]), false); // sdmx men ecb er IKKE i SDMX_STRUCTURE_ACCEPT
+  assertEquals(isSearchableSource(reg[3]), true);  // sdmx + ecb er nå i SDMX_XML_SOURCES (XML-adapter)
   assertEquals(isSearchableSource(reg[4]), false); // verken sok_endepunkt, kjent kind, eller sdmx
+});
+
+Deno.test("isSearchableSource: ecb blir søkbar etter XML-støtte (SDMX_XML_SOURCES)", () => {
+  const reg = parseRegistry([
+    { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell", tilgang: "sdmx", kind: "sdmx",
+      base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
+  ]);
+  assertEquals(isSearchableSource(reg[0]), true);
 });

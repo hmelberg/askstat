@@ -297,9 +297,28 @@ Deno.test("sdmxSearch: filtrerer dataflow-navn, bruker kilde-spesifikk Accept-ve
   assertEquals(calls[0].lang, "en");
 });
 
-Deno.test("sdmxSearch: ecb (utenfor SDMX_STRUCTURE_ACCEPT) kaster tydelig feil", async () => {
-  let threw = "";
-  try { await searchCatalog("ecb", "exchange", { registry: REG, origin: "https://app.test", fetchImpl: fakeSdmxFetch(NB_DATAFLOW_FIXTURE) }); }
-  catch (e) { threw = String(e); }
-  if (!threw.includes("ikke støttet")) throw new Error("ventet 'ikke støttet'-feil for ecb: " + threw);
+// --- ecb adapter (XML, Task 1) ---
+
+const ECB_DATAFLOW_XML = `<?xml version='1.0' encoding='UTF-8'?><mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><mes:Structures><str:Dataflows><str:Dataflow agencyID="ECB" id="EXR" version="1.0"><com:Name xml:lang="en">Exchange Rates</com:Name><str:Structure><Ref agencyID="ECB" id="ECB_EXR1" version="1.0" package="datastructure"/></str:Structure></str:Dataflow><str:Dataflow agencyID="ECB" id="AGR" version="1.0"><com:Name xml:lang="en">AGR</com:Name><str:Structure><Ref agencyID="ECB" id="ECB_BCS1" version="1.0" package="datastructure"/></str:Structure></str:Dataflow></str:Dataflows></mes:Structures></mes:Structure>`;
+
+function fakeEcbXmlFetch(xml: string, capture: { url: string; accept: string }[] = []): typeof fetch {
+  return ((input: string | URL | Request, init?: RequestInit) => {
+    capture.push({ url: String(input), accept: String((init?.headers as Record<string, string> | undefined)?.Accept ?? "") });
+    return Promise.resolve(new Response(xml, { status: 200 }));
+  }) as typeof fetch;
+}
+
+Deno.test("ecbSearch: parser XML-dataflow-liste, filtrerer på navn, bruker application/xml (ingen Accept-Language)", async () => {
+  const calls: { url: string; accept: string }[] = [];
+  const hits = await searchCatalog("ecb", "exchange", { registry: REG, origin: "https://app.test", fetchImpl: fakeEcbXmlFetch(ECB_DATAFLOW_XML, calls) });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "ECB/EXR");
+  assertEquals(hits[0].title, "Exchange Rates");
+  assertEquals(hits[0].source, "ecb");
+  assertEquals(calls[0].accept, "application/xml");
+});
+
+Deno.test("ecbSearch: ingen treff gir tom liste", async () => {
+  const hits = await searchCatalog("ecb", "zzznomatch", { registry: REG, origin: "https://app.test", fetchImpl: fakeEcbXmlFetch(ECB_DATAFLOW_XML) });
+  assertEquals(hits, []);
 });

@@ -3,7 +3,8 @@
 // apd (lokal, forhåndshøstet katalog — se
 // docs/superpowers/specs/2026-07-25-apd-catalog-design.md). Andre tilgang-
 // verdier nås via web_search + probe (prompt-regel).
-import { findSource, isSearchableSource, SDMX_STRUCTURE_ACCEPT, type DataSource } from "../registry.ts";
+import { findSource, isSearchableSource, SDMX_STRUCTURE_ACCEPT, SDMX_XML_SOURCES, type DataSource } from "../registry.ts";
+import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
 
 export interface CatalogHit {
   source: string;
@@ -215,6 +216,21 @@ function sdmxStructureBase(baseUrl: string): string {
   return baseUrl.replace(/data\/$/, "");
 }
 
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+
+function xmlText(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && "#text" in (v as Record<string, unknown>)) {
+    return String((v as Record<string, unknown>)["#text"] ?? "");
+  }
+  return "";
+}
+
+function asArray<T>(v: T | T[] | undefined): T[] {
+  if (v === undefined) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
 // Verifisert 2026-07-25 (live smoke-test, oppdaget FØR push): OECDs
 // strukturendepunkt (særlig ?references=all) svarer 500 "languageTag1" på
 // Denos fetch UTEN en eksplisitt Accept-Language-header — curl sender én
@@ -223,7 +239,10 @@ function sdmxStructureBase(baseUrl: string): string {
 
 async function sdmxSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
   const accept = SDMX_STRUCTURE_ACCEPT[src.id];
-  if (!accept) throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  if (!accept) {
+    if (SDMX_XML_SOURCES.has(src.id)) return ecbSearch(src, query, f);
+    throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  }
   const url = `${sdmxStructureBase(src.base_url)}dataflow/all/all/latest?references=none`;
   const res = await f(url, { headers: { Accept: accept, "Accept-Language": "en" } });
   if (!res.ok) throw new Error(`sdmx dataflow-liste for ${src.id} feilet: HTTP ${res.status}`);
@@ -237,6 +256,25 @@ async function sdmxSearch(src: DataSource, query: string, f: typeof fetch): Prom
       source: src.id,
       id: `${d.agencyID}/${d.id}`,
       title: String(d.name ?? ""),
+      url: new URL(`${d.agencyID}/${d.id}`, src.base_url).toString(),
+    }));
+}
+
+async function ecbSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const url = `${sdmxStructureBase(src.base_url)}dataflow/all/all/latest?references=none`;
+  const res = await f(url, { headers: { Accept: "application/xml" } });
+  if (!res.ok) throw new Error(`sdmx (xml) dataflow-liste for ${src.id} feilet: HTTP ${res.status}`);
+  const xml = await res.text();
+  const doc = xmlParser.parse(xml);
+  const flows = asArray(doc?.["mes:Structure"]?.["mes:Structures"]?.["str:Dataflows"]?.["str:Dataflow"]) as Record<string, unknown>[];
+  const q = query.toLowerCase();
+  return flows
+    .filter((d) => xmlText(d["com:Name"]).toLowerCase().includes(q))
+    .slice(0, MAX_HITS)
+    .map((d) => ({
+      source: src.id,
+      id: `${d.agencyID}/${d.id}`,
+      title: xmlText(d["com:Name"]),
       url: new URL(`${d.agencyID}/${d.id}`, src.base_url).toString(),
     }));
 }

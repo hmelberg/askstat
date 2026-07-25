@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  clearRegistryCache, findSource, loadRegistry, parseRegistry,
+  clearRegistryCache, findSource, isSearchableSource, loadRegistry, parseRegistry,
   renderRegistryBlock, sourceForUrl, type DataSource,
 } from "./registry.ts";
 
@@ -128,4 +128,25 @@ Deno.test("renderRegistryBlock marks kind=apd as søkbar even without sok_endepu
   }]);
   const block = renderRegistryBlock(reg);
   if (!block.includes("søkbar via search_catalog")) throw new Error("apd skal markeres søkbar:\n" + block);
+});
+
+Deno.test("isSearchableSource: sok_endepunkt, kjent kind, eller sdmx+id i SDMX_STRUCTURE_ACCEPT", () => {
+  const reg = parseRegistry([
+    { id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell", tilgang: "pxweb",
+      base_url: "https://data.ssb.no/api/pxwebapi/v2-beta/",
+      sok_endepunkt: "https://data.ssb.no/api/pxwebapi/v2-beta/tables?query={q}&lang=no", cors: true },
+    { id: "apd", navn: "APD", utgiver: "apd-core", tillit: "funnet", tilgang: "fil",
+      kind: "apd", base_url: "https://github.com/awesomedata/apd-core", cors: false },
+    { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
+      tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
+    { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell", tilgang: "sdmx", kind: "sdmx",
+      base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
+    { id: "owid", navn: "OWID", utgiver: "OWID", tillit: "etablert", tilgang: "fil",
+      base_url: "https://ourworldindata.org/grapher/", cors: true },
+  ]);
+  assertEquals(isSearchableSource(reg[0]), true);  // sok_endepunkt
+  assertEquals(isSearchableSource(reg[1]), true);  // kind apd
+  assertEquals(isSearchableSource(reg[2]), true);  // sdmx + norgesbank i SDMX_STRUCTURE_ACCEPT
+  assertEquals(isSearchableSource(reg[3]), false); // sdmx men ecb er IKKE i SDMX_STRUCTURE_ACCEPT
+  assertEquals(isSearchableSource(reg[4]), false); // verken sok_endepunkt, kjent kind, eller sdmx
 });

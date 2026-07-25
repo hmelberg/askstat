@@ -93,13 +93,34 @@ export function sourceForUrl(reg: DataSource[], url: string): DataSource | null 
   }) ?? null;
 }
 
+/** Accept-header for SDMX-strukturspørringer (dataflow-liste/DSD), PER
+ *  KILDE-ID — versjonsstrengen avviker mellom leverandører (406 ellers).
+ *  ECB er BEVISST UTELATT: mangler JSON-støtte for strukturspørringer,
+ *  kun XML — se docs/superpowers/specs/2026-07-25-source-catalog-adapters-design.md §1a. */
+export const SDMX_STRUCTURE_ACCEPT: Record<string, string> = {
+  norgesbank: "application/vnd.sdmx.structure+json;version=1.0.0",
+  oecd: "application/vnd.sdmx.structure+json;version=1.0",
+};
+
+const SEARCHABLE_KINDS = new Set(["apd", "statfin", "dst", "fhi"]);
+
+/** Én kilde til sannhet for "er denne kilden søkbar via search_catalog?" —
+ *  brukt BÅDE av renderRegistryBlock (prompt-hintet) og av search_catalog
+ *  sin dispatch-vakt, slik at de to ikke kan drifte fra hverandre. */
+export function isSearchableSource(src: DataSource): boolean {
+  if (src.sok_endepunkt) return true;
+  if (src.tilgang === "sdmx" && src.id in SDMX_STRUCTURE_ACCEPT) return true;
+  if (src.kind && SEARCHABLE_KINDS.has(src.kind)) return true;
+  return false;
+}
+
 /** Compact registry rendering for the cached system prefix. No auth secrets.
  *  userKeys = registrerte brukernøkkel-kilde-ider (fra available_keys) — bare
  *  ider, aldri verdier; styrer om en user-auth-kilde framstår som brukbar. */
 export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []): string {
   const lines = reg.map((s) => {
     const bits = [`${s.tilgang}, base ${s.base_url}`];
-    if (s.sok_endepunkt || s.kind === "apd") bits.push("søkbar via search_catalog");
+    if (isSearchableSource(s)) bits.push("søkbar via search_catalog");
     if (s.auth?.user && s.auth.valgfri) {
       bits.push(userKeys.includes(s.id)
         ? "brukernøkkel valgfri (registrert) → hentes alltid via /api/hent"

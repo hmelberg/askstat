@@ -3,7 +3,7 @@
 // apd (lokal, forhåndshøstet katalog — se
 // docs/superpowers/specs/2026-07-25-apd-catalog-design.md). Andre tilgang-
 // verdier nås via web_search + probe (prompt-regel).
-import { findSource, type DataSource } from "../registry.ts";
+import { findSource, isSearchableSource, type DataSource } from "../registry.ts";
 
 export interface CatalogHit {
   source: string;
@@ -29,7 +29,7 @@ export async function searchCatalog(
   const src = findSource(deps.registry, sourceId);
   if (!src) throw new Error(`ukjent kilde '${sourceId}' — bruk en id fra kilderegisteret`);
   const f = deps.fetchImpl ?? fetch;
-  if (!src.sok_endepunkt && src.kind !== "apd") {
+  if (!isSearchableSource(src)) {
     throw new Error(`kilden '${sourceId}' er ikke søkbar — bruk web_search + probe i stedet`);
   }
   switch (src.tilgang) {

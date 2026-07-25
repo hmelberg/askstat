@@ -7800,7 +7800,7 @@ async def _run_duck_sql(_sql, _fresh=True):
         // pxweb-tabeller (spec 2026-07-24-pxweb-sources-design §2): metadata-
         // endepunktet mater katalogen UTEN datanedlasting — oppføringer for
         // tabellene scriptet faktisk refererer (load-linjer + import-kilder),
-        // katalognøkkel «alias/tabellid», sep '.' (matcher import-syntaksen).
+        // katalognøkkel «alias/tabellid» (matcher import-syntaksen).
         var pxPairs = {};
         function collectPx(parsedLoads) {
           var res = DD.resolve(parsedLoads, []);
@@ -7843,7 +7843,7 @@ async def _run_duck_sql(_sql, _fresh=True):
             window.__connectedSources[pk] = {
               url: pr.url, format: pr.kind,
               columns: (meta.id || []).concat(['value']),
-              types: [], sep: '.'
+              types: []
             };
           } catch (e) { console.warn('kildemetadata (' + pk + '):', e); }
         }
@@ -7889,26 +7889,42 @@ async def _run_duck_sql(_sql, _fresh=True):
     function metaRender(container, key, entry, varName) {
       var metas = metaFreshMetas();
       var isRegister = key.indexOf('/') > 0;
-      var html;
+      var noteHtml = (isRegister && entry.metaError)
+        // §4: ved fetch-feil — aldri tom/stille; vis `# meta` + dempet melding.
+        ? '<div class="meta-info-note">' + escapeHtml(t('(kunne ikke hente kildemetadata)')) + '</div>'
+        : '';
       if (varName == null) {
-        // §2/§4: kildens data (endepunkt) eller — ved fil-kilde/feil — bare
-        // en kilde-URL-lenke, alltid flettet med `# meta`-innhold øverst.
+        // ÉN samlet container per kilde (spec §2). Rekkefølge:
+        // (1) `# meta` for kildens connect-alias + (2) kildemetadata, flettet av
+        //     MetaInfo. `# meta`-målet er connect-aliaset (registerkilder: nøkkelens
+        //     hode, f.eks. `ssb` for `ssb/05839` — nøkkelformen er bevisst ikke et
+        //     gyldig direktiv-mål, spec §1); filkilder: nøkkelen selv (uten «/»).
+        var metaTarget = isRegister ? key.split('/')[0] : key;
         var apiMeta = (isRegister && entry.metaInfo)
           ? entry.metaInfo
           : { lenker: [{ url: entry.url, label: entry.url }] };
-        html = window.MetaInfo.render(window.MetaInfo.merge(apiMeta, metas, key),
-          { commentTarget: key, labels: metaLabels() });
+        var html = window.MetaInfo.render(window.MetaInfo.merge(apiMeta, metas, metaTarget),
+          { labels: metaLabels() });
+        html += noteHtml;
+        // (3) variabelliste INNE i containeren: én klikkbar rad per variabel
+        //     (delegert på #sidebarSources) → variabelinfo i sub-container.
+        var cols = entry.columns || [];
+        if (cols.length) {
+          html += '<div class="meta-info-varlist">' + cols.map(function (c) {
+            return '<div class="meta-info-var-row" data-meta-key="' + escapeHtml(key) + '" data-meta-var="' + escapeHtml(c) + '">'
+              + escapeHtml(c) + '</div>';
+          }).join('') + '</div>';
+        }
+        // (4) 💬-knapp + «Fra fellesskapet»-ramme (mål = nøkkelen, f.eks. ssb/05839).
+        html += metaCommunityFrame(key);
+        container.innerHTML = html;
       } else {
         var apiMetaV = (isRegister && entry.metaInfo) ? entry.metaInfo : null;
         var mi = window.MetaInfo.merge(apiMetaV, metas, key);
-        html = window.MetaInfo.renderVariable(window.MetaInfo.forVariable(mi, metas, key, varName),
-          { commentTarget: key + '.' + varName, labels: metaLabels() });
+        container.innerHTML = window.MetaInfo.renderVariable(
+          window.MetaInfo.forVariable(mi, metas, key, varName),
+          { commentTarget: key + '.' + varName, labels: metaLabels() }) + noteHtml;
       }
-      // §4: ved fetch-feil — aldri tom/stille; vis `# meta` + dempet melding.
-      if (isRegister && entry.metaError) {
-        html += '<div class="meta-info-note">' + escapeHtml(t('(kunne ikke hente kildemetadata)')) + '</div>';
-      }
-      container.innerHTML = html;
     }
     function metaPopulate(container, key, entry, varName) {
       if (key.indexOf('/') > 0 && !entry.metaFetched) {
@@ -7920,13 +7936,20 @@ async def _run_duck_sql(_sql, _fresh=True):
         metaRender(container, key, entry, varName);
       }
     }
-    function metaToggleSource(btn) {
-      var key = btn.getAttribute('data-meta-src');
-      var head = btn.closest('.sidebar-src-head');
-      var container = head && head.nextElementSibling;
+    // Hele navneraden (.sidebar-src-head) er ETT målpunkt — toggler den samlede
+    // containeren rett under. Lukker en ev. åpen giscus-tråd før den skjules
+    // (som metaToggleDataset), så en skjult container ikke etterlater tråden aktiv.
+    function metaToggleSource(head) {
+      var key = head.getAttribute('data-meta-src');
+      var container = head.nextElementSibling;
       var entry = (window.__connectedSources || {})[key];
-      if (!container || !entry) return;
-      if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+      if (!container || !container.classList.contains('meta-info-container') || !entry) return;
+      if (container.style.display !== 'none') {
+        var openThread = container.querySelector('.meta-info-community-thread');
+        if (openThread && window.Comments && window.Comments.isOpen(openThread)) window.Comments.close();
+        container.style.display = 'none';
+        return;
+      }
       container.style.display = '';
       metaPopulate(container, key, entry, null);
     }
@@ -7956,10 +7979,24 @@ async def _run_duck_sql(_sql, _fresh=True):
       if (!host.__metaWired) {
         host.__metaWired = true;
         host.addEventListener('click', function (e) {
-          var btn = e.target.closest('.meta-info-btn');
-          if (btn && host.contains(btn)) { metaToggleSource(btn); return; }
-          var row = e.target.closest('.sidebar-var-row');
-          if (row && host.contains(row)) { metaToggleVar(row); }
+          // 💬 toggler «Fra fellesskapet»-tråden (giscus) i kilde-containeren —
+          // samme mønster som datasett-ⓘ; overskrift + fallback-lenke består.
+          var cbtn = e.target.closest('.meta-info-comment-btn');
+          if (cbtn && host.contains(cbtn)) {
+            var frame = cbtn.closest('.meta-info-community');
+            var thread = frame && frame.querySelector('.meta-info-community-thread');
+            if (thread && window.Comments) {
+              if (window.Comments.isOpen(thread)) window.Comments.close();
+              else window.Comments.open(thread, cbtn.getAttribute('data-comment-target'));
+            }
+            return;
+          }
+          // Variabelrad INNE i kilde-containeren → variabelinfo i sub-container.
+          var vrow = e.target.closest('.meta-info-var-row');
+          if (vrow && host.contains(vrow)) { metaToggleVar(vrow); return; }
+          // Hele navneraden er ETT målpunkt → toggle den samlede containeren.
+          var head = e.target.closest('.sidebar-src-head');
+          if (head && host.contains(head)) { metaToggleSource(head); }
         });
       }
       var srcMap = window.__connectedSources || {};
@@ -7988,20 +8025,18 @@ async def _run_duck_sql(_sql, _fresh=True):
           + escapeHtml(t('⚠ # meta: ukjent mål «{mal}»', { mal: m.target })) + '</div>';
       });
       if (!names.length && !warnHtml) { host.innerHTML = ''; return; }
+      // Slanket kildeflate (spec §2): KUN en navnelinje per kilde + skjult
+      // container. Hele .sidebar-src-head er ETT klikkbart målpunkt (navn + ⓘ);
+      // variabellisten ligger nå INNE i containeren, ikke lenger alltid synlig.
       var body = names.map(function (a) {
         var srcInfo = srcMap[a];
         var cols = srcInfo.columns || [];
-        var vars = cols.map(function (c) {
-          return '<div class="sidebar-var-row" data-meta-key="' + escapeHtml(a) + '" data-meta-var="' + escapeHtml(c) + '" style="opacity:.65;cursor:pointer">'
-            + escapeHtml(a + (srcInfo.sep || '/') + c) + '</div>';
-        }).join('');
-        return '<div class="sidebar-src-head">'
+        return '<div class="sidebar-src-head" data-meta-src="' + escapeHtml(a) + '" title="' + escapeHtml(t('Vis metadata')) + '">'
           + '<span class="sidebar-dataset-meta">' + escapeHtml(a) + ' — '
           + escapeHtml(String(cols.length)) + ' ' + escapeHtml(t('variabler (ikke nedlastet)')) + '</span>'
-          + '<button class="meta-info-btn" data-meta-src="' + escapeHtml(a) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>'
+          + '<button class="meta-info-btn" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>'
           + '</div>'
-          + '<div class="meta-info-container" data-meta-container="' + escapeHtml(a) + '" style="display:none"></div>'
-          + '<div class="sidebar-vars">' + vars + '</div>';
+          + '<div class="meta-info-container" style="display:none"></div>';
       }).join('');
       host.innerHTML = '<div class="sidebar-dataset"><div class="sidebar-dataset-name">'
         + escapeHtml(t('Tilkoblede kilder')) + '</div>' + body + warnHtml + '</div>';

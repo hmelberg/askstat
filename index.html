@@ -2979,6 +2979,12 @@
       // Dekket av: browser-sweep Task 7 rad 5 / ⚠️-punkt 3 (modusbytte
       // bort-og-tilbake → chip «kald»).
       nbNotifyStateChange();
+      // Re-render datasettlisten mot NY aktiv modus: datasett fra andre motorer
+      // skal umiddelbart gråes ut + sorteres nederst (Task 5), ikke vente på
+      // neste kjøring. lastDatasetInfo beholder forrige modus' datasett over byttet.
+      if (window.lastDatasetInfo && typeof updateSidebarDatasets === 'function') {
+        updateSidebarDatasets(window.lastDatasetInfo);
+      }
     }
 
     function updateModeButtonsUi() {

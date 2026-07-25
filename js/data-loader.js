@@ -270,22 +270,41 @@
       if (item.kind === 'sdmx' || item.kind === 'worldbank' || item.kind === 'dbnomics') {
         var AK = global.ApiKinds, PXc = global.PxWeb;
         if (!AK || !PXc) throw new Error('ApiKinds/PxWeb-modulen mangler (js/api-kinds.js må lastes før data-loader.js)');
-        var csvText;
-        if (item.kind === 'sdmx') {
+        // Accept-vei m/format=csvdata-fallback — delt av datahenting og
+        // nøkkel-introspeksjonsproben (samme to-forsøks-logikk begge steder).
+        async function sdmxFetchCsv(url) {
           var f1 = null;
           try {
-            f1 = await fetchBytes(Object.assign({}, item, { fetchHeaders: { 'Accept': AK.SDMX_ACCEPT } }));
+            f1 = await fetchBytes(Object.assign({}, item, { url: url, fetchHeaders: { 'Accept': AK.SDMX_ACCEPT } }));
           } catch (eAcc) {
             // 406 = kilden avviser Accept-veien (ECB) → param-fallback;
             // alt annet er ekte feil (404 NoResultsFound, 422 nøkkelform …).
             if (!/\b406\b/.test(String(eAcc && eAcc.message))) throw eAcc;
           }
           if (!f1 || AK.sdmxNeedsFallback(f1.resp.status, f1.resp.headers.get('content-type'))) {
-            var f2 = await fetchBytes(Object.assign({}, item, { url: AK.sdmxFallbackUrl(item.url) }));
-            csvText = new TextDecoder().decode(f2.buf);
-          } else {
-            csvText = new TextDecoder().decode(f1.buf);
+            var f2 = await fetchBytes(Object.assign({}, item, { url: AK.sdmxFallbackUrl(url) }));
+            return new TextDecoder().decode(f2.buf);
           }
+          return new TextDecoder().decode(f1.buf);
+        }
+        var csvText;
+        if (item.kind === 'sdmx') {
+          var dataUrl = item.url;
+          if (item.needsSdmxKey) {
+            // Kanonisk countries()/indicators()/filters() (spec §3): bygg
+            // punktumnøkkelen fra CSV-headeren til en lastNObservations=1-
+            // probe mot /all — query-params ville blitt STILLE ignorert.
+            var uq = item.url.indexOf('?');
+            var uBase = uq >= 0 ? item.url.slice(0, uq) : item.url;
+            var probeCsv = await sdmxFetchCsv(uBase.replace(/\/+$/, '') + '/all?lastNObservations=1');
+            var dims = AK.sdmxKeyDims(probeCsv.split('\n')[0]);
+            if (!dims.length) throw new Error('«' + item.alias + '»: fant ikke dimensjonene i kildens CSV-header — angi nøkkelstien selv (…/' + '<nøkkel>)');
+            var keyPath;
+            try { keyPath = AK.sdmxKeyPath(dims, item.needsSdmxKey); }
+            catch (eKey) { throw new Error('«' + item.alias + '»: ' + eKey.message); }
+            dataUrl = uBase.replace(/\/+$/, '') + '/' + keyPath + (uq >= 0 ? '?' + item.url.slice(uq + 1) : '');
+          }
+          csvText = await sdmxFetchCsv(dataUrl);
         } else if (item.kind === 'worldbank') {
           var wbUrl = AK.worldbankDataUrl(item.url);
           var d1 = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: wbUrl }))).buf));
@@ -298,7 +317,24 @@
           csvText = PXc.columnsToCsv(AK.worldbankColumns(wbDocs));
         } else {
           var dj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dbnomicsDataUrl(item.url) }))).buf));
-          csvText = PXc.columnsToCsv(AK.dbnomicsColumns(dj));
+          var dcols = AK.dbnomicsColumns(dj);
+          if (item.clientYears) {
+            // years() for dbnomics: API-et har ikke tidsvindu-parametre —
+            // filtrer klient-side (trygt: vi holder alle radene, spec §3).
+            var cy = item.clientYears;
+            var keep = dcols.period.map(function (p) {
+              var yr = parseInt(String(p).slice(0, 4), 10);
+              if (!isNaN(yr)) {
+                if (cy.from && yr < parseInt(cy.from, 10)) return false;
+                if (cy.to && yr > parseInt(cy.to, 10)) return false;
+              }
+              return true;
+            });
+            Object.keys(dcols).forEach(function (col) {
+              dcols[col] = dcols[col].filter(function (_, i) { return keep[i]; });
+            });
+          }
+          csvText = PXc.columnsToCsv(dcols);
         }
         return { alias: item.alias, bytes: new TextEncoder().encode(csvText),
                  format: 'csv', table: item.table, kind: item.kind };

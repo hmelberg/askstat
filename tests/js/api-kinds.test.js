@@ -96,6 +96,34 @@ test('dbnomicsColumns: num_found > docs → ærlig norsk feil', () => {
   assert.throws(() => AK.dbnomicsColumns(DBN.overflow), /1500 serier/);
 });
 
+// ── sdmx CSV-header-introspeksjon (spec §3, fase 2): nøkkeldimensjonene er
+// kolonnene mellom prefikset (DATAFLOW | STRUCTURE,STRUCTURE_ID,ACTION | KEY)
+// og TIME_PERIOD — ekte headere fra probene 2026-07-25. ─────────────────────
+const HDR = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'sdmx_headers.json'), 'utf8'));
+
+test('sdmxKeyDims: alle tre prefiks-formene gir nøkkeldimensjonene i orden', () => {
+  assert.equal(AK.sdmxKeyDims(HDR.oecd).length, 13);
+  assert.equal(AK.sdmxKeyDims(HDR.oecd)[0], 'REF_AREA');
+  assert.deepEqual(AK.sdmxKeyDims(HDR.nb), ['FREQ', 'BASE_CUR', 'QUOTE_CUR', 'TENOR']);
+  assert.deepEqual(AK.sdmxKeyDims(HDR.ecb), ['FREQ', 'CURRENCY', 'CURRENCY_DENOM', 'EXR_TYPE', 'EXR_SUFFIX']);
+  assert.deepEqual(AK.sdmxKeyDims('A,B,C'), []);   // ingen TIME_PERIOD → tomt
+});
+
+test('sdmxKeyPath: countries → REF_AREA-posisjon, flere verdier med +', () => {
+  const dims = AK.sdmxKeyDims(HDR.oecd);
+  const key = AK.sdmxKeyPath(dims, { countries: ['NOR', 'SWE'] });
+  assert.equal(key, 'NOR+SWE' + '.'.repeat(12));
+  assert.equal(key.split('.').length, 13);
+});
+
+test('sdmxKeyPath: filters → navngitt dimensjon; ukjent dimensjon → feil som lister gyldige', () => {
+  const dims = AK.sdmxKeyDims(HDR.ecb);
+  const key = AK.sdmxKeyPath(dims, { filters: { CURRENCY: 'USD', FREQ: 'D' } });
+  assert.equal(key, 'D.USD...');
+  assert.throws(() => AK.sdmxKeyPath(dims, { countries: ['NOR'] }), /ingen REF_AREA/);
+  assert.throws(() => AK.sdmxKeyPath(dims, { filters: { TULL: 'X' } }), /FREQ, CURRENCY/);
+});
+
 test('sdmxFallbackUrl: format=csvdata legges på, eksisterende format strippes', () => {
   assert.equal(AK.sdmxFallbackUrl('https://x/data/EXR/D.USD?startPeriod=2026'),
     'https://x/data/EXR/D.USD?startPeriod=2026&format=csvdata');

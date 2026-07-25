@@ -57,6 +57,96 @@ test('kind(sdmx) direkte virker likt som kildenavnet', () => {
   assert.equal(item.url, 'https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?startPeriod=2026-01-01');
 });
 
+// ── kanonisk vokabular (spec §3, fase 2): years/countries/regions/
+// indicators/filters oversettes per kind — mekanisk verifiserbart eller
+// hard feil (SDMX-fellen: aldri stille passthrough). ────────────────────────
+
+test('worldbank kanonisk: indicators+countries bygger stien, years → date', () => {
+  const item = resolveOne(
+    '# connect https://api.worldbank.org/v2 as wb, kind(worldbank)\n' +
+    '# read wb as bnp, indicators(NY.GDP.MKTP.CD), countries(NOR SWE), years(2015:2024)');
+  assert.ok(!item.error, item.error);
+  assert.equal(item.url, 'https://api.worldbank.org/v2/country/NOR;SWE/indicator/NY.GDP.MKTP.CD?date=2015:2024');
+});
+
+test('worldbank kanonisk: åpne years-ender → 2100/1900-grensene (probet ok)', () => {
+  const item = resolveOne(
+    '# connect https://api.worldbank.org/v2 as wb, kind(worldbank)\n' +
+    '# read wb as bnp, indicators(A), years(2020:)');
+  assert.ok(/date=2020:2100/.test(item.url), item.url);
+});
+
+test('worldbank kanonisk: både sti og indicators → feil (velg én form)', () => {
+  const item = resolveOne(
+    '# connect https://api.worldbank.org/v2 as wb, kind(worldbank)\n' +
+    '# read wb/country/NOR/indicator/A as x, indicators(B)');
+  assert.ok(/én form/.test(item.error), item.error);
+});
+
+test('eurostat kanonisk: countries → geo, years → since/until, filters → params', () => {
+  const item = resolveOne(
+    '# connect https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data as eu, kind(eurostat)\n' +
+    '# read eu/nama_10_gdp as bnp, countries(NO SE), years(2020:2024), filters(na_item=B1GQ unit=CP_MEUR)');
+  assert.ok(!item.error, item.error);
+  assert.ok(/geo=NO&geo=SE/.test(item.url), item.url);
+  assert.ok(/sinceTimePeriod=2020/.test(item.url));
+  assert.ok(/untilTimePeriod=2024/.test(item.url));
+  assert.ok(/na_item=B1GQ/.test(item.url) && /unit=CP_MEUR/.test(item.url));
+});
+
+test('eurostat kanonisk: indicators → hard feil med filters-hint', () => {
+  const item = resolveOne(
+    '# connect https://x as eu, kind(eurostat)\n' +
+    '# read eu/nama_10_gdp as bnp, indicators(B1GQ)');
+  assert.ok(/filters\(/.test(item.error), item.error);
+});
+
+test('pxweb kanonisk: years lukket → eksplisitt liste, åpen start → from(); regions/indicators → valueCodes', () => {
+  const lukket = resolveOne(
+    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)\n' +
+    '# load ssb/05839 as bef, years(2007:2009), regions(0 30), indicators(Personer)');
+  assert.ok(!lukket.error, lukket.error);
+  assert.ok(/valueCodes\[Tid\]=2007,2008,2009/.test(lukket.url), lukket.url);
+  assert.ok(/valueCodes\[Region\]=0,30/.test(lukket.url));
+  assert.ok(/valueCodes\[ContentsCode\]=Personer/.test(lukket.url));
+  const aapen = resolveOne(
+    '# connect https://x/tables as ssb, kind(pxweb)\n# load ssb/05839 as bef, years(2007:)');
+  assert.ok(/valueCodes\[Tid\]=from\(2007\)/.test(aapen.url), aapen.url);
+  const bakover = resolveOne(
+    '# connect https://x/tables as ssb, kind(pxweb)\n# load ssb/05839 as bef, years(:2009)');
+  assert.ok(/startår/.test(bakover.error), bakover.error);
+  const land = resolveOne(
+    '# connect https://x/tables as ssb, kind(pxweb)\n# load ssb/05839 as bef, countries(NOR)');
+  assert.ok(land.error, 'countries skal feile for pxweb');
+});
+
+test('sdmx kanonisk: years → startPeriod/endPeriod; countries/filters → needsSdmxKey', () => {
+  const bare = resolveOne(
+    '# connect https://sdmx.oecd.org/public/rest/data as o, kind(oecd)\n' +
+    '# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE as le, years(2020:2023)');
+  assert.ok(!bare.error, bare.error);
+  assert.ok(/startPeriod=2020/.test(bare.url) && /endPeriod=2023/.test(bare.url), bare.url);
+  assert.ok(!bare.needsSdmxKey);
+  const medLand = resolveOne(
+    '# connect https://sdmx.oecd.org/public/rest/data as o, kind(oecd)\n' +
+    '# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE as le, countries(NOR SWE), years(2020:)');
+  assert.ok(!medLand.error, medLand.error);
+  assert.deepEqual(medLand.needsSdmxKey.countries, ['NOR', 'SWE']);
+  assert.ok(/startPeriod=2020/.test(medLand.url));
+});
+
+test('dbnomics kanonisk: years → klient-filter; countries → hard feil med maske-hint', () => {
+  const aar = resolveOne(
+    '# connect https://api.db.nomics.world/v22/series as dbn, kind(dbnomics)\n' +
+    '# read dbn/IMF/WEO:latest/NOR.NGDP_RPCH as vekst, years(2020:2026)');
+  assert.ok(!aar.error, aar.error);
+  assert.deepEqual(aar.clientYears, { from: '2020', to: '2026' });
+  const land = resolveOne(
+    '# connect https://api.db.nomics.world/v22/series as dbn, kind(dbnomics)\n' +
+    '# read dbn/IMF/WEO:latest/NOR.NGDP_RPCH as vekst, countries(NOR)');
+  assert.ok(/mask/.test(land.error) || /stien/.test(land.error), land.error);
+});
+
 test('pxweb/eurostat-grenen er uendret', () => {
   const item = resolveOne(
     '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)\n' +

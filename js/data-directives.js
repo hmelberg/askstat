@@ -36,16 +36,108 @@
   }
 
   // ", key(<literal>|ask)" og ", exec(local|remote)" — spec §1.
+  // Kanonisk vokabular (spec 2026-07-25-api-kinds-design §3): years(a:b),
+  // countries/regions/indicators (mellomrom/komma-liste), filters(k=v …) —
+  // samles i opts.canonical og oversettes per kind i resolve().
   function parseOptions(tail) {
     var opts = {}, re = /(\w+)\(([^)]*)\)/g, m;
+    function canon() { return (opts.canonical = opts.canonical || {}); }
     while ((m = re.exec(tail || '')) !== null) {
       var name = m[1].toLowerCase(), val = m[2].trim();
       if (name === 'key') opts.key = val || 'ask';
       else if (name === 'exec') opts.exec = val.toLowerCase();
       else if (name === 'kind') opts.kind = val.toLowerCase();
       else if (name === 'cache') opts.cache = val.toLowerCase();
+      else if (name === 'years') {
+        var yv = val.split(':');
+        canon().years = { from: (yv[0] || '').trim() || null,
+                          to: yv.length > 1 ? ((yv[1] || '').trim() || null) : ((yv[0] || '').trim() || null) };
+      } else if (name === 'countries' || name === 'regions' || name === 'indicators') {
+        canon()[name] = val.split(/[\s,]+/).filter(Boolean);
+      } else if (name === 'filters') {
+        var f = {};
+        val.split(/\s+/).filter(Boolean).forEach(function (pair) {
+          var eq = pair.indexOf('=');
+          if (eq > 0) f[pair.slice(0, eq)] = pair.slice(eq + 1);
+        });
+        canon().filters = f;
+      }
     }
     return opts;
+  }
+
+  // Kanonisk → kildens egen spørremodell (spec §3). REGELEN (SDMX-fellen,
+  // spec §0): et felt som ikke kan oversettes VERIFISERBART for kilden →
+  // hard feil med kildens native alternativ — aldri stille passthrough
+  // (2.1-API-ene svarer «vellykket» med ufiltrerte data). Ren funksjon:
+  // -> { rest, params: [..], needsSdmxKey?, clientYears?, error? }
+  function translateCanonical(kind, rest, c) {
+    var params = [], out = { rest: rest, params: params };
+    var y = c.years || null;
+    if (kind === 'worldbank') {
+      if (c.regions) return { error: 'regions() støttes ikke for worldbank — bruk landkoder i countries()' };
+      if (c.indicators) {
+        if (rest) return { error: 'både ressurssti og indicators() angitt — velg én form' };
+        out.rest = 'country/' + (c.countries ? c.countries.join(';') : 'all') +
+                   '/indicator/' + c.indicators.join(';');
+      } else if (c.countries) {
+        return { error: 'countries() uten indicators() for worldbank — angi indikatoren også, eller bygg stien selv (country/NOR/indicator/…)' };
+      }
+      // date=a:b — åpne ender fylles med 1900/2100 (probet 2026-07-25: WB
+      // godtar fremtidsår og leverer t.o.m. siste tilgjengelige).
+      if (y) params.push('date=' + (y.from || '1900') + ':' + (y.to || '2100'));
+      Object.keys(c.filters || {}).forEach(function (k) { params.push(k + '=' + c.filters[k]); });
+      return out;
+    }
+    if (kind === 'eurostat') {
+      if (c.indicators) return { error: 'Eurostat har ikke et felles indikatorbegrep — bruk filters(na_item=…) e.l. for dette datasettet' };
+      (c.countries || []).concat(c.regions || []).forEach(function (g) { params.push('geo=' + g); });
+      if (y && y.from) params.push('sinceTimePeriod=' + y.from);
+      if (y && y.to) params.push('untilTimePeriod=' + y.to);
+      Object.keys(c.filters || {}).forEach(function (k) { params.push(k + '=' + c.filters[k]); });
+      return out;
+    }
+    if (kind === 'pxweb') {
+      if (c.countries) return { error: 'countries() gjelder ikke pxweb-kilder (SSB er norske data) — bruk regions() eller filters(<variabel>=…)' };
+      if (c.regions) params.push('valueCodes[Region]=' + c.regions.join(','));
+      if (c.indicators) params.push('valueCodes[ContentsCode]=' + c.indicators.join(','));
+      if (y) {
+        if (y.from && y.to) {
+          // range() finnes ikke i PxWeb v2 (probet 2026-07-25: 400) —
+          // lukket intervall enumereres eksplisitt.
+          var a = parseInt(y.from, 10), b = parseInt(y.to, 10);
+          if (isNaN(a) || isNaN(b) || b < a || b - a > 500) return { error: 'years(' + y.from + ':' + y.to + '): kan ikke enumerere intervallet for pxweb — bruk filters(Tid=…)' };
+          var aar = [];
+          for (var yy = a; yy <= b; yy++) aar.push(String(yy));
+          params.push('valueCodes[Tid]=' + aar.join(','));
+        } else if (y.from) {
+          params.push('valueCodes[Tid]=from(' + y.from + ')');   // probet ok 2026-07-25
+        } else {
+          return { error: 'years(:' + y.to + ') for pxweb: angi startår også — from()-uttrykket har ingen bakover-variant' };
+        }
+      }
+      Object.keys(c.filters || {}).forEach(function (k) { params.push('valueCodes[' + k + ']=' + c.filters[k]); });
+      return out;
+    }
+    if (kind === 'sdmx') {
+      if (c.regions) return { error: 'regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) eller filters(<DIM>=…)' };
+      if (y && y.from) params.push('startPeriod=' + y.from);
+      if (y && y.to) params.push('endPeriod=' + y.to);
+      if (c.countries || c.indicators || c.filters) {
+        // Nøkkelen krever dimensjonsordenen — CSV-header-introspeksjon i
+        // lastelaget (query-params ville blitt STILLE ignorert, spec §0).
+        out.needsSdmxKey = { countries: c.countries || null, indicators: c.indicators || null, filters: c.filters || null };
+      }
+      return out;
+    }
+    if (kind === 'dbnomics') {
+      if (c.countries || c.indicators || c.regions || c.filters) {
+        return { error: 'countries()/indicators()/filters() støttes ikke for dbnomics — dimensjonene ligger i serie-masken i stien (f.eks. IMF/WEO:latest/NOR+SWE.NGDP_RPCH)' };
+      }
+      if (y) out.clientYears = { from: y.from, to: y.to };   // filtreres klient-side etter flatening
+      return out;
+    }
+    return out;
   }
 
   // key(<literal>) -> key(***) før scriptet logges eller sendes til AI.
@@ -125,15 +217,31 @@
       // 2026-07-25-api-kinds-design §2): «stien» er tabell-id/ressurssti
       // (evt. med kildens query bak ?); lastelaget bygger data-URL-ene selv.
       if (kind === 'pxweb' || kind === 'eurostat' || kind === 'sdmx' || kind === 'dbnomics' || kind === 'worldbank') {
-        if (!rest) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
+        // Kanonisk vokabular (spec §3): oversett FØR sti-kravet — worldbank
+        // kan syntetisere stien fra indicators()/countries().
+        var qi0 = rest.indexOf('?');
+        var restPath = qi0 >= 0 ? rest.slice(0, qi0) : rest;
+        var restQuery = qi0 >= 0 ? rest.slice(qi0 + 1) : '';
+        var tr = null;
+        if (lopts.canonical) {
+          tr = translateCanonical(kind, restPath, lopts.canonical);
+          if (tr.error) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
+                                 error: '«' + l.alias + '»: ' + tr.error };
+          restPath = tr.rest;
+          if (tr.params.length) restQuery = restQuery ? restQuery + '&' + tr.params.join('&') : tr.params.join('&');
+        }
+        if (!restPath) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
           error: '«' + l.alias + '»: ' + kind + '-kilder krever en ressurssti — «read ' + head + '/<sti> as ' + l.alias + '» (f.eks. ' +
             (kind === 'worldbank' ? 'country/NOR/indicator/NY.GDP.MKTP.CD' :
              kind === 'dbnomics' ? 'IMF/WEO:latest/NOR.NGDP_RPCH' :
              kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' : '<tabellid>') + ')' };
         if (base.charAt(base.length - 1) !== '/') base += '/';
-        var qi = rest.indexOf('?');
-        return { alias: l.alias, url: base + rest, viaProxy: viaProxy, key: key, exec: exec, kind: kind,
-                 cache: cache, table: qi >= 0 ? rest.slice(0, qi) : rest };
+        var item = { alias: l.alias, url: base + restPath + (restQuery ? '?' + restQuery : ''),
+                     viaProxy: viaProxy, key: key, exec: exec, kind: kind,
+                     cache: cache, table: restPath };
+        if (tr && tr.needsSdmxKey) item.needsSdmxKey = tr.needsSdmxKey;
+        if (tr && tr.clientYears) item.clientYears = tr.clientYears;
+        return item;
       }
       // duckdb/sqlite: én fil, flere tabeller — "stien" er tabellnavnet, ikke
       // en URL-sti (spec 2026-07-06-remote-columnar-sources-design §1).
@@ -277,5 +385,5 @@
     return { segments: out, errors: errors };
   }
 
-  global.DataDirectives = { parse: parse, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, parseOptions: parseOptions, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
+  global.DataDirectives = { parse: parse, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, parseOptions: parseOptions, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
 })(typeof window !== 'undefined' ? window : globalThis);

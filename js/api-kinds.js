@@ -90,6 +90,40 @@
     return cols;
   }
 
+  // ── sdmx CSV-header-introspeksjon (spec §3, fase 2): nøkkeldimensjonene
+  // er kolonnene mellom prefikset (DATAFLOW hos OECD, STRUCTURE,
+  // STRUCTURE_ID,ACTION hos NB, KEY hos ECB) og TIME_PERIOD — én liten
+  // lastNObservations=1-probe gir dem uten XML/DSD-parsing (pandasdmx-
+  // tyngden vi bevisst unngår).
+  function sdmxKeyDims(headerLine) {
+    var cols = String(headerLine || '').replace(/\r$/, '').split(',');
+    var t = cols.indexOf('TIME_PERIOD');
+    if (t < 0) return [];
+    var start = 0;
+    if (cols[0] === 'STRUCTURE' && cols[1] === 'STRUCTURE_ID') start = (cols[2] === 'ACTION') ? 3 : 2;
+    else if (cols[0] === 'DATAFLOW' || cols[0] === 'KEY') start = 1;
+    return cols.slice(start, t);
+  }
+
+  // Kanoniske felt → punktumdelt nøkkelsti. countries → REF_AREA,
+  // indicators → MEASURE, filters → navngitt dimensjon; flere verdier
+  // skilles med + (SDMX-ELLER). Ukjent dimensjon → norsk feil som lister
+  // gyldige (hard-feil-regelen: aldri stille passthrough).
+  function sdmxKeyPath(dims, canonical) {
+    var want = {};
+    function put(dimId, values, label) {
+      var i = dims.indexOf(dimId);
+      if (i < 0) throw new Error(label + ': dataflowen har ingen ' + dimId + '-dimensjon — dimensjonene er ' + dims.join(', '));
+      want[i] = values.join('+');
+    }
+    if (canonical.countries) put('REF_AREA', canonical.countries, 'countries()');
+    if (canonical.indicators) put('MEASURE', canonical.indicators, 'indicators()');
+    Object.keys(canonical.filters || {}).forEach(function (k) {
+      put(k, [canonical.filters[k]], 'filters(' + k + '=…)');
+    });
+    return dims.map(function (_, i) { return want[i] || ''; }).join('.');
+  }
+
   // ── dbnomics (spec §1): series.docs[] med period/value-arrayer;
   // observations=1 må tvinges (uten den kommer bare metadata). CSV-varianten
   // deres er BRED med avsnitts-lange kolonnenavn — derfor JSON + flatener.
@@ -132,6 +166,7 @@
   }
 
   var api = { kindAlias: kindAlias, SDMX_ACCEPT: SDMX_ACCEPT,
+              sdmxKeyDims: sdmxKeyDims, sdmxKeyPath: sdmxKeyPath,
               dbnomicsDataUrl: dbnomicsDataUrl, dbnomicsColumns: dbnomicsColumns,
               sdmxNeedsFallback: sdmxNeedsFallback, sdmxFallbackUrl: sdmxFallbackUrl,
               worldbankDataUrl: worldbankDataUrl, worldbankPageUrl: worldbankPageUrl,

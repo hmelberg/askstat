@@ -33,6 +33,7 @@ export async function tableMetadata(
     default:
       switch (src.kind) {
         case "fhi": return fhiMetadata(src, tableId, f);
+        case "dst": return dstMetadata(src, tableId, f);
         default:
           throw new Error(
             `table_metadata støtter ikke '${sourceId}' ennå — bruk probe på data-URL-en for å se kolonner`,
@@ -94,4 +95,22 @@ async function fhiMetadata(src: DataSource, tableId: string, f: typeof fetch): P
     valuesTruncated: d.categories.length > MAX_VALUES,
   }));
   return { source: src.id, id: tableId, title: tableId, variables };
+}
+
+interface DstVariableValue { id: string; text: string; }
+interface DstVariable { id: string; text: string; time?: boolean; values: DstVariableValue[]; }
+
+async function dstMetadata(src: DataSource, tableId: string, f: typeof fetch): Promise<TableMeta> {
+  const url = new URL(`tableinfo/${tableId}?format=JSON`, src.base_url).toString();
+  const res = await f(url);
+  if (!res.ok) throw new Error(`dst metadata for ${tableId} feilet: HTTP ${res.status}`);
+  const json = await res.json() as { text?: string; variables?: DstVariable[] };
+  const variables: TableVariable[] = (json.variables ?? []).map((v) => ({
+    code: v.id,
+    label: v.text,
+    time: !!v.time,
+    values: v.values.slice(0, MAX_VALUES).map((c) => ({ code: c.id, label: c.text })),
+    valuesTruncated: v.values.length > MAX_VALUES,
+  }));
+  return { source: src.id, id: tableId, title: json.text ?? tableId, variables };
 }

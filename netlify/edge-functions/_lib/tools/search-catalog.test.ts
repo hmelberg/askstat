@@ -17,6 +17,8 @@ const REG = parseRegistry([
     base_url: "https://ourworldindata.org/grapher/", cors: true },
   { id: "fhi", navn: "FHI", utgiver: "FHI", tillit: "offisiell", tilgang: "rest",
     kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
+  { id: "dst", navn: "DST", utgiver: "DST", tillit: "offisiell", tilgang: "rest",
+    kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
 ]);
 
 // PxWebApi v2 /tables response shape (subset)
@@ -185,4 +187,25 @@ Deno.test("fhiSearch: søker over alle registre, treffer på tittel", async () =
 Deno.test("fhiSearch: ingen treff gir tom liste", async () => {
   const hits = await searchCatalog("fhi", "zzznomatch", { registry: REG, origin: "https://app.test", fetchImpl: fakeFhiFetch() });
   assertEquals(hits, []);
+});
+
+// --- dst adapter (Task 3) ---
+
+function fakeDstFetch(): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("tables?format=JSON")) {
+      return Promise.resolve(new Response(JSON.stringify([
+        { id: "FOLK1A", text: "Befolkningen den 1. i kvartalet", firstPeriod: "2008K1", lastPeriod: "2026K2", variables: ["område", "køn", "alder", "civilstand", "tid"] },
+        { id: "BEFOLK3", text: "Befolkningen 1. januar", firstPeriod: "2007", lastPeriod: "2026", variables: ["område", "tid"] },
+      ]), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("dstSearch: filtrerer tabellisten på tittel", async () => {
+  const hits = await searchCatalog("dst", "kvartalet", { registry: REG, origin: "https://app.test", fetchImpl: fakeDstFetch() });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "FOLK1A");
 });

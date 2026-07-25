@@ -10,6 +10,8 @@ const REG = parseRegistry([
     base_url: "https://ourworldindata.org/grapher/", cors: true },
   { id: "fhi", navn: "FHI", utgiver: "FHI", tillit: "offisiell", tilgang: "rest",
     kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
+  { id: "dst", navn: "DST", utgiver: "DST", tillit: "offisiell", tilgang: "rest",
+    kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -69,4 +71,24 @@ Deno.test("fhi metadata: kode fra categories[].value, ingen tids-flagg", async (
   const daar = meta.variables.find((v) => v.code === "DAAR")!;
   assertEquals(daar.time, false);
   assertEquals(daar.values[0], { code: "2020", label: "2020" });
+});
+
+// --- dst adapter (Task 3) ---
+
+Deno.test("dst metadata: time-flagg direkte per variabel", async () => {
+  const fetchImpl = ((input: string | URL | Request) => {
+    if (String(input).includes("tableinfo/FOLK1A")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        text: "Befolkningen den 1. i kvartalet",
+        variables: [
+          { id: "OMRÅDE", text: "område", elimination: true, time: false, values: [{ id: "000", text: "Hele landet" }] },
+          { id: "Tid", text: "tid", time: true, values: [{ id: "2024K1", text: "2024K1" }] },
+        ],
+      }), { status: 200 }));
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  const meta = await tableMetadata("dst", "FOLK1A", { registry: REG, fetchImpl });
+  assertEquals(meta.variables.find((v) => v.code === "Tid")!.time, true);
+  assertEquals(meta.variables.find((v) => v.code === "OMRÅDE")!.time, false);
 });

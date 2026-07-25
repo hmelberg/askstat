@@ -39,6 +39,7 @@ export async function searchCatalog(
       switch (src.kind) {
         case "apd": return apdSearch(query, deps.origin, f);
         case "fhi": return fhiSearch(src, query, f);
+        case "dst": return dstSearch(src, query, f);
         default:
           throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
       }
@@ -146,4 +147,22 @@ async function fhiSearch(src: DataSource, query: string, f: typeof fetch): Promi
     }
   }
   return hits;
+}
+
+interface DstTable { id: string; text: string; }
+
+async function dstSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const res = await f(new URL("tables?format=JSON", src.base_url).toString());
+  if (!res.ok) throw new Error(`dst tabelliste feilet: HTTP ${res.status}`);
+  const tables = await res.json() as DstTable[];
+  const q = query.toLowerCase();
+  return tables
+    .filter((t) => t.text.toLowerCase().includes(q))
+    .slice(0, MAX_HITS)
+    .map((t) => ({
+      source: src.id,
+      id: t.id,
+      title: t.text,
+      url: new URL(`data/${t.id}/CSV`, src.base_url).toString(),
+    }));
 }

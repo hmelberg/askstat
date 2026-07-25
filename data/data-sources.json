@@ -228,6 +228,7 @@
     "utgiver": "Danmarks Statistik",
     "tillit": "offisiell",
     "tilgang": "rest",
+    "kind": "dst",
     "base_url": "https://api.statbank.dk/v1/",
     "cors": true,
     "join_nokler": [

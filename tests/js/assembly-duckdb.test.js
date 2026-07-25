@@ -148,6 +148,33 @@ test('parseAssembly: join on region, aar inner — komma-liste + how', () => {
   assert.equal(joins[1].how, 'left');
 });
 
+// ── nye direktivord (2026-07-25): read/add/create kanoniske, gamle ord er
+// stille aliaser (pakke-paritet: ost.connect/read/create/add) ──────────────
+test('direktivord: read/add/create parser likt som load/import/create-dataset', () => {
+  const nyP = DD.parse('# connect https://x/f.csv as k\n# read k as a');
+  assert.equal(nyP.loads.length, 1);
+  assert.equal(nyP.loads[0].alias, 'a');
+  const r = DD.parseAssembly([
+    '# create panel, key(region aar)',
+    '# add p/inntekt into panel',
+    '# create_dataset gammel1, key(pid)',
+    '# create-dataset gammel2, key(pid), format(pandas)',
+    '# import p/x into gammel1',
+  ].join('\n'));
+  assert.equal(r.errors.length, 0);
+  const byName = {};
+  r.spec.datasets.forEach(d => { byName[d.name] = d; });
+  assert.deepEqual(byName.panel.key, ['region', 'aar']);
+  assert.equal(byName.panel.steps[0].op, 'import');   // add == import-steg
+  assert.equal(byName.gammel1.steps.length, 1);
+  assert.equal(byName.gammel2.format, 'pandas');
+});
+
+test('direktivord: LOADAS-kortformen virker med read', () => {
+  const r = DD.parseAssembly('# connect f as p\n# read p as hele');
+  assert.ok(r.spec.datasets.find(d => d.name === 'hele' && d.load === 'p'));
+});
+
 test('compile: attaches er strukturerte {alias, sql} (én per unik fil-URL)', () => {
   const desc = {
     a: { url: 'https://x/f.duckdb', format: 'duckdb', table: 'pasienter' },

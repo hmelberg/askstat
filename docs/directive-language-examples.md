@@ -8,11 +8,11 @@ treats them identically.
 ## Grammar
 
 ```
-directive   := connect | load | require | create-dataset | import | join
+directive   := connect | read | create | add | join   (aliaser: load/require=read, import=add, create-dataset/create_dataset=create)
 
 connect     := "connect" target ["as" alias] ["," option]*
-load        := "load" (alias["/" path] | url) "as" NAME ["," option]*
-require     := "require" target "as" NAME              # legacy alias for load
+read        := "read" (alias["/" path] | url) "as" NAME ["," option]*
+require     := "require" target "as" NAME              # legacy alias for read
 option      := "key(" (literal | "ask") ")"
              | "exec(" ("local" | "remote") ")"
 
@@ -30,35 +30,35 @@ target      := registry-id | url | anvil-name
 
 ```
 # connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
-# load ssb/05839/data?outputFormat=csv as ledighet
+# read ssb/05839/data?outputFormat=csv as ledighet
 ```
-`ssb` is connected as an alias for a base URL; `load` appends a path to it and binds the result into the script under the name `ledighet`.
+`ssb` is connected as an alias for a base URL; `read` appends a path to it and binds the result into the script under the name `ledighet`.
 
 Using the short registry id instead of the full URL works the same way:
 ```
 # connect ssb
-# load ssb/tables/05839/data?outputFormat=csv as ledighet
+# read ssb/tables/05839/data?outputFormat=csv as ledighet
 ```
 
 ## 2. Plain public URL, no `connect` needed at all
 
 ```
-// load https://ourworldindata.org/grapher/co2-emissions.csv as co2
+// read https://ourworldindata.org/grapher/co2-emissions.csv as co2
 ```
-A bare URL can be `load`ed directly — no `connect` line required, no alias indirection.
+A bare URL can be `read` directly — no `connect` line required, no alias indirection.
 
-## 3. Legacy `require` (URL-only alias for `load`)
+## 3. Legacy `require` (URL-only alias for `read`)
 
 ```
 # require https://x.example/gammel-data.csv as gammel
 ```
-`require` behaves exactly like `load` for URLs. Named (non-URL) sources still use `require` for backward compatibility but are treated specially and NOT rewritten by the client — they route straight to the server.
+`require` behaves exactly like `read` for URLs. Named (non-URL) sources still use `require` for backward compatibility but are treated specially and NOT rewritten by the client — they route straight to the server.
 
 ## 4. FRED — a registry source that needs the CORS proxy + an API key
 
 ```
 # connect fred
-# load fred/series/observations?series_id=UNRATE&file_type=json as us
+# read fred/series/observations?series_id=UNRATE&file_type=json as us
 ```
 Because the FRED registry entry declares `cors:false` and an `auth` block, the fetch is silently routed through `/api/hent` (the same-origin proxy) instead of a direct browser fetch — the script itself doesn't change.
 
@@ -66,7 +66,7 @@ Because the FRED registry entry declares `cors:false` and an `auth` block, the f
 
 ```
 # connect helse2025 as h, key(ask)
-# load h as df
+# read h as df
 ```
 `helse2025` isn't a public registry id, so it resolves as an Anvil-registered source. `key(ask)` means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).
 
@@ -74,22 +74,22 @@ Because the FRED registry entry declares `cors:false` and an `auth` block, the f
 
 ```
 # connect kilde2 as k, key(qL7xK2mN9pR4sT6v), exec(remote)
-# load k as df
+# read k as df
 ```
 `exec(remote)` forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, `exec(local)`, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)
 
 ## 7. Directly loading an encrypted file by URL
 
 ```
-# load https://raw.githubusercontent.com/owner/repo/data.enc.json as df, key(abcDEF123)
+# read https://raw.githubusercontent.com/owner/repo/data.enc.json as df, key(abcDEF123)
 ```
 No `connect`/registration needed if the owner just hands you a URL and a key: the loader sniffs the `safepy-enc-v1` envelope, verifies its fingerprint, and decrypts client-side with WebCrypto using the supplied key.
 
-## 8. Key precedence — `load`-level key overrides `connect`-level key
+## 8. Key precedence — `read`-level key overrides `connect`-level key
 
 ```
 # connect helse2025 as h, key(K1)
-# load h as df, key(K2)
+# read h as df, key(K2)
 ```
 `df` is decrypted with `K2`. A key on `connect` is just the default for everything loaded through that alias; a key on the individual `load` line wins.
 
@@ -98,29 +98,29 @@ No `connect`/registration needed if the owner just hands you a URL and a key: th
 ```
 # connect ssb as s
 # connect helse2025 as h, key(ask)
-# load s/tables as offentlig
-# load h as beskyttet
-# load https://ourworldindata.org/grapher/life-expectancy.csv as owid
+# read s/tables as offentlig
+# read h as beskyttet
+# read https://ourworldindata.org/grapher/life-expectancy.csv as owid
 ```
 `offentlig` comes from the public SSB registry, `beskyttet` from a key-gated Anvil source, and `owid` from a plain public URL — each resolved independently by the same script.
 
-## 10. Variable-level assembly — `create-dataset` / `import` / `join`
+## 10. Variable-level assembly — `create` / `add` / `join`
 
 A separate, richer directive set lets you assemble one analysis dataset out of *columns* pulled from multiple registered sources, rather than loading each source as a whole frame:
 
 ```
 # connect people as p
 # connect sales_src as s
-# create-dataset panel, key(pid)
-# import p/income, p/edu into panel
-# import p/region into panel
-# load s as sales
+# create panel, key(pid)
+# add p/income, p/edu into panel
+# add p/region into panel
+# read s as sales
 # join sales into panel on pid
 ```
-This declares a dataset called `panel`, keyed on `pid`; pulls the `income` and `edu` columns from source `p` (plus `region` in a second `import` line); separately loads all of `sales_src` as `sales`; then joins `sales` into `panel` on the `pid` key. `import`/`join` default to a `left` join — an explicit join type can be appended:
+This declares a dataset called `panel`, keyed on `pid`; pulls the `income` and `edu` columns from source `p` (plus `region` in a second `add` line); separately reads all of `sales_src` as `sales`; then joins `sales` into `panel` on the `pid` key. `add`/`join` default to a `left` join — an explicit join type can be appended:
 
 ```
-# import p/x into panel inner
+# add p/x into panel inner
 # join sales into panel on pid outer
 ```
 
@@ -140,7 +140,7 @@ HE sources (`format="he"`, Paillier-encrypted) use the **same** `connect`/`load`
 Referencing a registered HE source is written exactly like a protected source (§5 above):
 ```
 # connect helse_he as h, key(ask)
-# load h as df
+# read h as df
 ```
 The difference is invisible in the directive text — it's the registered source's `format` field, checked at `/source_access` resolution time, that routes it into the HE facade instead of a normal remote run.
 
@@ -153,14 +153,14 @@ Running that line while the active editor mode/tab is **Kryptert** sends the who
 **`exec(local)` is always refused on an HE source** — there's no plaintext to run against locally:
 ```
 # connect helse_he as h, exec(local)
-# load h as df
+# read h as df
 ```
 → rejected with the same "cannot run locally" error protected/sensitive sources get, except here it's unconditional (HE has no local mode at all, unlike `protected`/`sensitive` which can allow `local_mode="open"`/`"strict"`).
 
 **You cannot mix an HE (or any named) source with a plain URL source in one remote run yet:**
 ```
 # require helse_he as h
-# load https://ourworldindata.org/grapher/co2.csv as co2
+# read https://ourworldindata.org/grapher/co2.csv as co2
 ```
 → refused: "Server-kjøring kan ikke kombinere navngitte kilder og URL-kilder (ennå)" (server execution can't yet combine named sources and URL sources — use only named sources).
 

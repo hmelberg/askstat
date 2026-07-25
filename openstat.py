@@ -1,4 +1,4 @@
-"""openstat — connect/read/dataset-verbene i og utenfor nettleseren.
+"""openstat — connect/read/create/add-verbene i og utenfor nettleseren.
 
 Ring 1-ren (ROADMAP 2026-07-25, pakke-diskusjonen): kun stdlib + pandas som
 harde avhengigheter. Samme fil kjører i CPython og i Pyodide/emscripten —
@@ -8,7 +8,7 @@ duckdb brukes KUN hvis den kan importeres (kolonne-pushdown for parquet).
     import openstat as ost
     ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")
     bef = ssb.read("05839", valueCodes={"Tid": "*"})
-    panel = ost.dataset(key=["kommune_nr", "year"])
+    panel = ost.create(key=["kommune_nr", "year"])
     panel.add(kilde, "SB12843_KOSTRA_EIENDOMSSKATT_I_ALT")
     df = panel.frame()
 
@@ -22,7 +22,7 @@ import sys
 
 import pandas as pd
 
-__all__ = ["connect", "read", "dataset", "datasets",
+__all__ = ["connect", "read", "create", "datasets",
            "data_url", "metadata_url", "columns_from_jsonstat"]
 
 _MEMO = {}
@@ -199,7 +199,8 @@ class Dataset:
         return self._df
 
 
-def dataset(key, name=None, how="left"):
+def create(key, name=None, how="left"):
+    """Lag et tomt datasett med deklarert nøkkel — bygg det med add()."""
     return Dataset(key, name=name, how=how)
 
 

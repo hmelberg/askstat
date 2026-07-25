@@ -301,6 +301,18 @@ prøve fra PyPI eller GitHub. Nivåene:
       charts; passer LIB_REGISTRY-mønsteret som js-dep). Stort — egen spec
       først, og avklar hvilke kilder som faktisk streamer.
 
+- [x] **Direktivord-omdøping (pakke-paritet)** — LEVERT 2026-07-25 (Hans'
+      beslutning): kanoniske ord er nå `# read` (før load), `# add` (før
+      import) og `# create` (før create-dataset; `create` valgt fremfor
+      `dataset` — fanger intuisjonen, og pakken fikk `ost.create()` i samme
+      slengen). Gamle ord godtas som STILLE aliaser i parseren (ett ord i
+      regexene — ingen dobbel API); alt synlig (hjelp, eksempler,
+      directive-language-examples, starteksempler, AI-promptmalene,
+      eksport-headeren) lærer bort de nye. `connect`/`join`/`use` uendret.
+      NB: data-svar-EVALENE er kalibrert mot gammelt vokabular — re-kjør
+      evalsettet ved neste AI-økt (krever nøkkel; promptmalene er alt
+      oppdatert til # read).
+
 ## Diverse / uavklart
 
 - [ ] Pandas-basert GUI som egen modus (Hans' idé — holdes adskilt fra

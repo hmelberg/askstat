@@ -71,10 +71,10 @@ def test_read_csv_med_columns_subset(monkeypatch):
     assert df.shape == (2, 2)
 
 
-def test_dataset_add_composite_key():
+def test_create_add_composite_key():
     a = pd.DataFrame({"k1": [1, 1], "k2": [1, 2], "x": [10, 20]})
     b = pd.DataFrame({"k1": [1, 1], "k2": [1, 2], "y": [7, 8]})
-    d = ost.dataset(key=["k1", "k2"], name="panel_test")
+    d = ost.create(key=["k1", "k2"], name="panel_test")
     d.add(a, "x").add(b, "y")
     df = d.frame()
     assert list(df.columns) == ["k1", "k2", "x", "y"]
@@ -82,14 +82,14 @@ def test_dataset_add_composite_key():
     assert "panel_test" in ost.datasets()
 
 
-def test_dataset_add_fra_kilde(monkeypatch):
+def test_create_add_fra_kilde(monkeypatch):
     monkeypatch.setattr(ost, "_fetch_bytes", lambda url: b"k,x,ekstra\n1,10,99\n2,20,98\n")
     src = ost.connect("https://x/g.csv", kind="csv")
-    d = ost.dataset(key="k")
+    d = ost.create(key="k")
     d.add(src, "x")
     assert list(d.frame().columns) == ["k", "x"]
 
 
-def test_dataset_tomt_frame_feiler():
+def test_create_tomt_frame_feiler():
     with pytest.raises(ValueError):
-        ost.dataset(key=["k"]).frame()
+        ost.create(key=["k"]).frame()

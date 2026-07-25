@@ -9,7 +9,7 @@
 
   var HEADER = [
     '# ── Portabel eksport fra OpenStat ──',
-    '# «# load»-direktivene er oversatt til frittstående lastekode.',
+    '# «# read»-direktivene er oversatt til frittstående lastekode.',
     '# Generert av appen — rediger fritt.',
   ];
 
@@ -17,7 +17,7 @@
   // en helskript-scrub ødela legitim kode med key(...)-formede kall — f.eks.
   // ble «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer
   // som ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
-  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(connect|load|require)\b/i;
+  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(connect|read|load|require)\b/i;
   var MASK_WARNING = 'key(...)-verdier ble maskert i eksporten — bruk key(ask) eller egen nøkkelhåndtering utenfor appen';
 
   function scrubDirectiveLine(line, DD, state) {
@@ -298,7 +298,7 @@
   // Datasett med .load er alt emittert av sine egne load-linjer; kilder som
   // ikke kan gjøres portable (duckdb/sqlite/kryptert/uløselig) gjør at
   // datasettet hoppes over med kommentar + warning i stedet for knekt kode.
-  var ASM_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(create-dataset|import|join)\b/i;
+  var ASM_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(create(?:[-_]dataset)?|add|import|join)\b/i;
 
   function mergeLine(name, rightExpr, keys, how, mode) {
     if (mode === 'python') {

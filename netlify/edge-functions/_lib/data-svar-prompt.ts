@@ -39,16 +39,16 @@ Datakilder deklareres ØVERST i scriptet som kommentar-direktiver
 \`\`\`
 # connect ssb
 # connect fred
-# load /api/hent?url=<url-enkodet v2 data-URL, f.eks. .../v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv> as ledighet
-# load https://ourworldindata.org/grapher/co2.csv as co2
+# read /api/hent?url=<url-enkodet v2 data-URL, f.eks. .../v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv> as ledighet
+# read https://ourworldindata.org/grapher/co2.csv as co2
 \`\`\`
 
 - \`# connect <base-url|register-id> [as alias]\` — kobler til en kilde.
-- \`# load <url|alias/sti> as navn\` — henter ETT uttrekk; \`navn\` blir en
+- \`# read <url|alias/sti> as navn\` — henter ETT uttrekk; \`navn\` blir en
   hel DataFrame/data.frame/tabell i scriptet. Kolonnene er dem probe viste.
 - Kilder uten CORS eller med nøkkel lastes via proxy:
-  \`# load /api/hent?url=<url-enkodet> as navn\` (aldri ta med nøkler selv).
-- POST-API-er GET-innpakkes: \`# load /api/hent?url=<endepunkt>&body=<url-enkodet-json> as navn\`.
+  \`# read /api/hent?url=<url-enkodet> as navn\` (aldri ta med nøkler selv).
+- POST-API-er GET-innpakkes: \`# read /api/hent?url=<endepunkt>&body=<url-enkodet-json> as navn\`.
 - Flertrinns-API-kall som ikke passer i én load-linje skrives som kode med
   kilde-URL i kommentar.
 - Siter HVER kilde med URL i en kommentar ved bruksstedet, og merk hvilke
@@ -57,7 +57,7 @@ Datakilder deklareres ØVERST i scriptet som kommentar-direktiver
   kjører (kjøretiden har allerede håndtert proxy/CORS/POST-innpakking) —
   ALDRI skriv kode som henter samme kilde på nytt (read.csv/pd.read_csv/
   requests.get/post/pyfetch mot samme URL). Bruk \`navn\` direkte. Dette
-  gjelder også POST-innpakkede kilder: skriv \`# load /api/hent?...&body=...
+  gjelder også POST-innpakkede kilder: skriv \`# read /api/hent?...&body=...
   as navn\`, ikke egen fetch/pyfetch-kode mot /api/hent.
 - KRAV: merk en kilde «probe-verifisert» BARE når probe faktisk returnerte
   ok=true for NØYAKTIG den URL-en scriptet bruker (ikke en annen/bredere
@@ -88,8 +88,8 @@ const INLINE = `\
 ## Datatilfangst-stigen (data uten endepunkt)
 
 Foretrekk alltid nivå 1; gå nedover bare når nivået over ikke finnes:
-1. **Probet endepunkt** (\`# load …\`). Wikipedia-tabeller ER load-bare:
-   \`# load /api/hent?url=<url-enkodet artikkel> as raw\` og
+1. **Probet endepunkt** (\`# read …\`). Wikipedia-tabeller ER load-bare:
+   \`# read /api/hent?url=<url-enkodet artikkel> as raw\` og
    \`pd.read_html(io.StringIO(raw))\` (installer lxml med micropip).
 2. **Transkribert fra hentet innhold**: har du LEST kilden (web_fetch), kan du
    skrive små tabeller (< ~50 rader) inline:

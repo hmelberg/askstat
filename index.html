@@ -22,7 +22,7 @@
             <button type="button" id="menuLoad" data-i18n>&#197;pne lokal fil</button>
             <button type="button" id="menuShareLink" data-i18n>Del (kopier lenke)</button>
             <button type="button" id="menuSave" data-i18n>Last ned kode</button>
-            <button type="button" id="menuPortableSave" data-mode-only="python r" data-i18n-title title="Last ned scriptet med # load-direktivene oversatt til frittstående kode (pd.read_csv/requests eller read.csv) — kan kjøres i Jupyter/RStudio utenfor appen." data-i18n>Last ned portabelt script</button>
+            <button type="button" id="menuPortableSave" data-mode-only="python r" data-i18n-title title="Last ned scriptet med # read-direktivene oversatt til frittstående kode (pd.read_csv/requests eller read.csv) — kan kjøres i Jupyter/RStudio utenfor appen." data-i18n>Last ned portabelt script</button>
             <button type="button" id="menuPortableCopy" data-mode-only="python r" data-i18n>Kopier portabelt script</button>
           </div>
         </div>
@@ -75,7 +75,7 @@
         <div class="export-dropdown-title" data-i18n>Eksporter skriptresultatene</div>
         <button type="button" id="exportCopy" data-i18n>Kopier til utklippstavlen</button>
         <button type="button" id="exportPrint" data-i18n>Skriv ut</button>
-        <button type="button" id="exportPublish" data-mode-only="brython micropython javascript" data-i18n-title title="Last ned en HTML-fil med dette scriptet forhåndsutfylt og satt til å kjøre automatisk — data hentet via # load er bakt inn i fila, så dokumentet ikke trenger datakildene. Fila må likevel ligge i/serveres fra samme app-mappe (f.eks. GitHub Pages) for å fungere; den virker ikke åpnet direkte fra disk (file://) eller kopiert alene til en annen host." data-i18n>Publiser dokument (HTML)</button>
+        <button type="button" id="exportPublish" data-mode-only="brython micropython javascript" data-i18n-title title="Last ned en HTML-fil med dette scriptet forhåndsutfylt og satt til å kjøre automatisk — data hentet via # read er bakt inn i fila, så dokumentet ikke trenger datakildene. Fila må likevel ligge i/serveres fra samme app-mappe (f.eks. GitHub Pages) for å fungere; den virker ikke åpnet direkte fra disk (file://) eller kopiert alene til en annen host." data-i18n>Publiser dokument (HTML)</button>
       </div>
     </div>
     <div class="topbar-theme-wrap">
@@ -556,7 +556,7 @@
     window.t = window.t || function (s) { return s; };
     window.i18nField = window.i18nField || function (obj, field) { return obj && obj[field]; };
 
-    window.M2PY_VERSION = '2026-07-25a';
+    window.M2PY_VERSION = '2026-07-25b';
 
     // One-time migration: remove obsolete localStorage keys from previous milestones
     // Safe to delete this snippet after a few months when most users have re-loaded
@@ -1591,7 +1591,7 @@
         var spec = engine.getLastDatasetSpec() || {};
         var hasLoadLines = /^[ \t]*#[ \t]*load\b/mi.test(rawScript);
         if (hasLoadLines && !Object.keys(spec).length) {
-          if (!confirm(t('Scriptet har «# load»-linjer, men ingen data er hentet ennå i denne økten (kjør scriptet først for å bake dem inn). Publisere uten data likevel?'))) return;
+          if (!confirm(t('Scriptet har «# read»-linjer, men ingen data er hentet ennå i denne økten (kjør scriptet først for å bake dem inn). Publisere uten data likevel?'))) return;
         }
 
         var tags = '';
@@ -3183,8 +3183,8 @@
 
     const _STARTUP_PY = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# load` directive (below), or plain pandas.',
-      '# load ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `# read` directive (below), or plain pandas.',
+      '# read ' + _DATA_RAW + 'iris.csv as iris',
       '# (equivalent: iris = pd.read_csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3198,8 +3198,8 @@
 
     const _STARTUP_R = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# load` directive (below), or plain read.csv().',
-      '# load ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `# read` directive (below), or plain read.csv().',
+      '# read ' + _DATA_RAW + 'iris.csv as iris',
       '# (equivalent: iris <- read.csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3240,7 +3240,7 @@
       '// OpenStat — JavaScript: kjører direkte i nettleseren, ingen nedlasting.',
       '// Biblioteker lastes automatisk når de brukes: aq/op (Arquero, dataframes),',
       '// ss (simple-statistics), jStat (fordelinger), ML (ml.js), Plot, Plotly.',
-      '# load ' + _DATA_RAW + 'iris.csv as iris',
+      '# read ' + _DATA_RAW + 'iris.csv as iris',
       '',
       'const stats = iris',
       '  .groupby("species")',
@@ -7729,7 +7729,7 @@ if _asm.get('spec'):
     // Direktivlinjene er metadata («# load» er ikke gyldig SQL) — fjernes fra
     // duckdb-SQL før exec. Delt av native-veien og buildDocumentSegments.
     function stripDataDirectiveLines(text) {
-      return String(text || '').replace(/^[ \t]*(?:#|--|\/\/)[ \t]*(?:connect|load|require|import|join|create-dataset)\b[^\n]*\n?/gim, '');
+      return String(text || '').replace(/^[ \t]*(?:#|--|\/\/)[ \t]*(?:connect|read|load|require|add|import|join|create(?:[-_]dataset)?)\b[^\n]*\n?/gim, '');
     }
 
     // ── Fase 1: native duckdb-kjørevei, uten Pyodide (plan 2026-07-11 i

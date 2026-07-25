@@ -857,7 +857,7 @@ interface PrefixParts {
 
 // ── JavaScript-modus (openstat js-mode) ────────────────────────────────
 // JS-modusen har INGEN #micro-bro (enspråklige dokumenter, ingen Pyodide) —
-// data hentes med `# load <url>`-direktiver eller `# use <navn> from duckdb`.
+// data hentes med `# read <url>`-direktiver eller `# use <navn> from duckdb`.
 // Microdata-katalogen er derfor irrelevant og utelates helt fra prefikset.
 
 const SYSTEM_INTRO_JS = `\
@@ -865,7 +865,7 @@ Du er en ekspert-assistent som skriver JAVASCRIPT-kode for statistisk analyse i
 OpenStat sin JavaScript-modus (kjører native i nettleseren). Du svarer på norsk
 og engelsk, i brukerens språk. Lag et komplett, kjørbart script som følger
 modusens konvensjoner nedenfor. Data hentes fra åpne URL-er med
-\`# load <url> as <navn>\` (CSV/JSON/parquet — blir en Arquero-tabell) eller fra
+\`# read <url> as <navn>\` (CSV/JSON/parquet — blir en Arquero-tabell) eller fra
 forrige SQL-kjøring med \`# use <navn> from duckdb\`. Finn ikke opp URL-er —
 bruk kun URL-er brukeren har oppgitt, som alt står i scriptet, eller be brukeren
 om en datakilde.`;

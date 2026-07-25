@@ -23,10 +23,10 @@ ENDRINGSLOGG
 - 2026-07-03: v1.1 — Evalsett-kjøring #1 (11 spørsmål, docs/eval/data-svar-evalsett.md):
   5/11 PASS, 6/11 FAIL. Klart gjentakende mønster i 5 av 6 feil (Q3/Q5/Q7/Q8/Q9):
   modellen skriver ad-hoc nettverkskode (read.csv/pd.read_csv/requests/pyfetch mot
-  samme URL) i stedet for å bruke en allerede innlastet `# load`-variabel, og/eller
+  samme URL) i stedet for å bruke en allerede innlastet `# read`-variabel, og/eller
   merker en kilde «probe-verifisert» uten at probe faktisk returnerte ok=true for
   akkurat den URL-en. DELIVERY-blokken fikk to nye KRAV-punkter som adresserer
-  begge: (1) `navn` fra `# load` er ferdig data — aldri hent på nytt; (2)
+  begge: (1) `navn` fra `# read` er ferdig data — aldri hent på nytt; (2)
   «probe-verifisert» krever eksakt URL-treff i probe-loggen, ellers si ærlig fra at
   ingen kilde ble funnet. Samtidig: registerets `ssb`-oppføring fikk `cors: false`
   og en rettet `sporrings_url_mal` (v2, ikke v2-beta, for selve datauttrekket) —
@@ -39,7 +39,7 @@ ENDRINGSLOGG
   rettede `ssb`-registeret (viste fortsatt `v2-beta/.../data` og en direkte
   `ssb/…`-load uten proxy). Eksempelet er nå justert til å stemme eksakt med
   `data/data-sources.json`s `ssb`-oppføring: `# connect ssb` (register-id,
-  som `fred`) + `# load /api/hent?url=<url-enkodet v2 data-URL…> as ledighet`
+  som `fred`) + `# read /api/hent?url=<url-enkodet v2 data-URL…> as ledighet`
   (proxy obligatorisk, `cors:false`; datauttrekk MÅ bruke `/v2/`, ikke
   `/v2-beta/`). OWID- og fred-eksempellinjene er uendret. Samtidig:
   `_lib/anthropic.ts`s `AGENTIC_TIMEOUT_MS` hevet 90s → 180s (Q11 i evalsettet

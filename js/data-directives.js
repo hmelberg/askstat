@@ -2,8 +2,9 @@
 // docs/superpowers/specs/2026-07-03-web-data-svar-design.md, utvidet av
 // docs/superpowers/specs/2026-07-05-encrypted-external-sources-design.md §1).
 //   # connect <base-url|register-id|anvil-navn> [as alias] [, key(...)][, exec(...)][, kind(...)]
-//   # load <url|alias/sti> as navn [, key(...)]  — uttrekk (hel ramme)
-//   # require <url> as navn                      — legacy-alias for load (D1)
+//   # read <url|alias/sti> as navn [, key(...)]  — uttrekk (hel ramme)
+//   Kanoniske ord 2026-07-25 (pakke-paritet): read/add/create — load/import/
+//   create-dataset/require godtas som stille aliaser (ett ord i regexene).
 //   kind(csv|parquet|duckdb|sqlite|json) — eksplisitt kildetype, hopper over sniffing
 //   duckdb/sqlite: "load <alias>/<tabell> as <navn>" og "import <alias>/<tabell>.<kolonne>, ... into <navn>"
 //   (punktum skiller tabell fra kolonne — bekreftet 2026-07-06, se
@@ -14,7 +15,7 @@
   'use strict';
 
   var CONNECT_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*connect[ \t]+(\S+)(?:[ \t]+as[ \t]+([A-Za-z_]\w*))?((?:[ \t]*,[ \t]*\w+\([^)]*\))*)[ \t]*$/gim;
-  var LOAD_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(load|require)[ \t]+(\S+)[ \t]+as[ \t]+([A-Za-z_]\w*)((?:[ \t]*,[ \t]*\w+\([^)]*\))*)[ \t]*$/gim;
+  var LOAD_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(read|load|require)[ \t]+(\S+)[ \t]+as[ \t]+([A-Za-z_]\w*)((?:[ \t]*,[ \t]*\w+\([^)]*\))*)[ \t]*$/gim;
 
   // Project A (variable-level assembly): create-dataset/import/join/load ->
   // AssemblySpec. See docs/superpowers/plans/2026-07-05-variable-level-assembly.md.
@@ -25,10 +26,10 @@
   // tar 1+ kolonner (mellomrom/komma — parentesene avgrenser), join-on tar
   // komma-liste («on region, aar» — mellomrom alene ville vært tvetydig mot
   // left|inner|outer-halen). d.key og step.on er ALLTID arrays.
-  var CREATE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*create-dataset[ \t]+([A-Za-z_]\w*)[ \t]*,[ \t]*key\(\s*([A-Za-z_]\w*(?:[ \t,]+[A-Za-z_]\w*)*)\s*\)(?:[ \t]*,[ \t]*format\(\s*([A-Za-z_.]+)\s*\))?[ \t]*$/gim;
-  var IMPORT_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*import[ \t]+(\S+(?:[ \t]*,[ \t]*\S+)*)[ \t]+into[ \t]+([A-Za-z_]\w*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
+  var CREATE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*create(?:[-_]dataset)?[ \t]+([A-Za-z_]\w*)[ \t]*,[ \t]*key\(\s*([A-Za-z_]\w*(?:[ \t,]+[A-Za-z_]\w*)*)\s*\)(?:[ \t]*,[ \t]*format\(\s*([A-Za-z_.]+)\s*\))?[ \t]*$/gim;
+  var IMPORT_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:add|import)[ \t]+(\S+(?:[ \t]*,[ \t]*\S+)*)[ \t]+into[ \t]+([A-Za-z_]\w*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
   var JOIN_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*join[ \t]+([A-Za-z_]\w*)[ \t]+into[ \t]+([A-Za-z_]\w*)[ \t]+on[ \t]+([A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
-  var LOADAS_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*load[ \t]+([A-Za-z_]\w*(?:\/[A-Za-z_]\w*)?)[ \t]+as[ \t]+([A-Za-z_]\w*)[ \t]*$/gim;
+  var LOADAS_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:read|load)[ \t]+([A-Za-z_]\w*(?:\/[A-Za-z_]\w*)?)[ \t]+as[ \t]+([A-Za-z_]\w*)[ \t]*$/gim;
 
   function isUrlish(target) {
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;

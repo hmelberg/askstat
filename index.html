@@ -7920,9 +7920,13 @@ async def _run_duck_sql(_sql, _fresh=True):
         container.innerHTML = html;
       } else {
         var apiMetaV = (isRegister && entry.metaInfo) ? entry.metaInfo : null;
-        var mi = window.MetaInfo.merge(apiMetaV, metas, key);
+        // `# meta`-mål = connect-aliaset (samme som kildenivå over), IKKE hele
+        // nøkkelen — direktivparseren godtar aldri «/» i et mål (spec §1), så
+        // `ssb/05839` ville aldri matche brukerens `# meta ssb.var "…"`.
+        var metaTarget = isRegister ? key.split('/')[0] : key;
+        var mi = window.MetaInfo.merge(apiMetaV, metas, metaTarget);
         container.innerHTML = window.MetaInfo.renderVariable(
-          window.MetaInfo.forVariable(mi, metas, key, varName),
+          window.MetaInfo.forVariable(mi, metas, metaTarget, varName),
           { commentTarget: key + '.' + varName, labels: metaLabels() }) + noteHtml;
       }
     }

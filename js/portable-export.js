@@ -293,12 +293,102 @@
     out.lines.push(item.alias + ' <- read.csv(' + urlExpr(url, item, 'r') + ')  # NB: sjekk skilletegn — nordiske CSV-er bruker ofte sep=";"');
   }
 
+  // Montering i eksporten (plan 2026-07-25 Task 3): create-dataset/import/
+  // join → kildelesing (src_<key>-variabler via emitFor) + merge-kjeder.
+  // Datasett med .load er alt emittert av sine egne load-linjer; kilder som
+  // ikke kan gjøres portable (duckdb/sqlite/kryptert/uløselig) gjør at
+  // datasettet hoppes over med kommentar + warning i stedet for knekt kode.
+  var ASM_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(create-dataset|import|join)\b/i;
+
+  function mergeLine(name, rightExpr, keys, how, mode) {
+    if (mode === 'python') {
+      return name + ' = ' + name + '.merge(' + rightExpr + ', on=[' + keys.map(pyStr).join(', ') + '], how=' + pyStr(how) + ')';
+    }
+    var tail = how === 'left' ? ', all.x = TRUE' : how === 'outer' ? ', all = TRUE' : '';
+    return name + ' <- merge(' + name + ', ' + rightExpr + ', by = c(' + keys.map(rStr).join(', ') + ')' + tail + ')';
+  }
+
+  function emitAssembly(script, mode, registry, warnings, needs, DD) {
+    var asm = DD.parseAssembly(script);
+    if (asm.errors.length) return null;   // monteringsfeil rapporteres av kjøretiden, ikke eksporten
+    var all = asm.spec.datasets || [];
+    var withSteps = all.filter(function (d) { return !('load' in d) && (d.steps || []).length; });
+    if (!withSteps.length) return null;
+
+    var srcKeys = [], seen = {};
+    withSteps.forEach(function (d) {
+      (d.steps || []).forEach(function (st) {
+        if (st.op === 'import' && !seen[st.source]) { seen[st.source] = true; srcKeys.push(st.source); }
+      });
+    });
+    var tables = asm.spec.sourceTables || {};
+    var connectLines = String(script).split('\n').filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
+    var synth = srcKeys.map(function (k) {
+      var t = tables[k];
+      return '# load ' + (t ? (t.source + '/' + t.table) : k) + ' as src_' + k;
+    });
+    var resolvedSynth = DD.resolve(DD.parse(connectLines + '\n' + synth.join('\n')), registry);
+
+    var lines = [], failed = {};
+    resolvedSynth.forEach(function (item, i) {
+      var key = srcKeys[i];
+      if (item.error) {
+        failed[key] = true;
+        warnings.push('montering: ' + item.error);
+        lines.push('# (kilden «' + key + '» kunne ikke løses: ' + item.error + ')');
+        return;
+      }
+      if (item.anvil || item.key || item.exec === 'remote' ||
+          item.kind === 'duckdb' || item.kind === 'sqlite') failed[key] = true;
+      lines.push.apply(lines, emitFor(item, mode, registry, warnings, needs));
+    });
+
+    var ordered = (global.AssemblyDuckdb && global.AssemblyDuckdb._topoSort)
+      ? global.AssemblyDuckdb._topoSort(all) : all;
+    var built = {};
+    all.forEach(function (d) { if ('load' in d) built[d.name] = true; });
+    ordered.forEach(function (d) {
+      if ('load' in d || !(d.steps || []).length) return;
+      var keys = d.key || [];
+      var bad = d.steps.some(function (st) { return st.op === 'import' && failed[st.source]; })
+        || d.steps.some(function (st) { return st.op === 'join' && !built[st.from]; })
+        || (d.steps[0] || {}).op !== 'import';
+      if (bad) {
+        lines.push('# (datasettet «' + d.name + '» kunne ikke eksporteres — se advarslene)');
+        warnings.push('montering: datasettet «' + d.name + '» ble ikke eksportert (utilgjengelig kilde eller join-avhengighet)');
+        return;
+      }
+      d.steps.forEach(function (st, si) {
+        if (st.op === 'import') {
+          var cols = keys.concat(st.columns.filter(function (c) { return keys.indexOf(c) < 0; }));
+          var subset = mode === 'python'
+            ? 'src_' + st.source + '[[' + cols.map(pyStr).join(', ') + ']]'
+            : 'src_' + st.source + '[, c(' + cols.map(rStr).join(', ') + ')]';
+          if (si === 0) lines.push(mode === 'python' ? (d.name + ' = ' + subset) : (d.name + ' <- ' + subset));
+          else lines.push(mergeLine(d.name, subset, keys, st.how, mode));
+        } else {
+          lines.push(mergeLine(d.name, st.from, st.on, st.how, mode));
+        }
+      });
+      if (mode === 'r' && d.format === 'data.table') lines.push(d.name + ' <- data.table::as.data.table(' + d.name + ')  # krever data.table');
+      else if (mode === 'r' && d.format === 'tibble') lines.push(d.name + ' <- tibble::as_tibble(' + d.name + ')  # krever tibble');
+      else if (d.format && d.format !== 'pandas' && d.format !== 'data.frame') lines.push('# format(' + d.format + ') er editor-spesifikk — «' + d.name + '» leveres som vanlig ramme');
+      built[d.name] = true;
+    });
+    if (mode === 'python') needs.pandas = true;
+    return lines;
+  }
+
   function transpile(script, mode, registry) {
     if (mode !== 'python' && mode !== 'r') throw new Error('portabel eksport støtter python og r, ikke «' + mode + '»');
     var DD = global.DataDirectives;
     var parsed = DD.parse(script);
     if (parsed.errors.length) throw new Error('Direktivfeil: ' + parsed.errors.join('; '));
-    if (!parsed.loads.length) {
+    // Montering uten load-linjer skal OGSÅ transpileres — sjekken speiler
+    // emitAssembly sin (datasett med steg).
+    var _asmProbe = DD.parseAssembly(script);
+    var _hasAsm = !_asmProbe.errors.length && (_asmProbe.spec.datasets || []).some(function (d) { return !('load' in d) && (d.steps || []).length; });
+    if (!parsed.loads.length && !_hasAsm) {
       // Ingen (parsebare) loads → ingen emisjon å gjøre, men linjer som SER UT
       // som direktiver (også malformerte, f.eks. «# load … key(secret)» uten
       // «as») kan likevel bære nøkkelliteraler. Kjør derfor alltid den
@@ -325,6 +415,7 @@
     var outLines = [];
     var maskState = { masked: false };
     var lines = String(script).split('\n');
+    var lastAsmIdx = -1;
     for (var i = 0; i < lines.length; i++) {
       var trimmed = lines[i].trim();
       var qi = -1;
@@ -340,6 +431,12 @@
         // passthrough — connect-linjer (også direktiver) linje-skopes
         outLines.push(scrubDirectiveLine(lines[i], DD, maskState));
       }
+      if (ASM_LINE_RE.test(lines[i])) lastAsmIdx = outLines.length;
+    }
+    // Monteringsblokken settes inn rett etter siste monteringsdirektiv-linje.
+    var asmBlock = _hasAsm ? emitAssembly(script, mode, registry || [], warnings, needs, DD) : null;
+    if (asmBlock && asmBlock.length) {
+      Array.prototype.splice.apply(outLines, [lastAsmIdx < 0 ? outLines.length : lastAsmIdx, 0].concat(asmBlock));
     }
     if (maskState.masked) warnings.push(MASK_WARNING);
 

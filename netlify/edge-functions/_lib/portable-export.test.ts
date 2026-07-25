@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-for (const f of ["data-directives.js", "pxweb.js", "portable-export.js"]) {
+for (const f of ["data-directives.js", "pxweb.js", "assembly-duckdb.js", "portable-export.js"]) {
   (0, eval)(await Deno.readTextFile(new URL(`../../../js/${f}`, import.meta.url)));
 }
 // deno-lint-ignore no-explicit-any
@@ -266,4 +266,66 @@ Deno.test("pxweb r: px_frame_-helper + jsonlite-lesing", () => {
   if (!out.code.includes('bef <- px_frame_(jsonlite::fromJSON("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?lang=no&outputFormat=json-stat2", simplifyVector = FALSE))')) {
     throw new Error("feil emisjon:\n" + out.code);
   }
+});
+
+// ── montering i eksporten (plan 2026-07-25 Task 3) ──────────────────────────
+const ASM_SCRIPT = [
+  "# connect https://x.example/kommune.parquet as a, kind(parquet)",
+  "# connect https://x.example/kommune2.parquet as b, kind(parquet)",
+  "# create-dataset panel, key(kommune_nr year)",
+  "# import a/skatt into panel",
+  "# import b/avfall into panel",
+  "print(panel.shape)",
+].join("\n");
+
+Deno.test("montering python: kildelesing + merge-kjede med composite key", () => {
+  const out = PE.transpile(ASM_SCRIPT, "python", []);
+  if (!out.code.includes('src_a = pd.read_parquet("https://x.example/kommune.parquet")')) {
+    throw new Error("mangler kildelesing:\n" + out.code);
+  }
+  if (!out.code.includes('panel = src_a[["kommune_nr", "year", "skatt"]]')) {
+    throw new Error("mangler subset:\n" + out.code);
+  }
+  if (!out.code.includes('panel = panel.merge(src_b[["kommune_nr", "year", "avfall"]], on=["kommune_nr", "year"], how="left")')) {
+    throw new Error("mangler merge:\n" + out.code);
+  }
+});
+
+Deno.test("montering r: merge med by = c(...) og all.x for left", () => {
+  const out = PE.transpile(ASM_SCRIPT.replace("print(panel.shape)", "dim(panel)"), "r", []);
+  if (!out.code.includes('panel <- src_a[, c("kommune_nr", "year", "skatt")]')) {
+    throw new Error("mangler subset:\n" + out.code);
+  }
+  if (!out.code.includes('panel <- merge(panel, src_b[, c("kommune_nr", "year", "avfall")], by = c("kommune_nr", "year"), all.x = TRUE)')) {
+    throw new Error("mangler merge:\n" + out.code);
+  }
+});
+
+Deno.test("montering: join-steg mot datasett-variabel + pxweb-kilde i import", () => {
+  const s2 = [
+    "# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)",
+    "# connect https://x.example/f.parquet as p, kind(parquet)",
+    "# load p as ekstra",
+    "# create-dataset d, key(Tid)",
+    "# import ssb/05839.value into d",
+    "# join ekstra into d on Tid inner",
+  ].join("\n");
+  const out = PE.transpile(s2, "python", []);
+  if (!out.code.includes("src_ssb__05839 = _px_frame(requests.get(")) {
+    throw new Error("pxweb-kilden i montering mangler:\n" + out.code);
+  }
+  if (!out.code.includes('d = d.merge(ekstra, on=["Tid"], how="inner")')) {
+    throw new Error("join-steget mangler:\n" + out.code);
+  }
+});
+
+Deno.test("montering: duckdb-kilde gir kommentar + warning, ikke knekt kode", () => {
+  const s3 = [
+    "# connect https://x.example/f.duckdb as db, kind(duckdb)",
+    "# create-dataset d, key(pid)",
+    "# import db/tab.col into d",
+  ].join("\n");
+  const out = PE.transpile(s3, "python", []);
+  if (!out.warnings.some((w: string) => w.includes("duckdb"))) throw new Error("mangler warning");
+  if (!out.code.includes("# (datasettet «d» kunne ikke eksporteres")) throw new Error("mangler kommentar:\n" + out.code);
 });

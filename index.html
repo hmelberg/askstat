@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="preload" as="script" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js">
-  <link rel="stylesheet" href="app.css?v=2026-07-24b">
+  <link rel="stylesheet" href="app.css?v=2026-07-25a">
 </head>
 <body data-theme="light">
   <header class="topbar">
@@ -7652,21 +7652,161 @@ async def _run_duck_sql(_sql, _fresh=True):
         updateSidebarSources();
       } catch (e) { console.warn('refreshConnectedSources:', e); }
     }
+    // Metadata-container i «Tilkoblede kilder» (spec 2026-07-25-metadata-
+    // sidebar-design §5): ⓘ ved kildenavnet åpner en container med kildens
+    // metadata (LAZY hentet fra /api/metadata) flettet med brukerens
+    // `# meta`-direktiver; variabelradene er klikkbare og viser variabelens
+    // kodeliste/`# meta` i en container rett under raden. All fletting/rendring
+    // gjøres av MetaInfo (js/meta-info.js); denne koden gjør henting, caching
+    // og DOM-innsetting.
+    function metaFreshMetas() {
+      try { return (window.DataDirectives.parse(scriptInput.value).metas) || []; }
+      catch (e) { return []; }
+    }
+    function metaLabels() {
+      return {
+        links: t('Lenker'),
+        fields: t('Felter'),
+        comment: t('💬 Kommenter og se kommentarer')
+      };
+    }
+    // §5/§4: berikelse via endepunktet KUN for kilder på «register-id/tabell»-
+    // form (nøkkelen inneholder «/», f.eks. «ssb/05839»); rene fil-kilder
+    // (bar-alias-nøkkel) hentes aldri. Ett kall per kilde, cachet på oppføringen.
+    async function metaEnsure(entry, key) {
+      var slash = key.indexOf('/');
+      if (slash <= 0) return;                 // fil-kilde: ingen henting
+      if (entry.metaFetched) return;
+      entry.metaFetched = true;
+      var source = key.slice(0, slash), table = key.slice(slash + 1);
+      try {
+        var resp = await fetch('/api/metadata?source=' + encodeURIComponent(source) + '&table=' + encodeURIComponent(table));
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        entry.metaInfo = await resp.json();
+      } catch (e) {
+        entry.metaError = true;
+        console.warn('kildemetadata (' + key + '):', e);
+      }
+    }
+    function metaRender(container, key, entry, varName) {
+      var metas = metaFreshMetas();
+      var isRegister = key.indexOf('/') > 0;
+      var html;
+      if (varName == null) {
+        // §2/§4: kildens data (endepunkt) eller — ved fil-kilde/feil — bare
+        // en kilde-URL-lenke, alltid flettet med `# meta`-innhold øverst.
+        var apiMeta = (isRegister && entry.metaInfo)
+          ? entry.metaInfo
+          : { lenker: [{ url: entry.url, label: entry.url }] };
+        html = window.MetaInfo.render(window.MetaInfo.merge(apiMeta, metas, key),
+          { commentTarget: key, labels: metaLabels() });
+      } else {
+        var apiMetaV = (isRegister && entry.metaInfo) ? entry.metaInfo : null;
+        var mi = window.MetaInfo.merge(apiMetaV, metas, key);
+        html = window.MetaInfo.renderVariable(window.MetaInfo.forVariable(mi, metas, key, varName),
+          { commentTarget: key + '.' + varName, labels: metaLabels() });
+      }
+      // §4: ved fetch-feil — aldri tom/stille; vis `# meta` + dempet melding.
+      if (isRegister && entry.metaError) {
+        html += '<div class="meta-info-note">' + escapeHtml(t('(kunne ikke hente kildemetadata)')) + '</div>';
+      }
+      container.innerHTML = html;
+    }
+    function metaPopulate(container, key, entry, varName) {
+      if (key.indexOf('/') > 0 && !entry.metaFetched) {
+        container.innerHTML = '<div class="meta-info-note">' + escapeHtml(t('Laster …')) + '</div>';
+        metaEnsure(entry, key).then(function () {
+          if (container.style.display !== 'none') metaRender(container, key, entry, varName);
+        });
+      } else {
+        metaRender(container, key, entry, varName);
+      }
+    }
+    function metaToggleSource(btn) {
+      var key = btn.getAttribute('data-meta-src');
+      var head = btn.closest('.sidebar-src-head');
+      var container = head && head.nextElementSibling;
+      var entry = (window.__connectedSources || {})[key];
+      if (!container || !entry) return;
+      if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+      container.style.display = '';
+      metaPopulate(container, key, entry, null);
+    }
+    function metaToggleVar(row) {
+      var key = row.getAttribute('data-meta-key');
+      var varName = row.getAttribute('data-meta-var');
+      var entry = (window.__connectedSources || {})[key];
+      if (!entry) return;
+      var next = row.nextElementSibling, container;
+      if (next && next.classList.contains('meta-info-var-container')) {
+        container = next;
+        if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+        container.style.display = '';
+      } else {
+        container = document.createElement('div');
+        container.className = 'meta-info-container meta-info-var-container';
+        row.parentNode.insertBefore(container, row.nextSibling);
+      }
+      metaPopulate(container, key, entry, varName);
+    }
     function updateSidebarSources() {
       var host = document.getElementById('sidebarSources');
       if (!host) return;
-      var names = Object.keys(window.__connectedSources);
-      if (!names.length) { host.innerHTML = ''; return; }
+      // Én delegert lytter på den stabile beholderen — overlever innerHTML-
+      // omskrivningene under (per-element-lyttere ville gått tapt ved hver
+      // refresh, slik den aktive-datasett-sidebaren binder på nytt hver gang).
+      if (!host.__metaWired) {
+        host.__metaWired = true;
+        host.addEventListener('click', function (e) {
+          var btn = e.target.closest('.meta-info-btn');
+          if (btn && host.contains(btn)) { metaToggleSource(btn); return; }
+          var row = e.target.closest('.sidebar-var-row');
+          if (row && host.contains(row)) { metaToggleVar(row); }
+        });
+      }
+      var srcMap = window.__connectedSources || {};
+      var names = Object.keys(srcMap);
+      // `# meta`-mål som ikke matcher noen kjent kilde/datasett/alias → egen
+      // advarselsrad (spec §3, skrivefeil-regelen: forsvinner ALDRI stille).
+      var DD = window.DataDirectives;
+      var script = (typeof scriptInput !== 'undefined' && scriptInput) ? scriptInput.value : '';
+      var parsed = { connects: [], loads: [], metas: [] };
+      try { if (DD) parsed = DD.parse(script); } catch (e) {}
+      var known = {};
+      names.forEach(function (n) { known[n] = true; });
+      (parsed.connects || []).forEach(function (c) { known[c.alias] = true; });
+      (parsed.loads || []).forEach(function (l) { known[l.alias] = true; });
+      try {
+        if (DD && DD.parseAssembly) {
+          var pa = DD.parseAssembly(script);
+          ((pa.spec && pa.spec.datasets) || []).forEach(function (d) { known[d.name] = true; });
+        }
+      } catch (e) {}
+      var seenWarn = {}, warnHtml = '';
+      (parsed.metas || []).forEach(function (m) {
+        if (known[m.target] || seenWarn[m.target]) return;
+        seenWarn[m.target] = true;
+        warnHtml += '<div class="meta-info-warn">'
+          + escapeHtml(t('⚠ # meta: ukjent mål «{mal}»', { mal: m.target })) + '</div>';
+      });
+      if (!names.length && !warnHtml) { host.innerHTML = ''; return; }
+      var body = names.map(function (a) {
+        var srcInfo = srcMap[a];
+        var cols = srcInfo.columns || [];
+        var vars = cols.map(function (c) {
+          return '<div class="sidebar-var-row" data-meta-key="' + escapeHtml(a) + '" data-meta-var="' + escapeHtml(c) + '" style="opacity:.65;cursor:pointer">'
+            + escapeHtml(a + (srcInfo.sep || '/') + c) + '</div>';
+        }).join('');
+        return '<div class="sidebar-src-head">'
+          + '<span class="sidebar-dataset-meta">' + escapeHtml(a) + ' — '
+          + escapeHtml(String(cols.length)) + ' ' + escapeHtml(t('variabler (ikke nedlastet)')) + '</span>'
+          + '<button class="meta-info-btn" data-meta-src="' + escapeHtml(a) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>'
+          + '</div>'
+          + '<div class="meta-info-container" data-meta-container="' + escapeHtml(a) + '" style="display:none"></div>'
+          + '<div class="sidebar-vars">' + vars + '</div>';
+      }).join('');
       host.innerHTML = '<div class="sidebar-dataset"><div class="sidebar-dataset-name">'
-        + escapeHtml(t('Tilkoblede kilder')) + '</div>'
-        + names.map(function (a) {
-            var srcInfo = window.__connectedSources[a];
-            return '<div class="sidebar-dataset-meta">' + escapeHtml(a) + ' — '
-              + escapeHtml(String(srcInfo.columns.length)) + ' ' + escapeHtml(t('variabler (ikke nedlastet)')) + '</div>'
-              + '<div class="sidebar-vars">' + srcInfo.columns.map(function (c) {
-                  return '<div class="sidebar-var-row" style="opacity:.65">' + escapeHtml(a + (srcInfo.sep || '/') + c) + '</div>';
-                }).join('') + '</div>';
-          }).join('') + '</div>';
+        + escapeHtml(t('Tilkoblede kilder')) + '</div>' + body + warnHtml + '</div>';
     }
 
     // Variabel-montering (# connect/create-dataset/import/join, re-wiret
@@ -11473,6 +11613,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/keys.js"></script>
   <script src="js/api-kinds.js"></script>
   <script src="js/data-directives.js"></script>
+  <script src="js/meta-info.js"></script>
   <script src="js/pxweb.js"></script>
   <script src="js/enc-crypto.js"></script>
   <script src="js/data-loader.js"></script>

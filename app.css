@@ -664,6 +664,32 @@
     .sidebar-var-type-id svg { display: block; }
     .sidebar-var-name { flex: 1; min-width: 0; word-break: break-word; font-weight: 700; }
     .sidebar-empty { color: var(--text-muted); font-size: 12px; }
+    /* Metadata-container i «Tilkoblede kilder» (spec 2026-07-25-metadata-sidebar §5) */
+    .sidebar-src-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+    .sidebar-src-head .sidebar-dataset-meta { flex: 1; min-width: 0; }
+    .meta-info-btn { flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 2px; margin: 0; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; opacity: 0.7; }
+    .meta-info-btn:hover { color: var(--accent); opacity: 1; }
+    .meta-info-container { margin: 2px 0 8px 6px; padding: 8px 10px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.45; color: var(--text); word-break: break-word; }
+    .meta-info-var-container { margin-left: 12px; }
+    .meta-info-container .var-detail-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px 0; font-weight: 600; }
+    .meta-info-container .var-detail-prose { margin: 0 0 8px 0; white-space: pre-wrap; }
+    .meta-info-container .var-detail-dl { margin: 0 0 8px 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+    .meta-info-container .var-detail-dl dt { color: var(--text-muted); font-weight: 500; margin: 0; }
+    .meta-info-container .var-detail-dl dd { margin: 0; }
+    .meta-info-user { border-left: 2px solid var(--accent); padding-left: 8px; margin: 0 0 8px 0; }
+    .meta-info-user .var-detail-prose:last-child { margin-bottom: 0; }
+    .meta-info-links { list-style: none; margin: 4px 0 0 0; padding: 0; }
+    .meta-info-links li { margin: 2px 0; }
+    .meta-info-links a { color: var(--accent); text-decoration: none; }
+    .meta-info-links a:hover { text-decoration: underline; }
+    .meta-info-kodeliste-table { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+    .meta-info-kodeliste-table td { padding: 2px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .meta-info-kodeliste-table td:first-child { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .meta-info-kodeliste-more td { color: var(--text-muted); font-style: italic; }
+    /* Variabel-antallet gjentar kildehodet + radene rett under — skjul i containeren. */
+    .meta-info-container .meta-info-varcount { display: none; }
+    .meta-info-note { color: var(--text-muted); font-style: italic; font-size: 11px; margin-top: 6px; }
+    .meta-info-warn { color: var(--danger); font-size: 11px; margin: 6px 0 0 2px; line-height: 1.35; }
     /* Variabeldetalj-modal */
     .var-detail-overlay { display: none; position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.35); align-items: center; justify-content: center; padding: 16px; }
     .var-detail-overlay.open { display: flex; }

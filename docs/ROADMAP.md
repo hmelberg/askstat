@@ -258,14 +258,35 @@ prøve fra PyPI eller GitHub. Nivåene:
       NB: pakke-sporet under kan overta hele jobben — eksporteren emitterer
       da pakke-kall (én linje per direktiv) i stedet for håndrullet
       requests-kode. Avvent pakke-diskusjonen før denne tas separat.
-- [ ] **openstat-pakke med load/connect-verbene i hvert språk** (under
-      designdiskusjon med Hans 2026-07-25 — se vurderingen i samtalen):
-      mål er at scriptet skal kunne tas UT av editoren og fortsatt virke i
-      vanlig python/R, og at samme verb virker i pyodide/webr/brython/
-      micropython. Retning: én kontrakt + delte test-fixtures, ren
-      CPython-referanseimplementasjon (requests+pandas, duckdb valgfri),
-      transport-adaptere per miljø (JS-broen inne i editoren). Ikke
-      besluttet — API-form, navn og R-verbnavn avklares med Hans først.
+- [ ] **openstat-pakken — konklusjoner fra designdiskusjonen (Hans+Claude
+      2026-07-25):** Mål: script skal kunne tas UT av editoren og virke i
+      vanlig python/R, og samme verb skal virke i pyodide/webr/brython/mpy.
+      Avgjort: (1) navn `openstat`, verb på engelsk: `connect`/`read`/
+      `dataset`+`add`/`datasets()` — `read` valgt fordi det er intuitivt og
+      kollisjonsfritt (`load` maskerer base::load i R; get/pull/fetch/open
+      kolliderer alle med noe). (2) Ring-modell for JS-bruk: ring 1 =
+      kontrakten, ren implementasjon (språkets standard + synkron XHR) som
+      virker i ALLE verter (også JupyterLite/andres webR); ring 2 = felles
+      browser-goder (SW-cache) bak feature-detection; ring 3 = editor-goder
+      (sidebar, proxy, duckdb-wasm-montering). JS er lov som FORBEDRING,
+      aldri som krav. (3) Synkron XHR er den ensartede transporten (lovlig
+      i workers — webR er derfor MINST problematisk, ikke mest); JS-broen
+      kan ikke bære synkrone pakkeverb (Promise-basert). (4) duckdb er IKKE
+      limet (finnes ikke i pyodide/brython/mpy som pakke; Promise-API via
+      js-interop bryter sync-kontrakten) — valgfri CPython-akselerator og
+      fortsatt editorens monteringsmotor. Limet er kontrakten + delte
+      test-fixtures + tekstformatene (json-stat2/csv). (5) Variabel-for-
+      variabel-bygging dekkes av dataset(key)/add-byggeren på ramme-nivå —
+      SQL-kompilatoren imiteres ikke i pakken; kolonne-pruning som
+      `columns=`-kwarg. (6) Kost/nytte-beslutning: FULL pakkefamilie er
+      IKKE verdt det nå (0 brukere, 4-5× varig vedlikehold) — punkt 1+2
+      under leveres, resten venter: R-pakken (webR-porten er dyreste hale),
+      brython/mpy-modulene og PyPI/CRAN tas først når en reell bruker
+      etterspør det. Jamovi-valideringen står fortsatt øverst.
+      - [ ] Punkt 3 (VENTER på reelle brukere): openstat R-pakke (vanlig R
+            → webR-port), brython/micropython-moduler, PyPI/CRAN-publisering,
+            SW-som-datacache for pakke-sync-XHR, direktiver-som-sukker-
+            kompilering.
 - [ ] **Streaming-/levende kilder** (notert 2026-07-25). Trapp: (1)
       polling — `# connect …, refresh(30s)` som re-henter og re-rendrer en
       utpekt output; passer dagens batch-modell (fersk økt per kjøring) og

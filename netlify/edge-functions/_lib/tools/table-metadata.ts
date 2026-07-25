@@ -1,6 +1,6 @@
 // table_metadata tool: variable-level lookup for a catalog hit, so the model
 // can build a MINIMAL query URL (spec: build datasets from variables).
-import { findSource, type DataSource } from "../registry.ts";
+import { findSource, SDMX_STRUCTURE_ACCEPT, type DataSource } from "../registry.ts";
 
 export interface TableVariable {
   code: string;
@@ -30,6 +30,7 @@ export async function tableMetadata(
   const f = deps.fetchImpl ?? fetch;
   switch (src.tilgang) {
     case "pxweb": return pxwebMetadata(src, tableId, f);
+    case "sdmx": return sdmxMetadata(src, tableId, f);
     default:
       switch (src.kind) {
         case "fhi": return fhiMetadata(src, tableId, f);
@@ -135,4 +136,54 @@ async function statfinMetadata(src: DataSource, tableId: string, f: typeof fetch
     };
   });
   return { source: src.id, id: tableId, title: json.title ?? tableId, variables };
+}
+
+function sdmxCodelistIdFromUrn(urn: string): string | null {
+  const m = urn.match(/Codelist=[^:]+:([^(]+)\(/);
+  return m ? m[1] : null;
+}
+
+async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetch): Promise<TableMeta> {
+  const accept = SDMX_STRUCTURE_ACCEPT[src.id];
+  if (!accept) throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  const [agencyID, dataflowId] = dataflowKey.split("/");
+  if (!agencyID || !dataflowId) throw new Error(`sdmx table_id må være '<agencyID>/<dataflowId>', fikk '${dataflowKey}'`);
+  const url = `${src.base_url.replace(/data\/$/, "")}dataflow/${agencyID}/${dataflowId}/latest?references=all`;
+  const res = await f(url, { headers: { Accept: accept } });
+  if (!res.ok) throw new Error(`sdmx metadata for ${dataflowKey} feilet: HTTP ${res.status}`);
+  const json = await res.json();
+  const dsd = json?.data?.dataStructures?.[0];
+  if (!dsd) throw new Error(`fant ingen datastruktur for ${dataflowKey}`);
+  const codelists = (json?.data?.codelists ?? []) as Record<string, unknown>[];
+  const dimList = dsd.dataStructureComponents?.dimensionList ?? {};
+  const plainDims = (dimList.dimensions ?? []) as Record<string, unknown>[];
+  const timeDims = (dimList.timeDimensions ?? []) as Record<string, unknown>[];
+
+  const codesFor = (d: Record<string, unknown>) => {
+    const enumUrn = String((d.localRepresentation as Record<string, unknown> | undefined)?.enumeration ?? "");
+    const clId = sdmxCodelistIdFromUrn(enumUrn);
+    const cl = codelists.find((c) => c.id === clId);
+    return (cl?.codes as Record<string, unknown>[] | undefined) ?? [];
+  };
+
+  const variables: TableVariable[] = [
+    ...plainDims.map((d) => {
+      const codes = codesFor(d);
+      return {
+        code: String(d.id ?? ""),
+        label: String(d.id ?? ""), // ingen egen "name" utover concept-referansen — koden ER labelen
+        time: false,
+        values: codes.slice(0, MAX_VALUES).map((c) => ({ code: String(c.id ?? ""), label: String(c.name ?? c.id ?? "") })),
+        valuesTruncated: codes.length > MAX_VALUES,
+      };
+    }),
+    ...timeDims.map((d) => ({
+      code: String(d.id ?? ""),
+      label: String(d.id ?? ""),
+      time: true,
+      values: [] as { code: string; label: string }[],
+      valuesTruncated: false,
+    })),
+  ];
+  return { source: src.id, id: dataflowKey, title: String(dsd.name ?? dataflowKey), variables };
 }

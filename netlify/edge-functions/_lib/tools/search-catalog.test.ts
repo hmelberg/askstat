@@ -21,6 +21,10 @@ const REG = parseRegistry([
     kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
   { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", tillit: "offisiell", tilgang: "rest",
     kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
+  { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
+    tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
+  { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell",
+    tilgang: "sdmx", kind: "sdmx", base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
 ]);
 
 // PxWebApi v2 /tables response shape (subset)
@@ -239,4 +243,39 @@ Deno.test("statfinSearch: rekurserer inn i mapper, treffer på tabelltittel", as
   const hits = await searchCatalog("statfin", "employment", { registry: REG, origin: "https://app.test", fetchImpl: fakeStatfinFetch() });
   assertEquals(hits.length, 1);
   assertEquals(hits[0].id, "tyti/11pk.px");
+});
+
+// --- sdmx adapter (Task 5) ---
+
+const NB_DATAFLOW_FIXTURE = {
+  data: {
+    dataflows: [
+      { id: "EXR", agencyID: "NB", name: "Exchange rates" },
+      { id: "ANN_FX_SPU", agencyID: "NB", name: "Announcement of foreign exchange transactions on behalf of SPU" },
+    ],
+  },
+};
+
+function fakeSdmxFetch(payload: unknown, capture: string[] = []): typeof fetch {
+  return ((input: string | URL | Request, init?: RequestInit) => {
+    capture.push(String((init?.headers as Record<string, string> | undefined)?.Accept ?? ""));
+    return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+  }) as typeof fetch;
+}
+
+Deno.test("sdmxSearch: filtrerer dataflow-navn, bruker kilde-spesifikk Accept-versjon", async () => {
+  const calls: string[] = [];
+  // NB: "exchange" alene ville også truffet ANN_FX_SPU ("foreign exchange
+  // transactions") — "exchange rates" er spesifikk nok til å skille de to.
+  const hits = await searchCatalog("norgesbank", "exchange rates", { registry: REG, origin: "https://app.test", fetchImpl: fakeSdmxFetch(NB_DATAFLOW_FIXTURE, calls) });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "NB/EXR");
+  assertEquals(calls[0], "application/vnd.sdmx.structure+json;version=1.0.0");
+});
+
+Deno.test("sdmxSearch: ecb (utenfor SDMX_STRUCTURE_ACCEPT) kaster tydelig feil", async () => {
+  let threw = "";
+  try { await searchCatalog("ecb", "exchange", { registry: REG, origin: "https://app.test", fetchImpl: fakeSdmxFetch(NB_DATAFLOW_FIXTURE) }); }
+  catch (e) { threw = String(e); }
+  if (!threw.includes("ikke støttet")) throw new Error("ventet 'ikke støttet'-feil for ecb: " + threw);
 });

@@ -3,7 +3,7 @@
 // apd (lokal, forhåndshøstet katalog — se
 // docs/superpowers/specs/2026-07-25-apd-catalog-design.md). Andre tilgang-
 // verdier nås via web_search + probe (prompt-regel).
-import { findSource, isSearchableSource, type DataSource } from "../registry.ts";
+import { findSource, isSearchableSource, SDMX_STRUCTURE_ACCEPT, type DataSource } from "../registry.ts";
 
 export interface CatalogHit {
   source: string;
@@ -29,12 +29,17 @@ export async function searchCatalog(
   const src = findSource(deps.registry, sourceId);
   if (!src) throw new Error(`ukjent kilde '${sourceId}' — bruk en id fra kilderegisteret`);
   const f = deps.fetchImpl ?? fetch;
-  if (!isSearchableSource(src)) {
+  // sdmx-tilgang hopper over denne blanke sperren: sdmxSearch har sin egen,
+  // mer presise SDMX_STRUCTURE_ACCEPT-sjekk (f.eks. ecb → "ikke støttet ennå
+  // (kun XML)") — isSearchableSource sin blanke "ikke søkbar" ville ellers
+  // maskert den mer nyttige feilmeldingen.
+  if (src.tilgang !== "sdmx" && !isSearchableSource(src)) {
     throw new Error(`kilden '${sourceId}' er ikke søkbar — bruk web_search + probe i stedet`);
   }
   switch (src.tilgang) {
     case "pxweb": return pxwebSearch(src, query, f);
     case "ckan": return fdkSearch(src, query, f);
+    case "sdmx": return sdmxSearch(src, query, f);
     default:
       switch (src.kind) {
         case "apd": return apdSearch(query, deps.origin, f);
@@ -198,4 +203,31 @@ async function statfinSearch(src: DataSource, query: string, f: typeof fetch): P
   }
   await walk("");
   return hits;
+}
+
+function sdmxStructureBase(baseUrl: string): string {
+  // base_url peker på data-endepunktet (f.eks. .../api/data/); strukturroten
+  // er et søsken-nivå — strip siste "data/"-segment. Verifisert 2026-07-25
+  // for norgesbank og oecd.
+  return baseUrl.replace(/data\/$/, "");
+}
+
+async function sdmxSearch(src: DataSource, query: string, f: typeof fetch): Promise<CatalogHit[]> {
+  const accept = SDMX_STRUCTURE_ACCEPT[src.id];
+  if (!accept) throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
+  const url = `${sdmxStructureBase(src.base_url)}dataflow/all/all/latest?references=none`;
+  const res = await f(url, { headers: { Accept: accept } });
+  if (!res.ok) throw new Error(`sdmx dataflow-liste for ${src.id} feilet: HTTP ${res.status}`);
+  const json = await res.json();
+  const flows = (json?.data?.dataflows ?? []) as Record<string, unknown>[];
+  const q = query.toLowerCase();
+  return flows
+    .filter((d) => String(d.name ?? "").toLowerCase().includes(q))
+    .slice(0, MAX_HITS)
+    .map((d) => ({
+      source: src.id,
+      id: `${d.agencyID}/${d.id}`,
+      title: String(d.name ?? ""),
+      url: new URL(`${d.agencyID}/${d.id}`, src.base_url).toString(),
+    }));
 }

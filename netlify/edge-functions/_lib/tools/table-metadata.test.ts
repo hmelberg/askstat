@@ -14,6 +14,8 @@ const REG = parseRegistry([
     kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
   { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", tillit: "offisiell", tilgang: "rest",
     kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
+  { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
+    tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -114,4 +116,40 @@ Deno.test("statfin metadata: parallelle values/valueTexts-arrayer", async () => 
   const sex = meta.variables.find((v) => v.code === "sukupuoli")!;
   assertEquals(sex.values, [{ code: "1", label: "Men" }, { code: "2", label: "Women" }]);
   assertEquals(meta.variables.find((v) => v.code === "timeperiod_m")!.time, true);
+});
+
+// --- sdmx adapter (Task 5) ---
+
+const NB_EXR_DSD_FIXTURE = {
+  data: {
+    dataStructures: [{
+      name: "Exchange rates",
+      dataStructureComponents: {
+        dimensionList: {
+          dimensions: [
+            { id: "BASE_CUR", localRepresentation: { enumeration: "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=NB:CL_CURRENCY(1.0)" } },
+          ],
+          timeDimensions: [
+            { id: "TIME_PERIOD", localRepresentation: { textFormat: { textType: "ObservationalTimePeriod" } } },
+          ],
+        },
+      },
+    }],
+    codelists: [
+      { id: "CL_CURRENCY", codes: [{ id: "NOK", name: "Norwegian krone" }, { id: "USD", name: "US dollar" }] },
+    ],
+  },
+};
+
+function fakeSdmxFetch(payload: unknown): typeof fetch {
+  return (() => Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))) as typeof fetch;
+}
+
+Deno.test("sdmx metadata: kodeliste koblet via enumeration-URN, tidsdimensjon fra timeDimensions", async () => {
+  const meta = await tableMetadata("norgesbank", "NB/EXR", { registry: REG, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE) });
+  const baseCur = meta.variables.find((v) => v.code === "BASE_CUR")!;
+  assertEquals(baseCur.values, [{ code: "NOK", label: "Norwegian krone" }, { code: "USD", label: "US dollar" }]);
+  const time = meta.variables.find((v) => v.code === "TIME_PERIOD")!;
+  assertEquals(time.time, true);
+  assertEquals(time.values, []);
 });

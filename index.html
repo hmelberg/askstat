@@ -4035,6 +4035,10 @@
       overlay.classList.remove('open');
       overlay.setAttribute('aria-hidden', 'true');
       if (dialog) dialog.classList.remove('var-detail-dialog--expanded');
+      // Stopp en ev. åpen giscus-tråd i panelet når det lukkes (unngå at en
+      // iframe kjører videre i et skjult, avmontert mount).
+      var thread = document.querySelector('#varDetailBody .meta-info-community-thread');
+      if (thread && window.Comments && window.Comments.isOpen(thread)) window.Comments.close();
     }
 
     function initVariableDetailModal() {
@@ -4047,7 +4051,18 @@
       if (bodyEl) {
         bodyEl.addEventListener('click', function(e) {
           var btn = e.target.closest('.var-detail-doc-btn');
-          if (btn && btn.dataset.docUrl) window.open(btn.dataset.docUrl, '_blank', 'noopener,noreferrer');
+          if (btn && btn.dataset.docUrl) { window.open(btn.dataset.docUrl, '_blank', 'noopener,noreferrer'); return; }
+          // 💬 toggler «Fra fellesskapet»-tråden (giscus) inn/ut i sitt eget
+          // mount, slik at rammens overskrift + fallback-lenke består.
+          var cbtn = e.target.closest('.meta-info-comment-btn');
+          if (cbtn && window.Comments) {
+            var frame = cbtn.closest('.meta-info-community');
+            var thread = frame && frame.querySelector('.meta-info-community-thread');
+            if (thread) {
+              if (window.Comments.isOpen(thread)) window.Comments.close();
+              else window.Comments.open(thread, cbtn.getAttribute('data-comment-target'));
+            }
+          }
         });
       }
       closeBtn.addEventListener('click', function() { closeVariableDetailModal(); });
@@ -4299,14 +4314,29 @@
         var docUrl = MICRODATA_VARIABLE_DOC_BASE + docKey;
         parts.push('<div class="var-detail-doc-actions"><button type="button" class="btn btn-primary var-detail-doc-btn" data-doc-url="' + escapeHtml(docUrl) + '">Mer informasjon</button></div>');
       }
-      // Lenkeseksjon: direktiv-lenker (# meta ... <url>) + kommentarlenke
-      // (samme mål-konvensjon som sidebaren, spec §7) — vises alltid, uansett
-      // om docKey/«Mer informasjon» finnes.
+      // Lenkeseksjon: direktiv-lenker (# meta ... <url>) — vises kun når de
+      // finnes. Kommentarlenken er erstattet av «Fra fellesskapet»-rammen
+      // (giscus-tråd + fallback-lenke) rett nedenfor.
       var metaLinkItems = directiveLinks.map(function (l) {
         return '<li><a href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.label) + '</a></li>';
       });
-      metaLinkItems.push('<li><a href="' + escapeHtml(window.MetaInfo.commentUrl(dsName + '.' + varName)) + '" target="_blank" rel="noopener">' + escapeHtml(t('💬 Kommenter og se kommentarer')) + '</a></li>');
-      parts.push('<ul class="meta-info-links">' + metaLinkItems.join('') + '</ul>');
+      if (metaLinkItems.length) parts.push('<ul class="meta-info-links">' + metaLinkItems.join('') + '</ul>');
+      // «Fra fellesskapet»-ramme (tillitsregel): en tydelig, adskilt boks som
+      // aldri er forvekselbar med kildens metadata. 💬-knappen toggler giscus-
+      // tråden inn/ut i det indre .meta-info-community-thread. Comments.open()
+      // tømmer sitt mål, så overskrift + «Åpne på GitHub»-fallback holdes
+      // UTENFOR mount-et (i hodet) og består selv når tråden er åpen.
+      var commentTarget = dsName + '.' + varName;
+      parts.push(
+        '<div class="meta-info-community">' +
+          '<div class="meta-info-community-head">' +
+            '<span class="meta-info-community-title">' + escapeHtml(t('Fra fellesskapet')) + '</span>' +
+            '<a class="meta-info-community-link" href="' + escapeHtml(window.MetaInfo.commentUrl(commentTarget)) + '" target="_blank" rel="noopener">' + escapeHtml(t('Åpne på GitHub')) + '</a>' +
+          '</div>' +
+          '<button type="button" class="meta-info-comment-btn" data-comment-target="' + escapeHtml(commentTarget) + '">💬 ' + escapeHtml(t('Kommentarer')) + '</button>' +
+          '<div class="meta-info-community-thread"></div>' +
+        '</div>'
+      );
       if (data.kind === 'numeric' && (data.mean !== undefined || data.min !== undefined)) {
         parts.push('<div class="var-detail-section-title">Sammendrag</div>');
         var cards = [];
@@ -4373,31 +4403,24 @@
           metaLine +
           '<div class="sidebar-vars">' + varsHtml + '</div></div>';
       }).join('');
-      // R-datasett (runtime:'r' fra refreshDatasetSidebarFromR): detalj- og
-      // individata-visningene er Pyodide-bundne og ville lastet/feilet mot
-      // et datasett som bare finnes i webR — vis en ærlig status i stedet.
+      // nonPyRuntime beholdes som hjelpefunksjon for å avgjøre datasettets
+      // motor (r/duckdb/brython/micropython/javascript vs. python). Den
+      // blokkerer IKKE lenger inngangen til variabelpanelet — panelet åpnes nå
+      // i ALLE moduser: metadata vises for alle, statistikk kun for python
+      // (gates stille inne i showVariableDetail).
       function nonPyRuntime(ds) {
         var m = window.lastDatasetInfo && window.lastDatasetInfo[ds];
         return (m && ['r', 'duckdb', 'brython', 'micropython', 'javascript'].indexOf(m.runtime) >= 0) ? m.runtime : null;
-      }
-      function rDatasetNotice(rt) {
-        setStatus(rightStatus, rt === 'duckdb'
-          ? t('Distribusjonsvisning for duckdb-tabeller støttes ikke ennå — bruk SELECT/SUMMARIZE.')
-          : rt === 'r'
-            ? t('Detaljvisning for R-datasett støttes ikke ennå — bruk str()/summary() i R.')
-            : t('Detaljvisning støttes ikke for datasett i denne modusen ennå.'), true);
       }
       datasetsEl.querySelectorAll('.sidebar-var-row').forEach(function(el) {
         el.addEventListener('click', function() {
           var ds = this.getAttribute('data-ds');
           var v = this.getAttribute('data-var');
-          var rt = nonPyRuntime(ds);
-          if (rt) return rDatasetNotice(rt);
           showVariableDetail(ds, v);
         });
       });
-      // (Individata-modalen har egen R-vei — bare showVariableDetail over
-      // er fortsatt py-bundet og gates.)
+      // (Individata-modalen har egen sti nedenfor; variabelpanelet over åpnes
+      // nå uansett motor.)
       datasetsEl.querySelectorAll('.sidebar-dataset-name').forEach(function(el) {
         el.addEventListener('click', function() {
           if (!window.__getShowIndividata || !window.__getShowIndividata()) return;
@@ -4431,8 +4454,14 @@
       overlay.setAttribute('aria-hidden', 'false');
       if (dialogEl) dialogEl.classList.remove('var-detail-dialog--expanded');
       try {
+        // Statistikk (describe/fordeling/kategorier via pyodide) beregnes KUN
+        // for python-runtime; andre motorer (r/duckdb/brython/micropython/
+        // javascript) viser metadata alene — stille, uten stats og uten
+        // forklaringsmelding (runtime-mønster som :4111).
+        var dsMeta = (window.lastDatasetInfo || {})[datasetName] || null;
+        var isPyRuntime = ((dsMeta && dsMeta.runtime) || 'python') === 'python';
         var data = null;
-        if (pyodide) {
+        if (pyodide && isPyRuntime) {
           pyodide.globals.set('_var_ds', datasetName);
           pyodide.globals.set('_var_col', varName);
           var jsonStr = await pyodide.runPythonAsync(`
@@ -4484,16 +4513,18 @@ json.dumps(out)
           if (data && data.missing) data = null;
         }
         if (!data) {
-          // B2: datasettet finnes ikke i den lokale motoren (typisk en
-          // server-kjøring der bare katalogmetadata ble sendt) — degradér
-          // pent til metadataene i stedet for å feile.
-          var dsMeta = (window.lastDatasetInfo || {})[datasetName] || null;
+          // Ingen lokal statistikk: enten en python-server-kjøring med bare
+          // katalogmetadata (B2), eller en ikke-python-motor. Begge degraderer
+          // pent til metadataene i stedet for å feile — men «beregnes ikke
+          // lokalt»-note-en (data.remote) settes KUN for python; andre motorer
+          // utelater den stille (metadata-delen er poenget der).
           if (!dsMeta) {
             bodyEl.innerHTML = '<p class="var-detail-prose" style="color:var(--text-muted)">' + escapeHtml(t('Ingen informasjon tilgjengelig for denne variabelen.')) + '</p>';
             return;
           }
           var dtypeStr = (dsMeta.dtypes || {})[varName] || '';
-          data = { dtype: dtypeStr, n: dsMeta.nrows, kind: inferKindFromDtype(dtypeStr), remote: true };
+          data = { dtype: dtypeStr, n: dsMeta.nrows, kind: inferKindFromDtype(dtypeStr) };
+          if (isPyRuntime) data.remote = true;
         }
         var cat = getVariableCatalogEntryForColumn(varName);
         bodyEl.innerHTML = renderVariableDetailHtml(datasetName, varName, data, cat);

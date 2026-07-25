@@ -784,4 +784,9 @@ window.M2PY_I18N.en = {
   "Lenker": "Links",
   "Felter": "Fields",
   "Laster …": "Loading …",
+
+  // ── Variabelpanel: «Fra fellesskapet»-ramme (giscus-tråd) ──
+  "Fra fellesskapet": "From the community",
+  "Kommentarer": "Comments",
+  "Åpne på GitHub": "Open on GitHub",
 };

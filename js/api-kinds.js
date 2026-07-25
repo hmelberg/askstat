@@ -47,8 +47,53 @@
     return u.base + '?' + parts.join('&');
   }
 
+  // ── worldbank (spec §1): enkel JSON [meta, [rader]], per_page-default 50
+  // er en felle → 20000 når brukeren ikke velger; meta.pages driver
+  // sideløkken i lastelaget. Feilformen er [{message:[{value: …}]}].
+  function worldbankDataUrl(url) {
+    var u = splitUrl(url);
+    var parts = stripParam(u.query, 'format');
+    if (!parts.some(function (p) { return p.split('=')[0].toLowerCase() === 'per_page'; })) {
+      parts.push('per_page=20000');
+    }
+    parts.push('format=json');
+    return u.base + '?' + parts.join('&');
+  }
+  function worldbankPageUrl(url, n) {
+    var u = splitUrl(worldbankDataUrl(url));
+    var parts = stripParam(u.query, 'page');
+    parts.push('page=' + n);
+    return u.base + '?' + parts.join('&');
+  }
+  function worldbankMeta(doc) {
+    if (Array.isArray(doc) && doc.length && doc[0] && doc[0].message) {
+      var msgs = doc[0].message.map(function (m) { return m.value || m.key || ''; }).join('; ');
+      throw new Error('Verdensbanken avviste spørringen: ' + msgs);
+    }
+    if (!Array.isArray(doc) || doc.length < 2 || !doc[0]) {
+      throw new Error('Uventet svar fra Verdensbanken (ikke [meta, rader])');
+    }
+    return { pages: Number(doc[0].pages || 1), total: Number(doc[0].total || 0) };
+  }
+  function worldbankColumns(docs) {
+    var cols = { indicator: [], country: [], countryiso3code: [], date: [], value: [] };
+    docs.forEach(function (doc) {
+      (doc[1] || []).forEach(function (r) {
+        cols.indicator.push(((r || {}).indicator || {}).id || '');
+        cols.country.push(((r || {}).country || {}).id || '');
+        cols.countryiso3code.push((r || {}).countryiso3code || '');
+        cols.date.push((r || {}).date || '');
+        var v = (r || {}).value;
+        cols.value.push(v === undefined || v === null ? null : v);
+      });
+    });
+    return cols;
+  }
+
   var api = { kindAlias: kindAlias, SDMX_ACCEPT: SDMX_ACCEPT,
-              sdmxNeedsFallback: sdmxNeedsFallback, sdmxFallbackUrl: sdmxFallbackUrl };
+              sdmxNeedsFallback: sdmxNeedsFallback, sdmxFallbackUrl: sdmxFallbackUrl,
+              worldbankDataUrl: worldbankDataUrl, worldbankPageUrl: worldbankPageUrl,
+              worldbankMeta: worldbankMeta, worldbankColumns: worldbankColumns };
   global.ApiKinds = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

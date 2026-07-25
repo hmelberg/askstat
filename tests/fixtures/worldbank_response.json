@@ -1,0 +1,23 @@
+{
+  "_kommentar": "Trimmet EKTE svar fra api.worldbank.org probet 2026-07-25 (NY.GDP.MKTP.CD for NOR), omformet til 2 sider à 5+2 rader for pagineringstesten; 'error' er WBs dokumenterte feilform. Deles av tests/js/api-kinds.test.js og tests/test_openstat.py — samme tall begge steder ER paritetskontrakten.",
+  "page1": [
+    {"page": 1, "pages": 2, "per_page": 5, "total": 7, "sourceid": "2", "lastupdated": "2026-07-13"},
+    [
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2024", "value": 500886328034.123, "unit": "", "obs_status": "", "decimal": 0},
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2023", "value": 502197633322.816, "unit": "", "obs_status": "", "decimal": 0},
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2022", "value": 617321834098.986, "unit": "", "obs_status": "", "decimal": 0},
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2021", "value": 521592200232.829, "unit": "", "obs_status": "", "decimal": 0},
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2020", "value": 382252517921.94, "unit": "", "obs_status": "", "decimal": 0}
+    ]
+  ],
+  "page2": [
+    {"page": 2, "pages": 2, "per_page": 5, "total": 7, "sourceid": "2", "lastupdated": "2026-07-13"},
+    [
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2019", "value": 404940491385.575, "unit": "", "obs_status": "", "decimal": 0},
+      {"indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}, "country": {"id": "NO", "value": "Norway"}, "countryiso3code": "NOR", "date": "2018", "value": null, "unit": "", "obs_status": "", "decimal": 0}
+    ]
+  ],
+  "error": [
+    {"message": [{"id": "120", "key": "Invalid value", "value": "Invalid value: indikator-id finnes ikke"}]}
+  ]
+}

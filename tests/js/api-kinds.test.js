@@ -34,6 +34,42 @@ test('sdmxNeedsFallback: 406 eller ikke-CSV → fallback (ECB-veien); ekte feil 
   assert.equal(AK.sdmxNeedsFallback(422, 'text/plain'), false);
 });
 
+// ── worldbank (spec §1): [meta, [rader]], per_page-default 50 er en felle ──
+const WB = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'worldbank_response.json'), 'utf8'));
+
+test('worldbankDataUrl: format=json + per_page=20000 default, brukerens valg bevares', () => {
+  assert.equal(AK.worldbankDataUrl('https://api.worldbank.org/v2/country/NOR/indicator/NY.GDP.MKTP.CD?date=2015:2024'),
+    'https://api.worldbank.org/v2/country/NOR/indicator/NY.GDP.MKTP.CD?date=2015:2024&per_page=20000&format=json');
+  assert.equal(AK.worldbankDataUrl('https://x/v2/country/NOR/indicator/A?per_page=99&format=xml'),
+    'https://x/v2/country/NOR/indicator/A?per_page=99&format=json');
+  assert.equal(AK.worldbankDataUrl('https://x/v2/country/NOR/indicator/A'),
+    'https://x/v2/country/NOR/indicator/A?per_page=20000&format=json');
+});
+
+test('worldbankPageUrl: page-param legges til datalink-URL-en', () => {
+  assert.equal(AK.worldbankPageUrl('https://x/v2/country/NOR/indicator/A?date=2015:2024', 3),
+    'https://x/v2/country/NOR/indicator/A?date=2015:2024&per_page=20000&format=json&page=3');
+});
+
+test('worldbankMeta: pages/total fra meta; feilformen kaster med API-tekst', () => {
+  assert.deepEqual(AK.worldbankMeta(WB.page1), { pages: 2, total: 7 });
+  assert.throws(() => AK.worldbankMeta(WB.error), /Invalid value/);
+  assert.throws(() => AK.worldbankMeta({}), /Uventet svar/);
+});
+
+test('worldbankColumns: flater sider til koder + value, null bevart', () => {
+  const cols = AK.worldbankColumns([WB.page1, WB.page2]);
+  assert.deepEqual(Object.keys(cols), ['indicator', 'country', 'countryiso3code', 'date', 'value']);
+  assert.equal(cols.value.length, 7);
+  assert.equal(cols.indicator[0], 'NY.GDP.MKTP.CD');
+  assert.equal(cols.country[0], 'NO');
+  assert.equal(cols.countryiso3code[0], 'NOR');
+  assert.equal(cols.date[0], '2024');
+  assert.equal(cols.value[0], 500886328034.123);
+  assert.equal(cols.date[5], '2019');
+  assert.equal(cols.value[6], null);
+});
+
 test('sdmxFallbackUrl: format=csvdata legges på, eksisterende format strippes', () => {
   assert.equal(AK.sdmxFallbackUrl('https://x/data/EXR/D.USD?startPeriod=2026'),
     'https://x/data/EXR/D.USD?startPeriod=2026&format=csvdata');

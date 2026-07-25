@@ -556,7 +556,7 @@
     window.t = window.t || function (s) { return s; };
     window.i18nField = window.i18nField || function (obj, field) { return obj && obj[field]; };
 
-    window.M2PY_VERSION = '2026-07-25b';
+    window.M2PY_VERSION = '2026-07-25c';
 
     // One-time migration: remove obsolete localStorage keys from previous milestones
     // Safe to delete this snippet after a few months when most users have re-loaded
@@ -7486,12 +7486,12 @@ async def _run_duck_sql(_sql, _fresh=True):
       // csv — pushdown, composite-joins og format(duckdb)-views virker da
       // uendret. Ærlig unntak: px-uttrekk er API-nedlastinger; «null
       // minnekost» gjelder remote parquet, ikke pxweb.
-      var _pxKeys = Object.keys(so.descriptors).filter(function (k) { return so.descriptors[k].format === 'pxweb'; });
+      var _pxKeys = Object.keys(so.descriptors).filter(function (k) { return so.descriptors[k].format === 'pxweb' || so.descriptors[k].format === 'eurostat'; });
       if (_pxKeys.length) {
         if (statusEl) setStatus(statusEl, t('Henter PxWeb-uttrekk…'));
         var _pxItems = _pxKeys.map(function (k) {
           var d0 = so.descriptors[k];
-          return { alias: k, url: d0.url, kind: 'pxweb', table: d0.table };
+          return { alias: k, url: d0.url, kind: d0.format, table: d0.table };
         });
         var _pxLoaded = await window.DataLoader.fetchResolvedItems(_pxItems, deps);
         var _pxDb = await __ensureDuckDB();
@@ -7607,7 +7607,7 @@ async def _run_duck_sql(_sql, _fresh=True):
         function collectPx(parsedLoads) {
           var res = DD.resolve(parsedLoads, []);
           res.forEach(function (r, i) {
-            if (r.error || r.kind !== 'pxweb' || !r.table) return;
+            if (r.error || (r.kind !== 'pxweb' && r.kind !== 'eurostat') || !r.table) return;
             var head = String(parsedLoads.loads[i].target).split('/')[0];
             pxPairs[head + '/' + r.table] = r;
           });
@@ -7622,15 +7622,32 @@ async def _run_duck_sql(_sql, _fresh=True):
         for (var pk in pxPairs) {
           try {
             var pr = pxPairs[pk];
-            var mresp = await fetch(window.PxWeb.metadataUrl(pr.url));
+            // pxweb har eget metadata-endepunkt; Eurostat mangler det i
+            // statistics-API-et — en lastTimePeriod=1-probe gir id-listen
+            // billig (json-stat2-svar uansett; verifisert 2026-07-25).
+            // NB: proben tåler ikke andre tidsvinduer (400 ved kombinasjon
+            // med sinceTimePeriod/time) — stripp tidsparametrene, behold
+            // dimensjonsfiltrene så proben forblir liten.
+            var mUrl;
+            if (pr.kind === 'eurostat') {
+              var pu = String(pr.url), pq = pu.indexOf('?');
+              var pbase = pq >= 0 ? pu.slice(0, pq) : pu;
+              var pparts = (pq >= 0 ? pu.slice(pq + 1).split('&') : []).filter(function (kv) {
+                return !/^(time|sinceTimePeriod|untilTimePeriod|lastTimePeriod)=/i.test(kv);
+              });
+              mUrl = window.PxWeb.eurostatDataUrl(pbase + (pparts.length ? '?' + pparts.join('&') : '')) + '&lastTimePeriod=1';
+            } else {
+              mUrl = window.PxWeb.metadataUrl(pr.url);
+            }
+            var mresp = await fetch(mUrl);
             if (!mresp.ok) throw new Error('HTTP ' + mresp.status);
             var meta = await mresp.json();
             window.__connectedSources[pk] = {
-              url: pr.url, format: 'pxweb',
+              url: pr.url, format: pr.kind,
               columns: (meta.id || []).concat(['value']),
               types: [], sep: '.'
             };
-          } catch (e) { console.warn('pxweb-metadata (' + pk + '):', e); }
+          } catch (e) { console.warn('kildemetadata (' + pk + '):', e); }
         }
         updateSidebarSources();
       } catch (e) { console.warn('refreshConnectedSources:', e); }

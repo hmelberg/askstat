@@ -155,14 +155,14 @@
     // pxweb (plan 2026-07-25 Task 2): data-URL-en bygges på transpile-tid
     // (js/pxweb.js), konverteringen json-stat2 → langt format emitteres som
     // hjelpefunksjon én gang (needs.pxHelperPy/R) — selvforsynt eksport.
-    if (item.kind === 'pxweb') {
+    if (item.kind === 'pxweb' || item.kind === 'eurostat') {
       var PX = global.PxWeb;
       if (!PX) {
-        out.lines.push('# (pxweb-kilde «' + item.alias + '»: intern feil — js/pxweb.js er ikke lastet)');
-        warnings.push('«' + item.alias + '»: pxweb-transpilering utilgjengelig (js/pxweb.js mangler)');
+        out.lines.push('# (' + item.kind + '-kilde «' + item.alias + '»: intern feil — js/pxweb.js er ikke lastet)');
+        warnings.push('«' + item.alias + '»: ' + item.kind + '-transpilering utilgjengelig (js/pxweb.js mangler)');
         return out.lines;
       }
-      var du = PX.dataUrl(url);
+      var du = PX.dataUrlFor(item.kind, url);
       if (mode === 'python') {
         needs.requests = true;
         needs.pandas = true;

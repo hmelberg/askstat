@@ -329,3 +329,15 @@ Deno.test("montering: duckdb-kilde gir kommentar + warning, ikke knekt kode", ()
   if (!out.warnings.some((w: string) => w.includes("duckdb"))) throw new Error("mangler warning");
   if (!out.code.includes("# (datasettet «d» kunne ikke eksporteres")) throw new Error("mangler kommentar:\n" + out.code);
 });
+
+Deno.test("eurostat python: samme _px_frame-helper, eurostat-URL", () => {
+  const s4 = [
+    "# connect https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data as eu, kind(eurostat)",
+    "# read eu/nama_10_gdp?geo=NO as bnp",
+  ].join("\n");
+  const out = PE.transpile(s4, "python", []);
+  if (!out.code.includes("def _px_frame(ds):")) throw new Error("mangler helper:\n" + out.code);
+  if (!out.code.includes('bnp = _px_frame(requests.get("https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_gdp?lang=en&geo=NO&format=JSON").json())')) {
+    throw new Error("feil emisjon:\n" + out.code);
+  }
+});

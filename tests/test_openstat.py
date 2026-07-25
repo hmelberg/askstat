@@ -44,6 +44,25 @@ def test_columns_from_jsonstat_sparse_verdi_objekt():
     assert ost.columns_from_jsonstat(fx)["value"] == [10, None, None, 21]
 
 
+def test_eurostat_data_url():
+    assert ost.eurostat_data_url("https://x/data/nama_10_gdp") == "https://x/data/nama_10_gdp?lang=en&format=JSON"
+    assert ost.eurostat_data_url("https://x/data/tab?geo=NO&format=csv") == "https://x/data/tab?lang=en&geo=NO&format=JSON"
+
+
+def test_connect_read_eurostat(monkeypatch):
+    calls = []
+
+    def fake(url):
+        calls.append(url)
+        return json.dumps(FIX).encode()
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    eu = ost.connect("https://x/data", kind="eurostat")
+    df = eu.read("nama_10_gdp", geo="NO")
+    assert calls == ["https://x/data/nama_10_gdp?lang=en&geo=NO&format=JSON"]
+    assert df.shape == (4, 4)
+
+
 def test_connect_read_pxweb(monkeypatch):
     calls = []
 

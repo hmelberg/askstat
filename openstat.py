@@ -23,7 +23,7 @@ import sys
 import pandas as pd
 
 __all__ = ["connect", "read", "create", "datasets",
-           "data_url", "metadata_url", "columns_from_jsonstat"]
+           "data_url", "metadata_url", "eurostat_data_url", "columns_from_jsonstat"]
 
 _MEMO = {}
 
@@ -71,6 +71,18 @@ def data_url(url):
 
 def metadata_url(url):
     return _build_url(url, "metadata", False)
+
+
+def eurostat_data_url(url):
+    """Eurostat statistics-API (paritet med js/pxweb.js eurostatDataUrl):
+    <base>/<kode>?format=JSON&lang=en&<dim>=<verdi> — json-stat2-svar."""
+    s = str(url or "")
+    base, _, query = s.partition("?")
+    parts = [p for p in query.split("&") if p and p.split("=")[0].lower() != "format"]
+    if not any(p.split("=")[0].lower() == "lang" for p in parts):
+        parts.insert(0, "lang=en")
+    parts.append("format=JSON")
+    return base.rstrip("/") + "?" + "&".join(parts)
 
 
 def _category_codes(dim):
@@ -125,9 +137,9 @@ class Source:
 
     def read(self, table=None, columns=None, **query):
         kind = self.kind or _sniff_kind(self.url)
-        if kind == "pxweb":
+        if kind in ("pxweb", "eurostat"):
             if not table:
-                raise ValueError("pxweb-kilder krever tabell-id: kilde.read('05839')")
+                raise ValueError(kind + "-kilder krever tabell-id: kilde.read('05839')")
             qs = []
             for k, v in query.items():
                 if isinstance(v, dict):
@@ -135,7 +147,8 @@ class Source:
                 else:
                     qs.append(str(k) + "=" + str(v))
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
-            ds = _json.loads(_fetch_bytes(data_url(target)).decode("utf-8"))
+            du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
+            ds = _json.loads(_fetch_bytes(du).decode("utf-8"))
             df = pd.DataFrame(columns_from_jsonstat(ds))
             return df[list(columns)] if columns else df
         url = self.url if table is None else self.url.rstrip("/") + "/" + str(table)

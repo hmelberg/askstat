@@ -113,9 +113,9 @@
       // pxweb (spec 2026-07-24-pxweb-sources-design §2): «stien» er
       // tabell-id-en (evt. med PxWeb-query bak ?); lastelaget bygger
       // /data- og /metadata-URL-ene selv (js/pxweb.js).
-      if (kind === 'pxweb') {
+      if (kind === 'pxweb' || kind === 'eurostat') {
         if (!rest) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
-          error: '«' + l.alias + '»: pxweb-kilder krever en tabell-id — «load ' + head + '/<tabellid> as ' + l.alias + '»' };
+          error: '«' + l.alias + '»: ' + kind + '-kilder krever en tabell-id — «read ' + head + '/<tabellid> as ' + l.alias + '»' };
         if (base.charAt(base.length - 1) !== '/') base += '/';
         var qi = rest.indexOf('?');
         return { alias: l.alias, url: base + rest, viaProxy: viaProxy, key: key, exec: exec, kind: kind,

@@ -29,6 +29,30 @@
   function dataUrl(url) { return buildUrl(url, 'data', true); }
   function metadataUrl(url) { return buildUrl(url, 'metadata', false); }
 
+  // Eurostat (2026-07-25, verifisert live: json-stat2 + CORS *): URL-formen
+  // er <base>/<kode>?format=JSON&lang=en&<dimensjon>=<verdi>-filtre — ingen
+  // /data-suffiks, direkte dimensjonsparametre (ikke valueCodes[...]), og
+  // lang=en som default (Eurostat har en/fr/de, ikke no). Konverteringen
+  // (columnsFromJsonStat) er identisk — det VAR poenget med json-stat2-valget.
+  function eurostatDataUrl(url) {
+    var s = String(url || '');
+    var q = s.indexOf('?');
+    var base = q >= 0 ? s.slice(0, q) : s;
+    var query = q >= 0 ? s.slice(q + 1) : '';
+    var parts = (query ? query.split('&').filter(Boolean) : [])
+      .filter(function (p) { return p.split('=')[0].toLowerCase() !== 'format'; });
+    if (!parts.some(function (p) { return p.split('=')[0].toLowerCase() === 'lang'; })) {
+      parts.unshift('lang=en');
+    }
+    parts.push('format=JSON');
+    return base.replace(/\/+$/, '') + '?' + parts.join('&');
+  }
+
+  // Felles inngang for lastelag/eksport/montering: data-URL per kind.
+  function dataUrlFor(kind, url) {
+    return kind === 'eurostat' ? eurostatDataUrl(url) : dataUrl(url);
+  }
+
   // Kategorikodene i posisjonsorden — category.index kan være objekt
   // {kode: posisjon} eller array [koder] (begge er lovlig json-stat2).
   function categoryCodes(dim) {
@@ -82,6 +106,7 @@
   }
 
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
+              eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

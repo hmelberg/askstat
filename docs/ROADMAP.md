@@ -237,10 +237,25 @@ prøve fra PyPI eller GitHub. Nivåene:
       kompilatoren og `merge(on=liste)` i pandas-fallbacken. Bifangst:
       duckdb-fallbackveien (Pyodide alt bootet) strippet aldri
       direktivlinjer fra SQL-segmenter — fikset (stripDataDirectiveLines).
-- [ ] **Eurostat/OECD som pxweb-gjenbruk** — Eurostat leverer også
-      json-stat2; samme kind + konvertering, kun base-URL/param-forskjeller.
-      Vurder også `<dim>_label`-kolonner som opt-in og tabell-SØK
-      (`/tables?query=`) i katalogen. Liten økt når Hans vil.
+- [x] **Eurostat som json-stat2-gjenbruk** — LEVERT 2026-07-25:
+      `kind(eurostat)` (`# connect https://ec.europa.eu/eurostat/api/
+      dissemination/statistics/1.0/data as eu, kind(eurostat)` +
+      `# read eu/nama_10_gdp?geo=NO&… as bnp`). Samme json-stat2-konvertering
+      som pxweb (det VAR poenget); egen URL-form (format=JSON, lang=en
+      default, direkte dimensjonsfiltre). Dekker lastelag, montering,
+      eksport (_px_frame gjenbrukes), openstat.py (kind="eurostat") og
+      kildekatalog/tab (lastTimePeriod=1-probe med tidsparametre strippet —
+      Eurostat 400-er ved kombinerte tidsvinduer, funnet i verifiseringen).
+      Verifisert live i CPython og editor: norsk BNP (6×6, 470 358,7 MEUR
+      i 2025). CORS er * (verifisert).
+- [ ] **OECD som egen kind** — IKKE pxweb-gjenbruk likevel (verifisert
+      2026-07-25): OECD-API-et er SDMX-JSON med 13-delte nøkkelstier
+      (`/data/<flow>/<A..NOR.S1..B1GQ......>`), et annet format enn
+      json-stat2 — krever egen konverterer og egen URL-/nøkkelmodell.
+      Egen økt hvis behovet melder seg; Verdensbanken (enkel JSON) er
+      trolig billigere som neste kilde.
+- [ ] Fortsatt åpent fra pxweb-økten: `<dim>_label`-kolonner som opt-in og
+      tabell-SØK (`/tables?query=`) i katalogen.
 - [x] **Datacache-styring (a)** — LEVERT 2026-07-25: `cache(<ttl>)`-opsjon
       på connect/load (`90s`/`30m`/`2h`/`1d`; `cache(0)`/`cache(no)` buster
       begge lag) — opt-in disk-L2 via Cache API ('m2py-data') under

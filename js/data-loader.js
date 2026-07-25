@@ -251,10 +251,10 @@
       // alle eksisterende csv-konsumenter virker uendret. Delt
       // _bufCache/proxy-fallback via fetchBytes på data-URL-en.
       // Offentlige API-data: maybeDecrypt/konvolutter er ikke aktuelle her.
-      if (item.kind === 'pxweb') {
+      if (item.kind === 'pxweb' || item.kind === 'eurostat') {
         var PX = global.PxWeb;
         if (!PX) throw new Error('PxWeb-modulen mangler (js/pxweb.js må lastes før data-loader.js)');
-        var fetchedPx = await fetchBytes(Object.assign({}, item, { url: PX.dataUrl(item.url) }));
+        var fetchedPx = await fetchBytes(Object.assign({}, item, { url: PX.dataUrlFor(item.kind, item.url) }));
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
         return { alias: item.alias, bytes: new TextEncoder().encode(csvPx),

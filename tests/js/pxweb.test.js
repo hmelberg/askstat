@@ -23,6 +23,22 @@ test('metadataUrl: /metadata + lang=no default, query bevares', () => {
   assert.equal(PX.metadataUrl('https://x/tables/05839?lang=en'), 'https://x/tables/05839/metadata?lang=en');
 });
 
+// ── kind(eurostat) (2026-07-25): samme json-stat2-konvertering, egen URL-form
+// (<base>/<kode>?format=JSON&lang=en&<dimensjon>=<verdi>-filtre) ────────────
+test('eurostatDataUrl: format=JSON tvinges + lang=en default, filtre bevares', () => {
+  assert.equal(PX.eurostatDataUrl('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_gdp'),
+    'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_gdp?lang=en&format=JSON');
+  assert.equal(PX.eurostatDataUrl('https://x/data/tab?geo=NO&time=2023&lang=de&format=csv'),
+    'https://x/data/tab?geo=NO&time=2023&lang=de&format=JSON');
+});
+
+test('dataUrlFor: ruter per kind', () => {
+  assert.equal(PX.dataUrlFor('pxweb', 'https://x/tables/05839'),
+    'https://x/tables/05839/data?lang=no&outputFormat=json-stat2');
+  assert.equal(PX.dataUrlFor('eurostat', 'https://x/data/tab'),
+    'https://x/data/tab?lang=en&format=JSON');
+});
+
 // 2×2×1-fixture: id/size i row-major-orden (json-stat2 §value). DELT med
 // pytest (tests/test_openstat.py) — kontrakts-frøet fra pakke-diskusjonen:
 // js/pxweb.js og openstat.py må gi samme svar på samme dokument.
@@ -94,6 +110,34 @@ test('parseCacheTtl: enheter, bust-verdier og ugyldig', () => {
   assert.equal(DL._parseCacheTtl('off'), 0);
   assert.equal(DL._parseCacheTtl('snart'), null);
   assert.equal(DL._parseCacheTtl(undefined), null);
+});
+
+test('resolve: kind(eurostat) krever tabell-id, som pxweb', () => {
+  const p = DD.parse([
+    '# connect https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data as eu, kind(eurostat)',
+    '# read eu/nama_10_gdp?geo=NO as bnp',
+    '# read eu as feil',
+  ].join('\n'));
+  const r = DD.resolve(p, []);
+  const bnp = r.find(x => x.alias === 'bnp');
+  assert.equal(bnp.kind, 'eurostat');
+  assert.equal(bnp.table, 'nama_10_gdp');
+  assert.match(r.find(x => x.alias === 'feil').error, /tabell-id/);
+});
+
+test('fetchResolvedItems: eurostat henter json-stat2 og leverer csv-bytes', async () => {
+  DL._resetCacheForTests();
+  let seenUrl = null;
+  const fetchImpl = (input) => {
+    seenUrl = String(input);
+    return Promise.resolve(new Response(JSON.stringify(FIX), { status: 200, headers: { 'content-type': 'application/json' } }));
+  };
+  const out = await DL.fetchResolvedItems(
+    [{ alias: 'bnp', url: 'https://x/data/nama_10_gdp?geo=NO', kind: 'eurostat', table: 'nama_10_gdp' }],
+    { fetchImpl, registry: [] });
+  assert.equal(seenUrl, 'https://x/data/nama_10_gdp?lang=en&geo=NO&format=JSON');
+  assert.equal(out[0].format, 'csv');
+  assert.match(new TextDecoder().decode(out[0].bytes), /^Kjonn,Tid,ContentsCode,value\n/);
 });
 
 test('fetchResolvedItems: pxweb henter json-stat2 fra /data og leverer csv-bytes', async () => {

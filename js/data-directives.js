@@ -14,9 +14,6 @@
 (function (global) {
   'use strict';
 
-  var CONNECT_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*connect[ \t]+(\S+)(?:[ \t]+as[ \t]+([A-Za-z_]\w*))?((?:[ \t]*,[ \t]*\w+\([^)]*\))*)[ \t]*$/gim;
-  var LOAD_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(read|load|require)[ \t]+(\S+)[ \t]+as[ \t]+([A-Za-z_]\w*)((?:[ \t]*,[ \t]*\w+\([^)]*\))*)[ \t]*$/gim;
-
   // Project A (variable-level assembly): create-dataset/import/join/load ->
   // AssemblySpec. See docs/superpowers/plans/2026-07-05-variable-level-assembly.md.
   // format(<navn>) (2026-07-24): lever datasettet direkte i valgt frameformat
@@ -154,45 +151,113 @@
     return out;
   }
 
-  // key(<literal>) -> key(***) før scriptet logges eller sendes til AI.
-  // key(ask) er ingen hemmelighet og beholdes.
+  // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
+  // key="ask" er ingen hemmelighet og beholdes.
   function scrubKeys(script) {
-    return String(script || '').replace(/\b(key\()\s*(?!ask\s*\))[^)]*\)/gi, '$1***)');
+    return String(script || '').replace(
+      /\b(key[ \t]*=[ \t]*)(["'])(?!ask\2)[^"']*\2/gi, '$1"***"');
+  }
+
+  var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
+  var PLAIN_KEYS = { key: 1, exec: 1, kind: 1, cache: 1 };
+  var LOWER_KEYS = { exec: 1, kind: 1, cache: 1 };
+
+  // Ekte Levenshtein: posisjonssammenligning straffer innskudd for hardt og
+  // ville foreslått «key» for «yers» (kortere navn vinner på lengdeleddet).
+  function editDistance(a, b) {
+    var prev = [], cur = [], i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur[0] = i;
+      for (j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                          prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      }
+      prev = cur.slice();
+    }
+    return prev[b.length];
+  }
+
+  function suggest(name) {
+    var all = Object.keys(PLAIN_KEYS).concat(Object.keys(CANON_KEYS)), best = null, bestD = 99;
+    for (var i = 0; i < all.length; i++) {
+      var d = editDistance(all[i], name);
+      if (d < bestD) { bestD = d; best = all[i]; }
+    }
+    return bestD <= 3 ? best : null;
+  }
+
+  function asList(v) {
+    if (v == null) return [];
+    if (Object.prototype.toString.call(v) === '[object Array]') return v.map(String);
+    return String(v).split(/[\s,]+/).filter(Boolean);
+  }
+
+  // kwargs -> dagens options-form (uendret for resolve()).
+  function optionsFromKwargs(kwargs, errors, lineNo) {
+    var opts = {}, canonical = null;
+    function canon() { return (canonical = canonical || (opts.canonical = {})); }
+    Object.keys(kwargs || {}).forEach(function (name) {
+      var v = kwargs[name];
+      if (PLAIN_KEYS[name]) {
+        opts[name] = LOWER_KEYS[name] ? String(v).toLowerCase() : String(v);
+        return;
+      }
+      if (name === 'years') {
+        var parts = String(v).split(':');
+        canon().years = { from: (parts[0] || '').trim() || null,
+                          to: parts.length > 1 ? ((parts[1] || '').trim() || null)
+                                               : ((parts[0] || '').trim() || null) };
+        return;
+      }
+      if (name === 'countries' || name === 'regions' || name === 'indicators') {
+        canon()[name] = asList(v); return;
+      }
+      if (name === 'filters') {
+        if (typeof v !== 'object' || v === null || Object.prototype.toString.call(v) === '[object Array]') {
+          errors.push('linje ' + lineNo + ': «filters» må være en dict — filters={"k": "v"}');
+          return;
+        }
+        canon().filters = v; return;
+      }
+      if (name === 'all') { if (v) canon().all = true; return; }
+      var s = suggest(name);
+      errors.push('linje ' + lineNo + ': ukjent argument «' + name + '»' +
+                  (s ? ' — mente du «' + s + '»?' : ''));
+    });
+    return opts;
   }
 
   function parse(script) {
-    var connects = [], loads = [], errors = [], m;
-    CONNECT_RE.lastIndex = 0;
-    while ((m = CONNECT_RE.exec(script)) !== null) {
-      var target = m[1];
-      var alias = m[2] || (isUrlish(target) ? null : target); // register-id/navn: alias = id
-      if (!alias) { errors.push('connect med URL krever "as <alias>": ' + target); continue; }
-      connects.push({ target: target, alias: alias, options: parseOptions(m[3]) });
-    }
-    LOAD_RE.lastIndex = 0;
-    while ((m = LOAD_RE.exec(script)) !== null) {
-      var verb = m[1].toLowerCase();
-      // Legacy require er BARE vårt når målet er en URL (navngitte kilder
-      // rutes til serveren av maybeRunRemote — ikke rør dem her).
-      if (verb === 'require' && !isUrlish(m[2])) continue;
-      loads.push({ verb: verb, target: m[2], alias: m[3], options: parseOptions(m[4]), line: m[0].trim() });
-    }
-    var metas = [];
-    META_RE.lastIndex = 0;
-    while ((m = META_RE.exec(script)) !== null) {
-      var dot = m[1].indexOf('.');
-      var tgt = dot > 0 ? m[1].slice(0, dot) : m[1];
-      var variable = dot > 0 ? m[1].slice(dot + 1) : null;
-      var content = m[2].trim();
-      var um = content.match(/^(https?:\/\/\S+)(?:[ \t]+(.*))?$/i);
-      if (um) {
-        metas.push({ target: tgt, variable: variable, kind: 'link',
-                     url: um[1], label: (um[2] || '').trim() || undefined, text: undefined, line: m[0].trim() });
-      } else {
-        metas.push({ target: tgt, variable: variable, kind: 'text',
-                     url: undefined, label: undefined, text: content, line: m[0].trim() });
+    var connects = [], loads = [], metas = [], errors = [];
+    var res = global.DirectiveParser.parseScript(script);
+    errors = res.errors.slice();
+    res.items.forEach(function (it) {
+      // 'ns'-elementer (meta) håndteres i Task 5 — her ignoreres de, slik at
+      // denne tasken ikke etterlater en tom stubbfunksjon som død kode.
+      if (it.form !== 'call') return;
+      var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
+
+      if (it.recv === 'ost' && it.verb === 'connect') {
+        if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.connect krever en tilordning — «# <alias> = ost.connect(…)»'); return; }
+        if (typeof it.args[0] !== 'string') { errors.push('linje ' + it.lineNo + ': ost.connect krever et mål som streng'); return; }
+        connects.push({ target: it.args[0], alias: it.target, options: opts });
+        return;
       }
-    }
+      if (it.verb === 'read') {
+        if (!it.target) { errors.push('linje ' + it.lineNo + ': read krever en tilordning — «# <navn> = …read(…)»'); return; }
+        var tgt;
+        if (it.recv === 'ost') {
+          if (typeof it.args[0] !== 'string') { errors.push('linje ' + it.lineNo + ': ost.read krever en URL som streng'); return; }
+          tgt = it.args[0];
+        } else {
+          tgt = it.args.length ? (it.recv + '/' + String(it.args[0])) : it.recv;
+        }
+        loads.push({ verb: 'read', target: tgt, alias: it.target, options: opts, line: it.raw });
+        return;
+      }
+      // create/add/join/use håndteres av parseAssembly/parseUse (T6/T7).
+    });
     return { connects: connects, loads: loads, metas: metas, errors: errors };
   }
 

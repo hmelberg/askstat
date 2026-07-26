@@ -778,9 +778,18 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
 ```js
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
+  // Regexen MÅ matche samme strenggrammatikk som directive-parser.js
+  // parseString: backslash escaper hva som helst, og bare det MATCHENDE
+  // hermetegnet avslutter. En klasse som [^"']* stopper ved motsatt
+  // hermetegn og lot key="it's-a-secret" passere HELT umaskert til
+  // AI-endepunktet og GitHub.
   function scrubKeys(script) {
     return String(script || '').replace(
-      /\b(key[ \t]*=[ \t]*)(["'])(?!ask\2)[^"']*\2/gi, '$1"***"');
+      /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi,
+      function (m, head, lit) {
+        var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
+        return inner === 'ask' ? m : head + '"***"';
+      });
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
@@ -803,13 +812,17 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
     return prev[b.length];
   }
 
+  // LENGDENORMALISERT og case-ufølsom: rå avstand favoriserer systematisk
+  // korte navn, så «yr» og «ctry» fikk forslaget «key» i stedet for
+  // «years»/«countries».
   function suggest(name) {
-    var all = Object.keys(PLAIN_KEYS).concat(Object.keys(CANON_KEYS)), best = null, bestD = 99;
+    var all = Object.keys(PLAIN_KEYS).concat(Object.keys(CANON_KEYS));
+    var low = String(name).toLowerCase(), best = null, bestD = 99;
     for (var i = 0; i < all.length; i++) {
-      var d = editDistance(all[i], name);
+      var d = editDistance(all[i], low) / Math.max(all[i].length, low.length);
       if (d < bestD) { bestD = d; best = all[i]; }
     }
-    return bestD <= 3 ? best : null;
+    return bestD <= 0.7 ? best : null;
   }
 
   function asList(v) {
@@ -829,6 +842,14 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
         return;
       }
       if (name === 'years') {
+        // Spec §5.4: tall er en feil, ikke noe å coerce. years=2020 i stedet
+        // for years="2020:2024" ville stille gitt ett år i stedet for fem.
+        if (typeof v !== 'string') {
+          errors.push('linje ' + lineNo + ': «years» må være streng, fikk ' +
+                      (typeof v === 'number' ? 'tall' : typeof v) +
+                      ' — skriv years="2020:2024"');
+          return;
+        }
         var parts = String(v).split(':');
         canon().years = { from: (parts[0] || '').trim() || null,
                           to: parts.length > 1 ? ((parts[1] || '').trim() || null)
@@ -863,6 +884,14 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
       if (it.form !== 'call') return;
       var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
 
+      // Stille dropp er forbudt: «ssb.read("05839", "Personer")» (glemt
+      // indicators=) ville ellers gitt et ufiltrert read uten noe signal.
+      if (it.args.length > 1) {
+        errors.push('linje ' + it.lineNo + ': ' + it.verb + ' tar ett posisjonsargument — ' +
+                    'resten må være navngitte (f.eks. indicators=["Personer"])');
+        return;
+      }
+
       if (it.recv === 'ost' && it.verb === 'connect') {
         if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.connect krever en tilordning — «# <alias> = ost.connect(…)»'); return; }
         if (typeof it.args[0] !== 'string') { errors.push('linje ' + it.lineNo + ': ost.connect krever et mål som streng'); return; }
@@ -894,6 +923,17 @@ grenen i `parse()` som kaller den. Ingen stubb, ingen død kode.
 
 Run: `node --test tests/js/directive-semantics.test.js`
 Expected: PASS, 8 tester
+
+- [ ] **Step 4b: Delete the now-dead `parseOptions`**
+
+`optionsFromKwargs` fully replaces it. Verify it has no callers, then delete
+the function (`js/data-directives.js:44-71`) and its entry in the export
+object. Same principle this task applies to `metas`: no dead code left behind.
+
+```bash
+grep -rn "parseOptions" --include="*.js" --include="*.ts" --include="*.html" . | grep -v node_modules
+```
+Expected after deletion: no output.
 
 - [ ] **Step 5: Wire the new script tag**
 

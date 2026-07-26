@@ -85,5 +85,109 @@
     fail('mangler «}»');
   }
 
-  global.DirectiveParser = { parseLiteral: parseLiteral };
+  var MARKER_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*/;
+  var NS = { meta: 1 };
+  var OST_VERBS = { connect: 1, read: 1, create: 1, use: 1 };
+  var METHODS = { read: 1, add: 1, join: 1 };
+  var OLD_RE = /^(connect|read|load|require|create(?:[-_]dataset)?|add|import|join|use|meta)[ \t]/i;
+
+  var HINT = {
+    connect: 'skriv «# <alias> = ost.connect("<mål>")»',
+    read: 'skriv «# <navn> = ost.read("<mål>")» eller «# <navn> = <alias>.read("<tabell>")»',
+    load: 'skriv «# <navn> = ost.read("<mål>")»',
+    require: 'skriv «# <navn> = ost.read("<mål>")»',
+    create: 'skriv «# <navn> = ost.create(key="<kolonne>")»',
+    add: 'skriv «# <datasett>.add(<kilde>, ["<kolonne>"])»',
+    import: 'skriv «# <datasett>.add(<kilde>, ["<kolonne>"])»',
+    join: 'skriv «# <datasett>.join(<navn>, on="<kolonne>")»',
+    use: 'skriv «# <navn> = ost.use("<navn>")»',
+    meta: 'skriv «# meta.<datasett>.note = "<tekst>"»'
+  };
+
+  function parseArgs(s, i) {
+    var args = [], kwargs = {};
+    i = skipWs(s, i);
+    if (s.charAt(i) === ')') return { args: args, kwargs: kwargs, pos: i + 1 };
+    while (i < s.length) {
+      var kw = /^([A-Za-z_]\w*)[ \t]*=(?!=)/.exec(s.slice(i));
+      if (kw) {
+        var v = parseLiteral(s, i + kw[0].length);
+        kwargs[kw[1]] = v.value;
+        i = skipWs(s, v.pos);
+      } else {
+        var a = parseLiteral(s, i);
+        if (Object.keys(kwargs).length) fail('posisjonsargument etter navngitt argument');
+        args.push(a.value);
+        i = skipWs(s, a.pos);
+      }
+      if (s.charAt(i) === ',') { i = skipWs(s, i + 1); if (s.charAt(i) === ')') return { args: args, kwargs: kwargs, pos: i + 1 }; continue; }
+      if (s.charAt(i) === ')') return { args: args, kwargs: kwargs, pos: i + 1 };
+      fail('forventet «,» eller «)»');
+    }
+    fail('mangler «)»');
+  }
+
+  // parseLine(line) -> null | {form…} | {error}
+  function parseLine(line) {
+    var raw = String(line == null ? '' : line);
+    var mk = MARKER_RE.exec(raw);
+    if (!mk) return null;
+    var body = raw.slice(mk[0].length).replace(/[ \t]+$/, '');
+    if (!body) return null;
+
+    var old = OLD_RE.exec(body);
+    if (old) {
+      var w = old[1].toLowerCase().replace(/[-_]dataset$/, '');
+      // `# meta` er den vanligste gamle linja — interpoler målet så hintet
+      // viser den faktiske erstatningen, ikke bare formen.
+      if (w === 'meta') {
+        var mt = /^meta[ \t]+([A-Za-z_]\w*((?:\.\S+)?))[ \t]+(\S.*)$/.exec(body);
+        if (mt) {
+          var isUrl = /^https?:\/\//i.test(mt[3]);
+          return { error: '«' + body + '» er gammel syntaks — skriv «# meta.' +
+                          mt[1] + (isUrl ? '.link' : '.note') + ' = …»' };
+        }
+      }
+      return { error: '«' + body + '» er gammel syntaks — ' + (HINT[w] || 'se hjelpen') };
+    }
+
+    try {
+      // Form 1: <navnerom>.<sti> = <literal>
+      var ns = /^([A-Za-z_]\w*)((?:\.[A-Za-z_]\w*)+)[ \t]*=[ \t]*/.exec(body);
+      if (ns && NS[ns[1]]) {
+        var path = ns[2].slice(1).split('.');
+        var rest = body.slice(ns[0].length);
+        var first = parseLiteral(rest, 0);
+        var after = skipWs(rest, first.pos);
+        if (after >= rest.length) return { form: 'ns', ns: ns[1], path: path, value: first.value, raw: raw.trim() };
+        if (rest.charAt(after) !== ',') fail('uventet tekst etter verdi');
+        var tup = [first.value];
+        while (rest.charAt(after) === ',') {
+          var nx = parseLiteral(rest, after + 1);
+          tup.push(nx.value);
+          after = skipWs(rest, nx.pos);
+        }
+        if (after < rest.length) fail('uventet tekst etter verdi');
+        return { form: 'ns', ns: ns[1], path: path, value: tup, raw: raw.trim() };
+      }
+
+      // Form 2: [<navn> =] <mottaker>.<verb>(<args>)
+      var call = /^(?:([A-Za-z_]\w*)[ \t]*=[ \t]*)?([A-Za-z_]\w*)\.([A-Za-z_]\w*)[ \t]*\(/.exec(body);
+      if (!call) return null;
+      var target = call[1] || null, recv = call[2], verb = call[3];
+      var ours = (recv === 'ost') || METHODS[verb];
+      if (!ours) return null;
+      if (recv === 'ost' && !OST_VERBS[verb]) {
+        return { error: 'ukjent verb «ost.' + verb + '» — gyldige: connect, read, create, use' };
+      }
+      var pr = parseArgs(body, call[0].length);
+      if (skipWs(body, pr.pos) < body.length) fail('uventet tekst etter «)»');
+      return { form: 'call', target: target, recv: recv, verb: verb,
+               args: pr.args, kwargs: pr.kwargs, raw: raw.trim() };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  global.DirectiveParser = { parseLiteral: parseLiteral, parseLine: parseLine };
 })(typeof window !== 'undefined' ? window : globalThis);

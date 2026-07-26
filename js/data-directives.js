@@ -573,21 +573,82 @@
     return { spec: { sources: Object.keys(sources), datasets: datasets, sourceTables: sourceTables }, errors: errors };
   }
 
-  // "# use <navn> from r|python" — kryssruntime-kopi av et datasett (parquet-
-  // bro, kopisemantikk: endringer smitter ikke). Ren parsing; overføringen
-  // gjøres av index.html i materialiseringsfasen for hver modus.
-  // `from <kilde>` er valgfri (kortform, 2026-07-11): uten from er kilden
-  // null her — parseSegmentUses() utleder den fra segmentrekkefølgen, og
-  // run-start-brukere som krever eksplisitt kilde feiler med tydelig melding.
-  var USE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*use[ \t]+(\S+)(?:[ \t]+from[ \t]+(\S+))?[ \t]*$/gim;
+  // "# <navn> = ost.use("<navn>"[, source="r|python|duckdb"])" — kryssruntime-
+  // kopi av et datasett (parquet-bro, kopisemantikk: endringer smitter ikke).
+  // Ren parsing; overføringen gjøres av index.html i materialiseringsfasen.
+  // source= er valgfri: uten den utleder parseSegmentUses() kilden fra
+  // segmentrekkefølgen, og run-start-brukere som krever eksplisitt kilde
+  // feiler med tydelig melding.
+  // Omdøping (mine = ost.use("df")) er IKKE støttet — forbrukerne i
+  // index.html leser u.name som navnet i BEGGE kjøretider.
+
+  // Ingen oppslagsobjekter her: {r:1,python:1}["constructor"] er sann, og den
+  // klassen kostet allerede fikserunder i Task 5 og 6.
+  function isUseSource(s) { return s === 'r' || s === 'python' || s === 'duckdb'; }
+
+  // Linjer som SER UT som gammel use-syntaks. Uten denne ville
+  // «# use df from python» blitt stille ignorert av den nye grammatikken —
+  // ingen use, ingen feil, ingen kopi. Hard omlegging betyr feilmelding.
+  var USE_SHAPED_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*use\b/i;
+
+  // parseLiteral gir {__ref:"df"} for bare ord — «[object Object]» i en
+  // feilmelding hjelper ingen.
+  function showLit(v) {
+    if (v && typeof v === 'object' && typeof v.__ref === 'string') return v.__ref;
+    return String(v);
+  }
+
+  // Ett use-item fra et parsetre-element, eller null (+ feil i errors).
+  function useFromItem(it, errors) {
+    if (it.form !== 'call' || it.recv !== 'ost' || it.verb !== 'use') return null;
+    if (it.args.length > 1) {
+      errors.push('use tar ett posisjonsargument — kilden er navngitt: ost.use("' +
+                  showLit(it.args[0]) + '", source="python")');
+      return null;
+    }
+    var name = it.args[0];
+    if (typeof name !== 'string' || !/^[A-Za-z_]\w*$/.test(name)) {
+      errors.push('ugyldig datasettnavn i use: «' + showLit(name) + '» — navnet må være en streng: ost.use("df")');
+      return null;
+    }
+    if (!it.target) { errors.push('use krever en tilordning — «# ' + name + ' = ost.use("' + name + '")»'); return null; }
+    if (it.target !== name) {
+      errors.push('omdøping i use er ikke støttet ennå — skriv «# ' + name + ' = ost.use("' + name + '")»');
+      return null;
+    }
+    // Ukjent argument må ALDRI falle stille tilbake til inferens: «from=»
+    // (den gamle vanen) ville da gitt en gjetning på feil kjøretid.
+    var bad = Object.keys(it.kwargs).filter(function (k) { return k !== 'source'; });
+    if (bad.length) {
+      errors.push('use «' + name + '»: ukjent argument «' + bad[0] + '»' +
+                  (bad[0] === 'from' ? ' — mente du «source»?' : ' — gyldige: source'));
+      return null;
+    }
+    var from = null;
+    if (Object.prototype.hasOwnProperty.call(it.kwargs, 'source')) {
+      // typeof-vakten er ikke pedanteri: String(["python"]) === "python", så
+      // uten den ville en liste blitt godtatt som streng.
+      from = typeof it.kwargs.source === 'string' ? it.kwargs.source.toLowerCase() : null;
+      if (!isUseSource(from)) {
+        errors.push('use «' + name + '»: kilde må være r, python eller duckdb, fikk «' + showLit(it.kwargs.source) + '»');
+        return null;
+      }
+    }
+    return { name: name, from: from };
+  }
+
   function parseUse(script) {
-    var uses = [], errors = [], m;
-    USE_RE.lastIndex = 0;
-    while ((m = USE_RE.exec(script || '')) !== null) {
-      var name = m[1], from = m[2] ? m[2].toLowerCase() : null;
-      if (!/^[A-Za-z_]\w*$/.test(name)) { errors.push('ugyldig datasettnavn i use: «' + name + '»'); continue; }
-      if (from !== null && from !== 'r' && from !== 'python' && from !== 'duckdb') { errors.push('use «' + name + '»: kilde må være r, python eller duckdb, fikk «' + m[2] + '»'); continue; }
-      uses.push({ name: name, from: from });
+    var uses = [], errors = [];
+    var lines = String(script == null ? '' : script).split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var pl = global.DirectiveParser.parseLine(lines[i]);
+      if (!pl) continue;
+      if (pl.error) {
+        if (USE_SHAPED_RE.test(lines[i])) errors.push('linje ' + (i + 1) + ': ' + pl.error);
+        continue;
+      }
+      var u = useFromItem(pl, errors);
+      if (u) uses.push(u);
     }
     return { uses: uses, errors: errors };
   }
@@ -603,42 +664,48 @@
   // Segmentnivå-use (plan 2026-07-11-segment-use-cross-runtime): trekk
   // use-linjene ut av hvert segment, utled manglende kilde som familien til
   // NÆRMESTE FOREGÅENDE segment med annen runtime enn blokken selv, og
-  // returner segmentene med use-linjene strippet (de er metadata; «# use»
+  // returner segmentene med use-linjene tømt (de er metadata; «# use»
   // er ikke gyldig SQL, og i R/py ville de bare vært støy).
   // -> { segments: [{kind, text, uses: [{name, from}]}], errors: [...] }
   function parseSegmentUses(segments) {
     var out = [], errors = [];
-    // Egen regex-instans: USE_RE deles med parseUse, og replace/exec på samme
-    // globale regex-objekt tråkker i hverandres lastIndex.
-    var SEG_USE_RE = new RegExp(USE_RE.source, 'gim');
     (segments || []).forEach(function (seg, i) {
       var fam = runtimeFamily(seg.kind);
       var uses = [];
-      var text = String(seg.text || '').replace(SEG_USE_RE, function (line, name, fromRaw) {
-        var u = { name: name, from: fromRaw ? fromRaw.toLowerCase() : null };
-        if (!/^[A-Za-z_]\w*$/.test(u.name)) { errors.push('ugyldig datasettnavn i use: «' + u.name + '»'); return ''; }
-        if (u.from !== null && u.from !== 'r' && u.from !== 'python' && u.from !== 'duckdb') {
-          errors.push('use «' + u.name + '»: kilde må være r, python eller duckdb, fikk «' + fromRaw + '»');
-          return '';
+      // Splitt med FANGET linjeskift. use-linja tømmes (''), den slettes ikke:
+      // linjenummer og \r\n må stå urørt, for R/Python peker feilmeldinger
+      // tilbake i brukerens editor. Den gamle replace()-veien gjorde det samme.
+      var parts = String(seg.text || '').split(/(\r?\n)/);
+      for (var p = 0; p < parts.length; p += 2) {
+        var line = parts[p];
+        var pl = global.DirectiveParser.parseLine(line);
+        if (pl && pl.error) {
+          // Bare use-formede linjer varsles: en prosakommentar som tilfeldigvis
+          // trigger et migrasjonshint skal ikke stoppe kjøringen her.
+          if (USE_SHAPED_RE.test(line)) errors.push(pl.error);
+          continue;
         }
+        if (!pl || pl.form !== 'call' || pl.recv !== 'ost' || pl.verb !== 'use') continue;
+        parts[p] = '';
+        var u = useFromItem(pl, errors);
+        if (!u) continue;                      // feil er registrert; linja er tømt uansett
         if (u.from === null) {
           for (var j = i - 1; j >= 0; j--) {
             var pf = runtimeFamily((segments[j] || {}).kind);
             if (pf !== fam) { u.from = pf; break; }
           }
           if (u.from === null) {
-            errors.push('use «' + u.name + '»: fant ingen tidligere blokk med annet språk å hente fra — angi kilden: # use ' + u.name + ' from python|r|duckdb');
-            return '';
+            errors.push('use «' + u.name + '»: fant ingen tidligere blokk med annet språk å hente fra — angi kilden: # ' + u.name + ' = ost.use("' + u.name + '", source="python")');
+            continue;
           }
         }
         if (u.from === fam) {
           errors.push('use «' + u.name + '» from ' + u.from + ': blokken kjører allerede i ' + u.from + ' — datasett derfra refereres direkte');
-          return '';
+          continue;
         }
         uses.push(u);
-        return '';
-      });
-      out.push({ kind: seg.kind, text: text, uses: uses });
+      }
+      out.push({ kind: seg.kind, text: parts.join(''), uses: uses });
     });
     return { segments: out, errors: errors };
   }

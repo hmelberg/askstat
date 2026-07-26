@@ -16,9 +16,10 @@
   // Library registry — samme form som Brython-motorens (js-deps er
   // {url, global}-objekter, ikke strenger).
   var LIB_REGISTRY = {
-    // pandas_mpy har (som pandas_brython) modulnivå try-import av plotly (df.plot)
-    pandas_mpy:         { aliases: [], deps: ['plotly_express_mpy'], js: [] },
-    plotly_express_mpy: { aliases: [], deps: [], js: [] },
+    // pandas har IKKE plotly som deps lenger (2026-07-26): modulnivå-importen
+    // er byttet mot en lat _px(), og plotly lastes av token-treffet '.plot' under.
+    pandas_mpy:         { aliases: [], deps: [], js: [] },
+    plotly_express_mpy: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     duckdb_mpy:         { aliases: ['duckdb'], deps: ['pandas_mpy'], js: [] },
     // ui_mpy.py/ui.py (W2): filnavnet skiller seg fra det offentlige
     // importnavnet (samme mønster som brython-registerets numpy_brython/
@@ -84,6 +85,16 @@
         }
       }
       if (canonical && needed.indexOf(canonical) === -1) needed.push(canonical);
+    }
+    // Token-trigger: noen biblioteker brukes uten at de importeres ved navn
+    // (df.plot henter plotly). Over-matching er ufarlig — det laster et
+    // bibliotek koden ikke bruker — samme avveining som for importer i strenger.
+    for (var key in LIB_REGISTRY) {
+      var toks = LIB_REGISTRY[key].tokens;
+      if (!toks) continue;
+      for (var ti = 0; ti < toks.length; ti++) {
+        if (code.indexOf(toks[ti]) !== -1) { add(key); break; }
+      }
     }
     var re = /^[ \t]*(?:from[ \t]+([A-Za-z_][A-Za-z0-9_.]*)|import[ \t]+([^#\r\n]+))/gm;
     var m, parts, i, t;

@@ -126,12 +126,22 @@
   // hermetegn og lot key="it's-a-secret" passere HELT umaskert til
   // AI-endepunktet og GitHub.
   function scrubKeys(script) {
-    return String(script || '').replace(
+    var s = String(script || '').replace(
       /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi,
       function (m, head, lit) {
         var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
         return inner === 'ask' ? m : head + '"***"';
       });
+    // Pass 2 — sikkerhetsnett for MALFORMERTE literaler. Pass 1 speiler
+    // parseString og matcher derfor ikke i det hele tatt når sluttfnutten
+    // mangler eller verdien ender på backslash — og da gikk hemmeligheten
+    // ORDRETT videre. ai-chat.js og github-storage.js kaller scrubKeys på
+    // den rå editorbufferen uten å sjekke parse().errors først, så en vanlig
+    // skrivefeil lakk nøkkelen til AI-endepunktet og GitHub.
+    // På en ødelagt linje maskeres resten av linja: utdataen er kun for
+    // visning/egress og re-parses aldri, så å ta med for mye er trygt —
+    // å ta med for lite er det ikke.
+    return s.replace(/\bkey[ \t]*=[ \t]*(?!"ask"|'ask'|"\*\*\*")\S[^\n]*/gi, 'key="***"');
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
@@ -228,19 +238,25 @@
 
       // Stille dropp er forbudt: «ssb.read("05839", "Personer")» (glemt
       // indicators=) ville ellers gitt et ufiltrert read uten noe signal.
-      if (it.args.length > 1) {
+      // MEN vakten må skopes til verbene denne funksjonen eier: add() tar
+      // legitimt TO posisjonsargumenter (add(<kilde>, ["<kolonne>"])), og en
+      // blank sjekk her ville gitt falsk feil på gyldig Task 6-syntaks.
+      function tooManyArgs() {
+        if (it.args.length <= 1) return false;
         errors.push('linje ' + it.lineNo + ': ' + it.verb + ' tar ett posisjonsargument — ' +
                     'resten må være navngitte (f.eks. indicators=["Personer"])');
-        return;
+        return true;
       }
 
       if (it.recv === 'ost' && it.verb === 'connect') {
+        if (tooManyArgs()) return;
         if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.connect krever en tilordning — «# <alias> = ost.connect(…)»'); return; }
         if (typeof it.args[0] !== 'string') { errors.push('linje ' + it.lineNo + ': ost.connect krever et mål som streng'); return; }
         connects.push({ target: it.args[0], alias: it.target, options: opts });
         return;
       }
       if (it.verb === 'read') {
+        if (tooManyArgs()) return;
         if (!it.target) { errors.push('linje ' + it.lineNo + ': read krever en tilordning — «# <navn> = …read(…)»'); return; }
         var tgt;
         if (it.recv === 'ost') {

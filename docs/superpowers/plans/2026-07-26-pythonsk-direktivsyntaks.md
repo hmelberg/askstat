@@ -636,7 +636,7 @@ Change the export line to:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 22 tester
+Expected: PASS, 30 tester
 
 - [ ] **Step 5: Commit**
 

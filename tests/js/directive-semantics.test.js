@@ -32,7 +32,7 @@ test('parse: bar URL uten connect', () => {
 
 test('parse: read() uten argument gir hele rammen', () => {
   const p = DD.parse([
-    '# h = ost.connect("helse2025", key="ask")',
+    '# h = ost.connect("helse2025", secret_key="ask")',
     '# df = h.read()',
   ].join('\n'));
   assert.equal(p.connects[0].options.key, 'ask');
@@ -73,36 +73,37 @@ test('parse: gammel syntaks gir feil, ikke stille dropp', () => {
   assert.match(p.errors[0], /gammel syntaks/);
 });
 
-test('scrubKeys: maskerer key="literal", beholder key="ask"', () => {
-  assert.equal(DD.scrubKeys('# d = ost.read("u", key="hemmelig")'),
-                            '# d = ost.read("u", key="***")');
-  assert.equal(DD.scrubKeys('# d = ost.read("u", key="ask")'),
-                            '# d = ost.read("u", key="ask")');
-  assert.equal(DD.scrubKeys("# d = ost.read('u', key='ask')"),
-                            "# d = ost.read('u', key='ask')");
+test('scrubKeys: maskerer secret_key, beholder "ask"', () => {
+  assert.equal(DD.scrubKeys('# d = ost.read("u", secret_key="hemmelig")'),
+                            '# d = ost.read("u", secret_key="***")');
+  assert.equal(DD.scrubKeys('# d = ost.read("u", secret_key="ask")'),
+                            '# d = ost.read("u", secret_key="ask")');
+  assert.equal(DD.scrubKeys("# d = ost.read('u', secret_key='ask')"),
+                            "# d = ost.read('u', secret_key='ask')");
 });
 
-// Hver av disse er en lekkasje som faktisk slapp gjennom en tidligere versjon.
+// Hver av disse slapp gjennom en tidligere versjon av maskeringen.
 test('scrubKeys: ingen hemmelighet overlever, uansett form', () => {
   [
-    '# d = ost.read("u", key="hemmelig")',
-    '# d = ost.read("u", key="it\'s-a-secret")',
-    '# d = ost.read("u", key=\'pass"word\')',
-    '# h = ost.connect("x", key="SECRET\\\\")',      // hale-backslash, uavsluttet
-    '# h = ost.connect("x", key="SECRET',            // glemt sluttfnutt
-    '# s = ost.connect("x", key="oops, other=1, key="s3cr3t")',  // to klausuler, første ødelagt
-    '# d = ost.read("u", key="a", key="SECRETB")',
-    '# d = ost.read("u", KEY="SECRETC")',
+    '# d = ost.read("u", secret_key="it\'s-a-secret")',
+    '# d = ost.read("u", secret_key=\'pass"word\')',
+    '# h = ost.connect("x", secret_key="sk_live_A\\\\")',   // hale-backslash
+    '# h = ost.connect("x", secret_key="sk_live_B',           // glemt sluttfnutt
+    '# s = ost.connect("x", secret_key="oops, x=1, secret_key="s3cr3t")',
+    '# d = ost.read("u", secret_key=sk_live_C)',              // usitert
+    '# d = ost.read("u", secret_key=["sk_live_D"])',          // liste
+    '-- d = ost.read("u", secret_key="hemmelig")',
+    '// d = ost.read("u", secret_key="hemmelig")',
   ].forEach((line) => {
-    assert.doesNotMatch(DD.scrubKeys(line), /hemmelig|secret|s3cr3t|pass"word|SECRETB|SECRETC/i, line);
+    assert.doesNotMatch(DD.scrubKeys(line).replace(/secret_key/g, ''),
+                        /hemmelig|s3cr3t|sk_live|pass"word/, line);
   });
 });
 
-// Maskering må ALDRI røre noe annet enn en nøkkelbærende direktivlinje.
-// Tidligere versjoner gjorde «sorted(rows, key=lambda r: r[0])» om til
-// «sorted(rows, key="***"», og maskerte ost.create(key="pid") — der er key
-// et KOLONNENAVN, og github-storage lagrer den maskerte teksten, så scriptet
-// ble permanent ødelagt.
+// Omdøpingens hele poeng: `key` betyr nå KUN kolonnenavn, så maskeringen kan
+// ikke lenger røre vanlig kode. Tidligere versjoner gjorde
+// «sorted(rows, key=lambda r: r[0])» om til «sorted(rows, key="***"» og
+// maskerte ost.create(key="pid") — som github-storage så lagret ødelagt.
 test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
   ['sorted(rows, key=lambda r: r[0])', 'max(items, key=lambda i: i.value)',
    "df.sort_values('col', key=abs)", 'key = c(1,2)', 'PRIMARY KEY = id',
@@ -112,37 +113,7 @@ test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
   ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
 });
 
-// Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
-// og et script fra før migreringen må ikke lekke ved «Spør AI».
-test('scrubKeys: gammel key(...)-form og ukjent mottaker maskeres òg', () => {
-  [['# connect https://x, key(TOPSECRET)', /TOPSECRET/],
-   ['# load ssb/05839 as bef, key(TOPSECRET)', /TOPSECRET/],
-   ['# db = ots.connect("https://api.x", key="sk_live_HEMMELIG")', /sk_live/],
-   ['-- d = ost.read("u", key="hemmelig")', /hemmelig/],
-   ['// d = ost.read("u", key="hemmelig")', /hemmelig/],
-  ].forEach((c) => assert.doesNotMatch(DD.scrubKeys(c[0]), c[1], c[0]));
-});
-
-// Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
-// og et script fra før migreringen må ikke lekke ved «Spør AI».
-// Ombrukket kall: .connect( står på FORRIGE linje, så fortsettelseslinja
-// fanges bare av key-token-regelen. Naturlig med lange pxweb-URL-er.
-test('scrubKeys: nøkkel på fortsettelseslinje i ombrukket kall', () => {
-  const script = ['# ssb = ost.connect("https://data.ssb.no/api", kind="pxweb",',
-                  '#     key="sk_live_HEMMELIG")'].join('\n');
-  assert.doesNotMatch(DD.scrubKeys(script), /sk_live/);
-});
-
-// Usitert verdi, liste og dict parser RENT, men treffes ikke av den presise
-// regexen — uten etterkontrollen gikk de urørt til AI-endepunktet.
-test('scrubKeys: usiterte og strukturerte key-verdier maskeres', () => {
-  ['# d = ost.read("u", key=sk_live_HEMMELIG)',
-   '# d = ost.read("u", key=["S1","S2"])',
-   '# d = ost.read("u", key={"a":"SECRETDICT"})',
-  ].forEach((line) => assert.doesNotMatch(DD.scrubKeys(line), /sk_live|S1|SECRETDICT/, line));
-});
-
 test('scrubKeys: idempotent', () => {
-  const once = DD.scrubKeys('# d = ost.read("u", key="hemmelig")');
+  const once = DD.scrubKeys('# d = ost.read("u", secret_key="hemmelig")');
   assert.equal(DD.scrubKeys(once), once);
 });

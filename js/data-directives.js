@@ -118,54 +118,32 @@
     return out;
   }
 
-  // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
-  // key="ask" er ingen hemmelighet og beholdes.
-  // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
-  // Kallstedene sender den RÅ editorbufferen uten å sjekke parse().errors,
-  // så alt brukeren kan taste må håndteres her.
-  // create(key=...) er ALDRI en hemmelighet — der er key et kolonnenavn, og
-  // github-storage lagrer den maskerte teksten, så maskering ødelegger scriptet.
-  // Kalt CREATE_CALL_RE (ikke CREATE_RE) — den finnes allerede som modulnavn
-  // for den gamle «create dataset»-regexen (linje 26/parseAssembly); samme
-  // navn her ville (var er funksjonsskopet) stille overskrevet DEN, og latt
-  // gamle create-dataset-script slutte å parse.
-  var CREATE_CALL_RE = /\.create[ \t]*\(/i;
-  // Kandidat: en kommentarlinje som enten HAR connect/read-form, eller bærer et
-  // key-token med sitert verdi / parentesform. Det andre leddet fanger
-  // fortsettelseslinjer i ombrukkede kall, der .connect( står på forrige linje.
-  var CAND_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:.*\.(?:connect|read)[ \t]*\(|(?:connect|read|load|require)\b)/i;
-  var CAND2_RE = /^[ \t]*(?:#|--|\/\/).*\bkey[ \t]*(?:=[ \t]*["'\[{]|\()/i;
-  var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
-  var KEY_PAREN_RE = /\bkey[ \t]*\([ \t]*(?!ask[ \t]*\))[^)]*\)/gi;
-  var KEY_TOKEN_RE = /\bkey[ \t]*[=(]/i;
-  var KEY_SAFE_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
+  // secret_key="<literal>" -> secret_key="***" før scriptet logges eller
+  // sendes til AI. secret_key="ask" er ingen hemmelighet og beholdes.
+  // secret_key= er ENTYDIG: ingen konstruksjon i python, R, SQL eller JS bruker
+  // det ordet. Derfor trengs ingen kandidatheuristikk og ingen parse-status —
+  // masker verdien uansett form, og la "ask" stå (den er ingen hemmelighet).
+  // create(key=...) heter fortsatt `key` og er et KOLONNENAVN; den røres aldri,
+  // fordi vi utelukkende ser etter `secret_key`.
+  var SECRET_RE = /\b(secret_key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,)\n]*)/gi;
+
+  function count(s) { return (String(s).match(/\bsecret_key[ \t]*=/gi) || []).length; }
 
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      if (!KEY_TOKEN_RE.test(line)) continue;
-      if (CREATE_CALL_RE.test(line)) continue;
-      if (!CAND_RE.test(line) && !CAND2_RE.test(line)) continue;
-      // Presis maskering er BARE til å stole på når linja parser rent. En
-      // uavsluttet literal sluker alt fram til neste hermetegn og kan gjemme en
-      // senere key=-klausul inni seg; og en linje parseLine ikke kjenner igjen
-      // (typo i mottakeren: «ots.connect», eller en fortsettelseslinje som
-      // ikke er et fullt kall alene) ville sluppet ubehandlet gjennom.
-      var pl = global.DirectiveParser.parseLine(line);
-      var out = line;
-      if (pl && !pl.error) {
-        out = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
-          var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
-          return inner === 'ask' ? mm : head + '"***"';
-        }).replace(KEY_PAREN_RE, 'key(***)');
-      }
-      // Overlever et key-token som ikke er ask/***, er verdien enten usitert,
-      // en liste/dict, eller literalen malformert. Ingen av delene kan maskeres
-      // presist — masker fra første token og ut linja.
-      if (KEY_TOKEN_RE.test(out.replace(KEY_SAFE_RE, ''))) {
-        var m = KEY_TOKEN_RE.exec(out);
-        out = out.slice(0, m.index) + 'key="***"';
+      var before = count(line);
+      if (!before) continue;
+      var out = line.replace(SECRET_RE, function (m, head, val) {
+        var inner = /^["']/.test(val) ? val.replace(/^["']|["']$/g, '') : val;
+        return inner === 'ask' ? m : head + '"***"';
+      });
+      // Ble en secret_key=-klausul SLUKT av en uavsluttet literal foran den?
+      // Da gjemmer den hemmeligheten seg utenfor treffet — masker ut linja.
+      if (count(out) < before) {
+        var m2 = /\bsecret_key[ \t]*=/i.exec(out);
+        out = out.slice(0, m2.index) + 'secret_key="***"';
       }
       lines[i] = out;
     }
@@ -173,7 +151,10 @@
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
-  var PLAIN_KEYS = { key: 1, exec: 1, kind: 1, cache: 1 };
+  // Kwarg-navn -> internt opts-felt. Hemmeligheten heter secret_key utad,
+  // men beholder feltnavnet «key» innvendig, slik at resolve() forblir urørt.
+  // `key` som kwarg er BORTE — det ordet betyr nå kun kolonnenavn i ost.create.
+  var PLAIN_KEYS = { secret_key: 'key', exec: 'exec', kind: 'kind', cache: 'cache' };
   var LOWER_KEYS = { exec: 1, kind: 1, cache: 1 };
 
   // Ekte Levenshtein: posisjonssammenligning straffer innskudd for hardt og
@@ -218,7 +199,7 @@
     Object.keys(kwargs || {}).forEach(function (name) {
       var v = kwargs[name];
       if (PLAIN_KEYS[name]) {
-        opts[name] = LOWER_KEYS[name] ? String(v).toLowerCase() : String(v);
+        opts[PLAIN_KEYS[name]] = LOWER_KEYS[name] ? String(v).toLowerCase() : String(v);
         return;
       }
       if (name === 'years') {

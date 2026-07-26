@@ -312,8 +312,32 @@ test('parseLine: gammel syntaks gir migrasjonshint', () => {
   assert.match(DP.parseLine('# read ssb/05839 as bef').error,
                /gammel syntaks.*ost\.read/);
   assert.match(DP.parseLine('# connect fred').error, /gammel syntaks/);
-  assert.match(DP.parseLine('# meta bef Folkemengde').error,
-               /gammel syntaks.*meta\.bef/);
+  assert.match(DP.parseLine('# add p/x into panel inner').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# join sales into panel on pid').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# create-dataset panel, key(pid)').error, /gammel syntaks/);
+});
+
+// Gammel-syntaks-vakten MÅ kreve strukturelle kjennetegn (" as ", " into ",
+// " on ", ", key("). Uten det ble «# import numpy as np» en feilmelding —
+// en av de vanligste kommentarene som finnes i Python-scripts.
+test('parseLine: prosa som starter med et direktivord er IKKE gammel syntaks', () => {
+  ['# import numpy as np', '# import pandas as pd', '# add more tests later',
+   '# join us on slack', '# connect to database manually', '# read the docs first',
+   '# use this function carefully', '# meta information about this repo',
+   '# meta bef Folkemengde etter alder',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+// Ny syntaks må prøves FØR gammel-vakten, ellers svelges gyldige linjer der
+// målnavnet tilfeldigvis er et direktivord.
+test('parseLine: direktivord som målnavn er gyldig ny syntaks', () => {
+  assert.equal(DP.parseLine('# read = ost.read("x")').form, 'call');
+  assert.equal(DP.parseLine('# add = panel.add(p, ["x"])').form, 'call');
+  assert.equal(DP.parseLine('# join = panel.join(o, on="id")').form, 'call');
+});
+
+test('parseLine: trailing komma i ns-tuppel', () => {
+  assert.deepEqual(DP.parseLine('#meta.b.link = "u", "l",').value, ['u', 'l']);
 });
 
 test('parseLine: syntaksfeil i argumenter propagerer', () => {
@@ -335,19 +359,31 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
   var NS = { meta: 1 };
   var OST_VERBS = { connect: 1, read: 1, create: 1, use: 1 };
   var METHODS = { read: 1, add: 1, join: 1 };
-  var OLD_RE = /^(connect|read|load|require|create(?:[-_]dataset)?|add|import|join|use|meta)[ \t]/i;
+
+  // Gammel syntaks -> migrasjonshint. Hvert mønster krever STRUKTURELLE
+  // kjennetegn (" as ", " into ", " on ", ", key(") — ikke bare et førsteord.
+  // Uten det ble «# import numpy as np» og «# join us on slack» feilmeldinger.
+  // `meta` er BEVISST utelatt: gammel form er «meta <mål> <fritekst>», som er
+  // strukturelt identisk med prosa («meta information about this repo») og
+  // derfor ikke kan skilles. Migreringsskriptet konverterer eksisterende
+  // filer; en håndskrevet gammel meta-linje behandles som vanlig kommentar.
+  // Kjent gjenstående kollisjon: «# use strict» treffer use-mønsteret.
+  var OLD_PATTERNS = [
+    { w: 'connect', re: /^connect[ \t]+\S+(?:[ \t]+as[ \t]+[A-Za-z_]\w*)?[ \t]*(?:,[ \t]*\w+\(.*)?$/i },
+    { w: 'read',    re: /^(?:read|load|require)[ \t]+\S+[ \t]+as[ \t]+[A-Za-z_]\w*[ \t]*(?:,[ \t]*\w+\(.*)?$/i },
+    { w: 'create',  re: /^create(?:[-_]dataset)?[ \t]+[A-Za-z_]\w*[ \t]*,[ \t]*key\(/i },
+    { w: 'add',     re: /^(?:add|import)[ \t]+\S.*[ \t]+into[ \t]+[A-Za-z_]\w*(?:[ \t]+(?:left|inner|outer))?[ \t]*$/i },
+    { w: 'join',    re: /^join[ \t]+[A-Za-z_]\w*[ \t]+into[ \t]+[A-Za-z_]\w*[ \t]+on[ \t]+\S/i },
+    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*(?:[ \t]+from[ \t]+[A-Za-z_]\w*)?[ \t]*$/i }
+  ];
 
   var HINT = {
     connect: 'skriv «# <alias> = ost.connect("<mål>")»',
     read: 'skriv «# <navn> = ost.read("<mål>")» eller «# <navn> = <alias>.read("<tabell>")»',
-    load: 'skriv «# <navn> = ost.read("<mål>")»',
-    require: 'skriv «# <navn> = ost.read("<mål>")»',
     create: 'skriv «# <navn> = ost.create(key="<kolonne>")»',
     add: 'skriv «# <datasett>.add(<kilde>, ["<kolonne>"])»',
-    import: 'skriv «# <datasett>.add(<kilde>, ["<kolonne>"])»',
     join: 'skriv «# <datasett>.join(<navn>, on="<kolonne>")»',
-    use: 'skriv «# <navn> = ost.use("<navn>")»',
-    meta: 'skriv «# meta.<datasett>.note = "<tekst>"»'
+    use: 'skriv «# <navn> = ost.use("<navn>")»'
   };
 
   function parseArgs(s, i) {
@@ -373,6 +409,15 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
     fail('mangler «)»');
   }
 
+  function oldSyntaxError(body) {
+    for (var i = 0; i < OLD_PATTERNS.length; i++) {
+      if (OLD_PATTERNS[i].re.test(body)) {
+        return { error: '«' + body + '» er gammel syntaks — ' + HINT[OLD_PATTERNS[i].w] };
+      }
+    }
+    return null;
+  }
+
   // parseLine(line) -> null | {form…} | {error}
   function parseLine(line) {
     var raw = String(line == null ? '' : line);
@@ -381,24 +426,9 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
     var body = raw.slice(mk[0].length).replace(/[ \t]+$/, '');
     if (!body) return null;
 
-    var old = OLD_RE.exec(body);
-    if (old) {
-      var w = old[1].toLowerCase().replace(/[-_]dataset$/, '');
-      // `# meta` er den vanligste gamle linja — interpoler målet så hintet
-      // viser den faktiske erstatningen, ikke bare formen.
-      if (w === 'meta') {
-        var mt = /^meta[ \t]+([A-Za-z_]\w*((?:\.\S+)?))[ \t]+(\S.*)$/.exec(body);
-        if (mt) {
-          var isUrl = /^https?:\/\//i.test(mt[3]);
-          return { error: '«' + body + '» er gammel syntaks — skriv «# meta.' +
-                          mt[1] + (isUrl ? '.link' : '.note') + ' = …»' };
-        }
-      }
-      return { error: '«' + body + '» er gammel syntaks — ' + (HINT[w] || 'se hjelpen') };
-    }
-
+    // Den NYE grammatikken prøves først. Motsatt rekkefølge lot
+    // gammel-syntaks-vakten svelge gyldige linjer som «read = ost.read("x")».
     try {
-      // Form 1: <navnerom>.<sti> = <literal>
       var ns = /^([A-Za-z_]\w*)((?:\.[A-Za-z_]\w*)+)[ \t]*=[ \t]*/.exec(body);
       if (ns && NS[ns[1]]) {
         var path = ns[2].slice(1).split('.');
@@ -409,7 +439,9 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
         if (rest.charAt(after) !== ',') fail('uventet tekst etter verdi');
         var tup = [first.value];
         while (rest.charAt(after) === ',') {
-          var nx = parseLiteral(rest, after + 1);
+          var probe = skipWs(rest, after + 1);
+          if (probe >= rest.length) { after = probe; break; }   // trailing komma
+          var nx = parseLiteral(rest, probe);
           tup.push(nx.value);
           after = skipWs(rest, nx.pos);
         }
@@ -417,22 +449,24 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
         return { form: 'ns', ns: ns[1], path: path, value: tup, raw: raw.trim() };
       }
 
-      // Form 2: [<navn> =] <mottaker>.<verb>(<args>)
       var call = /^(?:([A-Za-z_]\w*)[ \t]*=[ \t]*)?([A-Za-z_]\w*)\.([A-Za-z_]\w*)[ \t]*\(/.exec(body);
-      if (!call) return null;
-      var target = call[1] || null, recv = call[2], verb = call[3];
-      var ours = (recv === 'ost') || METHODS[verb];
-      if (!ours) return null;
-      if (recv === 'ost' && !OST_VERBS[verb]) {
-        return { error: 'ukjent verb «ost.' + verb + '» — gyldige: connect, read, create, use' };
+      if (call) {
+        var target = call[1] || null, recv = call[2], verb = call[3];
+        if ((recv === 'ost') || METHODS[verb]) {
+          if (recv === 'ost' && !OST_VERBS[verb]) {
+            return { error: 'ukjent verb «ost.' + verb + '» — gyldige: connect, read, create, use' };
+          }
+          var pr = parseArgs(body, call[0].length);
+          if (skipWs(body, pr.pos) < body.length) fail('uventet tekst etter «)»');
+          return { form: 'call', target: target, recv: recv, verb: verb,
+                   args: pr.args, kwargs: pr.kwargs, raw: raw.trim() };
+        }
       }
-      var pr = parseArgs(body, call[0].length);
-      if (skipWs(body, pr.pos) < body.length) fail('uventet tekst etter «)»');
-      return { form: 'call', target: target, recv: recv, verb: verb,
-               args: pr.args, kwargs: pr.kwargs, raw: raw.trim() };
     } catch (e) {
       return { error: e.message };
     }
+
+    return oldSyntaxError(body);
   }
 ```
 
@@ -445,7 +479,7 @@ Change the export line to:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 18 tester
+Expected: PASS, 21 tester
 
 - [ ] **Step 5: Commit**
 

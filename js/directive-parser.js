@@ -102,6 +102,10 @@
   //   «# use df»          ~ «# use caution»
   //   «# connect ssb»     ~ «# connect manually»
   //   «# read h as df»    ~ «# read this as int»
+  // AKSEPTERT GJENSTÅENDE: «connect <ord> as <ord>» kan ikke strammes uten å
+  // miste hintet for den vanligste ekte formen («# connect ssb as s»), så
+  // «# connect early as needed» gir feilmelding. `use` slipper unna fordi
+  // kilden der er et lukket sett (r|python|duckdb).
   // Migreringsskriptet (Task 8) konverterer alle eksisterende filer, så disse
   // formene finnes ikke i repoet — vakten er kun en håndskrivingshjelp.
   var OLD_PATTERNS = [
@@ -110,7 +114,7 @@
     { w: 'create',  re: /^create(?:[-_]dataset)?[ \t]+[A-Za-z_]\w*[ \t]*,[ \t]*key\(/i },
     { w: 'add',     re: /^(?:add|import)[ \t]+\S*\/\S*.*[ \t]+into[ \t]+[A-Za-z_]\w*(?:[ \t]+(?:left|inner|outer))?[ \t]*$/i },
     { w: 'join',    re: /^join[ \t]+[A-Za-z_]\w*[ \t]+into[ \t]+[A-Za-z_]\w*[ \t]+on[ \t]+\S/i },
-    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*[ \t]+from[ \t]+[A-Za-z_]\w*[ \t]*$/i }
+    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*[ \t]+from[ \t]+(?:r|python|duckdb)[ \t]*$/i }
   ];
 
   var HINT = {
@@ -148,7 +152,7 @@
   function oldSyntaxError(body) {
     for (var i = 0; i < OLD_PATTERNS.length; i++) {
       if (OLD_PATTERNS[i].re.test(body)) {
-        return { error: '«' + body + '» er gammel syntaks — ' + HINT[OLD_PATTERNS[i].w] };
+        return { error: '«' + body + '» er gammel syntaks — ' + (HINT[OLD_PATTERNS[i].w] || 'se hjelpen') };
       }
     }
     return null;

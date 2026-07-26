@@ -150,6 +150,21 @@ test('parseLine: bare enkeltord-former varsles bevisst ikke', () => {
   ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
 });
 
+// `use` slipper unna prosa-kollisjonen fordi kilden er et LUKKET sett.
+test('parseLine: use-hint krever en gyldig kilde (r|python|duckdb)', () => {
+  assert.match(DP.parseLine('# use tall from duckdb').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# use df from python').error, /gammel syntaks/);
+  ['# use value from cache', '# use token from header', '# use config from settings',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+// AKSEPTERT KOLLISJON: «connect <ord> as <ord>» kan ikke strammes uten å miste
+// hintet for den vanligste ekte formen. Testen låser avgjørelsen som bevisst.
+test('parseLine: connect <ord> as <ord> — akseptert falsk positiv', () => {
+  assert.match(DP.parseLine('# connect ssb as s').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# connect early as needed').error, /gammel syntaks/);
+});
+
 test('parseLine: CRLF-linjeslutt bryter ikke gjenkjenning', () => {
   assert.equal(DP.parseLine('# bef = ost.read("x")\r').form, 'call');
   assert.match(DP.parseLine('# load gh/iris.csv as iris\r').error, /gammel syntaks/);

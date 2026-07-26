@@ -28,11 +28,6 @@
   var JOIN_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*join[ \t]+([A-Za-z_]\w*)[ \t]+into[ \t]+([A-Za-z_]\w*)[ \t]+on[ \t]+([A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
   var LOADAS_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:read|load)[ \t]+([A-Za-z_]\w*(?:\/[A-Za-z_]\w*)?)[ \t]+as[ \t]+([A-Za-z_]\w*)[ \t]*$/gim;
 
-  // # meta <alias>[.<variabel>] <innhold> — spec 2026-07-25-metadata-sidebar-design §3.
-  // Innhold som starter med http(s):// er en lenke (resten = valgfri etikett),
-  // ellers beskrivelsestekst. Gjentatte direktiver akkumulerer.
-  var META_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*meta[ \t]+([A-Za-z_]\w*(?:\.\S+)?)[ \t]+(\S.*)$/gim;
-
   function isUrlish(target) {
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;
   }
@@ -235,13 +230,83 @@
     return opts;
   }
 
+  var DS_KEYS = { title: 1, note: 1, link: 1, labels: 1 };
+  var VAR_KEYS = { label: 1, note: 1, link: 1 };
+
+  function isArr(v) { return Object.prototype.toString.call(v) === '[object Array]'; }
+
+  // "https://x" | ("https://x", "etikett") | [ … ] -> [{url, label?}]
+  function toLinks(v) {
+    if (typeof v === 'string') return [{ url: v }];
+    if (isArr(v) && v.length && typeof v[0] === 'string') {
+      return [v.length > 1 ? { url: v[0], label: v[1] } : { url: v[0] }];
+    }
+    if (isArr(v)) {
+      var out = [];
+      for (var i = 0; i < v.length; i++) out = out.concat(toLinks(v[i]));
+      return out;
+    }
+    return [];
+  }
+
+  function collectMeta(item, metas, errors) {
+    var p = item.path, raw = item.raw, ln = item.lineNo;
+    if (p.length < 2) {
+      errors.push('linje ' + ln + ': meta krever datasett og nøkkel — «# meta.<datasett>.note = …»');
+      return;
+    }
+    var ds = p[0], k1 = p[1], v = item.value;
+
+    function pushLinks(variable, val) {
+      var ls = toLinks(val);
+      if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, et tuppel (url, etikett) eller en liste av dem'); return; }
+      ls.forEach(function (l) {
+        metas.push({ target: ds, variable: variable, kind: 'link',
+                     url: l.url, label: l.label, text: undefined, line: raw });
+      });
+    }
+
+    // Datasettnivå (to ledd)
+    if (p.length === 2) {
+      if (k1 === 'link') { pushLinks(null, v); return; }
+      if (k1 === 'title') { metas.push({ target: ds, variable: null, kind: 'title', text: String(v), line: raw }); return; }
+      if (k1 === 'note') { metas.push({ target: ds, variable: null, kind: 'text', text: String(v), line: raw }); return; }
+      if (k1 === 'labels') {
+        if (typeof v !== 'object' || v === null || isArr(v)) {
+          errors.push('linje ' + ln + ': «labels» må være en dict — labels={"kolonne": "Etikett"}');
+          return;
+        }
+        Object.keys(v).forEach(function (name) {
+          metas.push({ target: ds, variable: name, kind: 'label', text: String(v[name]), line: raw });
+        });
+        return;
+      }
+      metas.push({ target: ds, variable: null, kind: 'field', field: k1, text: String(v), line: raw });
+      return;
+    }
+
+    // Tre ledd: variabelnivå — men en kjent datasettnøkkel her er en feil
+    if (DS_KEYS[k1]) {
+      errors.push('linje ' + ln + ': «' + k1 + '» tar en verdi, ikke en sti');
+      return;
+    }
+    if (p.length > 3) { errors.push('linje ' + ln + ': for dyp meta-sti — «# meta.<datasett>.<variabel>.<nøkkel>»'); return; }
+    var k2 = p[2];
+    if (!VAR_KEYS[k2]) {
+      errors.push('linje ' + ln + ': ukjent variabelnøkkel «' + k2 + '» — gyldige: label, note, link');
+      return;
+    }
+    if (k2 === 'link') { pushLinks(k1, v); return; }
+    metas.push({ target: ds, variable: k1, kind: k2 === 'label' ? 'label' : 'text',
+                 text: String(v), line: raw });
+  }
+
   function parse(script) {
     var connects = [], loads = [], metas = [], errors = [];
     var res = global.DirectiveParser.parseScript(script);
     errors = res.errors.slice();
     res.items.forEach(function (it) {
-      // 'ns'-elementer (meta) håndteres i Task 5 — her ignoreres de, slik at
-      // denne tasken ikke etterlater en tom stubbfunksjon som død kode.
+      if (it.form === 'ns') { collectMeta(it, metas, errors); return; }
       if (it.form !== 'call') return;
       var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
 
@@ -503,11 +568,8 @@
   }
 
 
-  // metaByTarget(script) -> {alias: {text:[…], links:[{url,label}], variables:{…}}}
-  // Samme `# meta`-innhold som sidebaren viser (MetaInfo), men formet for å
-  // legges på DataFrame.attrs['meta'] av motorenes _bind_datasets, slik at
-  // BRUKERKODEN også kan lese kildehenvisning/lisens — ikke bare sidebaren.
-  // Speiler pandas' attrs-konvensjon, så samme skript virker i pyodide-modus.
+  // metaByTarget(script) -> {alias: {title?, text:[], links:[], fields:[], variables:{…}}}
+  // Samme innhold som sidebaren viser (MetaInfo), formet for DataFrame.attrs['meta'].
   function metaByTarget(script) {
     var out = {};
     var metas = parse(script).metas || [];
@@ -517,10 +579,17 @@
     }
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i];
-      if (!out[m.target]) out[m.target] = { text: [], links: [], variables: {} };
-      var dst = m.variable ? bucket(out[m.target].variables, m.variable) : out[m.target];
+      if (!out[m.target]) out[m.target] = { text: [], links: [], fields: [], variables: {} };
+      var root = out[m.target];
+      var dst = m.variable ? bucket(root.variables, m.variable) : root;
       if (m.kind === 'link') {
         dst.links.push(m.label ? { url: m.url, label: m.label } : { url: m.url });
+      } else if (m.kind === 'title') {
+        root.title = m.text;
+      } else if (m.kind === 'label') {
+        bucket(root.variables, m.variable).label = m.text;
+      } else if (m.kind === 'field') {
+        root.fields.push({ label: m.field, verdi: m.text });
       } else if (m.text) {
         dst.text.push(m.text);
       }

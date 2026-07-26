@@ -117,3 +117,62 @@ test('scrubKeys: idempotent', () => {
   const once = DD.scrubKeys('# d = ost.read("u", secret_key="hemmelig")');
   assert.equal(DD.scrubKeys(once), once);
 });
+
+test('meta: note, title og ukjent nøkkel som felt', () => {
+  const p = DD.parse([
+    '#meta.bef.title = "Folkemengde"',
+    '#meta.bef.note = "Etter alder og kjønn 2000-2009"',
+    '#meta.bef.publisher = "SSB"',
+    '#meta.bef.metode = "Registerdata"',
+  ].join('\n'));
+  assert.deepEqual(p.errors, []);
+  assert.deepEqual(p.metas.map((m) => m.kind), ['title', 'text', 'field', 'field']);
+  assert.equal(p.metas[2].field, 'publisher');
+  assert.equal(p.metas[3].field, 'metode');
+});
+
+test('meta: lenke som streng, tuppel og liste', () => {
+  const p = DD.parse([
+    '#meta.a.link = "https://x/1"',
+    '#meta.b.link = "https://x/2", "To"',
+    '#meta.c.link = [("https://x/3", "Tre"), ("https://x/4", "Fire")]',
+  ].join('\n'));
+  assert.deepEqual(p.errors, []);
+  const links = p.metas.filter((m) => m.kind === 'link');
+  assert.equal(links.length, 4);
+  assert.equal(links[0].url, 'https://x/1');
+  assert.equal(links[0].label, undefined);
+  assert.equal(links[1].label, 'To');
+  assert.equal(links[3].url, 'https://x/4');
+});
+
+test('meta: variabelnivå og bulk labels', () => {
+  const p = DD.parse([
+    '#meta.bef.alder.label = "Alder i hele år"',
+    '#meta.bef.labels = {"kjonn": "Kjønn", "region": "Region"}',
+  ].join('\n'));
+  assert.deepEqual(p.errors, []);
+  const labs = p.metas.filter((m) => m.kind === 'label');
+  assert.deepEqual(labs.map((m) => [m.variable, m.text]),
+    [['alder', 'Alder i hele år'], ['kjonn', 'Kjønn'], ['region', 'Region']]);
+});
+
+test('meta: kjent datasettnøkkel med ekstra ledd gir feil', () => {
+  const p = DD.parse('#meta.bef.note.x = "y"');
+  assert.match(p.errors[0], /linje 1.*«note» tar en verdi, ikke en sti/);
+});
+
+test('metaByTarget: felter, tittel og variabler', () => {
+  const out = DD.metaByTarget([
+    '#meta.bef.title = "Folkemengde"',
+    '#meta.bef.note = "Notat"',
+    '#meta.bef.publisher = "SSB"',
+    '#meta.bef.link = "https://ssb.no", "Om SSB"',
+    '#meta.bef.alder.label = "Alder"',
+  ].join('\n'));
+  assert.equal(out.bef.title, 'Folkemengde');
+  assert.deepEqual(out.bef.text, ['Notat']);
+  assert.deepEqual(out.bef.fields, [{ label: 'publisher', verdi: 'SSB' }]);
+  assert.deepEqual(out.bef.links, [{ url: 'https://ssb.no', label: 'Om SSB' }]);
+  assert.equal(out.bef.variables.alder.label, 'Alder');
+});

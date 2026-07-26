@@ -300,7 +300,7 @@
   // Convert resolveAndFetchLoads results + embedded blocks to the runner's
   // {name: {kind, payload}} spec. CSV/JSON parse in Python; parquet converts
   // via the DuckDB-WASM helper exported by index.html (lazy — only if used).
-  async function buildDatasetSpec(loads) {
+  async function buildDatasetSpec(loads, code) {
     var spec = {};
     var i, l;
     for (i = 0; i < (loads || []).length; i++) {
@@ -339,6 +339,18 @@
         spec[name] = { kind: 'columns', payload: parsed };
       }
     }
+    // `# meta <alias> …` hektes på hver oppføring; runnerens _bind_datasets
+    // legger den på DataFrame.attrs['meta'] så brukerkoden kan lese den.
+    // Guardet: DataDirectives finnes ikke i node-baserte enhetstester.
+    try {
+      if (code && global.DataDirectives &&
+          typeof global.DataDirectives.metaByTarget === 'function') {
+        var metas = global.DataDirectives.metaByTarget(code);
+        for (var alias in spec) {
+          if (metas[alias]) spec[alias].meta = metas[alias];
+        }
+      }
+    } catch (e) { /* metadata er pynt — aldri grunn til å felle en kjøring */ }
     return spec;
   }
 
@@ -357,7 +369,7 @@
     // fold it into the same {text, error} shape.
     try {
       var mod = await load();
-      var spec = await buildDatasetSpec(opts && opts.loads);
+      var spec = await buildDatasetSpec(opts && opts.loads, script);
       // Variabel-montering (2026-07-24): ferdig-monterte kolonnesett fra
       // DuckDB-pushdownen i index.html bindes som vanlige columns-datasett.
       var _extra = (opts && opts.extraDatasets) || null;
@@ -409,10 +421,10 @@
   // paramount-invarianten.
   var __nb = { live: false, spec: null, duckShared: null };
 
-  async function nbEnsure(loads) {
+  async function nbEnsure(loads, source) {
     if (__nb.live) return;
     var mod = await load();
-    var spec = await buildDatasetSpec(loads);
+    var spec = await buildDatasetSpec(loads, source);
     __lastSpec = spec;   // "Publiser dashboard" leser herfra, som ved run()
     if (Object.keys(spec).length) {
       await ensureLibs(mod, ['pandas_brython']);   // _bind_datasets bygger DataFrames

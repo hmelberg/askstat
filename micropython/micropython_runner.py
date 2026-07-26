@@ -430,6 +430,16 @@ def _bind_datasets(spec_json):
                 cols = {k: [_pd.nan if v is None else v for v in vals]
                         for k, vals in d['payload'].items()}
                 _shared_vars[name] = _pd.DataFrame(cols)
+            # `# meta`-direktivene (js/data-directives.js metaByTarget) legges
+            # på framen slik at BRUKERKODEN kan lese kildehenvisning/lisens,
+            # ikke bare sidebaren. Samme nøkkel og form i pyodide-modus, så
+            # skript er portable. df.name settes til aliaset — den overlever
+            # nå copy()/kolonnevalg.
+            _df = _shared_vars[name]
+            _df.name = name
+            _meta = d.get('meta') if hasattr(d, 'get') else None
+            if _meta:
+                _df.attrs['meta'] = _meta
         return ''
     except Exception as e:
         return _format_exc(e)
@@ -448,8 +458,17 @@ def _dataset_info():
             if not isinstance(_v, _pd.DataFrame):
                 continue
             try:
+                # dtypes var hardkodet tomt fram til 2026-07-26 fordi
+                # shimen ikke hadde dtype-begrep. Nå speiles pyodide-veiens
+                # kontrakt {kolonne: dtype-navn} på ekte.
+                _dt = {}
+                try:
+                    for _c in _v.columns:
+                        _dt[str(_c)] = str(_v[_c].dtype)
+                except Exception:
+                    _dt = {}
                 out[_k] = {'columns': [str(_c) for _c in _v.columns],
-                           'dtypes': {}, 'nrows': len(_v)}
+                           'dtypes': _dt, 'nrows': len(_v)}
             except Exception:
                 pass
         return json.dumps(out)
@@ -482,18 +501,18 @@ def _dataset_rows(name, limit=5000):
         recs = []
         for _row in rows:
             recs.append({cols[_j]: (None if _is_na(_row[_j]) else _row[_j]) for _j in range(len(cols))})
+        # dtyper (høyrejustering/numerisk sortering i Tabulator, og ABC/123-
+        # merket i sidebaren). Fram til 2026-07-26 gjettet denne selv og kunne
+        # bare skille 'float64' fra 'object' — nå spør vi shimen, som skiller
+        # int64/float64/bool/category/datetime og ser HELE kolonnen, ikke bare
+        # de viste radene. Konsumenten (index.html) tester /^(int|float|uint)/,
+        # så int64 er like høyrejustert som float64 var.
         dtypes = {}
-        for _j, _c in enumerate(cols):
-            _num, _seen = True, False
-            for _row in rows:
-                _x = _row[_j]
-                if _is_na(_x):
-                    continue
-                _seen = True
-                if isinstance(_x, bool) or not isinstance(_x, (int, float)):
-                    _num = False
-                    break
-            dtypes[_c] = 'float64' if (_seen and _num) else 'object'
+        for _c in shown.columns:
+            try:
+                dtypes[str(_c)] = str(shown[_c].dtype)
+            except Exception:
+                dtypes[str(_c)] = 'object'
         return json.dumps({
             'columns': cols,
             'dtypes': dtypes,

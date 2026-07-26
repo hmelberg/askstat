@@ -416,5 +416,31 @@
     return { segments: out, errors: errors };
   }
 
-  global.DataDirectives = { parse: parse, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, parseOptions: parseOptions, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
+
+  // metaByTarget(script) -> {alias: {text:[…], links:[{url,label}], variables:{…}}}
+  // Samme `# meta`-innhold som sidebaren viser (MetaInfo), men formet for å
+  // legges på DataFrame.attrs['meta'] av motorenes _bind_datasets, slik at
+  // BRUKERKODEN også kan lese kildehenvisning/lisens — ikke bare sidebaren.
+  // Speiler pandas' attrs-konvensjon, så samme skript virker i pyodide-modus.
+  function metaByTarget(script) {
+    var out = {};
+    var metas = parse(script).metas || [];
+    function bucket(o, key) {
+      if (!o[key]) o[key] = { text: [], links: [] };
+      return o[key];
+    }
+    for (var i = 0; i < metas.length; i++) {
+      var m = metas[i];
+      if (!out[m.target]) out[m.target] = { text: [], links: [], variables: {} };
+      var dst = m.variable ? bucket(out[m.target].variables, m.variable) : out[m.target];
+      if (m.kind === 'link') {
+        dst.links.push(m.label ? { url: m.url, label: m.label } : { url: m.url });
+      } else if (m.text) {
+        dst.text.push(m.text);
+      }
+    }
+    return out;
+  }
+
+  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, parseOptions: parseOptions, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
 })(typeof window !== 'undefined' ? window : globalThis);

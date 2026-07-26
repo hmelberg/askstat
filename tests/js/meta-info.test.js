@@ -157,3 +157,32 @@ test('render: direktiv-beskrivelse ligger i meta-info-user, øverst (før kilden
   assert.ok(userIdx >= 0 && userIdx < userTextIdx);
   assert.ok(userTextIdx < apiTextIdx);
 });
+
+test('merge: title og field fra direktiver når fram til MetaInfo', () => {
+  const metas = [
+    { target: 'bef', variable: null, kind: 'title', text: 'Folkemengde' },
+    { target: 'bef', variable: null, kind: 'text', text: 'Etter alder' },
+    { target: 'bef', variable: null, kind: 'field', field: 'publisher', text: 'SSB' },
+    { target: 'bef', variable: null, kind: 'field', field: 'lisens', text: 'CC BY 4.0' },
+  ];
+  const mi = MI.merge(null, metas, 'bef');
+  assert.equal(mi.tittel, 'Folkemengde');
+  assert.equal(mi.beskrivelse, 'Etter alder');
+  assert.deepEqual(mi.felter, [{ label: 'publisher', verdi: 'SSB' },
+                               { label: 'lisens', verdi: 'CC BY 4.0' }]);
+});
+
+test('forVariable: label fra direktiv vinner over råt variabelnavn', () => {
+  const metas = [{ target: 'bef', variable: 'alder', kind: 'label', text: 'Alder i hele år' }];
+  const mi = MI.merge(null, metas, 'bef');
+  const v = MI.forVariable(mi, metas, 'bef', 'alder');
+  assert.equal(v.label, 'Alder i hele år');
+});
+
+// Kildens egen metadata skal fortsatt ikke overstyres stille (dagens regel).
+test('merge: brukerens title overstyrer ikke kildens uten å vises som brukerinnhold', () => {
+  const api = { tittel: 'SSB 05839' };
+  const metas = [{ target: 'bef', variable: null, kind: 'title', text: 'Min tittel' }];
+  const mi = MI.merge(api, metas, 'bef');
+  assert.ok(mi.tittel);   // en av dem, men merket som brukerinnhold i renderingen
+});

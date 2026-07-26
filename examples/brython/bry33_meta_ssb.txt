@@ -1,10 +1,11 @@
 # label: «# meta» + SSB — metadata hentes fra kilden
-# Eksempel: pxweb-kilder får metadata rett fra kilden — trykk ⓘ ved
-# «ssb/05839» under «Tilkoblede kilder», så hentes tittel, utgiver og
-# variabler fra /api/metadata (lazy, først ved klikk). Klikk en
-# variabelrad (f.eks. Alder) for kodelisten. Ditt eget variabelnotat
-# nedenfor vises i variabelpanelet: klikk «Alder» under bef i
-# Datasett-listen.
+# Eksempel: pxweb-kilder får metadata rett fra kilden. Trykk ⓘ ved «bef»
+# i Datasett-listen for ditt eget notat, proveniens og rader × kolonner.
+# Kilderaden «ssb» under «Tilkoblede kilder» åpnes med ett klikk og viser
+# tittel, utgiver og hele variabellisten (fra /api/metadata, lazy — først
+# ved klikk) inni containeren — klikk f.eks. Alder der for kodelisten.
+# Samme variabelnotat vises igjen ved klikk på Alder under bef i
+# Datasett-listen. 💬 åpner kommentartråden direkte i sidepanelet.
 # connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)
 # load ssb/05839 as bef, years(2000:2009), indicators(Personer)
 # meta bef.Alder Ettårig alder 0-118 år; koden er alderen som tall

@@ -1,0 +1,11 @@
+# label: «# meta» + OECD — data og metadata fra kilden
+# Eksempel: OECD-data via sdmx. ⓘ på datasettraden «le» i Datasett-lista viser
+# ditt # meta-notat øverst og kildens egne metadata (tittel, utgiver, variabler)
+# hentet fra /api/metadata. 💬 åpner kommentartråden for målet i sidepanelet.
+# connect https://sdmx.oecd.org/public/rest/data as oecd, kind(oecd)
+# read oecd/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE/all?startPeriod=2020 as le
+# meta le Forventet levealder (OECD Health Statistics), lastet via SDMX
+# meta le https://www.oecd.org/en/data/indicators/life-expectancy-at-birth.html Om indikatoren
+import pandas as pd
+
+le.head(10)

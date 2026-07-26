@@ -1,0 +1,10 @@
+# label: «# meta» + SSB — metadata hentes fra kilden
+# Eksempel: pxweb-kilder får metadata rett fra kilden. ⓘ på datasettraden «bef»
+# i Datasett-lista henter tittel, utgiver og variabler fra /api/metadata (lazy,
+# først ved klikk). Ditt # meta-notat vises øverst; 💬 åpner kommentartråden.
+# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)
+# read ssb/05839 as bef, years(2000:2009), indicators(Personer)
+# meta bef.Alder Ettårig alder 0-118 år; koden er alderen som tall
+import pandas as pd
+
+bef.head(10)

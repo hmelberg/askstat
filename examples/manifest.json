@@ -339,6 +339,16 @@
       "group": null
     },
     {
+      "file": "python/ex_meta_oecd.txt",
+      "label": "«# meta» + OECD — data og metadata fra kilden",
+      "group": null
+    },
+    {
+      "file": "python/ex_meta_ssb.txt",
+      "label": "«# meta» + SSB — metadata hentes fra kilden",
+      "group": null
+    },
+    {
       "file": "python/py01_pandas_basics.txt",
       "label": "pandas — basics",
       "group": null

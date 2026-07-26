@@ -1,8 +1,12 @@
 # label: «# meta» — flere lenker, akkumulering og advarsel
 # Eksempel: gjentatte `# meta`-linjer AKKUMULERER — alle notater og
 # lenker vises sammen. Innhold som starter med http blir en lenke
-# (resten av linjen er etiketten). Mål som ikke finnes (skrivefeil)
-# gir en ⚠-advarsel nederst i «Tilkoblede kilder» — aldri stille dropp.
+# (resten av linjen er etiketten). Trykk ⓘ ved «iris» i Datasett-listen
+# for hele notatsamlingen; kilderaden «iris» under «Tilkoblede kilder»
+# åpnes med ett klikk og viser variabellisten inni containeren, og 💬 der
+# åpner kommentartråden direkte i sidepanelet. Mål som ikke finnes
+# (skrivefeil) gir en ⚠-advarsel nederst i «Tilkoblede kilder» — aldri
+# stille dropp.
 # connect https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
 # read https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
 # meta iris Fishers irisdata (1936): 150 blomster, tre arter

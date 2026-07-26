@@ -1074,16 +1074,18 @@ test('meta: note, title og ukjent nøkkel som felt', () => {
 test('meta: lenke som streng, tuppel og liste', () => {
   const p = DD.parse([
     '#meta.a.link = "https://x/1"',
-    '#meta.b.link = "https://x/2", "To"',
-    '#meta.c.link = [("https://x/3", "Tre"), ("https://x/4", "Fire")]',
+    '#meta.b.link = ["https://x/2a", "https://x/2b"]',
+    '#meta.c.link = {"https://x/3": "Tre", "https://x/4": "Fire"}',
   ].join('\n'));
   assert.deepEqual(p.errors, []);
   const links = p.metas.filter((m) => m.kind === 'link');
-  assert.equal(links.length, 4);
+  assert.equal(links.length, 5);
   assert.equal(links[0].url, 'https://x/1');
   assert.equal(links[0].label, undefined);
-  assert.equal(links[1].label, 'To');
-  assert.equal(links[3].url, 'https://x/4');
+  assert.equal(links[1].url, 'https://x/2a');
+  assert.equal(links[1].label, undefined);
+  assert.equal(links[3].label, 'Tre');
+  assert.equal(links[4].url, 'https://x/4');
 });
 
 test('meta: variabelnivå og bulk labels', () => {
@@ -1107,7 +1109,7 @@ test('metaByTarget: felter, tittel og variabler', () => {
     '#meta.bef.title = "Folkemengde"',
     '#meta.bef.note = "Notat"',
     '#meta.bef.publisher = "SSB"',
-    '#meta.bef.link = "https://ssb.no", "Om SSB"',
+    '#meta.bef.link = {"https://ssb.no": "Om SSB"}',
     '#meta.bef.alder.label = "Alder"',
   ].join('\n'));
   assert.equal(out.bef.title, 'Folkemengde');
@@ -1158,16 +1160,27 @@ Then add `collectMeta` above `parse`:
 
   function isArr(v) { return Object.prototype.toString.call(v) === '[object Array]'; }
 
-  // "https://x" | ("https://x", "etikett") | [ … ] -> [{url, label?}]
+  // Lenker, entydig på type — ingen gjetting:
+  //   streng  -> én lenke uten etikett
+  //   liste   -> flere lenker uten etikett
+  //   dict    -> URL: etikett
+  // Tuppelformen ("url", "etikett") er BEVISST droppet: parseren
+  // representerer (…) og […] likt, så ("a","b") og ["a","b"] var umulige å
+  // skille — «to lenker» ble stille til «én lenke med etikett».
   function toLinks(v) {
-    if (typeof v === 'string') return [{ url: v }];
-    if (isArr(v) && v.length && typeof v[0] === 'string') {
-      return [v.length > 1 ? { url: v[0], label: v[1] } : { url: v[0] }];
-    }
+    if (typeof v === 'string') return v ? [{ url: v }] : [];
     if (isArr(v)) {
       var out = [];
-      for (var i = 0; i < v.length; i++) out = out.concat(toLinks(v[i]));
+      for (var i = 0; i < v.length; i++) {
+        if (typeof v[i] === 'string' && v[i]) out.push({ url: v[i] });
+      }
       return out;
+    }
+    if (v && typeof v === 'object') {
+      return Object.keys(v).map(function (u) {
+        var label = String(v[u] == null ? '' : v[u]);
+        return label ? { url: u, label: label } : { url: u };
+      });
     }
     return [];
   }
@@ -1188,7 +1201,7 @@ Then add `collectMeta` above `parse`:
 
     function pushLinks(variable, val) {
       var ls = toLinks(val);
-      if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, et tuppel (url, etikett) eller en liste av dem'); return; }
+      if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, en liste av URL-er, eller en dict {url: etikett}'); return; }
       dropPrevious(metas, ds, variable, 'link');
       ls.forEach(function (l) {
         metas.push({ target: ds, variable: variable, kind: 'link',

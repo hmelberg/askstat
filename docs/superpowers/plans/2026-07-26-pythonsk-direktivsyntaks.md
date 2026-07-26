@@ -1561,9 +1561,38 @@ git diff --stat
 ```
 Expected: 34+ filer endret. **Les gjennom diffen for `# meta`-linjer med variabelmål** — heuristikken i Step 3 er den eneste delen som kan gjette feil.
 
+- [ ] **Step 6a: Add the new module dependency to every suite that loads `data-directives.js`**
+
+`js/data-directives.js` now calls `global.DirectiveParser` at parse time, so
+every standalone test that `require`s/evals it must load `js/directive-parser.js`
+**first**. Without this the suites fail with `TypeError`, not assertion
+mismatches — a different failure than the old-syntax conversion below, and one
+Task 4 surfaced. Eight files need it:
+
+Node (`require('../../js/directive-parser.js');` before the `data-directives`
+require):
+- `tests/js/assembly-duckdb.test.js`
+- `tests/js/data-directives-apikinds.test.js`
+- `tests/js/data-directives-use.test.js`
+- `tests/js/example-loads.test.js`
+- `tests/js/pxweb.test.js`
+
+Deno (eval `js/directive-parser.js` before `js/data-directives.js`, matching
+the existing `Deno.readTextFile` + `(0, eval)` pattern in each file):
+- `netlify/edge-functions/_lib/data-directives.test.ts`
+- `netlify/edge-functions/_lib/data-loader.test.ts`
+- `netlify/edge-functions/_lib/portable-export.test.ts`
+
+Verify no file is missed:
+```bash
+for f in tests/js/*.test.js; do grep -q "data-directives.js" "$f" && ! grep -q "directive-parser.js" "$f" && echo "MANGLER: $f"; done
+grep -ln "data-directives.js" netlify/edge-functions/_lib/*.test.ts | while read f; do grep -q "directive-parser.js" "$f" || echo "MANGLER: $f"; done
+```
+Expected: no output.
+
 - [ ] **Step 6: Convert the test fixtures by hand**
 
-Update directive strings in: `tests/js/data-directives-apikinds.test.js`, `tests/js/example-loads.test.js`, `tests/js/assembly-duckdb.test.js`, `netlify/edge-functions/_lib/data-directives.test.ts`, `netlify/edge-functions/_lib/data-loader.test.ts`, `netlify/edge-functions/_lib/portable-export.test.ts`. Only the input strings change — every assertion on parsed output must stay byte-identical. **Hvis en assertion må endres, er kontrakten brutt og det er en bug, ikke en testoppdatering.**
+Update directive strings in: `tests/js/data-directives-apikinds.test.js`, `tests/js/example-loads.test.js`, `tests/js/assembly-duckdb.test.js`, `netlify/edge-functions/_lib/data-directives.test.ts`, `netlify/edge-functions/_lib/data-loader.test.ts`, `netlify/edge-functions/_lib/portable-export.test.ts`, `tests/js/pxweb.test.js`. Only the input strings change — every assertion on parsed output must stay byte-identical. **Hvis en assertion må endres, er kontrakten brutt og det er en bug, ikke en testoppdatering.**
 
 - [ ] **Step 7: Run everything**
 

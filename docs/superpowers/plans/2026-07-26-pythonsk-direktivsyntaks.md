@@ -564,7 +564,7 @@ test('parseScript: samler i kildeorden med linjenummer', () => {
 test('parseScript: feil får linjenummer og stopper ikke resten', () => {
   const r = DP.parseScript([
     '# a = ost.read("https://x/a.csv")',
-    '# read b as c',
+    '# read ssb/05839 as bef',
     '# d = ost.read("https://x/d.csv")',
   ].join('\n'));
   assert.equal(r.items.length, 2);
@@ -576,9 +576,17 @@ test('isDirectiveLine: sann for gyldige OG ugyldige direktiver', () => {
   assert.equal(DP.isDirectiveLine('# x = ost.read("u")'), true);
   assert.equal(DP.isDirectiveLine('#meta.bef.note = "t"'), true);
   assert.equal(DP.isDirectiveLine('# panel.add(p, ["a"])'), true);
-  // ugyldig, men MÅ strippes fra SQL — ellers gjenskaper vi §1.2-buggen
-  assert.equal(DP.isDirectiveLine('# read ssb/05839 as bef'), true);
-  assert.equal(DP.isDirectiveLine('# meta bef tekst'), true);
+  // Ugyldige direktiver MÅ telle som direktiver — ellers lekker de inn i
+  // DuckDB-SQL, der «#» ikke er kommentar (spec §1.2).
+  assert.equal(DP.isDirectiveLine('# read ssb/05839 as bef'), true);   // gammel syntaks
+  assert.equal(DP.isDirectiveLine('# x = ost.fetch("u")'), true);      // ukjent verb
+});
+
+// Task 2-beslutningen: former uten strukturelt kjennetegn detekteres ikke,
+// fordi de er uskillbare fra prosa. De er dermed heller ikke direktivlinjer.
+test('isDirectiveLine: usann for de bevisst udetekterte formene', () => {
+  ['# meta bef tekst', '# use df', '# connect fred', '# read h as df',
+  ].forEach((line) => assert.equal(DP.isDirectiveLine(line), false, line));
 });
 
 test('isDirectiveLine: usann for kommentarer, kode, celler og tags', () => {

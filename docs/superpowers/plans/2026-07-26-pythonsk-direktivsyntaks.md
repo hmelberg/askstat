@@ -217,7 +217,7 @@ Create `js/directive-parser.js`:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 8 tester
+Expected: PASS, 12 tester
 
 - [ ] **Step 5: Commit**
 
@@ -763,6 +763,37 @@ test('scrubKeys: maskerer key="literal", beholder key="ask"', () => {
                             '# d = ost.read("u", key="***")');
   assert.equal(DD.scrubKeys('# d = ost.read("u", key="ask")'),
                             '# d = ost.read("u", key="ask")');
+  assert.equal(DD.scrubKeys("# d = ost.read('u', key='ask')"),
+                            "# d = ost.read('u', key='ask')");
+});
+
+// Hver av disse er en lekkasje som faktisk slapp gjennom en tidligere versjon.
+test('scrubKeys: ingen hemmelighet overlever, uansett form', () => {
+  [
+    '# d = ost.read("u", key="hemmelig")',
+    '# d = ost.read("u", key="it\'s-a-secret")',
+    '# d = ost.read("u", key=\'pass"word\')',
+    '# h = ost.connect("x", key="SECRET\\\\")',      // hale-backslash, uavsluttet
+    '# h = ost.connect("x", key="SECRET',            // glemt sluttfnutt
+    '# s = ost.connect("x", key="oops, other=1, key="s3cr3t")',  // to klausuler, første ødelagt
+    '# d = ost.read("u", key="a", key="SECRETB")',
+    '# d = ost.read("u", KEY="SECRETC")',
+  ].forEach((line) => {
+    assert.doesNotMatch(DD.scrubKeys(line), /hemmelig|secret|s3cr3t|pass"word|SECRETB|SECRETC/i, line);
+  });
+});
+
+// Pass 2 må ALDRI røre brukerens egen kode. En tidligere versjon gjorde
+// «sorted(rows, key=lambda r: r[0])» om til «sorted(rows, key="***"».
+test('scrubKeys: vanlig kode med key= er urørt', () => {
+  ['sorted(rows, key=lambda r: r[0])', 'max(items, key=lambda i: i.value)',
+   "df.sort_values('col', key=abs)", 'api_key="ikke-vaar"', '#%% python key=1',
+  ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
+});
+
+test('scrubKeys: idempotent', () => {
+  const once = DD.scrubKeys('# d = ost.read("u", key="hemmelig")');
+  assert.equal(DD.scrubKeys(once), once);
 });
 ```
 
@@ -778,28 +809,43 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
 ```js
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
-  // Regexen MÅ matche samme strenggrammatikk som directive-parser.js
-  // parseString: backslash escaper hva som helst, og bare det MATCHENDE
-  // hermetegnet avslutter. En klasse som [^"']* stopper ved motsatt
-  // hermetegn og lot key="it's-a-secret" passere HELT umaskert til
-  // AI-endepunktet og GitHub.
+  // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
+  // Begge kallstedene (js/ai-chat.js, js/github-storage.js) sender den RÅ
+  // editorbufferen uten å sjekke parse().errors, så alt brukeren kan taste —
+  // også ødelagt syntaks — må håndteres her.
+  //
+  // Linjevis, og med to regler som begge er lært av lekkasjer:
+  //  1. Bare DIREKTIVLINJER røres. Pythons «sorted(rows, key=lambda r: r[0])»
+  //     er ikke vår linje, og en bredere regel ødela brukerens egen kode ved
+  //     hver AI-forespørsel og hver lagring.
+  //  2. På en VELFORMET linje maskeres literalen presist (og key="ask"
+  //     bevares — den interaktive passordflyten er avhengig av det).
+  //     På en ØDELAGT linje er ingen presis maskering til å stole på: en
+  //     uavsluttet literal sluker alt fram til neste hermetegn, og kan dermed
+  //     gjemme en SENERE key=-klausul inni seg slik at DEN hemmeligheten blir
+  //     stående. Derfor maskeres hele resten av linja. Utdataen er kun for
+  //     visning/egress og re-parses aldri, så å ta med for mye er trygt.
+  var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
+  var KEY_TOKEN_RE = /\bkey[ \t]*=/i;
+
   function scrubKeys(script) {
-    var s = String(script || '').replace(
-      /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi,
-      function (m, head, lit) {
+    var lines = String(script == null ? '' : script).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!KEY_TOKEN_RE.test(line)) continue;
+      var pl = global.DirectiveParser.parseLine(line);
+      if (!pl) continue;
+      if (pl.error) {
+        var m = KEY_TOKEN_RE.exec(line);
+        lines[i] = line.slice(0, m.index) + 'key="***"';
+        continue;
+      }
+      lines[i] = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
         var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
-        return inner === 'ask' ? m : head + '"***"';
+        return inner === 'ask' ? mm : head + '"***"';
       });
-    // Pass 2 — sikkerhetsnett for MALFORMERTE literaler. Pass 1 speiler
-    // parseString og matcher derfor ikke i det hele tatt når sluttfnutten
-    // mangler eller verdien ender på backslash — og da gikk hemmeligheten
-    // ORDRETT videre. ai-chat.js og github-storage.js kaller scrubKeys på
-    // den rå editorbufferen uten å sjekke parse().errors først, så en vanlig
-    // skrivefeil lakk nøkkelen til AI-endepunktet og GitHub.
-    // På en ødelagt linje maskeres resten av linja: utdataen er kun for
-    // visning/egress og re-parses aldri, så å ta med for mye er trygt —
-    // å ta med for lite er det ikke.
-    return s.replace(/\bkey[ \t]*=[ \t]*(?!"ask"|'ask'|"\*\*\*")\S[^\n]*/gi, 'key="***"');
+    }
+    return lines.join('\n');
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
@@ -938,7 +984,7 @@ grenen i `parse()` som kaller den. Ingen stubb, ingen død kode.
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-semantics.test.js`
-Expected: PASS, 8 tester
+Expected: PASS, 12 tester
 
 - [ ] **Step 4b: Delete the now-dead `parseOptions`**
 

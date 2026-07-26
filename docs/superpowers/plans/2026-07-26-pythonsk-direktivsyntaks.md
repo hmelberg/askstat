@@ -1550,6 +1550,40 @@ test('parseAssembly: sammensatt nøkkel, format og eksplisitt how', () => {
   assert.deepEqual(a.spec.sourceTables.db__patients, { source: 'db', table: 'patients' });
 });
 
+// De gamle regex-passene kjørte alle add FØR alle join. To konsumenter er
+// avhengige av det: assembly-duckdb kaster, portable-export dropper stille.
+test('parseAssembly: add kommer alltid før join, uansett skriptrekkefølge', () => {
+  const a = DD.parseAssembly([
+    '# p = ost.connect("people")',
+    '# s = ost.connect("sales")',
+    '# panel = ost.create(key="pid")',
+    '# panel.add(p, ["income"])',
+    '# sales = s.read()',
+    '# panel.join(sales, on="pid")',
+    '# panel.add(p, ["edu"])',
+  ].join('\n'));
+  assert.deepEqual(a.errors, []);
+  const steps = a.spec.datasets.find((d) => d.name === 'panel').steps;
+  assert.deepEqual(steps.map((x) => x.op), ['import', 'import', 'join']);
+  assert.deepEqual(steps.filter((x) => x.op === 'import').map((x) => x.columns[0]),
+                   ['income', 'edu']);   // innbyrdes rekkefølge bevart
+});
+
+test('parseAssembly: datasett kan hete __proto__ eller constructor', () => {
+  assert.deepEqual(DD.parseAssembly('# __proto__ = ost.create(key="k")').errors, []);
+  assert.deepEqual(DD.parseAssembly('# constructor = ost.create(key="k")').errors, []);
+  const a = DD.parseAssembly(['# d = ost.create(key="k")',
+                              '# d.add(__proto__, ["x"])'].join('\n'));
+  assert.ok(a.spec.sources.indexOf('__proto__') >= 0,
+            'hver step.source må finnes i spec.sources');
+});
+
+test('parseAssembly: tilordning på add/join gir feil, ikke stille dropp', () => {
+  const a = DD.parseAssembly(['# d = ost.create(key="k")',
+                              '# x = d.add(p, ["a"])'].join('\n'));
+  assert.match(a.errors[0], /returnerer ingenting/);
+});
+
 test('parseAssembly: add til ukjent datasett gir feil', () => {
   const a = DD.parseAssembly('# ukjent.add(p, "x")');
   assert.match(a.errors[0], /ukjent datasett «ukjent»/);
@@ -1576,7 +1610,13 @@ Replace `parseAssembly` (`js/data-directives.js:292-347`) with:
 ```js
   // Montering: create/add/join + read-med-alias → mode-nøytral spec.
   function parseAssembly(script) {
-    var errors = [], datasets = [], byName = {}, sources = {}, sourceTables = {};
+    var errors = [], datasets = [];
+    // Direktivstyrte navn blir objektnøkler. Uten null-prototype arver
+    // «__proto__»/«constructor» sannhetsverdier: de kunne aldri opprettes
+    // («allerede opprettet» på første linje), og sources['__proto__'] = true
+    // er et stille no-op som bryter invarianten «hver step.source finnes i
+    // spec.sources» — uten én eneste feilmelding.
+    var byName = Object.create(null), sources = Object.create(null), sourceTables = Object.create(null);
     var res = global.DirectiveParser.parseScript(script);
     res.errors.forEach(function (e) { errors.push(e); });
 
@@ -1621,10 +1661,26 @@ Replace `parseAssembly` (`js/data-directives.js:292-347`) with:
       }
     });
 
-    // Pass 2: add/join på definerte navn.
+    // Pass 2 og 3: alle add FØR alle join, uavhengig av rekkefølgen i
+    // scriptet. De gamle regex-passene (IMPORT_RE helt ut, så JOIN_RE) gjorde
+    // det implisitt, og to konsumenter er avhengige av det:
+    // assembly-duckdb.js:129 kaster «join krever minst én import først», og
+    // portable-export.js:597 dropper datasettet STILLE fra eksporten.
+    // Et script som setter opp joinen først og pynter med flere add-linjer
+    // etterpå — en naturlig skrivemåte — ville ellers regrert fra «virker»
+    // til «hard feil eller taus utelatelse».
+    ['add', 'join'].forEach(function (pass) {
     res.items.forEach(function (it) {
-      if (it.form !== 'call' || it.target) return;
+      if (it.form !== 'call') return;
       if (it.verb !== 'add' && it.verb !== 'join') return;
+      if (it.verb !== pass) return;
+      // Stille dropp er forbudt: «# x = panel.add(...)» parser fint, men ville
+      // ellers blitt kastet uten feilmelding.
+      if (it.target) {
+        errors.push('linje ' + it.lineNo + ': ' + it.verb + ' returnerer ingenting — skriv «# ' +
+                    it.recv + '.' + it.verb + '(…)» uten tilordning');
+        return;
+      }
       var d = byName[it.recv];
       if (!d || d.load) { errors.push('ukjent datasett «' + it.recv + '» (mangler ost.create?)'); return; }
       var how = it.kwargs.how ? String(it.kwargs.how).toLowerCase() : 'left';
@@ -1645,6 +1701,7 @@ Replace `parseAssembly` (`js/data-directives.js:292-347`) with:
       var on = names(it.kwargs.on);
       if (!on.length) { errors.push('linje ' + it.lineNo + ': join krever on="<kolonne>" eller on=[…]'); return; }
       d.steps.push({ op: 'join', from: from.__ref, on: on, how: how });
+    });
     });
 
     return { spec: { sources: Object.keys(sources), datasets: datasets, sourceTables: sourceTables }, errors: errors };

@@ -4472,14 +4472,20 @@
         var badgeHtml = (!isStale && badge) ? ' <span style="opacity:.55;font-size:11px;font-weight:400">(' + escapeHtml(badge) + ')</span>' : '';
         var staleLabelHtml = isStale ? ' <span class="sidebar-dataset-stale-label">(' + escapeHtml(t('fra {rt}', { rt: dsRuntime })) + ')</span>' : '';
         var staleAttr = isStale ? ' data-stale-rt="' + escapeHtml(dsRuntime) + '"' : '';
+        // ⊞ (Vis data) kun på IKKE-stale rader — stale datasett har ingen data i
+        // denne motoren, så datatabellen kan ikke åpnes. ⓘ (metadata) vises for
+        // ALLE (metadata er motor-uavhengig). Variabellisten er skjult som standard
+        // (.sidebar-vars-collapsed) og toggles av navneklikket + ▸/▾-indikatoren.
+        var dataBtnHtml = isStale ? '' :
+          '<button class="sidebar-data-btn" data-data-ds="' + escapeHtml(dsName) + '" title="' + escapeHtml(t('Vis data')) + '" aria-label="' + escapeHtml(t('Vis data')) + '">⊞</button>';
         return '<div class="sidebar-dataset' + (isStale ? ' sidebar-dataset-stale' : '') + '"' + staleAttr + '>' +
           '<div class="sidebar-dataset-name" data-ds="' + escapeHtml(dsName) + '">' +
-            '<span class="sidebar-dataset-name-text">' + escapeHtml(dsName) + staleLabelHtml + badgeHtml + '</span>' +
+            '<span class="sidebar-dataset-name-text"><span class="sidebar-dataset-name-toggle" aria-hidden="true">▸</span>' + escapeHtml(dsName) + staleLabelHtml + badgeHtml + '</span>' +
+            dataBtnHtml +
             '<button class="meta-info-btn" data-meta-ds="' + escapeHtml(dsName) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>' +
           '</div>' +
-          '<div class="meta-info-container" style="display:none"></div>' +
           metaLine +
-          '<div class="sidebar-vars">' + varsHtml + '</div></div>';
+          '<div class="sidebar-vars sidebar-vars-collapsed">' + varsHtml + '</div></div>';
       }).join('');
       // nonPyRuntime beholdes som hjelpefunksjon for å avgjøre datasettets
       // motor (r/duckdb/brython/micropython/javascript vs. python). Den
@@ -4528,27 +4534,45 @@
           showVariableDetail(ds, v);
         });
       });
-      // (Individata-modalen har egen sti nedenfor; variabelpanelet over åpnes
-      // nå uansett motor.)
+      // Navneklikk: for et stale datasett samme «kjør scriptet»-forklaring som
+      // var-rad-/⊞-klikket; ellers TOGGLE variabellisten (.sidebar-vars) inn/ut og
+      // oppdater ▸/▾-indikatoren. Datatabellen ligger nå på ⊞-knappen, ikke navnet.
+      // ⊞ og ⓘ stopper propagering, så deres klikk trigger ikke navn-togglen.
       datasetsEl.querySelectorAll('.sidebar-dataset-name').forEach(function(el) {
         el.addEventListener('click', function() {
-          if (!window.__getShowIndividata || !window.__getShowIndividata()) return;
           var ds = this.getAttribute('data-ds');
-          if (ds) showIndividataModal(ds);
+          var dsDiv = this.closest('.sidebar-dataset');
+          var staleRt = dsDiv && dsDiv.getAttribute('data-stale-rt');
+          if (staleRt) { showStaleRunExplanation(dsDiv, ds, staleRt); return; }
+          var vars = dsDiv && dsDiv.querySelector('.sidebar-vars');
+          if (!vars) return;
+          var collapsed = vars.classList.toggle('sidebar-vars-collapsed');
+          var ind = this.querySelector('.sidebar-dataset-name-toggle');
+          if (ind) ind.textContent = collapsed ? '▸' : '▾';
         });
       });
-      // ⓘ på datasettraden: åpner metadata-containeren (lazy) — eller, for et
-      // stale datasett, samme inline «kjør scriptet»-forklaring som var-rad-
-      // klikket over. stopPropagation hindrer at datasett-navnets individata-
-      // klikk fyrer samtidig. Samme per-element-idiom som .sidebar-var-row-
-      // wiringen over.
-      datasetsEl.querySelectorAll('.meta-info-btn').forEach(function(btn) {
+      // ⊞ (Vis data): åpner individata-modalen (datatabellen). stopPropagation
+      // hindrer at navn-togglen fyrer samtidig. Kun rendret på ikke-stale rader;
+      // stale-grenen er defensiv (matcher briefen) og fyrer i praksis aldri.
+      datasetsEl.querySelectorAll('.sidebar-data-btn').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
           var dsDiv = this.closest('.sidebar-dataset');
           var staleRt = dsDiv && dsDiv.getAttribute('data-stale-rt');
-          if (staleRt) { showStaleRunExplanation(dsDiv, this.getAttribute('data-meta-ds'), staleRt); return; }
-          metaToggleDataset(this);
+          var ds = this.getAttribute('data-data-ds');
+          if (staleRt) { showStaleRunExplanation(dsDiv, ds, staleRt); return; }
+          if (ds) showIndividataModal(ds);
+        });
+      });
+      // ⓘ på datasettraden: åpner metadata-modalen (showMetadataModal, Task 2).
+      // Åpnes også for stale datasett — metadata er motor-uavhengig (katalog +
+      // `# meta` + kildemetadata), til forskjell fra ⊞/datatabellen som krever at
+      // datasettet er lastet i aktiv motor. stopPropagation hindrer at navn-
+      // togglen fyrer samtidig.
+      datasetsEl.querySelectorAll('.meta-info-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          showMetadataModal(this.getAttribute('data-meta-ds'), { kind: 'dataset' });
         });
       });
       if (window.__applyShowIndividataToSidebar) window.__applyShowIndividataToSidebar();
@@ -4613,20 +4637,6 @@
           + (fmt ? ' <span class="meta-info-prov-fmt">(' + escapeHtml(fmt) + ')</span>' : '') + '</div>';
       }
       return '';
-    }
-
-    function metaToggleDataset(btn) {
-      var nameDiv = btn.closest('.sidebar-dataset-name');
-      var container = nameDiv && nameDiv.nextElementSibling;
-      if (!container || !container.classList.contains('meta-info-container')) return;
-      if (container.style.display !== 'none') {
-        var openThread = container.querySelector('.meta-info-community-thread');
-        if (openThread && window.Comments && window.Comments.isOpen(openThread)) window.Comments.close();
-        container.style.display = 'none';
-        return;
-      }
-      container.style.display = '';
-      metaPopulateDataset(container, btn.getAttribute('data-meta-ds'));
     }
 
     // Lazy: kildemetadata hentes KUN ved første ⓘ-klikk på et register-datasett
@@ -8108,8 +8118,8 @@ async def _run_duck_sql(_sql, _fresh=True):
       }
     }
     // Hele navneraden (.sidebar-src-head) er ETT målpunkt — toggler den samlede
-    // containeren rett under. Lukker en ev. åpen giscus-tråd før den skjules
-    // (som metaToggleDataset), så en skjult container ikke etterlater tråden aktiv.
+    // containeren rett under. Lukker en ev. åpen giscus-tråd før den skjules, så
+    // en skjult container ikke etterlater tråden aktiv.
     function metaToggleSource(head) {
       var key = head.getAttribute('data-meta-src');
       var container = head.nextElementSibling;

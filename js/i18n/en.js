@@ -777,6 +777,7 @@ window.M2PY_I18N.en = {
 
   // ── Metadata-sidebar (spec 2026-07-25-metadata-sidebar-design) ──
   "Vis metadata": "Show metadata",
+  "Vis data": "Show data",
   "(kunne ikke hente kildemetadata)": "(could not fetch source metadata)",
   "⚠ # meta: ukjent mål «{mal}»": "⚠ # meta: unknown target «{mal}»",
   "💬 Kommenter og se kommentarer": "💬 Comment and see comments",

@@ -659,12 +659,18 @@
     .sidebar-dataset-name:hover { filter: brightness(1.08); }
     body[data-theme="dark"] .sidebar-dataset-name { background: #475569; }
     .sidebar-dataset-name-text { flex: 1; min-width: 0; word-break: break-word; }
-    /* ⓘ på datasettraden: hvit på den fargede raden, aldri understreket av
-       den klikkbare (individata) linjestilen */
-    .sidebar-dataset-name .meta-info-btn { color: inherit; opacity: 0.8; text-decoration: none; }
-    .sidebar-dataset-name .meta-info-btn:hover { color: inherit; opacity: 1; }
+    /* ▸/▾-indikator foran navnet: viser om variabellisten er lukket/åpen. */
+    .sidebar-dataset-name-toggle { display: inline-block; margin-right: 5px; font-size: 10px; opacity: 0.75; }
+    /* ⊞ (Vis data) og ⓘ (metadata) på datasettraden: hvite på den fargede raden,
+       aldri understreket av den klikkbare (individata) linjestilen */
+    .sidebar-dataset-name .meta-info-btn,
+    .sidebar-dataset-name .sidebar-data-btn { color: inherit; opacity: 0.8; text-decoration: none; }
+    .sidebar-dataset-name .meta-info-btn:hover,
+    .sidebar-dataset-name .sidebar-data-btn:hover { color: inherit; opacity: 1; }
     .sidebar-dataset-meta { font-size: 11px; color: var(--text-muted); margin: 6px 0 6px 2px; line-height: 1.35; }
     .sidebar-vars { margin-left: 4px; margin-top: 2px; }
+    /* Variabellisten er skjult som standard; navneklikket toggler klassen av. */
+    .sidebar-vars.sidebar-vars-collapsed { display: none; }
     .sidebar-var-row { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; padding: 3px 4px; margin: 0 -4px; border-radius: 4px; color: var(--text); font-size: 12px; }
     .sidebar-var-row:hover { background: rgba(37, 99, 235, 0.08); color: var(--accent); }
     body[data-theme="dark"] .sidebar-var-row:hover { background: rgba(122, 162, 247, 0.12); }
@@ -691,8 +697,8 @@
     .sidebar-src-head:hover { background: rgba(37, 99, 235, 0.08); }
     body[data-theme="dark"] .sidebar-src-head:hover { background: rgba(122, 162, 247, 0.12); }
     .sidebar-src-head .sidebar-dataset-meta { flex: 1; min-width: 0; margin: 4px 0; }
-    .meta-info-btn { flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 2px; margin: 0; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; opacity: 0.7; }
-    .meta-info-btn:hover { color: var(--accent); opacity: 1; }
+    .meta-info-btn, .sidebar-data-btn { flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 2px; margin: 0; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; opacity: 0.7; }
+    .meta-info-btn:hover, .sidebar-data-btn:hover { color: var(--accent); opacity: 1; }
     .meta-info-container { margin: 2px 0 8px 6px; padding: 8px 10px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.45; color: var(--text); word-break: break-word; }
     .meta-info-var-container { margin-left: 12px; }
     /* Variabellisten INNE i kilde-containeren: klikkbare rader → variabelinfo. */

@@ -154,3 +154,28 @@ test('pxweb/eurostat-grenen er uendret', () => {
   assert.equal(item.kind, 'pxweb');
   assert.equal(item.table, '05839');
 });
+
+// ── all()-direktiv (spec 2026-07-25/26-all-direktiv-design): last alle
+// verdier av uspesifiserte dimensjoner for pxweb. Ren parser+resolve her —
+// selve async-utvidelsen skjer i lasteren (Task 3). ──────────────────────
+
+test('pxweb all(): setter all-flagget, bevarer eksplisitte valueCodes', () => {
+  const bare = resolveOne(
+    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)\n' +
+    '# load ssb/05839 as bef, all()');
+  assert.ok(!bare.error, bare.error);
+  assert.equal(bare.all, true);
+  const kombi = resolveOne(
+    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)\n' +
+    '# load ssb/05839 as bef, all(), years(2000:2009), indicators(Personer)');
+  assert.equal(kombi.all, true);
+  assert.ok(/valueCodes\[Tid\]=2000,2001/.test(kombi.url), kombi.url);       // years bevart
+  assert.ok(/valueCodes\[ContentsCode\]=Personer/.test(kombi.url));          // indicators bevart
+});
+
+test('all() på ikke-pxweb-kilde → feil', () => {
+  const r = resolveOne(
+    '# connect https://sdmx.oecd.org/public/rest/data as o, kind(oecd)\n' +
+    '# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE/all as le, all()');
+  assert.ok(r.error && /all\(\).*pxweb/i.test(r.error), r.error);
+});

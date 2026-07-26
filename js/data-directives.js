@@ -66,6 +66,8 @@
           if (eq > 0) f[pair.slice(0, eq)] = pair.slice(eq + 1);
         });
         canon().filters = f;
+      } else if (name === 'all') {
+        canon().all = true;
       }
     }
     return opts;
@@ -79,6 +81,12 @@
   function translateCanonical(kind, rest, c) {
     var params = [], out = { rest: rest, params: params };
     var y = c.years || null;
+    // all() (spec 2026-07-26-all-direktiv-design): «last alle verdier av
+    // uspesifiserte dimensjoner» er foreløpig kun implementert for pxweb
+    // (json-stat2-metadata gjør ekspansjonen mekanisk verifiserbar der) —
+    // én felles sjekk her dekker sdmx/worldbank/eurostat/dbnomics uten å
+    // duplisere feilen i hver gren.
+    if (c.all && kind !== 'pxweb') return { error: 'all() støttes foreløpig kun for pxweb-kilder — for andre kilder, angi utvalg eksplisitt' };
     if (kind === 'worldbank') {
       if (c.regions) return { error: 'regions() støttes ikke for worldbank — bruk landkoder i countries()' };
       if (c.indicators) {
@@ -103,6 +111,7 @@
       return out;
     }
     if (kind === 'pxweb') {
+      if (c.all) out.all = true;   // lasteren (Task 3) ekspanderer uspesifiserte dimensjoner
       if (c.countries) return { error: 'countries() gjelder ikke pxweb-kilder (SSB er norske data) — bruk regions() eller filters(<variabel>=…)' };
       if (c.regions) params.push('valueCodes[Region]=' + c.regions.join(','));
       if (c.indicators) params.push('valueCodes[ContentsCode]=' + c.indicators.join(','));
@@ -262,6 +271,7 @@
                      cache: cache, table: restPath };
         if (tr && tr.needsSdmxKey) item.needsSdmxKey = tr.needsSdmxKey;
         if (tr && tr.clientYears) item.clientYears = tr.clientYears;
+        if (tr && tr.all) item.all = true;
         return item;
       }
       // duckdb/sqlite: én fil, flere tabeller — "stien" er tabellnavnet, ikke

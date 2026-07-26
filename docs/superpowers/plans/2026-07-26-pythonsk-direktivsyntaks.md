@@ -354,6 +354,21 @@ test('parseLine: bare enkeltord-former varsles bevisst ikke', () => {
   ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
 });
 
+// `use` slipper unna prosa-kollisjonen fordi kilden er et LUKKET sett.
+test('parseLine: use-hint krever en gyldig kilde (r|python|duckdb)', () => {
+  assert.match(DP.parseLine('# use tall from duckdb').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# use df from python').error, /gammel syntaks/);
+  ['# use value from cache', '# use token from header', '# use config from settings',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+// AKSEPTERT KOLLISJON: «connect <ord> as <ord>» kan ikke strammes uten å miste
+// hintet for den vanligste ekte formen. Testen låser avgjørelsen som bevisst.
+test('parseLine: connect <ord> as <ord> — akseptert falsk positiv', () => {
+  assert.match(DP.parseLine('# connect ssb as s').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# connect early as needed').error, /gammel syntaks/);
+});
+
 test('parseLine: CRLF-linjeslutt bryter ikke gjenkjenning', () => {
   assert.equal(DP.parseLine('# bef = ost.read("x")\r').form, 'call');
   assert.match(DP.parseLine('# load gh/iris.csv as iris\r').error, /gammel syntaks/);
@@ -387,6 +402,10 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
   //   «# use df»          ~ «# use caution»
   //   «# connect ssb»     ~ «# connect manually»
   //   «# read h as df»    ~ «# read this as int»
+  // AKSEPTERT GJENSTÅENDE: «connect <ord> as <ord>» kan ikke strammes uten å
+  // miste hintet for den vanligste ekte formen («# connect ssb as s»), så
+  // «# connect early as needed» gir feilmelding. `use` slipper unna fordi
+  // kilden der er et lukket sett (r|python|duckdb).
   // Migreringsskriptet (Task 8) konverterer alle eksisterende filer, så disse
   // formene finnes ikke i repoet — vakten er kun en håndskrivingshjelp.
   var OLD_PATTERNS = [
@@ -395,7 +414,7 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
     { w: 'create',  re: /^create(?:[-_]dataset)?[ \t]+[A-Za-z_]\w*[ \t]*,[ \t]*key\(/i },
     { w: 'add',     re: /^(?:add|import)[ \t]+\S*\/\S*.*[ \t]+into[ \t]+[A-Za-z_]\w*(?:[ \t]+(?:left|inner|outer))?[ \t]*$/i },
     { w: 'join',    re: /^join[ \t]+[A-Za-z_]\w*[ \t]+into[ \t]+[A-Za-z_]\w*[ \t]+on[ \t]+\S/i },
-    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*[ \t]+from[ \t]+[A-Za-z_]\w*[ \t]*$/i }
+    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*[ \t]+from[ \t]+(?:r|python|duckdb)[ \t]*$/i }
   ];
 
   var HINT = {
@@ -433,7 +452,7 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
   function oldSyntaxError(body) {
     for (var i = 0; i < OLD_PATTERNS.length; i++) {
       if (OLD_PATTERNS[i].re.test(body)) {
-        return { error: '«' + body + '» er gammel syntaks — ' + HINT[OLD_PATTERNS[i].w] };
+        return { error: '«' + body + '» er gammel syntaks — ' + (HINT[OLD_PATTERNS[i].w] || 'se hjelpen') };
       }
     }
     return null;
@@ -502,7 +521,7 @@ Change the export line to:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 23 tester
+Expected: PASS, 25 tester
 
 - [ ] **Step 5: Commit**
 

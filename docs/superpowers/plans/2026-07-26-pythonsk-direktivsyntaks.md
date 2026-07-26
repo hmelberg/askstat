@@ -2104,6 +2104,20 @@ In `docs/superpowers/specs/2026-07-26-pythonsk-direktivsyntaks-design.md`:
 - §3.1: remove the contradictory sentence *«En `meta.bef.alder = "…"` uten videre ledd er en **feil**»* and the `labels`-reservation clause; state that unknown two-segment keys become display fields, and that variable level always requires three segments.
 - §4.2: remove the renaming claim for `ost.use`; note it is deferred and why (`u.name` is the name in both runtimes for the consumers in `index.html`).
 
+- [ ] **Step 2b: Slå fast skillet mellom de tre «nøkkel»-begrepene**
+
+Hans stilte dette spørsmålet under planleggingen, så en bruker vil også.
+Én tabell i `hjelp.html`/`hjelp.en.html`, ordrett:
+
+| Skrivemåte | Betydning |
+|---|---|
+| `ost.create(key=["kommune_nr", "year"])` | datasettets nøkkelkolonner — deklareres **én gang**, og `add()` bruker dem automatisk |
+| `panel.join(sales, on="pid")` | eksplisitte join-kolonner for én sammenslåing |
+| `ost.read(…, secret_key="ask")` | legitimasjon (API-/dekrypteringsnøkkel) |
+
+Poenget som må fram: du oppgir **aldri** en merge-nøkkel på `read` — den kommer
+fra `create`, og `add()` ber om `nøkkel + ønskede kolonner` selv.
+
 - [ ] **Step 3: Grammatikkens grenser må stå i hjelpen**
 
 Add to `hjelp.html` and `hjelp.en.html`, verbatim from spec §5.3:

@@ -13,7 +13,8 @@
 - **Spec:** `docs/superpowers/specs/2026-07-26-pythonsk-direktivsyntaks-design.md`. Hver task refererer til sin §.
 - **Ingen bakoverkompatibilitet.** Gammel syntaks skal gi feilmelding med forslag, aldri stille aksept (spec §8.1).
 - **Ingen arkitekturendring.** `DataDirectives.parse()` kjøres fortsatt statisk på editorteksten før kjøring. Motorer, `js/data-loader.js` (fetch/proxy/nøkler/cache), `js/pxweb.js`, `js/api-kinds.js`, `js/assembly-duckdb.js` og `#%%`-cellemaskineriet røres ikke (spec §7).
-- **Filstil:** IIFE med `(function (global) { 'use strict'; … })(typeof window !== 'undefined' ? window : globalThis);`, `var` ikke `let/const`, ingen pilfunksjoner, ingen moduler. Match `js/data-directives.js` nøyaktig.
+- **Filstil i `js/*.js`:** IIFE med `(function (global) { 'use strict'; … })(typeof window !== 'undefined' ? window : globalThis);`, `var` ikke `let/const`, ingen pilfunksjoner, ingen moduler. Match `js/data-directives.js` nøyaktig (den har null `const`).
+- **Filstil i `tests/js/*.test.js`:** moderne node-JS — `const`, pilfunksjoner og `require('node:test')`, som i `tests/js/meta-info.test.js` og `cells.test.js`. ES5-kravet over gjelder **ikke** testene.
 - **Kommentarmarkører:** `#`, `--` og `//` er likeverdige overalt (uendret).
 - **Språk:** kommentarer og feilmeldinger på norsk, verb og API-navn på engelsk.
 - **Testkommandoer:**
@@ -773,7 +774,8 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
     var res = global.DirectiveParser.parseScript(script);
     errors = res.errors.slice();
     res.items.forEach(function (it) {
-      if (it.form === 'ns') { collectMeta(it, metas, errors); return; }
+      // 'ns'-elementer (meta) håndteres i Task 5 — her ignoreres de, slik at
+      // denne tasken ikke etterlater en tom stubbfunksjon som død kode.
       if (it.form !== 'call') return;
       var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
 
@@ -801,11 +803,8 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
   }
 ```
 
-`collectMeta` defineres i Task 5. Legg inn denne midlertidige stubben rett over `parse` for at Task 4 skal kjøre grønt alene:
-
-```js
-  function collectMeta(item, metas, errors) { /* Task 5 */ }
-```
+`metas` forblir tom i denne tasken — Task 5 legger til både `collectMeta` og
+grenen i `parse()` som kaller den. Ingen stubb, ingen død kode.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -937,7 +936,15 @@ Expected: FAIL — `p.metas` er tom (stubben fra T4 gjør ingenting)
 
 - [ ] **Step 3: Write minimal implementation**
 
-Delete `META_RE` and its comment (`js/data-directives.js:34-37`). Replace the `collectMeta` stub with:
+Delete `META_RE` and its comment (`js/data-directives.js:34-37`). Add the
+`ns`-branch back into `parse()` as the first line of its `forEach` body,
+replacing the placeholder comment Task 4 left:
+
+```js
+      if (it.form === 'ns') { collectMeta(it, metas, errors); return; }
+```
+
+Then add `collectMeta` above `parse`:
 
 ```js
   var DS_KEYS = { title: 1, note: 1, link: 1, labels: 1 };

@@ -37,39 +37,6 @@
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;
   }
 
-  // ", key(<literal>|ask)" og ", exec(local|remote)" — spec §1.
-  // Kanonisk vokabular (spec 2026-07-25-api-kinds-design §3): years(a:b),
-  // countries/regions/indicators (mellomrom/komma-liste), filters(k=v …) —
-  // samles i opts.canonical og oversettes per kind i resolve().
-  function parseOptions(tail) {
-    var opts = {}, re = /(\w+)\(([^)]*)\)/g, m;
-    function canon() { return (opts.canonical = opts.canonical || {}); }
-    while ((m = re.exec(tail || '')) !== null) {
-      var name = m[1].toLowerCase(), val = m[2].trim();
-      if (name === 'key') opts.key = val || 'ask';
-      else if (name === 'exec') opts.exec = val.toLowerCase();
-      else if (name === 'kind') opts.kind = val.toLowerCase();
-      else if (name === 'cache') opts.cache = val.toLowerCase();
-      else if (name === 'years') {
-        var yv = val.split(':');
-        canon().years = { from: (yv[0] || '').trim() || null,
-                          to: yv.length > 1 ? ((yv[1] || '').trim() || null) : ((yv[0] || '').trim() || null) };
-      } else if (name === 'countries' || name === 'regions' || name === 'indicators') {
-        canon()[name] = val.split(/[\s,]+/).filter(Boolean);
-      } else if (name === 'filters') {
-        var f = {};
-        val.split(/\s+/).filter(Boolean).forEach(function (pair) {
-          var eq = pair.indexOf('=');
-          if (eq > 0) f[pair.slice(0, eq)] = pair.slice(eq + 1);
-        });
-        canon().filters = f;
-      } else if (name === 'all') {
-        canon().all = true;
-      }
-    }
-    return opts;
-  }
-
   // Kanonisk → kildens egen spørremodell (spec §3). REGELEN (SDMX-fellen,
   // spec §0): et felt som ikke kan oversettes VERIFISERBART for kilden →
   // hard feil med kildens native alternativ — aldri stille passthrough
@@ -153,9 +120,18 @@
 
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
+  // Regexen MÅ matche samme strenggrammatikk som directive-parser.js
+  // parseString: backslash escaper hva som helst, og bare det MATCHENDE
+  // hermetegnet avslutter. En klasse som [^"']* stopper ved motsatt
+  // hermetegn og lot key="it's-a-secret" passere HELT umaskert til
+  // AI-endepunktet og GitHub.
   function scrubKeys(script) {
     return String(script || '').replace(
-      /\b(key[ \t]*=[ \t]*)(["'])(?!ask\2)[^"']*\2/gi, '$1"***"');
+      /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi,
+      function (m, head, lit) {
+        var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
+        return inner === 'ask' ? m : head + '"***"';
+      });
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
@@ -178,13 +154,17 @@
     return prev[b.length];
   }
 
+  // LENGDENORMALISERT og case-ufølsom: rå avstand favoriserer systematisk
+  // korte navn, så «yr» og «ctry» fikk forslaget «key» i stedet for
+  // «years»/«countries».
   function suggest(name) {
-    var all = Object.keys(PLAIN_KEYS).concat(Object.keys(CANON_KEYS)), best = null, bestD = 99;
+    var all = Object.keys(PLAIN_KEYS).concat(Object.keys(CANON_KEYS));
+    var low = String(name).toLowerCase(), best = null, bestD = 99;
     for (var i = 0; i < all.length; i++) {
-      var d = editDistance(all[i], name);
+      var d = editDistance(all[i], low) / Math.max(all[i].length, low.length);
       if (d < bestD) { bestD = d; best = all[i]; }
     }
-    return bestD <= 3 ? best : null;
+    return bestD <= 0.7 ? best : null;
   }
 
   function asList(v) {
@@ -204,6 +184,14 @@
         return;
       }
       if (name === 'years') {
+        // Spec §5.4: tall er en feil, ikke noe å coerce. years=2020 i stedet
+        // for years="2020:2024" ville stille gitt ett år i stedet for fem.
+        if (typeof v !== 'string') {
+          errors.push('linje ' + lineNo + ': «years» må være streng, fikk ' +
+                      (typeof v === 'number' ? 'tall' : typeof v) +
+                      ' — skriv years="2020:2024"');
+          return;
+        }
         var parts = String(v).split(':');
         canon().years = { from: (parts[0] || '').trim() || null,
                           to: parts.length > 1 ? ((parts[1] || '').trim() || null)
@@ -237,6 +225,14 @@
       // denne tasken ikke etterlater en tom stubbfunksjon som død kode.
       if (it.form !== 'call') return;
       var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
+
+      // Stille dropp er forbudt: «ssb.read("05839", "Personer")» (glemt
+      // indicators=) ville ellers gitt et ufiltrert read uten noe signal.
+      if (it.args.length > 1) {
+        errors.push('linje ' + it.lineNo + ': ' + it.verb + ' tar ett posisjonsargument — ' +
+                    'resten må være navngitte (f.eks. indicators=["Personer"])');
+        return;
+      }
 
       if (it.recv === 'ost' && it.verb === 'connect') {
         if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.connect krever en tilordning — «# <alias> = ost.connect(…)»'); return; }
@@ -507,5 +503,5 @@
     return out;
   }
 
-  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, parseOptions: parseOptions, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
+  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
 })(typeof window !== 'undefined' ? window : globalThis);

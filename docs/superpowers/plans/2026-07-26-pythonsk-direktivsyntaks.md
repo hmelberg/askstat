@@ -933,7 +933,9 @@ object. Same principle this task applies to `metas`: no dead code left behind.
 ```bash
 grep -rn "parseOptions" --include="*.js" --include="*.ts" --include="*.html" . | grep -v node_modules
 ```
-Expected after deletion: no output.
+Expected after deletion: exactly one hit, `tests/js/pxweb.test.js:89` — that is a
+*test title string* (`test('parseOptions/resolve: cache() …')`), not a call. Leave
+it; Task 8 owns that file. Any other hit means the deletion was premature.
 
 - [ ] **Step 5: Wire the new script tag**
 

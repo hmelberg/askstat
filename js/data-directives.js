@@ -230,21 +230,49 @@
     return opts;
   }
 
+  // Direktivstyrte strenger blir dynamiske nøkler. Uten vern lar
+  // «#meta.__proto__.title = "x"» seg skrive rett inn i Object.prototype,
+  // globalt for resten av økten (verifisert). Og prototypemedlemmer som
+  // «constructor» ville blitt feilklassifisert som kjente nøkler.
+  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  function unsafeName(n) { return n === '__proto__' || n === 'constructor' || n === 'prototype'; }
+
+  // Spec §3.3: «=» betyr OVERSKRIV. Uten dette akkumulerer gjentatte
+  // tilordninger som i gammel syntaks — to «publisher»-rader i sidepanelet.
+  function dropPrevious(metas, target, variable, kind, field) {
+    for (var i = metas.length - 1; i >= 0; i--) {
+      var m = metas[i];
+      if (m.target === target && m.variable === variable && m.kind === kind &&
+          (kind !== 'field' || m.field === field)) metas.splice(i, 1);
+    }
+  }
+
   var DS_KEYS = { title: 1, note: 1, link: 1, labels: 1 };
   var VAR_KEYS = { label: 1, note: 1, link: 1 };
 
   function isArr(v) { return Object.prototype.toString.call(v) === '[object Array]'; }
 
-  // "https://x" | ("https://x", "etikett") | [ … ] -> [{url, label?}]
+  // Lenker, entydig på type — ingen gjetting:
+  //   streng  -> én lenke uten etikett
+  //   liste   -> flere lenker uten etikett
+  //   dict    -> URL: etikett
+  // Tuppelformen ("url", "etikett") er BEVISST droppet: parseren
+  // representerer (…) og […] likt, så ("a","b") og ["a","b"] var umulige å
+  // skille — «to lenker» ble stille til «én lenke med etikett».
   function toLinks(v) {
-    if (typeof v === 'string') return [{ url: v }];
-    if (isArr(v) && v.length && typeof v[0] === 'string') {
-      return [v.length > 1 ? { url: v[0], label: v[1] } : { url: v[0] }];
-    }
+    if (typeof v === 'string') return v ? [{ url: v }] : [];
     if (isArr(v)) {
       var out = [];
-      for (var i = 0; i < v.length; i++) out = out.concat(toLinks(v[i]));
+      for (var i = 0; i < v.length; i++) {
+        if (typeof v[i] === 'string' && v[i]) out.push({ url: v[i] });
+      }
       return out;
+    }
+    if (v && typeof v === 'object') {
+      return Object.keys(v).map(function (u) {
+        var label = String(v[u] == null ? '' : v[u]);
+        return label ? { url: u, label: label } : { url: u };
+      });
     }
     return [];
   }
@@ -256,10 +284,17 @@
       return;
     }
     var ds = p[0], k1 = p[1], v = item.value;
+    for (var pi = 0; pi < p.length; pi++) {
+      if (unsafeName(p[pi])) {
+        errors.push('linje ' + ln + ': «' + p[pi] + '» kan ikke brukes som navn i meta');
+        return;
+      }
+    }
 
     function pushLinks(variable, val) {
       var ls = toLinks(val);
-      if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, et tuppel (url, etikett) eller en liste av dem'); return; }
+      if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, en liste av URL-er, eller en dict {url: etikett}'); return; }
+      dropPrevious(metas, ds, variable, 'link');
       ls.forEach(function (l) {
         metas.push({ target: ds, variable: variable, kind: 'link',
                      url: l.url, label: l.label, text: undefined, line: raw });
@@ -269,34 +304,38 @@
     // Datasettnivå (to ledd)
     if (p.length === 2) {
       if (k1 === 'link') { pushLinks(null, v); return; }
-      if (k1 === 'title') { metas.push({ target: ds, variable: null, kind: 'title', text: String(v), line: raw }); return; }
-      if (k1 === 'note') { metas.push({ target: ds, variable: null, kind: 'text', text: String(v), line: raw }); return; }
+      if (k1 === 'title') { dropPrevious(metas, ds, null, 'title'); metas.push({ target: ds, variable: null, kind: 'title', text: String(v), line: raw }); return; }
+      if (k1 === 'note') { dropPrevious(metas, ds, null, 'text'); metas.push({ target: ds, variable: null, kind: 'text', text: String(v), line: raw }); return; }
       if (k1 === 'labels') {
         if (typeof v !== 'object' || v === null || isArr(v)) {
           errors.push('linje ' + ln + ': «labels» må være en dict — labels={"kolonne": "Etikett"}');
           return;
         }
         Object.keys(v).forEach(function (name) {
+          if (unsafeName(name)) { errors.push('linje ' + ln + ': «' + name + '» kan ikke brukes som variabelnavn'); return; }
+          dropPrevious(metas, ds, name, 'label');
           metas.push({ target: ds, variable: name, kind: 'label', text: String(v[name]), line: raw });
         });
         return;
       }
+      dropPrevious(metas, ds, null, 'field', k1);
       metas.push({ target: ds, variable: null, kind: 'field', field: k1, text: String(v), line: raw });
       return;
     }
 
     // Tre ledd: variabelnivå — men en kjent datasettnøkkel her er en feil
-    if (DS_KEYS[k1]) {
+    if (has(DS_KEYS, k1)) {
       errors.push('linje ' + ln + ': «' + k1 + '» tar en verdi, ikke en sti');
       return;
     }
     if (p.length > 3) { errors.push('linje ' + ln + ': for dyp meta-sti — «# meta.<datasett>.<variabel>.<nøkkel>»'); return; }
     var k2 = p[2];
-    if (!VAR_KEYS[k2]) {
+    if (!has(VAR_KEYS, k2)) {
       errors.push('linje ' + ln + ': ukjent variabelnøkkel «' + k2 + '» — gyldige: label, note, link');
       return;
     }
     if (k2 === 'link') { pushLinks(k1, v); return; }
+    dropPrevious(metas, ds, k1, k2 === 'label' ? 'label' : 'text');
     metas.push({ target: ds, variable: k1, kind: k2 === 'label' ? 'label' : 'text',
                  text: String(v), line: raw });
   }
@@ -571,15 +610,17 @@
   // metaByTarget(script) -> {alias: {title?, text:[], links:[], fields:[], variables:{…}}}
   // Samme innhold som sidebaren viser (MetaInfo), formet for DataFrame.attrs['meta'].
   function metaByTarget(script) {
-    var out = {};
+    var out = Object.create(null);
     var metas = parse(script).metas || [];
     function bucket(o, key) {
-      if (!o[key]) o[key] = { text: [], links: [] };
+      if (!Object.prototype.hasOwnProperty.call(o, key)) o[key] = { text: [], links: [] };
       return o[key];
     }
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i];
-      if (!out[m.target]) out[m.target] = { text: [], links: [], fields: [], variables: {} };
+      if (!Object.prototype.hasOwnProperty.call(out, m.target)) {
+        out[m.target] = { text: [], links: [], fields: [], variables: Object.create(null) };
+      }
       var root = out[m.target];
       var dst = m.variable ? bucket(root.variables, m.variable) : root;
       if (m.kind === 'link') {

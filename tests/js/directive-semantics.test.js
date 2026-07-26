@@ -134,16 +134,18 @@ test('meta: note, title og ukjent nøkkel som felt', () => {
 test('meta: lenke som streng, tuppel og liste', () => {
   const p = DD.parse([
     '#meta.a.link = "https://x/1"',
-    '#meta.b.link = "https://x/2", "To"',
-    '#meta.c.link = [("https://x/3", "Tre"), ("https://x/4", "Fire")]',
+    '#meta.b.link = ["https://x/2a", "https://x/2b"]',
+    '#meta.c.link = {"https://x/3": "Tre", "https://x/4": "Fire"}',
   ].join('\n'));
   assert.deepEqual(p.errors, []);
   const links = p.metas.filter((m) => m.kind === 'link');
-  assert.equal(links.length, 4);
+  assert.equal(links.length, 5);
   assert.equal(links[0].url, 'https://x/1');
   assert.equal(links[0].label, undefined);
-  assert.equal(links[1].label, 'To');
-  assert.equal(links[3].url, 'https://x/4');
+  assert.equal(links[1].url, 'https://x/2a');
+  assert.equal(links[1].label, undefined);
+  assert.equal(links[3].label, 'Tre');
+  assert.equal(links[4].url, 'https://x/4');
 });
 
 test('meta: variabelnivå og bulk labels', () => {
@@ -167,7 +169,7 @@ test('metaByTarget: felter, tittel og variabler', () => {
     '#meta.bef.title = "Folkemengde"',
     '#meta.bef.note = "Notat"',
     '#meta.bef.publisher = "SSB"',
-    '#meta.bef.link = "https://ssb.no", "Om SSB"',
+    '#meta.bef.link = {"https://ssb.no": "Om SSB"}',
     '#meta.bef.alder.label = "Alder"',
   ].join('\n'));
   assert.equal(out.bef.title, 'Folkemengde');

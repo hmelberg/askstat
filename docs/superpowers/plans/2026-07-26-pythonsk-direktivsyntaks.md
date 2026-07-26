@@ -1420,10 +1420,71 @@ fields.
 `autoTittel`/`autoFelter`, a script with no directives behaves exactly as
 before, and the existing `tests/js/meta-info.test.js` stays green (11/11).
 
+- [ ] **Step 3b: Kildens tittel må ikke forsvinne, og tomme felt skal ikke rendres**
+
+Fila dokumenterer selv regelen (`js/meta-info.js:6-7`): kildens data
+overskrives **aldri stille** — begge vises. `beskrivelse`, `felter` og `lenker`
+følger den; tittelen gjorde det ikke. Med `tittel: d.title || api.tittel` blir
+kildens katalogtittel usynlig så snart brukeren setter sin egen.
+
+I `render()`, rett etter tittel-linja (`js/meta-info.js:162`):
+
+```js
+    // §2-regelen gjelder også tittelen: brukerens vinner overskriften, men
+    // kildens egen katalogtittel skal ikke forsvinne stille. Vises dempet
+    // under, på samme måte som autoBeskrivelse.
+    if (mi.direktivTittel && mi.autoTittel && mi.autoTittel !== mi.direktivTittel) {
+      parts.push('<div class="var-detail-prose">' + esc(mi.autoTittel) + '</div>');
+    }
+```
+
+I `collectDirectives`, krev også en verdi for `field` (ellers rendres en tom
+`<dt>/<dd>`-rad, mens tomme `note`/`title`/`label` droppes — inkonsistent):
+
+```js
+      else if (m.kind === 'field' && m.field && m.text) fields.push({ label: m.field, verdi: m.text });
+```
+
+Og oppdater den nå utdaterte kommentaren over `collectDirectives`, som bare
+beskriver lenker og tekst.
+
+- [ ] **Step 3c: Test HTML-en, ikke bare modellen**
+
+De tre testene i Step 1 sjekker `merge()`/`forVariable()`. Men feilen denne
+tasken fikser var «parses riktig, vises aldri» — så testen som ville fanget en
+regresjon i nettopp den påstanden mangler. Legg til:
+
+```js
+test('render: direktivtittel, felt og kildens tittel havner alle i HTML-en', () => {
+  const metas = [
+    { target: 'bef', variable: null, kind: 'title', text: 'Folkemengde' },
+    { target: 'bef', variable: null, kind: 'field', field: 'publisher', text: 'SSB' },
+    { target: 'bef', variable: null, kind: 'field', field: 'tom', text: '' },
+  ];
+  const html = MetaInfo.render(MetaInfo.merge({ tittel: 'SSB 05839', felter: [] }, metas, 'bef'), 'bef');
+  assert.match(html, /Folkemengde/);      // brukerens tittel
+  assert.match(html, /SSB 05839/);        // kildens tittel bevart
+  assert.match(html, /publisher/);        // fritt felt vises
+  assert.doesNotMatch(html, /<dt>tom<\/dt>/);   // tomt felt droppes
+});
+
+test('renderVariable: direktivetiketten havner i HTML-en', () => {
+  const metas = [{ target: 'bef', variable: 'alder', kind: 'label', text: 'Alder i hele år' }];
+  const v = MetaInfo.forVariable(MetaInfo.merge(null, metas, 'bef'), metas, 'bef', 'alder');
+  assert.match(MetaInfo.renderVariable(v, 'bef.alder'), /Alder i hele år/);
+});
+
+test('render: brukerinnhold escapes', () => {
+  const metas = [{ target: 'bef', variable: null, kind: 'title', text: '<script>alert(1)</script>' }];
+  const html = MetaInfo.render(MetaInfo.merge(null, metas, 'bef'), 'bef');
+  assert.doesNotMatch(html, /<script>/);
+});
+```
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/meta-info.test.js`
-Expected: PASS
+Expected: PASS (17 tester)
 
 - [ ] **Step 5: Commit**
 

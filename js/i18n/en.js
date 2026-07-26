@@ -5,7 +5,6 @@
 window.M2PY_I18N = window.M2PY_I18N || {  "OpenStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv i Python, R eller SQL (DuckDB); kjør i nettleseren.": "OpenStat is an engine for asking questions that can be answered with code and statistics — and for seeing and revising the code behind the answer. Write in Python, R or SQL (DuckDB); run in the browser.",
   "Statx/Stata-modus er fjernet fra OpenStat — bruk python eller R.": "Statx/Stata mode has been removed from OpenStat — use python or R.",
   "Gjenopprettet ulagret utkast.": "Restored unsaved draft.",
-  "Detaljvisning støttes ikke for datasett i denne modusen ennå.": "Detail view is not yet supported for datasets in this mode.",
   "Monterer datasett (DuckDB)…": "Assembling datasets (DuckDB)…",
   "Monterer datasett…": "Assembling datasets…",
   "Montering støtter ikke beskyttede kilder i OpenStat.": "Assembly does not support protected sources in OpenStat.",

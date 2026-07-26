@@ -4420,7 +4420,7 @@
             '<span class="sidebar-dataset-name-text">' + escapeHtml(dsName) + staleLabelHtml + badgeHtml + '</span>' +
             '<button class="meta-info-btn" data-meta-ds="' + escapeHtml(dsName) + '" title="' + escapeHtml(t('Vis metadata')) + '" aria-label="' + escapeHtml(t('Vis metadata')) + '">ⓘ</button>' +
           '</div>' +
-          '<div class="meta-info-container" data-meta-ds-container="' + escapeHtml(dsName) + '" style="display:none"></div>' +
+          '<div class="meta-info-container" style="display:none"></div>' +
           metaLine +
           '<div class="sidebar-vars">' + varsHtml + '</div></div>';
       }).join('');
@@ -7987,9 +7987,12 @@ async def _run_duck_sql(_sql, _fresh=True):
         // `ssb/05839` ville aldri matche brukerens `# meta ssb.var "…"`.
         var metaTarget = isRegister ? key.split('/')[0] : key;
         var mi = window.MetaInfo.merge(apiMetaV, metas, metaTarget);
+        // Kommentarlenken erstattes av «Fra fellesskapet»-rammen (giscus-tråd
+        // + fallback-lenke) rett nedenfor — samme mønster som variabelpanelet
+        // og datasett-ⓘ-containeren (ingen ekstern MetaInfo-kommentarlenke her).
         container.innerHTML = window.MetaInfo.renderVariable(
           window.MetaInfo.forVariable(mi, metas, metaTarget, varName),
-          { commentTarget: key + '.' + varName, labels: metaLabels() }) + noteHtml;
+          { labels: metaLabels() }) + noteHtml + metaCommunityFrame(key + '.' + varName);
       }
     }
     function metaPopulate(container, key, entry, varName) {

@@ -121,38 +121,53 @@
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
   // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
-  // Begge kallstedene sender den RÅ editorbufferen uten å sjekke
-  // parse().errors, så alt brukeren kan taste må håndteres her.
-  // En nøkkel kan BARE stå på en kommentarlinje som laster data: enten ny form
-  // (<mottaker>.connect(/.read() eller gammel (connect/read/load/require).
-  // create(key=...) er IKKE med — der er key et KOLONNENAVN, og å maskere det
-  // ødela lagrede script permanent. Vanlig kode har ingen kommentarmarkør og
-  // røres aldri.
+  // Kallstedene sender den RÅ editorbufferen uten å sjekke parse().errors,
+  // så alt brukeren kan taste må håndteres her.
+  // create(key=...) er ALDRI en hemmelighet — der er key et kolonnenavn, og
+  // github-storage lagrer den maskerte teksten, så maskering ødelegger scriptet.
+  // Kalt CREATE_CALL_RE (ikke CREATE_RE) — den finnes allerede som modulnavn
+  // for den gamle «create dataset»-regexen (linje 26/parseAssembly); samme
+  // navn her ville (var er funksjonsskopet) stille overskrevet DEN, og latt
+  // gamle create-dataset-script slutte å parse.
+  var CREATE_CALL_RE = /\.create[ \t]*\(/i;
+  // Kandidat: en kommentarlinje som enten HAR connect/read-form, eller bærer et
+  // key-token med sitert verdi / parentesform. Det andre leddet fanger
+  // fortsettelseslinjer i ombrukkede kall, der .connect( står på forrige linje.
   var CAND_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:.*\.(?:connect|read)[ \t]*\(|(?:connect|read|load|require)\b)/i;
+  var CAND2_RE = /^[ \t]*(?:#|--|\/\/).*\bkey[ \t]*(?:=[ \t]*["'\[{]|\()/i;
   var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
   var KEY_PAREN_RE = /\bkey[ \t]*\([ \t]*(?!ask[ \t]*\))[^)]*\)/gi;
-  var KEY_LEFT_RE = /\bkey[ \t]*[=(]/i;
-  var KEY_OK_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
+  var KEY_TOKEN_RE = /\bkey[ \t]*[=(]/i;
+  var KEY_SAFE_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
 
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      if (!KEY_LEFT_RE.test(line) || !CAND_RE.test(line)) continue;
+      if (!KEY_TOKEN_RE.test(line)) continue;
+      if (CREATE_CALL_RE.test(line)) continue;
+      if (!CAND_RE.test(line) && !CAND2_RE.test(line)) continue;
       // Presis maskering er BARE til å stole på når linja parser rent. En
       // uavsluttet literal sluker alt fram til neste hermetegn og kan gjemme en
       // senere key=-klausul inni seg; og en linje parseLine ikke kjenner igjen
-      // (typo i mottakeren: «ots.connect») ville sluppet ubehandlet gjennom.
+      // (typo i mottakeren: «ots.connect», eller en fortsettelseslinje som
+      // ikke er et fullt kall alene) ville sluppet ubehandlet gjennom.
       var pl = global.DirectiveParser.parseLine(line);
-      if (!pl || pl.error) {
-        var m = KEY_LEFT_RE.exec(line);
-        lines[i] = line.slice(0, m.index) + 'key="***"';
-        continue;
+      var out = line;
+      if (pl && !pl.error) {
+        out = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
+          var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
+          return inner === 'ask' ? mm : head + '"***"';
+        }).replace(KEY_PAREN_RE, 'key(***)');
       }
-      lines[i] = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
-        var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
-        return inner === 'ask' ? mm : head + '"***"';
-      }).replace(KEY_PAREN_RE, 'key(***)');
+      // Overlever et key-token som ikke er ask/***, er verdien enten usitert,
+      // en liste/dict, eller literalen malformert. Ingen av delene kan maskeres
+      // presist — masker fra første token og ut linja.
+      if (KEY_TOKEN_RE.test(out.replace(KEY_SAFE_RE, ''))) {
+        var m = KEY_TOKEN_RE.exec(out);
+        out = out.slice(0, m.index) + 'key="***"';
+      }
+      lines[i] = out;
     }
     return lines.join('\n');
   }

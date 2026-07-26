@@ -123,6 +123,25 @@ test('scrubKeys: gammel key(...)-form og ukjent mottaker maskeres òg', () => {
   ].forEach((c) => assert.doesNotMatch(DD.scrubKeys(c[0]), c[1], c[0]));
 });
 
+// Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
+// og et script fra før migreringen må ikke lekke ved «Spør AI».
+// Ombrukket kall: .connect( står på FORRIGE linje, så fortsettelseslinja
+// fanges bare av key-token-regelen. Naturlig med lange pxweb-URL-er.
+test('scrubKeys: nøkkel på fortsettelseslinje i ombrukket kall', () => {
+  const script = ['# ssb = ost.connect("https://data.ssb.no/api", kind="pxweb",',
+                  '#     key="sk_live_HEMMELIG")'].join('\n');
+  assert.doesNotMatch(DD.scrubKeys(script), /sk_live/);
+});
+
+// Usitert verdi, liste og dict parser RENT, men treffes ikke av den presise
+// regexen — uten etterkontrollen gikk de urørt til AI-endepunktet.
+test('scrubKeys: usiterte og strukturerte key-verdier maskeres', () => {
+  ['# d = ost.read("u", key=sk_live_HEMMELIG)',
+   '# d = ost.read("u", key=["S1","S2"])',
+   '# d = ost.read("u", key={"a":"SECRETDICT"})',
+  ].forEach((line) => assert.doesNotMatch(DD.scrubKeys(line), /sk_live|S1|SECRETDICT/, line));
+});
+
 test('scrubKeys: idempotent', () => {
   const once = DD.scrubKeys('# d = ost.read("u", key="hemmelig")');
   assert.equal(DD.scrubKeys(once), once);

@@ -506,6 +506,17 @@
       <div class="var-detail-body" id="varDetailBody"></div>
     </div>
   </div>
+  <div class="var-detail-overlay" id="metaModalOverlay" role="dialog" aria-modal="true" aria-labelledby="metaModalTitle" aria-hidden="true">
+    <div class="var-detail-dialog" id="metaModalDialog">
+      <div class="var-detail-header">
+        <h2 class="var-detail-title" id="metaModalTitle"></h2>
+        <div class="var-detail-header-actions">
+          <button type="button" id="metaModalCloseBtn" data-i18n-title data-i18n-aria title="Lukk" aria-label="Lukk">&#10005;</button>
+        </div>
+      </div>
+      <div class="var-detail-body" id="metaModalBody"></div>
+    </div>
+  </div>
   <div class="individata-overlay" id="individataOverlay" role="dialog" aria-modal="true" aria-labelledby="individataTitle" aria-hidden="true">
     <div class="individata-dialog">
       <div class="individata-header">
@@ -4088,6 +4099,52 @@
     }
     initVariableDetailModal();
 
+    // ── Metadata-modal (Task 2): lukk/Esc/backdrop + delegert 💬 ──────────────
+    function closeMetadataModal() {
+      var overlay = document.getElementById('metaModalOverlay');
+      if (!overlay) return;
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      // Stopp en ev. åpen giscus-tråd i modalen når den lukkes (samme grunn som
+      // closeVariableDetailModal: ingen iframe som kjører videre i et skjult mount).
+      var thread = document.querySelector('#metaModalBody .meta-info-community-thread');
+      if (thread && window.Comments && window.Comments.isOpen(thread)) window.Comments.close();
+    }
+
+    function initMetadataModal() {
+      var overlay = document.getElementById('metaModalOverlay');
+      var closeBtn = document.getElementById('metaModalCloseBtn');
+      var bodyEl = document.getElementById('metaModalBody');
+      if (!overlay || !closeBtn) return;
+      if (bodyEl) {
+        // Én delegert lytter: 💬 toggler giscus-tråden inn/ut i sitt eget mount og
+        // åpner med appens tema (Comments.themeForApp) — datasett-renderingen
+        // hopper over sin egen per-element-wiring for #metaModalBody, så dette er
+        // den ENESTE lytteren for både datasett- og kilde-modalen.
+        bodyEl.addEventListener('click', function (e) {
+          var cbtn = e.target.closest('.meta-info-comment-btn');
+          if (cbtn && window.Comments) {
+            var frame = cbtn.closest('.meta-info-community');
+            var thread = frame && frame.querySelector('.meta-info-community-thread');
+            if (thread) {
+              if (window.Comments.isOpen(thread)) window.Comments.close();
+              else window.Comments.open(thread, cbtn.getAttribute('data-comment-target'), { theme: window.Comments.themeForApp() });
+            }
+          }
+        });
+      }
+      closeBtn.addEventListener('click', function () { closeMetadataModal(); });
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeMetadataModal();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        var o = document.getElementById('metaModalOverlay');
+        if (o && o.classList.contains('open')) closeMetadataModal();
+      });
+    }
+    initMetadataModal();
+
     // ── Hent/Vis individata-modal ────────────────────────────────────────────
     var _individataTabulator = null;
     function closeIndividataModal() {
@@ -4534,7 +4591,7 @@
             '<span class="meta-info-community-title">' + escapeHtml(t('Kommentarer')) + '</span>' +
             '<a class="meta-info-community-link" href="' + escapeHtml(window.MetaInfo.commentUrl(target)) + '" target="_blank" rel="noopener">' + escapeHtml(t('Åpne på GitHub')) + '</a>' +
           '</div>' +
-          '<button type="button" class="meta-info-comment-btn" data-comment-target="' + escapeHtml(target) + '">💬 ' + escapeHtml(t('Kommentarer')) + '</button>' +
+          '<button type="button" class="meta-info-comment-btn" aria-label="' + escapeHtml(t('Vis/skjul kommentarer')) + '" data-comment-target="' + escapeHtml(target) + '">💬</button>' +
           '<div class="meta-info-community-thread"></div>' +
         '</div>';
     }
@@ -4626,7 +4683,10 @@
       // (5) 💬-knapp + community-ramme (mål = dsName)
       html += metaCommunityFrame(ds);
       container.innerHTML = html;
-      var cbtn = container.querySelector('.meta-info-comment-btn');
+      // Modal-body (#metaModalBody) har sin egen delegerte 💬-lytter som åpner
+      // giscus med appens tema (showMetadataModal/initMetadataModal). Unngå
+      // dobbel-wiring der; den inline sidebar-containeren wires per element her.
+      var cbtn = container.id === 'metaModalBody' ? null : container.querySelector('.meta-info-comment-btn');
       if (cbtn) cbtn.addEventListener('click', function () {
         var frame = cbtn.closest('.meta-info-community');
         var thread = frame && frame.querySelector('.meta-info-community-thread');
@@ -4635,6 +4695,42 @@
           else window.Comments.open(thread, cbtn.getAttribute('data-comment-target'));
         }
       });
+    }
+
+    // Task 2: Metadata-modal. Åpner overlayen og rendrer datasett-/kilde-
+    // metadata i #metaModalBody ved å GJENBRUKE nøyaktig samme render-logikk som
+    // den inline ⓘ-containeren — metaPopulateDataset for datasett (lazy fetch +
+    // cache uendret), metaEnsure + metaRender for kilder (uten variabellisten;
+    // variablene bor i navn-toggle fra Task 4). Sidebar-radene rewires til denne
+    // i Task 3/4 — her legges bare modalen + funksjonen til. opts = {kind, entry}.
+    function showMetadataModal(target, opts) {
+      opts = opts || {};
+      var overlay = document.getElementById('metaModalOverlay');
+      var titleEl = document.getElementById('metaModalTitle');
+      var bodyEl = document.getElementById('metaModalBody');
+      if (!overlay || !titleEl || !bodyEl) return;
+      titleEl.textContent = target;
+      bodyEl.innerHTML = '';
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      if (opts.kind === 'source') {
+        var entry = opts.entry || (window.__connectedSources || {})[target] || {};
+        if (target.indexOf('/') > 0 && !entry.metaFetched) {
+          // Lazy: samme fetch/cache som metaPopulate, men mot modal-body og uten
+          // variabellisten. Guard mot lukk/reåpning på annet mål under henting.
+          bodyEl.innerHTML = '<div class="meta-info-note">' + escapeHtml(t('Laster …')) + '</div>';
+          metaEnsure(entry, target).then(function () {
+            if (overlay.classList.contains('open') && titleEl.textContent === target) {
+              metaRender(bodyEl, target, entry, null, false);
+            }
+          });
+        } else {
+          metaRender(bodyEl, target, entry, null, false);
+        }
+      } else {
+        // Datasett: uendret lazy/populate-logikk, bare med modal-body som container.
+        metaPopulateDataset(bodyEl, target);
+      }
     }
 
     // Art fra dtype-strengen alene — brukes for remote-datasett der bare
@@ -7948,7 +8044,10 @@ async def _run_duck_sql(_sql, _fresh=True):
         console.warn('kildemetadata (' + key + '):', e);
       }
     }
-    function metaRender(container, key, entry, varName) {
+    // withVarList (default true): kildenivå-render tar med den klikkbare variabel-
+    // listen. Metadata-modalen (Task 2) sender false — variablene bor i navn-
+    // toggle fra Task 4, ikke i modalen. Eksisterende 4-arg-kall er uendret.
+    function metaRender(container, key, entry, varName, withVarList) {
       var metas = metaFreshMetas();
       var isRegister = key.indexOf('/') > 0;
       var noteHtml = (isRegister && entry.metaError)
@@ -7970,12 +8069,15 @@ async def _run_duck_sql(_sql, _fresh=True):
         html += noteHtml;
         // (3) variabelliste INNE i containeren: én klikkbar rad per variabel
         //     (delegert på #sidebarSources) → variabelinfo i sub-container.
-        var cols = entry.columns || [];
-        if (cols.length) {
-          html += '<div class="meta-info-varlist">' + cols.map(function (c) {
-            return '<div class="meta-info-var-row" data-meta-key="' + escapeHtml(key) + '" data-meta-var="' + escapeHtml(c) + '">'
-              + escapeHtml(c) + '</div>';
-          }).join('') + '</div>';
+        //     Utelates når withVarList === false (metadata-modalen, Task 2).
+        if (withVarList !== false) {
+          var cols = entry.columns || [];
+          if (cols.length) {
+            html += '<div class="meta-info-varlist">' + cols.map(function (c) {
+              return '<div class="meta-info-var-row" data-meta-key="' + escapeHtml(key) + '" data-meta-var="' + escapeHtml(c) + '">'
+                + escapeHtml(c) + '</div>';
+            }).join('') + '</div>';
+          }
         }
         // (4) 💬-knapp + «Fra fellesskapet»-ramme (mål = nøkkelen, f.eks. ssb/05839).
         html += metaCommunityFrame(key);

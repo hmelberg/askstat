@@ -256,6 +256,20 @@
       if (item.kind === 'pxweb' || item.kind === 'eurostat') {
         var PX = global.PxWeb;
         if (!PX) throw new Error('PxWeb-modulen mangler (js/pxweb.js må lastes før data-loader.js)');
+        // all()-direktivet (Task 3, spec 2026-07-26-all-direktiv-design §3):
+        // kun pxweb (Task 1 setter aldri item.all for eurostat — guard er
+        // belte-og-seler). Hent metadata, ekspander base-tabell-URL-en til
+        // valueCodes[*] for hver dimensjon uten eksplisitt utvalg (med
+        // cellevakt), FØR den vanlige dataUrlFor/data-hentingen kjører — item
+        // er en vanlig funksjonsparameter (ikke const), så reassignment her
+        // er trygt og lokalt til denne map-kallbacken.
+        if (item.all && item.kind === 'pxweb') {
+          var metaBytesA = await fetchBytes(Object.assign({}, item, { url: PX.metadataUrl(item.url) }));
+          var metaObjA = JSON.parse(new TextDecoder().decode(metaBytesA.buf));
+          var expA = PX.expandAllUrl(item.url, metaObjA, PX.PXWEB_ALL_MAX_CELLS);
+          if (expA.error) throw new Error(expA.error);
+          item = Object.assign({}, item, { url: expA.url });
+        }
         var fetchedPx = await fetchBytes(Object.assign({}, item, { url: PX.dataUrlFor(item.kind, item.url) }));
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));

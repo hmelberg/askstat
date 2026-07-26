@@ -78,4 +78,35 @@ test('scrubKeys: maskerer key="literal", beholder key="ask"', () => {
                             '# d = ost.read("u", key="***")');
   assert.equal(DD.scrubKeys('# d = ost.read("u", key="ask")'),
                             '# d = ost.read("u", key="ask")');
+  assert.equal(DD.scrubKeys("# d = ost.read('u', key='ask')"),
+                            "# d = ost.read('u', key='ask')");
+});
+
+// Hver av disse er en lekkasje som faktisk slapp gjennom en tidligere versjon.
+test('scrubKeys: ingen hemmelighet overlever, uansett form', () => {
+  [
+    '# d = ost.read("u", key="hemmelig")',
+    '# d = ost.read("u", key="it\'s-a-secret")',
+    '# d = ost.read("u", key=\'pass"word\')',
+    '# h = ost.connect("x", key="SECRET\\\\")',      // hale-backslash, uavsluttet
+    '# h = ost.connect("x", key="SECRET',            // glemt sluttfnutt
+    '# s = ost.connect("x", key="oops, other=1, key="s3cr3t")',  // to klausuler, første ødelagt
+    '# d = ost.read("u", key="a", key="SECRETB")',
+    '# d = ost.read("u", KEY="SECRETC")',
+  ].forEach((line) => {
+    assert.doesNotMatch(DD.scrubKeys(line), /hemmelig|secret|s3cr3t|pass"word|SECRETB|SECRETC/i, line);
+  });
+});
+
+// Pass 2 må ALDRI røre brukerens egen kode. En tidligere versjon gjorde
+// «sorted(rows, key=lambda r: r[0])» om til «sorted(rows, key="***"».
+test('scrubKeys: vanlig kode med key= er urørt', () => {
+  ['sorted(rows, key=lambda r: r[0])', 'max(items, key=lambda i: i.value)',
+   "df.sort_values('col', key=abs)", 'api_key="ikke-vaar"', '#%% python key=1',
+  ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
+});
+
+test('scrubKeys: idempotent', () => {
+  const once = DD.scrubKeys('# d = ost.read("u", key="hemmelig")');
+  assert.equal(DD.scrubKeys(once), once);
 });

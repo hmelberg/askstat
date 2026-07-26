@@ -107,7 +107,8 @@ test('parseLine: ukjent ost-verb gir hjelpsom feil', () => {
 test('parseLine: gammel syntaks gir migrasjonshint', () => {
   assert.match(DP.parseLine('# read ssb/05839 as bef').error,
                /gammel syntaks.*ost\.read/);
-  assert.match(DP.parseLine('# connect fred').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# connect helse2025 as h, key(ask)').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# load gh/iris.csv as iris').error, /gammel syntaks/);
   assert.match(DP.parseLine('# add p/x into panel inner').error, /gammel syntaks/);
   assert.match(DP.parseLine('# join sales into panel on pid').error, /gammel syntaks/);
   assert.match(DP.parseLine('# create-dataset panel, key(pid)').error, /gammel syntaks/);
@@ -138,4 +139,18 @@ test('parseLine: trailing komma i ns-tuppel', () => {
 
 test('parseLine: syntaksfeil i argumenter propagerer', () => {
   assert.match(DP.parseLine('# x = ost.read("uavsluttet)').error, /uavsluttet streng/);
+});
+
+// Bare enkeltord-former har INGEN kjennetegn som skiller dem fra prosa
+// («# use df» ~ «# use caution»), så de varsles bevisst ikke. Migrerings-
+// skriptet dekker alle eksisterende filer; dette er kun håndskrivingshjelp.
+test('parseLine: bare enkeltord-former varsles bevisst ikke', () => {
+  ['# connect fred', '# connect ssb', '# read h as df', '# use df',
+   '# meta bef Folkemengde etter alder',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+test('parseLine: CRLF-linjeslutt bryter ikke gjenkjenning', () => {
+  assert.equal(DP.parseLine('# bef = ost.read("x")\r').form, 'call');
+  assert.match(DP.parseLine('# load gh/iris.csv as iris\r').error, /gammel syntaks/);
 });

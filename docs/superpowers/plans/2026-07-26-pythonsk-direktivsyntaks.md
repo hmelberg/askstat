@@ -1366,14 +1366,59 @@ test('merge: brukerens title overstyrer ikke kildens uten å vises som brukerinn
 Run: `node --test tests/js/meta-info.test.js`
 Expected: FAIL — `mi.tittel` er `undefined` og `mi.felter` er tom.
 
-- [ ] **Step 3: Extend `collectDirectives`**
+- [ ] **Step 3: Extend `collectDirectives`, `merge` and `forVariable`**
 
-In `js/meta-info.js`, extend the `kind` dispatch so `title` sets the title,
-`field` appends `{label: m.field, verdi: m.text}` to `felter`, and `label`
-is recorded per variable for `forVariable` to read. Follow the file's existing
-convention that user-supplied content is rendered first and marked
-`.meta-info-user`, and never silently overrides the source's own metadata
-(`js/meta-info.js:145-177`).
+Three edits in `js/meta-info.js`, all following the file's existing convention:
+the user's content wins, the source's is kept alongside under an `auto*` field
+so the renderer can style them differently.
+
+Replace `collectDirectives`:
+
+```js
+  function collectDirectives(list) {
+    var links = [], texts = [], fields = [], title, label;
+    (list || []).forEach(function (m) {
+      if (m.kind === 'link' && m.url) links.push({ label: m.label || m.url, url: m.url });
+      else if (m.kind === 'text' && m.text) texts.push(m.text);
+      else if (m.kind === 'title' && m.text) title = m.text;
+      else if (m.kind === 'label' && m.text) label = m.text;
+      else if (m.kind === 'field' && m.field) fields.push({ label: m.field, verdi: m.text });
+    });
+    return { links: links, text: texts.join('\n\n'),
+             fields: fields, title: title, label: label };
+  }
+```
+
+In `merge`, take the title and prepend the user's fields:
+
+```js
+      tittel: d.title || api.tittel || undefined,
+      beskrivelse: combineBeskrivelse(d.text, api.beskrivelse),
+      felter: d.fields.concat(api.felter || []),
+```
+
+and add four fields next to the existing `direktiv*`/`auto*` pairs:
+
+```js
+      direktivTittel: d.title || undefined,
+      autoTittel: api.tittel || undefined,
+      direktivFelter: d.fields,
+      autoFelter: (api.felter || []).slice(),
+```
+
+In `forVariable`, let the directive's label win over the source's:
+
+```js
+      label: d.label || api.label || varName,
+```
+
+and add `direktivLabel: d.label || undefined,` next to the other `direktiv*`
+fields.
+
+**Verified during planning** against the real file: the three new kinds reach
+`merge()`/`forVariable()`, the source's title and fields are preserved under
+`autoTittel`/`autoFelter`, a script with no directives behaves exactly as
+before, and the existing `tests/js/meta-info.test.js` stays green (11/11).
 
 - [ ] **Step 4: Run test to verify it passes**
 

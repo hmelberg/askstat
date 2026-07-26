@@ -779,6 +779,7 @@ window.M2PY_I18N.en = {
   "Vis metadata": "Show metadata",
   "Vis data": "Show data",
   "(kunne ikke hente kildemetadata)": "(could not fetch source metadata)",
+  "(ingen variabler)": "(no variables)",
   "⚠ # meta: ukjent mål «{mal}»": "⚠ # meta: unknown target «{mal}»",
   "💬 Kommenter og se kommentarer": "💬 Comment and see comments",
   "Lenker": "Links",

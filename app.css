@@ -691,18 +691,20 @@
     .sidebar-dataset-stale-note p { margin: 0 0 8px 0; }
     .sidebar-dataset-stale-run-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; color: var(--text); font-size: 12px; line-height: 1.4; }
     .sidebar-dataset-stale-run-btn:hover { border-color: var(--accent); color: var(--accent); }
-    /* Metadata-container i «Tilkoblede kilder» (spec 2026-07-25-metadata-sidebar §5) */
-    /* Hele navneraden er ETT klikkbart målpunkt (navn + ⓘ) → åpner containeren. */
+    /* «Tilkoblede kilder» (Task 4, speiler datasettraden): navnelinja toggler
+       variabellista (.sidebar-src-vars, skjult som standard, ▸/▾-indikator);
+       ⓘ åpner metadata-modalen. */
     .sidebar-src-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; cursor: pointer; padding: 2px 4px; margin: 0 -4px; border-radius: 4px; }
     .sidebar-src-head:hover { background: rgba(37, 99, 235, 0.08); }
     body[data-theme="dark"] .sidebar-src-head:hover { background: rgba(122, 162, 247, 0.12); }
     .sidebar-src-head .sidebar-dataset-meta { flex: 1; min-width: 0; margin: 4px 0; }
+    /* Variabellista under kildenavnet — skjult til navneklikket toggler den. */
+    .sidebar-src-vars { margin: 2px 0 10px 8px; }
     .meta-info-btn, .sidebar-data-btn { flex: 0 0 auto; align-self: center; background: none; border: none; padding: 0 2px; margin: 0; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; opacity: 0.7; }
     .meta-info-btn:hover, .sidebar-data-btn:hover { color: var(--accent); opacity: 1; }
     .meta-info-container { margin: 2px 0 8px 6px; padding: 8px 10px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.45; color: var(--text); word-break: break-word; }
     .meta-info-var-container { margin-left: 12px; }
-    /* Variabellisten INNE i kilde-containeren: klikkbare rader → variabelinfo. */
-    .meta-info-varlist { margin: 8px 0 0 0; }
+    /* Klikkbare variabelrader (i .sidebar-src-vars) → variabelinfo/kodeliste. */
     .meta-info-var-row { cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 4px; color: var(--text); font-size: 12px; word-break: break-word; }
     .meta-info-var-row:hover { background: rgba(37, 99, 235, 0.08); color: var(--accent); }
     body[data-theme="dark"] .meta-info-var-row:hover { background: rgba(122, 162, 247, 0.12); }
@@ -721,8 +723,10 @@
     .meta-info-kodeliste-table td { padding: 2px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
     .meta-info-kodeliste-table td:first-child { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .meta-info-kodeliste-more td { color: var(--text-muted); font-style: italic; }
-    /* Variabel-antallet gjentar kildehodet + radene rett under — skjul i containeren. */
-    .meta-info-container .meta-info-varcount { display: none; }
+    /* Variabel-antallet gjentar kildehodet/variabellista — skjul i containeren
+       OG i metadata-modalen (kilde-metadata rendres nå der, uten variabellista). */
+    .meta-info-container .meta-info-varcount,
+    #metaModalBody .meta-info-varcount { display: none; }
     .meta-info-note { color: var(--text-muted); font-style: italic; font-size: 11px; margin-top: 6px; }
     /* Proveniens-linje (kilde-URL/register-form) + rader×kolonner i datasett-ⓘ */
     .meta-info-container .meta-info-prov, .meta-info-container .meta-info-dims { font-size: 11px; color: var(--text-muted); margin: 6px 0 0 0; line-height: 1.4; }

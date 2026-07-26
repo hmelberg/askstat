@@ -457,6 +457,54 @@ def _dataset_info():
         return '{}'
 
 
+def _dataset_rows(name, limit=5000):
+    """Individata-tabellen (⊞-ikonet): serialiser én DataFrame til samme
+    kontrakt som pyodide/R/duckdb-veiene {columns, dtypes, total_rows,
+    shown_rows, rows_json}. NaN/inf -> None (gyldig JSON-null)."""
+    try:
+        import pandas_mpy as _pd
+        _v = _shared_vars.get(name)
+        if not isinstance(_v, _pd.DataFrame):
+            return json.dumps({'error': 'not_found'})
+        total = len(_v)
+        shown = _v.head(limit) if total > limit else _v
+        cols = [str(_c) for _c in shown.columns]
+        rows = shown.values
+        # pandas_mpy sin NaN er et singleton av en egen NaN-klasse, IKKE en
+        # Python-float — identitetssjekk mot _pd.nan er nødvendig.
+        _NAN = getattr(_pd, 'nan', None)
+
+        def _is_na(x):
+            if _NAN is not None and x is _NAN:
+                return True
+            return isinstance(x, float) and (x != x or x == float('inf') or x == float('-inf'))
+
+        recs = []
+        for _row in rows:
+            recs.append({cols[_j]: (None if _is_na(_row[_j]) else _row[_j]) for _j in range(len(cols))})
+        dtypes = {}
+        for _j, _c in enumerate(cols):
+            _num, _seen = True, False
+            for _row in rows:
+                _x = _row[_j]
+                if _is_na(_x):
+                    continue
+                _seen = True
+                if isinstance(_x, bool) or not isinstance(_x, (int, float)):
+                    _num = False
+                    break
+            dtypes[_c] = 'float64' if (_seen and _num) else 'object'
+        return json.dumps({
+            'columns': cols,
+            'dtypes': dtypes,
+            'total_rows': total,
+            'shown_rows': len(recs),
+            'rows_json': json.dumps(recs, default=str),
+        })
+    except Exception as _e:
+        return json.dumps({'error': str(_e)})
+
+
 def _sync_var(name, value_json):
     """ui sync_to (fase 3): skriv en widget-verdi inn i _shared_vars uten
     kjøring. Speiler _bind_datasets-kontrakten: '' ved suksess, ellers

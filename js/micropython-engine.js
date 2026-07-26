@@ -176,6 +176,7 @@
         _rollback: mp.globals.get('_rollback'),
         _bind_datasets: mp.globals.get('_bind_datasets'),
         _dataset_info: mp.globals.get('_dataset_info'),
+        _dataset_rows: mp.globals.get('_dataset_rows'),
         _reset: mp.globals.get('_reset'),
         _sync_var: mp.globals.get('_sync_var')
       };
@@ -445,6 +446,14 @@
       if (!__loadedHandles) return {};
       try { return JSON.parse(__loadedHandles._dataset_info() || '{}'); }
       catch (e) { return {}; }
+    },
+    // Individata-tabellen (⊞): radene til ÉN DataFrame i samme kontrakt som
+    // pyodide/R/duckdb-veiene. null når motoren ikke er lastet; {error} når
+    // datasettet ikke finnes / serialisering feiler.
+    datasetRows: function (name) {
+      if (!__loadedHandles || !__loadedHandles._dataset_rows) return null;
+      try { return JSON.parse(__loadedHandles._dataset_rows(name) || 'null'); }
+      catch (e) { return { error: (e && e.message) || String(e) }; }
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

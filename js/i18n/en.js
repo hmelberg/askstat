@@ -778,6 +778,9 @@ window.M2PY_I18N.en = {
   // ── Metadata-sidebar (spec 2026-07-25-metadata-sidebar-design) ──
   "Vis metadata": "Show metadata",
   "Vis data": "Show data",
+  "Datatabell støttes ikke i JavaScript-modus ennå — bruk console.table() eller show() i scriptet.": "The data table isn't supported in JavaScript mode yet — use console.table() or show() in your script.",
+  "Fant ikke datasettet «{navn}» i motoren — kjør scriptet på nytt.": "Couldn't find the dataset «{navn}» in the engine — run the script again.",
+  "Kunne ikke hente radene fra datasettet.": "Couldn't fetch the dataset's rows.",
   "(kunne ikke hente kildemetadata)": "(could not fetch source metadata)",
   "(ingen variabler)": "(no variables)",
   "⚠ # meta: ukjent mål «{mal}»": "⚠ # meta: unknown target «{mal}»",

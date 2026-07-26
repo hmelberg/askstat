@@ -483,6 +483,15 @@
       if (!__loadedMod) return {};
       try { return JSON.parse(__loadedMod._dataset_info() || '{}'); }
       catch (e) { return {}; }
+    },
+    // Individata-tabellen (⊞): radene til ÉN DataFrame i samme kontrakt som
+    // pyodide/R/duckdb-veiene {columns, dtypes, total_rows, shown_rows,
+    // rows_json}. null når motoren ikke er lastet; {error} når datasettet
+    // ikke finnes / serialisering feiler.
+    datasetRows: function (name) {
+      if (!__loadedMod) return null;
+      try { return JSON.parse(__loadedMod._dataset_rows(name) || 'null'); }
+      catch (e) { return { error: (e && e.message) || String(e) }; }
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

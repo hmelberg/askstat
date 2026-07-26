@@ -4190,7 +4190,16 @@
         && window.lastDatasetInfo[datasetName].runtime) || 'python';
       var _idIsR = _idRt === 'r';
       var _idIsDuck = _idRt === 'duckdb';
-      if (!_idIsR && !_idIsDuck && !pyodide) {
+      // brython/micropython leverer radene fra sin egen motor (samme kontrakt
+      // som pyodide/R/duckdb); datasettet bor i motorens VM, ikke i pyodide.
+      var _idIsBry = _idRt === 'brython';
+      var _idIsMpy = _idRt === 'micropython';
+      var _idEng = _idIsBry ? window.BrythonEngine : (_idIsMpy ? window.MicroPythonEngine : null);
+      if (_idRt === 'javascript') {
+        bodyEl.innerHTML = '<div class="individata-status error">' + t('Datatabell støttes ikke i JavaScript-modus ennå — bruk console.table() eller show() i scriptet.') + '</div>';
+        return;
+      }
+      if (!_idIsR && !_idIsDuck && !_idEng && !pyodide) {
         bodyEl.innerHTML = '<div class="individata-status error">' + t('Kjør et skript først så datasettet er lastet inn.') + '</div>';
         return;
       }
@@ -4251,6 +4260,18 @@
             info = JSON.parse(((await _rj.toJs()).values || [])[0]);
           } finally {
             try { await webR.destroy(_rj); } catch (e) {}
+          }
+        } else if (_idEng) {
+          // brython/micropython: motoren serialiserer radene til samme
+          // kontrakt (datasetRows), NaN/inf -> null. {error:'not_found'} når
+          // datasettet ikke lenger finnes i motorens VM.
+          info = _idEng.datasetRows(datasetName);
+          if (!info || info.error) {
+            bodyEl.innerHTML = '<div class="individata-status error">' + escapeHtml(
+              info && info.error === 'not_found'
+                ? t('Fant ikke datasettet «{navn}» i motoren — kjør scriptet på nytt.', { navn: datasetName })
+                : t('Kunne ikke hente radene fra datasettet.')) + '</div>';
+            return;
           }
         } else {
         pyodide.globals.set('_individata_name', datasetName);

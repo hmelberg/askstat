@@ -217,7 +217,7 @@ Create `js/directive-parser.js`:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 12 tester
+Expected: PASS, 14 tester
 
 - [ ] **Step 5: Commit**
 
@@ -799,6 +799,23 @@ test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
 
 // Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
 // og et script fra før migreringen må ikke lekke ved «Spør AI».
+// Ombrukket kall: .connect( står på FORRIGE linje, så fortsettelseslinja
+// fanges bare av key-token-regelen. Naturlig med lange pxweb-URL-er.
+test('scrubKeys: nøkkel på fortsettelseslinje i ombrukket kall', () => {
+  const script = ['# ssb = ost.connect("https://data.ssb.no/api", kind="pxweb",',
+                  '#     key="sk_live_HEMMELIG")'].join('\n');
+  assert.doesNotMatch(DD.scrubKeys(script), /sk_live/);
+});
+
+// Usitert verdi, liste og dict parser RENT, men treffes ikke av den presise
+// regexen — uten etterkontrollen gikk de urørt til AI-endepunktet.
+test('scrubKeys: usiterte og strukturerte key-verdier maskeres', () => {
+  ['# d = ost.read("u", key=sk_live_HEMMELIG)',
+   '# d = ost.read("u", key=["S1","S2"])',
+   '# d = ost.read("u", key={"a":"SECRETDICT"})',
+  ].forEach((line) => assert.doesNotMatch(DD.scrubKeys(line), /sk_live|S1|SECRETDICT/, line));
+});
+
 test('scrubKeys: gammel key(...)-form og ukjent mottaker maskeres òg', () => {
   [['# connect https://x, key(TOPSECRET)', /TOPSECRET/],
    ['# load ssb/05839 as bef, key(TOPSECRET)', /TOPSECRET/],
@@ -827,38 +844,44 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
   // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
-  // Begge kallstedene sender den RÅ editorbufferen uten å sjekke
-  // parse().errors, så alt brukeren kan taste må håndteres her.
-  // En nøkkel kan BARE stå på en kommentarlinje som laster data: enten ny form
-  // (<mottaker>.connect(/.read() eller gammel (connect/read/load/require).
-  // create(key=...) er IKKE med — der er key et KOLONNENAVN, og å maskere det
-  // ødela lagrede script permanent. Vanlig kode har ingen kommentarmarkør og
-  // røres aldri.
+  // Kallstedene sender den RÅ editorbufferen uten å sjekke parse().errors,
+  // så alt brukeren kan taste må håndteres her.
+  // create(key=...) er ALDRI en hemmelighet — der er key et kolonnenavn, og
+  // github-storage lagrer den maskerte teksten, så maskering ødelegger scriptet.
+  var CREATE_RE = /\.create[ \t]*\(/i;
+  // Kandidat: en kommentarlinje som enten HAR connect/read-form, eller bærer et
+  // key-token med sitert verdi / parentesform. Det andre leddet fanger
+  // fortsettelseslinjer i ombrukkede kall, der .connect( står på forrige linje.
   var CAND_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:.*\.(?:connect|read)[ \t]*\(|(?:connect|read|load|require)\b)/i;
+  var CAND2_RE = /^[ \t]*(?:#|--|\/\/).*\bkey[ \t]*(?:=[ \t]*["'\[{]|\()/i;
   var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
   var KEY_PAREN_RE = /\bkey[ \t]*\([ \t]*(?!ask[ \t]*\))[^)]*\)/gi;
-  var KEY_LEFT_RE = /\bkey[ \t]*[=(]/i;
-  var KEY_OK_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
+  var KEY_TOKEN_RE = /\bkey[ \t]*[=(]/i;
+  var KEY_SAFE_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
   
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      if (!KEY_LEFT_RE.test(line) || !CAND_RE.test(line)) continue;
-      // Presis maskering er BARE til å stole på når linja parser rent. En
-      // uavsluttet literal sluker alt fram til neste hermetegn og kan gjemme en
-      // senere key=-klausul inni seg; og en linje parseLine ikke kjenner igjen
-      // (typo i mottakeren: «ots.connect») ville sluppet ubehandlet gjennom.
+      if (!KEY_TOKEN_RE.test(line)) continue;
+      if (CREATE_RE.test(line)) continue;
+      if (!CAND_RE.test(line) && !CAND2_RE.test(line)) continue;
       var pl = global.DirectiveParser.parseLine(line);
-      if (!pl || pl.error) {
-        var m = KEY_LEFT_RE.exec(line);
-        lines[i] = line.slice(0, m.index) + 'key="***"';
-        continue;
+      var out = line;
+      if (pl && !pl.error) {
+        out = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
+          var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
+          return inner === 'ask' ? mm : head + '"***"';
+        }).replace(KEY_PAREN_RE, 'key(***)');
       }
-      lines[i] = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
-        var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
-        return inner === 'ask' ? mm : head + '"***"';
-      }).replace(KEY_PAREN_RE, 'key(***)');
+      // Overlever et key-token som ikke er ask/***, er verdien enten usitert,
+      // en liste/dict, eller literalen malformert. Ingen av delene kan maskeres
+      // presist — masker fra første token og ut linja.
+      if (KEY_TOKEN_RE.test(out.replace(KEY_SAFE_RE, ''))) {
+        var m = KEY_TOKEN_RE.exec(out);
+        out = out.slice(0, m.index) + 'key="***"';
+      }
+      lines[i] = out;
     }
     return lines.join('\n');
   }
@@ -999,7 +1022,7 @@ grenen i `parse()` som kaller den. Ingen stubb, ingen død kode.
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-semantics.test.js`
-Expected: PASS, 12 tester
+Expected: PASS, 14 tester
 
 - [ ] **Step 4b: Delete the now-dead `parseOptions`**
 

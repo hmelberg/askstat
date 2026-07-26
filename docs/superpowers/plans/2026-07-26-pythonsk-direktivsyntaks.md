@@ -311,7 +311,8 @@ test('parseLine: ukjent ost-verb gir hjelpsom feil', () => {
 test('parseLine: gammel syntaks gir migrasjonshint', () => {
   assert.match(DP.parseLine('# read ssb/05839 as bef').error,
                /gammel syntaks.*ost\.read/);
-  assert.match(DP.parseLine('# connect fred').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# connect helse2025 as h, key(ask)').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# load gh/iris.csv as iris').error, /gammel syntaks/);
   assert.match(DP.parseLine('# add p/x into panel inner').error, /gammel syntaks/);
   assert.match(DP.parseLine('# join sales into panel on pid').error, /gammel syntaks/);
   assert.match(DP.parseLine('# create-dataset panel, key(pid)').error, /gammel syntaks/);
@@ -343,6 +344,20 @@ test('parseLine: trailing komma i ns-tuppel', () => {
 test('parseLine: syntaksfeil i argumenter propagerer', () => {
   assert.match(DP.parseLine('# x = ost.read("uavsluttet)').error, /uavsluttet streng/);
 });
+
+// Bare enkeltord-former har INGEN kjennetegn som skiller dem fra prosa
+// («# use df» ~ «# use caution»), så de varsles bevisst ikke. Migrerings-
+// skriptet dekker alle eksisterende filer; dette er kun håndskrivingshjelp.
+test('parseLine: bare enkeltord-former varsles bevisst ikke', () => {
+  ['# connect fred', '# connect ssb', '# read h as df', '# use df',
+   '# meta bef Folkemengde etter alder',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+test('parseLine: CRLF-linjeslutt bryter ikke gjenkjenning', () => {
+  assert.equal(DP.parseLine('# bef = ost.read("x")\r').form, 'call');
+  assert.match(DP.parseLine('# load gh/iris.csv as iris\r').error, /gammel syntaks/);
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -360,21 +375,27 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
   var OST_VERBS = { connect: 1, read: 1, create: 1, use: 1 };
   var METHODS = { read: 1, add: 1, join: 1 };
 
-  // Gammel syntaks -> migrasjonshint. Hvert mønster krever STRUKTURELLE
-  // kjennetegn (" as ", " into ", " on ", ", key(") — ikke bare et førsteord.
-  // Uten det ble «# import numpy as np» og «# join us on slack» feilmeldinger.
-  // `meta` er BEVISST utelatt: gammel form er «meta <mål> <fritekst>», som er
-  // strukturelt identisk med prosa («meta information about this repo») og
-  // derfor ikke kan skilles. Migreringsskriptet konverterer eksisterende
-  // filer; en håndskrevet gammel meta-linje behandles som vanlig kommentar.
-  // Kjent gjenstående kollisjon: «# use strict» treffer use-mønsteret.
+  // Gammel syntaks -> migrasjonshint. Hvert mønster krever et KJENNETEGN som
+  // prosa ikke har: " as " sammen med en sti/URL eller opsjonshale, " into "
+  // med en <kilde>/<kolonne>-referanse, " on ", ", key(", " from ".
+  //
+  // Prinsippet er at falske positiver er verre enn tapte hint: et hint som
+  // uteblir koster brukeren en oppslagstur, mens en kommentar som blir en
+  // hard feilmelding stopper scriptet. Derfor varsles IKKE de bare
+  // enkeltord-formene, som er strukturelt identiske med prosa:
+  //   «# meta bef tekst»  ~ «# meta information about this repo»
+  //   «# use df»          ~ «# use caution»
+  //   «# connect ssb»     ~ «# connect manually»
+  //   «# read h as df»    ~ «# read this as int»
+  // Migreringsskriptet (Task 8) konverterer alle eksisterende filer, så disse
+  // formene finnes ikke i repoet — vakten er kun en håndskrivingshjelp.
   var OLD_PATTERNS = [
-    { w: 'connect', re: /^connect[ \t]+\S+(?:[ \t]+as[ \t]+[A-Za-z_]\w*)?[ \t]*(?:,[ \t]*\w+\(.*)?$/i },
-    { w: 'read',    re: /^(?:read|load|require)[ \t]+\S+[ \t]+as[ \t]+[A-Za-z_]\w*[ \t]*(?:,[ \t]*\w+\(.*)?$/i },
+    { w: 'connect', re: /^connect[ \t]+\S+[ \t]+as[ \t]+[A-Za-z_]\w*[ \t]*(?:,[ \t]*\w+\(.*)?$|^connect[ \t]+\S+[ \t]*,[ \t]*\w+\(.*$/i },
+    { w: 'read',    re: /^(?:read|load|require)[ \t]+\S*[\/:]\S*[ \t]+as[ \t]+[A-Za-z_]\w*[ \t]*(?:,[ \t]*\w+\(.*)?$|^(?:read|load|require)[ \t]+\S+[ \t]+as[ \t]+[A-Za-z_]\w*[ \t]*,[ \t]*\w+\(.*$/i },
     { w: 'create',  re: /^create(?:[-_]dataset)?[ \t]+[A-Za-z_]\w*[ \t]*,[ \t]*key\(/i },
-    { w: 'add',     re: /^(?:add|import)[ \t]+\S.*[ \t]+into[ \t]+[A-Za-z_]\w*(?:[ \t]+(?:left|inner|outer))?[ \t]*$/i },
+    { w: 'add',     re: /^(?:add|import)[ \t]+\S*\/\S*.*[ \t]+into[ \t]+[A-Za-z_]\w*(?:[ \t]+(?:left|inner|outer))?[ \t]*$/i },
     { w: 'join',    re: /^join[ \t]+[A-Za-z_]\w*[ \t]+into[ \t]+[A-Za-z_]\w*[ \t]+on[ \t]+\S/i },
-    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*(?:[ \t]+from[ \t]+[A-Za-z_]\w*)?[ \t]*$/i }
+    { w: 'use',     re: /^use[ \t]+[A-Za-z_]\w*[ \t]+from[ \t]+[A-Za-z_]\w*[ \t]*$/i }
   ];
 
   var HINT = {
@@ -423,12 +444,13 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
     var raw = String(line == null ? '' : line);
     var mk = MARKER_RE.exec(raw);
     if (!mk) return null;
-    var body = raw.slice(mk[0].length).replace(/[ \t]+$/, '');
+    var body = raw.slice(mk[0].length).replace(/[ \t\r]+$/, '');
     if (!body) return null;
 
     // Den NYE grammatikken prøves først. Motsatt rekkefølge lot
     // gammel-syntaks-vakten svelge gyldige linjer som «read = ost.read("x")».
     try {
+      // Form 1: <navnerom>.<sti> = <literal>
       var ns = /^([A-Za-z_]\w*)((?:\.[A-Za-z_]\w*)+)[ \t]*=[ \t]*/.exec(body);
       if (ns && NS[ns[1]]) {
         var path = ns[2].slice(1).split('.');
@@ -449,6 +471,7 @@ In `js/directive-parser.js`, insert before the `global.DirectiveParser = …` li
         return { form: 'ns', ns: ns[1], path: path, value: tup, raw: raw.trim() };
       }
 
+      // Form 2: [<navn> =] <mottaker>.<verb>(<args>)
       var call = /^(?:([A-Za-z_]\w*)[ \t]*=[ \t]*)?([A-Za-z_]\w*)\.([A-Za-z_]\w*)[ \t]*\(/.exec(body);
       if (call) {
         var target = call[1] || null, recv = call[2], verb = call[3];
@@ -479,7 +502,7 @@ Change the export line to:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 21 tester
+Expected: PASS, 23 tester
 
 - [ ] **Step 5: Commit**
 

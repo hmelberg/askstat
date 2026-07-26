@@ -35,9 +35,9 @@
     return COMMENT_BASE + encodeURIComponent(String(target || ''));
   }
 
-  // Direktiver mot ETT mål (datasett eller variabel): lenker i angitt
-  // rekkefølge + tekstene slått sammen (§3: "gjentatte direktiver ...
-  // legges til, aldri overskriving").
+  // Direktiver mot ETT mål (datasett eller variabel): lenker, tittel,
+  // variabeletiketter, felter og beskrivelsestekst i angitt rekkefølge
+  // (§3: "gjentatte direktiver ... legges til, aldri overskriving").
   function collectDirectives(list) {
     var links = [], texts = [], fields = [], title, label;
     (list || []).forEach(function (m) {
@@ -45,7 +45,7 @@
       else if (m.kind === 'text' && m.text) texts.push(m.text);
       else if (m.kind === 'title' && m.text) title = m.text;
       else if (m.kind === 'label' && m.text) label = m.text;
-      else if (m.kind === 'field' && m.field) fields.push({ label: m.field, verdi: m.text });
+      else if (m.kind === 'field' && m.field && m.text) fields.push({ label: m.field, verdi: m.text });
     });
     return { links: links, text: texts.join('\n\n'),
              fields: fields, title: title, label: label };
@@ -160,6 +160,12 @@
     var labels = opts.labels || {};
     var parts = [];
     if (mi.tittel) parts.push('<div class="var-detail-section-title">' + esc(mi.tittel) + '</div>');
+    // §2-regelen gjelder også tittelen: brukerens vinner overskriften, men
+    // kildens egen katalogtittel skal ikke forsvinne stille. Vises dempet
+    // under, på samme måte som autoBeskrivelse.
+    if (mi.direktivTittel && mi.autoTittel && mi.autoTittel !== mi.direktivTittel) {
+      parts.push('<div class="var-detail-prose">' + esc(mi.autoTittel) + '</div>');
+    }
     if (mi.direktivBeskrivelse) parts.push('<div class="meta-info-user">' + splitParas(mi.direktivBeskrivelse) + '</div>');
     if (mi.autoBeskrivelse) parts.push(splitParas(mi.autoBeskrivelse));
     if (mi.felter && mi.felter.length) {

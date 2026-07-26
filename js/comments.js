@@ -16,6 +16,10 @@
   };
 
   // attrs(target, opts) -> giscus data-*-attributter. opts = {theme, lang}.
+  // data-lang: giscus' lokalliste (per 2026) har IKKE norsk bokmål («no»/«nb») —
+  // 'en' er derfor standarden her (ikke bare fallback for ugyldig verdi; en
+  // bevisst produktbeslutning). Endre kun etter å ha bekreftet i giscus'
+  // egen locale-liste at støtte er lagt til.
   function attrs(target, opts) {
     opts = opts || {};
     return {
@@ -27,6 +31,19 @@
       'data-theme': opts.theme || 'preferred_color_scheme',
       'data-lang': opts.lang || 'en', 'data-loading': 'lazy'
     };
+  }
+
+  // themeForApp() -> 'light'|'dark': leser body[data-theme] (app.css:5-6)
+  // slik at kallsteder (Task 2-4) kan sende appens faktiske tema inn i
+  // Comments.open(...) i stedet for giscus' hardkodede 'preferred_color_scheme'.
+  // DOM-avhengig — ikke node-testbar; se tests/js/comments.test.js for
+  // begrunnelse (kun typeof-sjekk der) og Task 5 for browser-smoke.
+  function themeForApp() {
+    try {
+      var t = (typeof document !== 'undefined' && document.body)
+        ? document.body.getAttribute('data-theme') : null;
+      return t === 'dark' ? 'dark' : 'light';
+    } catch (e) { return 'light'; }
   }
 
   // Kun ÉN åpen tråd globalt — open() lukker en ev. tidligere åpen tråd
@@ -60,6 +77,7 @@
     attrs: attrs,
     open: open,
     close: close,
-    isOpen: isOpen
+    isOpen: isOpen,
+    themeForApp: themeForApp
   };
 })(typeof window !== 'undefined' ? window : globalThis);

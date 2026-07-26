@@ -26,3 +26,12 @@ test('attrs: theme/lang kan overstyres, tomt mål gir tom term', () => {
   assert.equal(a['data-term'], '');
   assert.equal(a['data-theme'], 'dark');
 });
+test('attrs: theme dark og light overstyrer korrekt, uten opts.theme er default uendret', () => {
+  assert.equal(Comments.attrs('x', { theme: 'dark' })['data-theme'], 'dark');
+  assert.equal(Comments.attrs('x', { theme: 'light' })['data-theme'], 'light');
+  assert.equal(Comments.attrs('x', {})['data-theme'], 'preferred_color_scheme');
+  assert.equal(Comments.attrs('x')['data-theme'], 'preferred_color_scheme');
+});
+test('themeForApp er eksportert på Comments (DOM-avhengig — testes ellers manuelt/browser-smoke)', () => {
+  assert.equal(typeof Comments.themeForApp, 'function');
+});

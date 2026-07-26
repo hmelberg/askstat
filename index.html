@@ -4524,14 +4524,14 @@
       } catch (e) { return null; }
     }
 
-    // «Fra fellesskapet»-ramme (Task 2-tillitsregelen, gjenbrukt her og av
+    // «Kommentarer»-ramme (Task 2-tillitsregelen, gjenbrukt her og av
     // renderVariableDetailHtml): 💬-knappen toggler giscus-tråden inn/ut i det
     // indre .meta-info-community-thread; overskrift + «Åpne på GitHub»-fallback
     // holdes UTENFOR mount-et så de består når Comments.open() tømmer tråden.
     function metaCommunityFrame(target) {
       return '<div class="meta-info-community">' +
           '<div class="meta-info-community-head">' +
-            '<span class="meta-info-community-title">' + escapeHtml(t('Fra fellesskapet')) + '</span>' +
+            '<span class="meta-info-community-title">' + escapeHtml(t('Kommentarer')) + '</span>' +
             '<a class="meta-info-community-link" href="' + escapeHtml(window.MetaInfo.commentUrl(target)) + '" target="_blank" rel="noopener">' + escapeHtml(t('Åpne på GitHub')) + '</a>' +
           '</div>' +
           '<button type="button" class="meta-info-comment-btn" data-comment-target="' + escapeHtml(target) + '">💬 ' + escapeHtml(t('Kommentarer')) + '</button>' +

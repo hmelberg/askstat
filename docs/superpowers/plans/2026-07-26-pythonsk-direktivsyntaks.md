@@ -217,7 +217,7 @@ Create `js/directive-parser.js`:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-parser.test.js`
-Expected: PASS, 12 tester
+Expected: PASS, 11 tester
 
 - [ ] **Step 5: Commit**
 
@@ -984,7 +984,7 @@ grenen i `parse()` som kaller den. Ingen stubb, ingen død kode.
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/js/directive-semantics.test.js`
-Expected: PASS, 12 tester
+Expected: PASS, 11 tester
 
 - [ ] **Step 4b: Delete the now-dead `parseOptions`**
 

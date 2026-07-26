@@ -105,9 +105,78 @@
     return lines.join('\n');
   }
 
+  // all()-direktivet (Task 2 av "all()-direktiv for pxweb", spec §2): ekspander
+  // en base-data-URL til å velge ALLE verdier for hver dimensjon som ikke
+  // allerede er eksplisitt satt via valueCodes[...], med en cellevakt så vi
+  // aldri stille ber om en for stor tabell. Ren funksjon — ingen nett/DOM;
+  // Task 3 (async lastelag) henter metadata og kaller denne.
+  var PXWEB_ALL_MAX_CELLS = 800000; // verifisert SSB-grense — IKKE endre tallet
+
+  // Dimensjons-id-er + fullt antall verdier fra json-stat2-metadata. .size er
+  // parallell til .id; fallback til .dimension[id].category.index.length hvis
+  // .size mangler (f.eks. håndbygde fixtures).
+  function dimSizesFromMeta(meta) {
+    var ids = (meta && meta.id) || [];
+    var size = (meta && meta.size) || null;
+    var out = {};
+    ids.forEach(function (id, i) {
+      if (size && typeof size[i] === 'number') {
+        out[id] = size[i];
+      } else {
+        out[id] = categoryCodes((meta.dimension || {})[id]).length;
+      }
+    });
+    return out;
+  }
+
+  function expandAllUrl(url, meta, maxCells) {
+    var s = String(url || '');
+    var q = s.indexOf('?');
+    var base = q >= 0 ? s.slice(0, q) : s;
+    var query = q >= 0 ? s.slice(q + 1) : '';
+
+    var explicit = {}; // Dim -> rå valueCodes-verdi (som satt i URL-en)
+    var re = /valueCodes\[([^\]]+)\]=([^&]*)/g;
+    var m;
+    while ((m = re.exec(query))) { explicit[m[1]] = m[2]; }
+
+    var sizes = dimSizesFromMeta(meta);
+    var ids = (meta && meta.id) || [];
+
+    var n = 1;
+    ids.forEach(function (id) {
+      var v = explicit[id];
+      if (v === undefined) {
+        n *= sizes[id]; // usatt -> fullt antall
+      } else if (v.indexOf('(') < 0 && v.indexOf('*') < 0) {
+        n *= v.split(',').length; // eksplisitt komma-liste -> listelengde
+      } else {
+        n *= sizes[id]; // uttrykk (from(/top(/range() eller *) -> fullt antall
+      }
+    });
+
+    if (n > maxCells) {
+      var table = null;
+      var tm = base.match(/\/tables\/([^/?]+)/);
+      if (tm) table = tm[1];
+      return {
+        error: 'all(): tabellen har for mange celler (' + n + ' > ' + maxCells +
+          ') — begrens med filters()/years()/regions()',
+        tooManyCells: { n: n, max: maxCells, table: table }
+      };
+    }
+
+    var parts = query ? query.split('&').filter(Boolean) : [];
+    ids.forEach(function (id) {
+      if (explicit[id] === undefined) parts.push('valueCodes[' + id + ']=*');
+    });
+    return { url: base + '?' + parts.join('&') };
+  }
+
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
               eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
-              columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv };
+              columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
+              PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

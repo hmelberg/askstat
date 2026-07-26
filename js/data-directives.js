@@ -23,11 +23,6 @@
   // tar 1+ kolonner (mellomrom/komma — parentesene avgrenser), join-on tar
   // komma-liste («on region, aar» — mellomrom alene ville vært tvetydig mot
   // left|inner|outer-halen). d.key og step.on er ALLTID arrays.
-  var CREATE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*create(?:[-_]dataset)?[ \t]+([A-Za-z_]\w*)[ \t]*,[ \t]*key\(\s*([A-Za-z_]\w*(?:[ \t,]+[A-Za-z_]\w*)*)\s*\)(?:[ \t]*,[ \t]*format\(\s*([A-Za-z_.]+)\s*\))?[ \t]*$/gim;
-  var IMPORT_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:add|import)[ \t]+(\S+(?:[ \t]*,[ \t]*\S+)*)[ \t]+into[ \t]+([A-Za-z_]\w*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
-  var JOIN_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*join[ \t]+([A-Za-z_]\w*)[ \t]+into[ \t]+([A-Za-z_]\w*)[ \t]+on[ \t]+([A-Za-z_]\w*(?:[ \t]*,[ \t]*[A-Za-z_]\w*)*)(?:[ \t]+(left|inner|outer))?[ \t]*$/gim;
-  var LOADAS_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:read|load)[ \t]+([A-Za-z_]\w*(?:\/[A-Za-z_]\w*)?)[ \t]+as[ \t]+([A-Za-z_]\w*)[ \t]*$/gim;
-
   function isUrlish(target) {
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;
   }
@@ -479,60 +474,79 @@
     });
   }
 
-  // Project A: parse create-dataset/import/join/load into a mode-neutral spec.
+  // Montering: create/add/join + read-med-alias → mode-nøytral spec.
   function parseAssembly(script) {
-    var errors = [], datasets = [], byName = {}, sources = {}, sourceTables = {}, m;
-    // connect aliases (for source validation)
-    var conns = {};
-    parse(script).connects.forEach(function (c) { conns[c.alias] = true; });
+    var errors = [], datasets = [], byName = {}, sources = {}, sourceTables = {};
+    var res = global.DirectiveParser.parseScript(script);
+    res.errors.forEach(function (e) { errors.push(e); });
 
-    CREATE_RE.lastIndex = 0;
-    while ((m = CREATE_RE.exec(script)) !== null) {
-      if (byName[m[1]]) { errors.push('datasettet «' + m[1] + '» er allerede opprettet'); continue; }
-      var d = { name: m[1], key: m[2].split(/[\s,]+/).filter(Boolean), format: (m[3] || '').toLowerCase() || null, steps: [] };
-      datasets.push(d); byName[m[1]] = d;
+    function srcKey(alias, table) { return table ? (alias + '__' + table) : alias; }
+    function noteSource(alias, table) {
+      var k = srcKey(alias, table);
+      sources[k] = true;
+      if (table) sourceTables[k] = { source: alias, table: table };
+      return k;
     }
-    LOADAS_RE.lastIndex = 0;
-    while ((m = LOADAS_RE.exec(script)) !== null) {
-      var rawL = m[1], nameL = m[2];
-      var slashL = rawL.indexOf('/');
-      var srcL = slashL > 0 ? rawL.slice(0, slashL) : rawL;
-      var tableL = slashL > 0 ? rawL.slice(slashL + 1) : null;
-      var keyL = tableL ? (srcL + '__' + tableL) : srcL;
-      if (byName[nameL]) { errors.push('datasettet «' + nameL + '» er allerede opprettet'); continue; }
-      var dl = { name: nameL, load: keyL };
-      datasets.push(dl); byName[nameL] = dl; sources[keyL] = true;
-      if (tableL) sourceTables[keyL] = { source: srcL, table: tableL };
+    function names(v) {
+      if (typeof v === 'string') return [v];
+      if (Object.prototype.toString.call(v) === '[object Array]') {
+        return v.filter(function (x) { return typeof x === 'string'; });
+      }
+      return [];
     }
-    IMPORT_RE.lastIndex = 0;
-    while ((m = IMPORT_RE.exec(script)) !== null) {
-      var target = m[2];
-      var d2 = byName[target];
-      if (!d2 || d2.load) { errors.push('ukjent datasett «' + target + '» (mangler create-dataset?)'); continue; }
-      var bySrc = {};
-      m[1].split(',').forEach(function (ref) {
-        var parts = ref.trim().split('/');
-        if (parts.length !== 2) { errors.push('import krever <kilde>/<kolonne>: ' + ref.trim()); return; }
-        var srcAlias = parts[0].trim(), pathPart = parts[1].trim();
-        var dot = pathPart.indexOf('.');
-        var table = dot > 0 ? pathPart.slice(0, dot) : null;
-        var col = dot > 0 ? pathPart.slice(dot + 1) : pathPart;
-        var srcKey = table ? (srcAlias + '__' + table) : srcAlias;
-        sources[srcKey] = true;
-        if (table) sourceTables[srcKey] = { source: srcAlias, table: table };
-        (bySrc[srcKey] = bySrc[srcKey] || []).push(col);
-      });
-      Object.keys(bySrc).forEach(function (src) {
-        d2.steps.push({ op: 'import', source: src, columns: bySrc[src], how: (m[3] || 'left') });
-      });
-    }
-    JOIN_RE.lastIndex = 0;
-    while ((m = JOIN_RE.exec(script)) !== null) {
-      var tgt = m[2], d3 = byName[tgt];
-      if (!d3 || d3.load) { errors.push('ukjent datasett «' + tgt + '» (mangler create-dataset?)'); continue; }
-      if (!byName[m[1]]) { errors.push('ukjent datasett «' + m[1] + '» i join'); continue; }
-      d3.steps.push({ op: 'join', from: m[1], on: m[3].split(/[\s,]+/).filter(Boolean), how: (m[4] || 'left') });
-    }
+
+    // Pass 1: create + read-med-alias definerer navn.
+    res.items.forEach(function (it) {
+      if (it.form !== 'call') return;
+      if (it.recv === 'ost' && it.verb === 'create') {
+        if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.create krever en tilordning'); return; }
+        if (byName[it.target]) { errors.push('datasettet «' + it.target + '» er allerede opprettet'); return; }
+        var key = names(it.kwargs.key);
+        if (!key.length) { errors.push('linje ' + it.lineNo + ': ost.create krever key="<kolonne>" eller key=[…]'); return; }
+        var d = { name: it.target, key: key,
+                  format: it.kwargs.format ? String(it.kwargs.format).toLowerCase() : null, steps: [] };
+        datasets.push(d); byName[it.target] = d;
+        return;
+      }
+      // `x = <alias>.read("tabell")` er også en monteringskilde (gammel LOADAS).
+      // URL-lesing (`ost.read`) er IKKE en monteringskilde — som før.
+      if (it.verb === 'read' && it.recv !== 'ost' && it.target) {
+        if (byName[it.target]) { errors.push('datasettet «' + it.target + '» er allerede opprettet'); return; }
+        var table = it.args.length ? String(it.args[0]) : null;
+        // Bare enkle tabellnavn deltar i montering (som LOADAS_RE før).
+        if (table !== null && !/^[A-Za-z_]\w*$/.test(table)) return;
+        var k = noteSource(it.recv, table);
+        var dl = { name: it.target, load: k };
+        datasets.push(dl); byName[it.target] = dl;
+      }
+    });
+
+    // Pass 2: add/join på definerte navn.
+    res.items.forEach(function (it) {
+      if (it.form !== 'call' || it.target) return;
+      if (it.verb !== 'add' && it.verb !== 'join') return;
+      var d = byName[it.recv];
+      if (!d || d.load) { errors.push('ukjent datasett «' + it.recv + '» (mangler ost.create?)'); return; }
+      var how = it.kwargs.how ? String(it.kwargs.how).toLowerCase() : 'left';
+
+      if (it.verb === 'add') {
+        var ref = it.args[0];
+        if (!ref || !ref.__ref) { errors.push('linje ' + it.lineNo + ': add krever en kilde som første argument — add(<kilde>, ["<kolonne>"])'); return; }
+        var cols = [];
+        for (var i = 1; i < it.args.length; i++) cols = cols.concat(names(it.args[i]));
+        if (!cols.length) { errors.push('linje ' + it.lineNo + ': add krever minst én kolonne'); return; }
+        var tbl = it.kwargs.table ? String(it.kwargs.table) : null;
+        d.steps.push({ op: 'import', source: noteSource(ref.__ref, tbl), columns: cols, how: how });
+        return;
+      }
+      var from = it.args[0];
+      if (!from || !from.__ref) { errors.push('linje ' + it.lineNo + ': join krever et datasettnavn — join(<navn>, on="<kolonne>")'); return; }
+      if (!byName[from.__ref]) { errors.push('ukjent datasett «' + from.__ref + '» i join'); return; }
+      var on = names(it.kwargs.on);
+      if (!on.length) { errors.push('linje ' + it.lineNo + ': join krever on="<kolonne>" eller on=[…]'); return; }
+      d.steps.push({ op: 'join', from: from.__ref, on: on, how: how });
+    });
+
     return { spec: { sources: Object.keys(sources), datasets: datasets, sourceTables: sourceTables }, errors: errors };
   }
 

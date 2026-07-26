@@ -164,6 +164,54 @@ test('meta: kjent datasettnøkkel med ekstra ledd gir feil', () => {
   assert.match(p.errors[0], /linje 1.*«note» tar en verdi, ikke en sti/);
 });
 
+test('parseAssembly: create + add + join', () => {
+  const a = DD.parseAssembly([
+    '# p = ost.connect("people")',
+    '# s = ost.connect("sales_src")',
+    '# panel = ost.create(key="pid")',
+    '# panel.add(p, ["income", "edu"])',
+    '# panel.add(p, "region")',
+    '# sales = s.read()',
+    '# panel.join(sales, on="pid")',
+  ].join('\n'));
+  assert.deepEqual(a.errors, []);
+  const panel = a.spec.datasets.find((d) => d.name === 'panel');
+  assert.deepEqual(panel.key, ['pid']);
+  assert.deepEqual(panel.steps, [
+    { op: 'import', source: 'p', columns: ['income', 'edu'], how: 'left' },
+    { op: 'import', source: 'p', columns: ['region'], how: 'left' },
+    { op: 'join', from: 'sales', on: ['pid'], how: 'left' },
+  ]);
+  assert.ok(a.spec.sources.indexOf('p') >= 0);
+});
+
+test('parseAssembly: sammensatt nøkkel, format og eksplisitt how', () => {
+  const a = DD.parseAssembly([
+    '# db = ost.connect("https://x/panel.duckdb", kind="duckdb")',
+    '# d = ost.create(key=["kommune_nr", "year"], format="duckdb")',
+    '# d.add(db, ["age"], table="patients", how="inner")',
+  ].join('\n'));
+  assert.deepEqual(a.errors, []);
+  const d = a.spec.datasets.find((x) => x.name === 'd');
+  assert.deepEqual(d.key, ['kommune_nr', 'year']);
+  assert.equal(d.format, 'duckdb');
+  assert.deepEqual(d.steps, [{ op: 'import', source: 'db__patients', columns: ['age'], how: 'inner' }]);
+  assert.deepEqual(a.spec.sourceTables.db__patients, { source: 'db', table: 'patients' });
+});
+
+test('parseAssembly: add til ukjent datasett gir feil', () => {
+  const a = DD.parseAssembly('# ukjent.add(p, "x")');
+  assert.match(a.errors[0], /ukjent datasett «ukjent»/);
+});
+
+test('parseAssembly: duplikat create gir feil', () => {
+  const a = DD.parseAssembly([
+    '# d = ost.create(key="k")',
+    '# d = ost.create(key="k")',
+  ].join('\n'));
+  assert.match(a.errors[0], /allerede opprettet/);
+});
+
 test('metaByTarget: felter, tittel og variabler', () => {
   const out = DD.metaByTarget([
     '#meta.bef.title = "Folkemengde"',

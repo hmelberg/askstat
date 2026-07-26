@@ -343,6 +343,34 @@ prøve fra PyPI eller GitHub. Nivåene:
             → webR-port), brython/micropython-moduler, PyPI/CRAN-publisering,
             SW-som-datacache for pakke-sync-XHR, direktiver-som-sukker-
             kompilering.
+- [ ] **Navngitte hemmeligheter — fjern nøkkel-literaler fra script**
+      (Hans' idé 2026-07-26, i forlengelsen av `key` → `secret_key`-omdøpingen).
+      `js/keys.js` er allerede et generisk `type→verdi`-register i localStorage
+      (`md_keys`, med `get/set/remove/registered`), brukt for anthropic/github/
+      fred. Utvid til brukerregistrerte navn, slik at
+      `secret_key="github"` slår opp `Keys.get('github')`.
+      Motivasjon: `secret_key="ask"` alene er for tungvint for lange API-nøkler
+      — folk går rundt det ved å lime nøkkelen inn i scriptet igjen, altså
+      nøyaktig det vi vil unngå. Navngitt oppslag gir både «ingen hemmelighet
+      i scriptet» OG «skriv den én gang».
+      Gevinsten er at `scrubKeys` kan **slettes helt**: både `"github"` og
+      `"ask"` er ufarlige strenger, så det finnes ikke lenger noe å maskere,
+      og hele klassen «maskeringen ødelegger kode den ikke skulle røre»
+      forsvinner strukturelt i stedet for heuristisk.
+      Må med når det gjøres:
+      1. Literaler må **avvises**, ikke bare frarådes — ellers kan ikke
+         `scrubKeys` slettes. Feilmelding som peker til Innstillinger.
+      2. `ask` reserveres som navn (ellers tvetydig mot en nøkkel brukeren
+         faktisk kalte «ask»).
+      3. Delt script må gi tydelig feil hos mottakeren: «ingen registrert
+         nøkkel «github» — legg den inn i Innstillinger», ikke en 401.
+      4. `js/keys.js` er **ukryptert** localStorage — bevisst og dokumentert i
+         spec 2026-07-23-user-keys-and-source-registry. Dette punktet endrer
+         ikke den vurderingen og skal ikke leses som en ny garanti.
+      Openstat-kontekst: lav hastegrad (ingen innlogging, ingen beskyttede
+      kilder, kryptert-fil-eksempelet ligger i `examples/_unlinked/`). Verdien
+      er størst i safestat, som deler `js/data-directives.js`.
+
 - [ ] **Streaming-/levende kilder** (notert 2026-07-25). Trapp: (1)
       polling — `# connect …, refresh(30s)` som re-henter og re-rendrer en
       utpekt output; passer dagens batch-modell (fersk økt per kjøring) og

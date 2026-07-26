@@ -717,7 +717,7 @@ test('parse: bar URL uten connect', () => {
 
 test('parse: read() uten argument gir hele rammen', () => {
   const p = DD.parse([
-    '# h = ost.connect("helse2025", key="ask")',
+    '# h = ost.connect("helse2025", secret_key="ask")',
     '# df = h.read()',
   ].join('\n'));
   assert.equal(p.connects[0].options.key, 'ask');
@@ -758,36 +758,37 @@ test('parse: gammel syntaks gir feil, ikke stille dropp', () => {
   assert.match(p.errors[0], /gammel syntaks/);
 });
 
-test('scrubKeys: maskerer key="literal", beholder key="ask"', () => {
-  assert.equal(DD.scrubKeys('# d = ost.read("u", key="hemmelig")'),
-                            '# d = ost.read("u", key="***")');
-  assert.equal(DD.scrubKeys('# d = ost.read("u", key="ask")'),
-                            '# d = ost.read("u", key="ask")');
-  assert.equal(DD.scrubKeys("# d = ost.read('u', key='ask')"),
-                            "# d = ost.read('u', key='ask')");
+test('scrubKeys: maskerer secret_key, beholder "ask"', () => {
+  assert.equal(DD.scrubKeys('# d = ost.read("u", secret_key="hemmelig")'),
+                            '# d = ost.read("u", secret_key="***")');
+  assert.equal(DD.scrubKeys('# d = ost.read("u", secret_key="ask")'),
+                            '# d = ost.read("u", secret_key="ask")');
+  assert.equal(DD.scrubKeys("# d = ost.read('u', secret_key='ask')"),
+                            "# d = ost.read('u', secret_key='ask')");
 });
 
-// Hver av disse er en lekkasje som faktisk slapp gjennom en tidligere versjon.
+// Hver av disse slapp gjennom en tidligere versjon av maskeringen.
 test('scrubKeys: ingen hemmelighet overlever, uansett form', () => {
   [
-    '# d = ost.read("u", key="hemmelig")',
-    '# d = ost.read("u", key="it\'s-a-secret")',
-    '# d = ost.read("u", key=\'pass"word\')',
-    '# h = ost.connect("x", key="SECRET\\\\")',      // hale-backslash, uavsluttet
-    '# h = ost.connect("x", key="SECRET',            // glemt sluttfnutt
-    '# s = ost.connect("x", key="oops, other=1, key="s3cr3t")',  // to klausuler, første ødelagt
-    '# d = ost.read("u", key="a", key="SECRETB")',
-    '# d = ost.read("u", KEY="SECRETC")',
+    '# d = ost.read("u", secret_key="it\'s-a-secret")',
+    '# d = ost.read("u", secret_key=\'pass"word\')',
+    '# h = ost.connect("x", secret_key="sk_live_A\\\\")',   // hale-backslash
+    '# h = ost.connect("x", secret_key="sk_live_B',           // glemt sluttfnutt
+    '# s = ost.connect("x", secret_key="oops, x=1, secret_key="s3cr3t")',
+    '# d = ost.read("u", secret_key=sk_live_C)',              // usitert
+    '# d = ost.read("u", secret_key=["sk_live_D"])',          // liste
+    '-- d = ost.read("u", secret_key="hemmelig")',
+    '// d = ost.read("u", secret_key="hemmelig")',
   ].forEach((line) => {
-    assert.doesNotMatch(DD.scrubKeys(line), /hemmelig|secret|s3cr3t|pass"word|SECRETB|SECRETC/i, line);
+    assert.doesNotMatch(DD.scrubKeys(line).replace(/secret_key/g, ''),
+                        /hemmelig|s3cr3t|sk_live|pass"word/, line);
   });
 });
 
-// Maskering må ALDRI røre noe annet enn en nøkkelbærende direktivlinje.
-// Tidligere versjoner gjorde «sorted(rows, key=lambda r: r[0])» om til
-// «sorted(rows, key="***"», og maskerte ost.create(key="pid") — der er key
-// et KOLONNENAVN, og github-storage lagrer den maskerte teksten, så scriptet
-// ble permanent ødelagt.
+// Omdøpingens hele poeng: `key` betyr nå KUN kolonnenavn, så maskeringen kan
+// ikke lenger røre vanlig kode. Tidligere versjoner gjorde
+// «sorted(rows, key=lambda r: r[0])» om til «sorted(rows, key="***"» og
+// maskerte ost.create(key="pid") — som github-storage så lagret ødelagt.
 test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
   ['sorted(rows, key=lambda r: r[0])', 'max(items, key=lambda i: i.value)',
    "df.sort_values('col', key=abs)", 'key = c(1,2)', 'PRIMARY KEY = id',
@@ -797,36 +798,8 @@ test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
   ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
 });
 
-// Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
-// og et script fra før migreringen må ikke lekke ved «Spør AI».
-// Ombrukket kall: .connect( står på FORRIGE linje, så fortsettelseslinja
-// fanges bare av key-token-regelen. Naturlig med lange pxweb-URL-er.
-test('scrubKeys: nøkkel på fortsettelseslinje i ombrukket kall', () => {
-  const script = ['# ssb = ost.connect("https://data.ssb.no/api", kind="pxweb",',
-                  '#     key="sk_live_HEMMELIG")'].join('\n');
-  assert.doesNotMatch(DD.scrubKeys(script), /sk_live/);
-});
-
-// Usitert verdi, liste og dict parser RENT, men treffes ikke av den presise
-// regexen — uten etterkontrollen gikk de urørt til AI-endepunktet.
-test('scrubKeys: usiterte og strukturerte key-verdier maskeres', () => {
-  ['# d = ost.read("u", key=sk_live_HEMMELIG)',
-   '# d = ost.read("u", key=["S1","S2"])',
-   '# d = ost.read("u", key={"a":"SECRETDICT"})',
-  ].forEach((line) => assert.doesNotMatch(DD.scrubKeys(line), /sk_live|S1|SECRETDICT/, line));
-});
-
-test('scrubKeys: gammel key(...)-form og ukjent mottaker maskeres òg', () => {
-  [['# connect https://x, key(TOPSECRET)', /TOPSECRET/],
-   ['# load ssb/05839 as bef, key(TOPSECRET)', /TOPSECRET/],
-   ['# db = ots.connect("https://api.x", key="sk_live_HEMMELIG")', /sk_live/],
-   ['-- d = ost.read("u", key="hemmelig")', /hemmelig/],
-   ['// d = ost.read("u", key="hemmelig")', /hemmelig/],
-  ].forEach((c) => assert.doesNotMatch(DD.scrubKeys(c[0]), c[1], c[0]));
-});
-
 test('scrubKeys: idempotent', () => {
-  const once = DD.scrubKeys('# d = ost.read("u", key="hemmelig")');
+  const once = DD.scrubKeys('# d = ost.read("u", secret_key="hemmelig")');
   assert.equal(DD.scrubKeys(once), once);
 });
 ```
@@ -842,44 +815,31 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
 
 ```js
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
-  // key="ask" er ingen hemmelighet og beholdes.
-  // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
-  // Kallstedene sender den RÅ editorbufferen uten å sjekke parse().errors,
-  // så alt brukeren kan taste må håndteres her.
-  // create(key=...) er ALDRI en hemmelighet — der er key et kolonnenavn, og
-  // github-storage lagrer den maskerte teksten, så maskering ødelegger scriptet.
-  var CREATE_RE = /\.create[ \t]*\(/i;
-  // Kandidat: en kommentarlinje som enten HAR connect/read-form, eller bærer et
-  // key-token med sitert verdi / parentesform. Det andre leddet fanger
-  // fortsettelseslinjer i ombrukkede kall, der .connect( står på forrige linje.
-  var CAND_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:.*\.(?:connect|read)[ \t]*\(|(?:connect|read|load|require)\b)/i;
-  var CAND2_RE = /^[ \t]*(?:#|--|\/\/).*\bkey[ \t]*(?:=[ \t]*["'\[{]|\()/i;
-  var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
-  var KEY_PAREN_RE = /\bkey[ \t]*\([ \t]*(?!ask[ \t]*\))[^)]*\)/gi;
-  var KEY_TOKEN_RE = /\bkey[ \t]*[=(]/i;
-  var KEY_SAFE_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
+  // secret_key="ask" er ingen hemmelighet og beholdes.
+  // secret_key= er ENTYDIG: ingen konstruksjon i python, R, SQL eller JS bruker
+  // det ordet. Derfor trengs ingen kandidatheuristikk og ingen parse-status —
+  // masker verdien uansett form, og la "ask" stå (den er ingen hemmelighet).
+  // create(key=...) heter fortsatt `key` og er et KOLONNENAVN; den røres aldri,
+  // fordi vi utelukkende ser etter `secret_key`.
+  var SECRET_RE = /\b(secret_key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,)\n]*)/gi;
+  
+  function count(s) { return (String(s).match(/\bsecret_key[ \t]*=/gi) || []).length; }
   
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      if (!KEY_TOKEN_RE.test(line)) continue;
-      if (CREATE_RE.test(line)) continue;
-      if (!CAND_RE.test(line) && !CAND2_RE.test(line)) continue;
-      var pl = global.DirectiveParser.parseLine(line);
-      var out = line;
-      if (pl && !pl.error) {
-        out = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
-          var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
-          return inner === 'ask' ? mm : head + '"***"';
-        }).replace(KEY_PAREN_RE, 'key(***)');
-      }
-      // Overlever et key-token som ikke er ask/***, er verdien enten usitert,
-      // en liste/dict, eller literalen malformert. Ingen av delene kan maskeres
-      // presist — masker fra første token og ut linja.
-      if (KEY_TOKEN_RE.test(out.replace(KEY_SAFE_RE, ''))) {
-        var m = KEY_TOKEN_RE.exec(out);
-        out = out.slice(0, m.index) + 'key="***"';
+      var before = count(line);
+      if (!before) continue;
+      var out = line.replace(SECRET_RE, function (m, head, val) {
+        var inner = /^["']/.test(val) ? val.replace(/^["']|["']$/g, '') : val;
+        return inner === 'ask' ? m : head + '"***"';
+      });
+      // Ble en secret_key=-klausul SLUKT av en uavsluttet literal foran den?
+      // Da gjemmer den hemmeligheten seg utenfor treffet — masker ut linja.
+      if (count(out) < before) {
+        var m2 = /\bsecret_key[ \t]*=/i.exec(out);
+        out = out.slice(0, m2.index) + 'secret_key="***"';
       }
       lines[i] = out;
     }
@@ -887,7 +847,10 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
   }
 
   var CANON_KEYS = { years: 1, countries: 1, regions: 1, indicators: 1, filters: 1, all: 1 };
-  var PLAIN_KEYS = { key: 1, exec: 1, kind: 1, cache: 1 };
+  // Kwarg-navn -> internt opts-felt. Hemmeligheten heter secret_key utad,
+  // men beholder feltnavnet «key» innvendig, slik at resolve() forblir urørt.
+  // `key` som kwarg er BORTE — det ordet betyr nå kun kolonnenavn i ost.create.
+  var PLAIN_KEYS = { secret_key: 'key', exec: 'exec', kind: 'kind', cache: 'cache' };
   var LOWER_KEYS = { exec: 1, kind: 1, cache: 1 };
 
   // Ekte Levenshtein: posisjonssammenligning straffer innskudd for hardt og
@@ -932,7 +895,7 @@ In `js/data-directives.js`: delete `CONNECT_RE` (`:17`) and `LOAD_RE` (`:18`). R
     Object.keys(kwargs || {}).forEach(function (name) {
       var v = kwargs[name];
       if (PLAIN_KEYS[name]) {
-        opts[name] = LOWER_KEYS[name] ? String(v).toLowerCase() : String(v);
+        opts[PLAIN_KEYS[name]] = LOWER_KEYS[name] ? String(v).toLowerCase() : String(v);
         return;
       }
       if (name === 'years') {
@@ -1664,6 +1627,19 @@ def test_assembly_and_markers(tmp_path):
     assert 'panel.join(sales, on="pid", how="outer")' in out
     assert '// tall = ost.use("tall", source="duckdb")' in out
 
+def test_key_har_to_betydninger(tmp_path):
+    # key( på create er et KOLONNENAVN og forblir key=; på read/connect er det
+    # en hemmelighet og blir secret_key=. Tvetydigheten omdøpingen fjerner.
+    out = run(tmp_path, "\n".join([
+        "# create-dataset panel, key(pid)",
+        "# connect helse2025 as h, key(ask)",
+        "# read h as df, key(abcDEF123)",
+    ]))
+    assert 'panel = ost.create(key="pid")' in out
+    assert 'h = ost.connect("helse2025", secret_key="ask")' in out
+    assert 'df = h.read(secret_key="abcDEF123")' in out
+
+
 def test_idempotent(tmp_path):
     src = '# connect fred\n'
     once = run(tmp_path, src)
@@ -1683,6 +1659,12 @@ Create `tools/migrate_directives.py` implementing the rules above. Requirements 
 - `connect <mål> as <alias>` → `<alias> = ost.connect("<mål>")`; `connect <navn>` (uten `as`) → `<navn> = ost.connect("<navn>")`.
 - `read|load|require <alias>/<sti> as <navn>` → `<navn> = <alias>.read("<sti>")`; `read <URL> as <navn>` → `<navn> = ost.read("<URL>")`; `read <alias> as <navn>` (ingen skråstrek, ikke URL) → `<navn> = <alias>.read()`.
 - `create[-_dataset] <navn>, key(a b)` → `<navn> = ost.create(key=["a", "b"])`; ett nøkkelledd → `key="a"`. `format(x)` → `format="x"`.
+- **`key(...)` har to betydninger i gammel syntaks og må oversettes ulikt:**
+  på `create` er det et **kolonnenavn** og forblir `key=` (regelen over); på
+  `connect`/`read`/`load`/`require` er det en **hemmelighet** og blir
+  `secret_key=`. `key(ask)` → `secret_key="ask"`; `key(LITERAL)` →
+  `secret_key="LITERAL"`. Det er nettopp denne tvetydigheten omdøpingen
+  fjerner — skriptet må ikke gjenskape den.
 - `add|import <a>/<c1>, <a>/<c2> into <d> [how]` → `<d>.add(<a>, ["c1", "c2"][, how="…"])`; `<a>/<tabell>.<kolonne>` → `table="<tabell>"`.
 - `join <navn> into <d> on <k1>,<k2> [how]` → `<d>.join(<navn>, on=["k1", "k2"][, how="…"])`; ett ledd → `on="k1"`.
 - `use <navn> [from <kilde>]` → `<navn> = ost.use("<navn>"[, source="<kilde>"])`.
@@ -1820,7 +1802,7 @@ with
     return scrubbed;
   }
 ```
-Update `MASK_WARNING` to: `'key="…"-verdier ble maskert i eksporten — bruk key="ask" eller egen nøkkelhåndtering utenfor appen'`.
+Update `MASK_WARNING` to: `'secret_key="…"-verdier ble maskert i eksporten — bruk secret_key="ask" eller egen nøkkelhåndtering utenfor appen'`.
 
 `js/portable-export.js:543` — replace `ASM_LINE_RE` usage with a check for an assembly directive:
 ```js
@@ -1931,13 +1913,13 @@ git commit -m "refactor: makeLoad erstatter fire tekst-rundturer gjennom parsere
 - Modify: `openstat.py:391` (`Source.read`), `:496-529` (`Dataset`, `create`)
 - Test: `tests/test_openstat.py`
 
-**Hvorfor:** spec §4.5. Uten `Dataset.join` er `# panel.join(…)` ikke kopierbart, og uten avvisning blir `ost.read("URL", key="ask")` en *spørringsparameter* i stedet for en feil — stille galt, den verste utfallsklassen.
+**Hvorfor:** spec §4.5. Uten `Dataset.join` er `# panel.join(…)` ikke kopierbart, og uten avvisning blir `ost.read("URL", secret_key="ask")` en *spørringsparameter* i stedet for en feil — stille galt, den verste utfallsklassen.
 
 **Interfaces:**
 - Produces:
   - `Dataset.join(other, on, how=None) -> Dataset` (chainable). `other` er `DataFrame` eller `Source`; `on` er streng eller liste.
   - `create(key, name=None, how="left", format=None)`; `Dataset.frame()` respekterer `format`.
-  - `Source.read` reiser `ValueError` på `key`/`exec`/`cache`/`source`.
+  - `Source.read` reiser `ValueError` på `secret_key`/`exec`/`cache`/`source`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1970,7 +1952,7 @@ def test_create_format_kwarg_is_accepted():
 
 def test_editor_only_kwargs_are_rejected_loudly():
     src = ost.connect("https://x/d.csv", kind="csv")
-    for bad in ("key", "exec", "cache", "source"):
+    for bad in ("secret_key", "exec", "cache", "source"):
         with pytest.raises(ValueError, match=bad):
             src.read(**{bad: "ask"})
 ```
@@ -1987,7 +1969,7 @@ Expected: FAIL — `Dataset has no attribute 'join'`, `create() got an unexpecte
 In `openstat.py`, at the top of `Source.read` (`:391`), before any query handling:
 
 ```python
-        _EDITOR_ONLY = ("key", "exec", "cache", "source")
+        _EDITOR_ONLY = ("secret_key", "exec", "cache", "source")
         for _bad in _EDITOR_ONLY:
             if _bad in query:
                 raise ValueError(
@@ -2057,7 +2039,7 @@ Append to `netlify/edge-functions/_lib/portable-export.test.ts`:
 ```ts
 Deno.test("export: editor-argumenter fjernes fra kommentert direktivlinje", () => {
   const out = PE.transpile(
-    '# df = ost.read("https://x/d.csv", key="ask", cache="30m")\nprint(df)',
+    '# df = ost.read("https://x/d.csv", secret_key="ask", cache="30m")\nprint(df)',
     "python", REG);
   assert(!out.code.includes('key='), "key= skal ikke overleve eksporten");
   assert(!out.code.includes('cache='), "cache= skal ikke overleve eksporten");
@@ -2081,7 +2063,7 @@ Add next to `scrubDirectiveLine` in `js/portable-export.js`:
   // Editor-argumenter (spec §4.5c) har ingen mening utenfor appen, og
   // openstat.py avviser dem. Fjern dem fra den kommenterte direktivlinja i
   // stedet for å eksportere kode som feiler ved innliming.
-  var EDITOR_ONLY_RE = /,[ \t]*(?:key|exec|cache|source)[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|\S+)/gi;
+  var EDITOR_ONLY_RE = /,[ \t]*(?:secret_key|exec|cache|source)[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|\S+)/gi;
 
   function stripEditorOnly(line, state) {
     var out = line.replace(EDITOR_ONLY_RE, '');
@@ -2093,7 +2075,7 @@ Add next to `scrubDirectiveLine` in `js/portable-export.js`:
 Call it from the same place `scrubDirectiveLine` is called (after scrubbing), and when `state.strippedEditorOnly` is set, append to the export header:
 
 ```
-# editor-argumenter (key/exec/cache/source) er fjernet — de virker bare i OpenStat
+# editor-argumenter (secret_key/exec/cache/source) er fjernet — de virker bare i OpenStat
 ```
 
 - [ ] **Step 4: Run test + commit**

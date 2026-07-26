@@ -108,8 +108,32 @@ test('parseLine: gammel syntaks gir migrasjonshint', () => {
   assert.match(DP.parseLine('# read ssb/05839 as bef').error,
                /gammel syntaks.*ost\.read/);
   assert.match(DP.parseLine('# connect fred').error, /gammel syntaks/);
-  assert.match(DP.parseLine('# meta bef Folkemengde').error,
-               /gammel syntaks.*meta\.bef/);
+  assert.match(DP.parseLine('# add p/x into panel inner').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# join sales into panel on pid').error, /gammel syntaks/);
+  assert.match(DP.parseLine('# create-dataset panel, key(pid)').error, /gammel syntaks/);
+});
+
+// Gammel-syntaks-vakten MÅ kreve strukturelle kjennetegn (" as ", " into ",
+// " on ", ", key("). Uten det ble «# import numpy as np» en feilmelding —
+// en av de vanligste kommentarene som finnes i Python-scripts.
+test('parseLine: prosa som starter med et direktivord er IKKE gammel syntaks', () => {
+  ['# import numpy as np', '# import pandas as pd', '# add more tests later',
+   '# join us on slack', '# connect to database manually', '# read the docs first',
+   '# use this function carefully', '# meta information about this repo',
+   '# meta bef Folkemengde etter alder',
+  ].forEach((line) => assert.equal(DP.parseLine(line), null, line));
+});
+
+// Ny syntaks må prøves FØR gammel-vakten, ellers svelges gyldige linjer der
+// målnavnet tilfeldigvis er et direktivord.
+test('parseLine: direktivord som målnavn er gyldig ny syntaks', () => {
+  assert.equal(DP.parseLine('# read = ost.read("x")').form, 'call');
+  assert.equal(DP.parseLine('# add = panel.add(p, ["x"])').form, 'call');
+  assert.equal(DP.parseLine('# join = panel.join(o, on="id")').form, 'call');
+});
+
+test('parseLine: trailing komma i ns-tuppel', () => {
+  assert.deepEqual(DP.parseLine('#meta.b.link = "u", "l",').value, ['u', 'l']);
 });
 
 test('parseLine: syntaksfeil i argumenter propagerer', () => {

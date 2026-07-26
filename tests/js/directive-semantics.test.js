@@ -98,12 +98,29 @@ test('scrubKeys: ingen hemmelighet overlever, uansett form', () => {
   });
 });
 
-// Pass 2 må ALDRI røre brukerens egen kode. En tidligere versjon gjorde
-// «sorted(rows, key=lambda r: r[0])» om til «sorted(rows, key="***"».
-test('scrubKeys: vanlig kode med key= er urørt', () => {
+// Maskering må ALDRI røre noe annet enn en nøkkelbærende direktivlinje.
+// Tidligere versjoner gjorde «sorted(rows, key=lambda r: r[0])» om til
+// «sorted(rows, key="***"», og maskerte ost.create(key="pid") — der er key
+// et KOLONNENAVN, og github-storage lagrer den maskerte teksten, så scriptet
+// ble permanent ødelagt.
+test('scrubKeys: kode, prosa og create(key=) er urørt', () => {
   ['sorted(rows, key=lambda r: r[0])', 'max(items, key=lambda i: i.value)',
-   "df.sort_values('col', key=abs)", 'api_key="ikke-vaar"', '#%% python key=1',
+   "df.sort_values('col', key=abs)", 'key = c(1,2)', 'PRIMARY KEY = id',
+   'api_key="ikke-vaar"', '#%% python key=1', '# the key = value mapping',
+   '# panel = ost.create(key="pid")',
+   '# d = ost.create(key=["kommune_nr", "year"])',
   ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
+});
+
+// Gammel key(...)-syntaks maskeres fortsatt: den gamle scrubKeys gjorde det,
+// og et script fra før migreringen må ikke lekke ved «Spør AI».
+test('scrubKeys: gammel key(...)-form og ukjent mottaker maskeres òg', () => {
+  [['# connect https://x, key(TOPSECRET)', /TOPSECRET/],
+   ['# load ssb/05839 as bef, key(TOPSECRET)', /TOPSECRET/],
+   ['# db = ots.connect("https://api.x", key="sk_live_HEMMELIG")', /sk_live/],
+   ['-- d = ost.read("u", key="hemmelig")', /hemmelig/],
+   ['// d = ost.read("u", key="hemmelig")', /hemmelig/],
+  ].forEach((c) => assert.doesNotMatch(DD.scrubKeys(c[0]), c[1], c[0]));
 });
 
 test('scrubKeys: idempotent', () => {

@@ -121,40 +121,38 @@
   // key="<literal>" -> key="***" før scriptet logges eller sendes til AI.
   // key="ask" er ingen hemmelighet og beholdes.
   // Nøkkelmaskering før egress (AI-endepunktet, GitHub, delelenker).
-  // Begge kallstedene (js/ai-chat.js, js/github-storage.js) sender den RÅ
-  // editorbufferen uten å sjekke parse().errors, så alt brukeren kan taste —
-  // også ødelagt syntaks — må håndteres her.
-  //
-  // Linjevis, og med to regler som begge er lært av lekkasjer:
-  //  1. Bare DIREKTIVLINJER røres. Pythons «sorted(rows, key=lambda r: r[0])»
-  //     er ikke vår linje, og en bredere regel ødela brukerens egen kode ved
-  //     hver AI-forespørsel og hver lagring.
-  //  2. På en VELFORMET linje maskeres literalen presist (og key="ask"
-  //     bevares — den interaktive passordflyten er avhengig av det).
-  //     På en ØDELAGT linje er ingen presis maskering til å stole på: en
-  //     uavsluttet literal sluker alt fram til neste hermetegn, og kan dermed
-  //     gjemme en SENERE key=-klausul inni seg slik at DEN hemmeligheten blir
-  //     stående. Derfor maskeres hele resten av linja. Utdataen er kun for
-  //     visning/egress og re-parses aldri, så å ta med for mye er trygt.
+  // Begge kallstedene sender den RÅ editorbufferen uten å sjekke
+  // parse().errors, så alt brukeren kan taste må håndteres her.
+  // En nøkkel kan BARE stå på en kommentarlinje som laster data: enten ny form
+  // (<mottaker>.connect(/.read() eller gammel (connect/read/load/require).
+  // create(key=...) er IKKE med — der er key et KOLONNENAVN, og å maskere det
+  // ødela lagrede script permanent. Vanlig kode har ingen kommentarmarkør og
+  // røres aldri.
+  var CAND_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:.*\.(?:connect|read)[ \t]*\(|(?:connect|read|load|require)\b)/i;
   var KEY_LITERAL_RE = /\b(key[ \t]*=[ \t]*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gi;
-  var KEY_TOKEN_RE = /\bkey[ \t]*=/i;
+  var KEY_PAREN_RE = /\bkey[ \t]*\([ \t]*(?!ask[ \t]*\))[^)]*\)/gi;
+  var KEY_LEFT_RE = /\bkey[ \t]*[=(]/i;
+  var KEY_OK_RE = /\bkey[ \t]*=[ \t]*(?:"ask"|'ask'|"\*\*\*")|\bkey\([ \t]*(?:ask|\*\*\*)[ \t]*\)/gi;
 
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      if (!KEY_TOKEN_RE.test(line)) continue;
+      if (!KEY_LEFT_RE.test(line) || !CAND_RE.test(line)) continue;
+      // Presis maskering er BARE til å stole på når linja parser rent. En
+      // uavsluttet literal sluker alt fram til neste hermetegn og kan gjemme en
+      // senere key=-klausul inni seg; og en linje parseLine ikke kjenner igjen
+      // (typo i mottakeren: «ots.connect») ville sluppet ubehandlet gjennom.
       var pl = global.DirectiveParser.parseLine(line);
-      if (!pl) continue;
-      if (pl.error) {
-        var m = KEY_TOKEN_RE.exec(line);
+      if (!pl || pl.error) {
+        var m = KEY_LEFT_RE.exec(line);
         lines[i] = line.slice(0, m.index) + 'key="***"';
         continue;
       }
       lines[i] = line.replace(KEY_LITERAL_RE, function (mm, head, lit) {
         var inner = lit.slice(1, -1).replace(/\\(.)/g, '$1');
         return inner === 'ask' ? mm : head + '"***"';
-      });
+      }).replace(KEY_PAREN_RE, 'key(***)');
     }
     return lines.join('\n');
   }

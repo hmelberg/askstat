@@ -185,6 +185,25 @@ test('parseAssembly: create + add + join', () => {
   assert.ok(a.spec.sources.indexOf('p') >= 0);
 });
 
+// De gamle regex-passene kjørte alle add FØR alle join. To konsumenter er
+// avhengige av det: assembly-duckdb kaster, portable-export dropper stille.
+test('parseAssembly: add kommer alltid før join, uansett skriptrekkefølge', () => {
+  const a = DD.parseAssembly([
+    '# p = ost.connect("people")',
+    '# s = ost.connect("sales")',
+    '# panel = ost.create(key="pid")',
+    '# panel.add(p, ["income"])',
+    '# sales = s.read()',
+    '# panel.join(sales, on="pid")',
+    '# panel.add(p, ["edu"])',
+  ].join('\n'));
+  assert.deepEqual(a.errors, []);
+  const steps = a.spec.datasets.find((d) => d.name === 'panel').steps;
+  assert.deepEqual(steps.map((x) => x.op), ['import', 'import', 'join']);
+  assert.deepEqual(steps.filter((x) => x.op === 'import').map((x) => x.columns[0]),
+                   ['income', 'edu']);   // innbyrdes rekkefølge bevart
+});
+
 test('parseAssembly: sammensatt nøkkel, format og eksplisitt how', () => {
   const a = DD.parseAssembly([
     '# db = ost.connect("https://x/panel.duckdb", kind="duckdb")',
@@ -197,6 +216,21 @@ test('parseAssembly: sammensatt nøkkel, format og eksplisitt how', () => {
   assert.equal(d.format, 'duckdb');
   assert.deepEqual(d.steps, [{ op: 'import', source: 'db__patients', columns: ['age'], how: 'inner' }]);
   assert.deepEqual(a.spec.sourceTables.db__patients, { source: 'db', table: 'patients' });
+});
+
+test('parseAssembly: datasett kan hete __proto__ eller constructor', () => {
+  assert.deepEqual(DD.parseAssembly('# __proto__ = ost.create(key="k")').errors, []);
+  assert.deepEqual(DD.parseAssembly('# constructor = ost.create(key="k")').errors, []);
+  const a = DD.parseAssembly(['# d = ost.create(key="k")',
+                              '# d.add(__proto__, ["x"])'].join('\n'));
+  assert.ok(a.spec.sources.indexOf('__proto__') >= 0,
+            'hver step.source må finnes i spec.sources');
+});
+
+test('parseAssembly: tilordning på add/join gir feil, ikke stille dropp', () => {
+  const a = DD.parseAssembly(['# d = ost.create(key="k")',
+                              '# x = d.add(p, ["a"])'].join('\n'));
+  assert.match(a.errors[0], /returnerer ingenting/);
 });
 
 test('parseAssembly: add til ukjent datasett gir feil', () => {

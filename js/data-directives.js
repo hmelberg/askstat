@@ -476,7 +476,13 @@
 
   // Montering: create/add/join + read-med-alias → mode-nøytral spec.
   function parseAssembly(script) {
-    var errors = [], datasets = [], byName = {}, sources = {}, sourceTables = {};
+    var errors = [], datasets = [];
+    // Direktivstyrte navn blir objektnøkler. Uten null-prototype arver
+    // «__proto__»/«constructor» sannhetsverdier: de kunne aldri opprettes
+    // («allerede opprettet» på første linje), og sources['__proto__'] = true
+    // er et stille no-op som bryter invarianten «hver step.source finnes i
+    // spec.sources» — uten én eneste feilmelding.
+    var byName = Object.create(null), sources = Object.create(null), sourceTables = Object.create(null);
     var res = global.DirectiveParser.parseScript(script);
     res.errors.forEach(function (e) { errors.push(e); });
 
@@ -521,10 +527,26 @@
       }
     });
 
-    // Pass 2: add/join på definerte navn.
+    // Pass 2 og 3: alle add FØR alle join, uavhengig av rekkefølgen i
+    // scriptet. De gamle regex-passene (IMPORT_RE helt ut, så JOIN_RE) gjorde
+    // det implisitt, og to konsumenter er avhengige av det:
+    // assembly-duckdb.js:129 kaster «join krever minst én import først», og
+    // portable-export.js:597 dropper datasettet STILLE fra eksporten.
+    // Et script som setter opp joinen først og pynter med flere add-linjer
+    // etterpå — en naturlig skrivemåte — ville ellers regrert fra «virker»
+    // til «hard feil eller taus utelatelse».
+    ['add', 'join'].forEach(function (pass) {
     res.items.forEach(function (it) {
-      if (it.form !== 'call' || it.target) return;
+      if (it.form !== 'call') return;
       if (it.verb !== 'add' && it.verb !== 'join') return;
+      if (it.verb !== pass) return;
+      // Stille dropp er forbudt: «# x = panel.add(...)» parser fint, men ville
+      // ellers blitt kastet uten feilmelding.
+      if (it.target) {
+        errors.push('linje ' + it.lineNo + ': ' + it.verb + ' returnerer ingenting — skriv «# ' +
+                    it.recv + '.' + it.verb + '(…)» uten tilordning');
+        return;
+      }
       var d = byName[it.recv];
       if (!d || d.load) { errors.push('ukjent datasett «' + it.recv + '» (mangler ost.create?)'); return; }
       var how = it.kwargs.how ? String(it.kwargs.how).toLowerCase() : 'left';
@@ -545,6 +567,7 @@
       var on = names(it.kwargs.on);
       if (!on.length) { errors.push('linje ' + it.lineNo + ': join krever on="<kolonne>" eller on=[…]'); return; }
       d.steps.push({ op: 'join', from: from.__ref, on: on, how: how });
+    });
     });
 
     return { spec: { sources: Object.keys(sources), datasets: datasets, sourceTables: sourceTables }, errors: errors };

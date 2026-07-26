@@ -211,5 +211,23 @@
     return oldSyntaxError(body);
   }
 
-  global.DirectiveParser = { parseLiteral: parseLiteral, parseLine: parseLine };
+  function parseScript(text) {
+    var lines = String(text == null ? '' : text).split(/\r?\n/);
+    var items = [], errors = [];
+    for (var i = 0; i < lines.length; i++) {
+      var r = parseLine(lines[i]);
+      if (!r) continue;
+      if (r.error) { errors.push('linje ' + (i + 1) + ': ' + r.error); continue; }
+      r.lineNo = i + 1;
+      items.push(r);
+    }
+    return { items: items, errors: errors };
+  }
+
+  function isDirectiveLine(line) {
+    return parseLine(line) !== null;
+  }
+
+  global.DirectiveParser = { parseLiteral: parseLiteral, parseLine: parseLine,
+                             parseScript: parseScript, isDirectiveLine: isDirectiveLine };
 })(typeof window !== 'undefined' ? window : globalThis);

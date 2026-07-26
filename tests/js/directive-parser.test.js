@@ -169,3 +169,51 @@ test('parseLine: CRLF-linjeslutt bryter ikke gjenkjenning', () => {
   assert.equal(DP.parseLine('# bef = ost.read("x")\r').form, 'call');
   assert.match(DP.parseLine('# load gh/iris.csv as iris\r').error, /gammel syntaks/);
 });
+
+test('parseScript: samler i kildeorden med linjenummer', () => {
+  const r = DP.parseScript([
+    'import pandas as pd',
+    '# ssb = ost.connect("https://x/tables", kind="pxweb")',
+    '# bef = ssb.read("05839")',
+    '#meta.bef.note = "Folkemengde"',
+  ].join('\n'));
+  assert.equal(r.errors.length, 0);
+  assert.deepEqual(r.items.map((it) => it.lineNo), [2, 3, 4]);
+  assert.deepEqual(r.items.map((it) => it.form), ['call', 'call', 'ns']);
+});
+
+test('parseScript: feil får linjenummer og stopper ikke resten', () => {
+  const r = DP.parseScript([
+    '# a = ost.read("https://x/a.csv")',
+    '# read ssb/05839 as bef',
+    '# d = ost.read("https://x/d.csv")',
+  ].join('\n'));
+  assert.equal(r.items.length, 2);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /^linje 2: .*gammel syntaks/);
+});
+
+test('isDirectiveLine: sann for gyldige OG ugyldige direktiver', () => {
+  assert.equal(DP.isDirectiveLine('# x = ost.read("u")'), true);
+  assert.equal(DP.isDirectiveLine('#meta.bef.note = "t"'), true);
+  assert.equal(DP.isDirectiveLine('# panel.add(p, ["a"])'), true);
+  // Ugyldige direktiver MÅ telle som direktiver — ellers lekker de inn i
+  // DuckDB-SQL, der «#» ikke er kommentar (spec §1.2).
+  assert.equal(DP.isDirectiveLine('# read ssb/05839 as bef'), true);   // gammel syntaks
+  assert.equal(DP.isDirectiveLine('# x = ost.fetch("u")'), true);      // ukjent verb
+});
+
+// Task 2-beslutningen: former uten strukturelt kjennetegn detekteres ikke,
+// fordi de er uskillbare fra prosa. De er dermed heller ikke direktivlinjer.
+test('isDirectiveLine: usann for de bevisst udetekterte formene', () => {
+  ['# meta bef tekst', '# use df', '# connect fred', '# read h as df',
+  ].forEach((line) => assert.equal(DP.isDirectiveLine(line), false, line));
+});
+
+test('isDirectiveLine: usann for kommentarer, kode, celler og tags', () => {
+  assert.equal(DP.isDirectiveLine('# vanlig kommentar'), false);
+  assert.equal(DP.isDirectiveLine('SELECT * FROM t'), false);
+  assert.equal(DP.isDirectiveLine('#%% python'), false);
+  assert.equal(DP.isDirectiveLine('#tag.hide-code = true'), false);
+  assert.equal(DP.isDirectiveLine('#options.view = "output-only"'), false);
+});

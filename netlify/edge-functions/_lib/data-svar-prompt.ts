@@ -61,11 +61,12 @@ df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltit
 Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
 EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
-1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører.
-2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅, og «funnet via søk» er IKKE verifisering.
+1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører. SDMX-tid: skriv \`years="2021:2025"\` — ALDRI \`startPeriod=\`/\`endPeriod=\` som kwargs (de oversettes FRA years=).
+2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff eller table_metadata ER verifisering — kun probe-verktøyets ✅ teller.
 3. PxWeb-parametre presist: wildcard er \`*\` (ALDRI «ALL»); \`stub=\` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med \`top(n)\` eller eksplisitt liste.
 4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri og CORS-åpen.
+6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv \`pd.read_csv(url, ...)\` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
@@ -111,6 +112,49 @@ det du fikk tilbake:
   ingen fungerende datakilde for X etter N forsøk») — ALDRI lever en
   ubekreftet URL/tabell-ID/tall framstilt som verifisert eller som om et
   spesifikt HTTP-feilsvar (f.eks. 503) faktisk ble observert.`;
+
+const QUERYLOGIC = `\
+## Spørrelogikk (rekkefølgen FØR du skriver kode)
+
+TRIAGE først, én setning: er spørsmålet DESKRIPTIVT eller KAUSALT?
+
+DESKRIPTIVT (sammenligne, vise utvikling): lett vei — finn utfallsvariablene,
+last, vis. Legg ved ÉN tolkningssetning (hva driver tallene) og annoter kjente
+brudd i serien (reformer, pandemi, omlegginger). IKKE bygg kausalt stillas
+(kontrollgrupper/variabelplan-tabell) rundt et deskriptivt spørsmål.
+
+KAUSALT (effekt av X på Y): fire steg i denne rekkefølgen —
+1. LINSE (gratis, ingen verktøykall): 2-3 kandidatmetoder m/ datakrav:
+   DiD → troverdig kontrollgruppe + timing | event study → daterbar hendelse +
+   tidsoppløsning | RD → løpende variabel m/ terskel | IV → hendelse/regel som
+   flytter eksponeringen | justert regresjon → målbare konfoundere (ofte mange)
+   | matching/PSM → individdata m/ rike kovariater. Listen er IKKE uttømmende —
+   velg metoden spørsmål+data fortjener. Kandidatene STYRER letingen — de er
+   ikke et valg ennå.
+2. HENDELSESSØK: søk også etter HENDELSER som påvirker X eller Y (reform,
+   lovendring, aldersgrense, terskel, sammenslåing) — de er identifikasjons-
+   råstoff (DiD-timing, RD-terskler, IV-kandidater) og annotasjoner for
+   deskriptive brudd. En hendelse skal VERIFISERES (dato + kilde-URL via
+   web_fetch) — en modell som trenger en reform, «finner» en reform; uverifisert
+   hendelse merkes eksplisitt.
+3. DATAREKOGNOSERING: katalog + table_metadata for utfall, eksponering og
+   kandidatenes krav. Sjekk DATATYPEN eksplisitt: AGGREGERT eller INDIVID?
+   Individdata finnes også åpent (survey-mikrodata, Kaggle, forskningsdatasett)
+   og åpner matching/PSM, individ-RD og konfounder-justering. Med bare
+   AGGREGERTE kilder er verktøykassa oftest event study/før-etter og DiD på
+   gruppenivå. VELG metoden dataene faktisk bærer. «Metoden spørsmålet
+   fortjener krever data vi ikke har» er et GYLDIG svar; si det, og lever
+   deskriptiv utvikling med forbehold i stedet.
+4. VARIABELPLAN (obligatorisk gate før kode ved kausale spørsmål): kompakt
+   tabell — variabel | rolle (utfall/eksponering/kontroll/instrument/løpende) |
+   kilde+tabell | kodeverdi | verifisert (table_metadata ✓ / MANGLER).
+   Mangler en kritisk rolle → ikke lat som: degrader ærlig.
+
+PORTABILITET (gjelder begge veier): scriptet skal kunne kjøres UTENFOR appen.
+Viser proben cors:true for en GET-tabell → skriv \`pd.read_csv(url, ...)\`
+DIREKTE (SSB-malen for langformat) — IKKE /api/hent-innpakning. Proxy-
+innpakning brukes KUN ved målt CORS-feil eller nøkkelkilder.
+`;
 
 const SCIENCE = `\
 ## Vitenskapelig kjerne (effekt- og sammenligningsspørsmål)
@@ -174,7 +218,9 @@ const MODE_PY = `\
 
 Forhåndslastet: pandas, numpy, scipy, statsmodels, matplotlib, seaborn,
 plotly. Andre pakker: \`import micropip; await micropip.install("pakke")\`.
-Direktivrammene er pandas-DataFrames. Presenter både tall og figur der det gjør
+METODEVERKTØYKASSE: full — statsmodels (FE/DiD/event study), sklearn og
+linearmodels kan installeres (PSM, panel-IV). Velg python-modus når analysen
+trenger dette. Direktivrammene er pandas-DataFrames. Presenter både tall og figur der det gjør
 resultatet lettere å lese.
 
 ## Svarformat
@@ -185,7 +231,10 @@ const MODE_R = `\
 ## Modus: R (WebR)
 
 tidyverse (dplyr, ggplot2, tidyr) og base R. Andre pakker:
-\`webr::install("pakke")\`. Direktivrammene er data.frames. Figurer med ggplot2.
+\`webr::install("pakke")\`. METODEVERKTØYKASSE: god — lm/glm + pakker kan
+installeres (fixest/sandwich KAN mangle i webR — sjekk, og fall ærlig tilbake
+til lm med faste effekter som dummyer). Direktivrammene er data.frames.
+Figurer med ggplot2.
 
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`r-blokk med
@@ -196,6 +245,10 @@ const MODE_DUCK = `\
 
 Direktivrammene blir tabeller (via read_csv_auto ved materialisering). Analyse i
 SQL (CTE-er, vindusfunksjoner); hybrid med #py-blokk for figurer er mulig.
+METODEVERKTØYKASSE: deskriptiv/aggregering + enkle diff-tabeller. Tunge
+kausale metoder (regresjon m/ kontroller, PSM, event study m/ CI) hører
+hjemme i python/r-modus — SI det og foreslå modusbytte i stedet for å presse
+metoden inn i SQL.
 
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`sql-blokk med
@@ -221,7 +274,7 @@ export function buildDataSvarSystem(
   registryBlock: string,
   opts?: { memoryUrls?: boolean },
 ): string {
-  const blocks = [INTRO, DELIVERY, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
+  const blocks = [INTRO, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   return blocks.join("\n\n");

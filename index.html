@@ -1600,7 +1600,22 @@
         var rawScript = __si ? __si.value : '';
         if (!rawScript.trim()) { alert(t('Editoren er tom — ingenting å publisere.')); return; }
         var spec = engine.getLastDatasetSpec() || {};
-        var hasLoadLines = /^[ \t]*#[ \t]*load\b/mi.test(rawScript);
+        // Parsetre, ikke verbliste: /#[ \t]*load\b/ sluttet å matche da
+        // grammatikken ble pythonsk, så både denne advarselen og strippingen
+        // under var DØDE — publiserte dokumenter beholdt sine ost.read-linjer
+        // selv om dataene var bakt inn som tag.
+        function isReadDirective(ln) {
+          var p = window.DirectiveParser && window.DirectiveParser.parseLine(ln);
+          return !!(p && p.form === 'call' && p.verb === 'read');
+        }
+        // javascript-modus: samme predikat som JsEngine.scanDuckUses bruker
+        // (eksplisitt source="duckdb"; kortformen henter ikke fra duckdb der).
+        function isDuckUseDirective(ln) {
+          var p = window.DirectiveParser && window.DirectiveParser.parseLine(ln);
+          return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'use' &&
+                    String((p.kwargs || {}).source || '').toLowerCase() === 'duckdb');
+        }
+        var hasLoadLines = rawScript.split(/\r?\n/).some(isReadDirective);
         if (hasLoadLines && !Object.keys(spec).length) {
           if (!confirm(t('Scriptet har «# read»-linjer, men ingen data er hentet ennå i denne økten (kjør scriptet først for å bake dem inn). Publisere uten data likevel?'))) return;
         }
@@ -1623,16 +1638,17 @@
             JSON.stringify(tagPayload).replace(/</g, '\\u003c') + '<\/script>\n    ';
         }
 
-        var publishedScript = rawScript.replace(/^[ \t]*#[ \t]*load\b.*$/gmi,
-          '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix }));
-        // javascript-modus: «# use <navn> from duckdb» krever en levende
+        // Linja ERSTATTES, ikke slettes — linjenummer skal stå.
+        // javascript-modus: «ost.use(…, source="duckdb")» krever en levende
         // duckdb-økt som den publiserte sida ikke har — tabellen er alt bakt
         // inn i spec-en (JsEngine.bindDuckUses skriver til __lastSpec), så
-        // linja strippes på samme måte som # load.
-        if (mode === 'javascript') {
-          publishedScript = publishedScript.replace(/^[ \t]*#[ \t]*use\b.*\bfrom[ \t]+duckdb[ \t]*$/gmi,
-            '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix }));
-        }
+        // linja strippes på samme måte som lesedirektivene.
+        var _pubPlaceholder = '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix });
+        var publishedScript = rawScript.split(/\r?\n/).map(function (ln) {
+          if (isReadDirective(ln)) return _pubPlaceholder;
+          if (mode === 'javascript' && isDuckUseDirective(ln)) return _pubPlaceholder;
+          return ln;
+        }).join('\n');
 
         // Output-only-injeksjon (spec §5): et publisert dokument skal åpne som
         // en ferdig rapport, ikke redigerbar kode — MEN kun når scriptet ikke

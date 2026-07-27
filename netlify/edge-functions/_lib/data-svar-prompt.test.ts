@@ -29,7 +29,10 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     "SDMX",
     "stub=",
     "filters={",          // eval-regel 1 (rå API-params som kwargs — målt feilklasse)
-    "fredgraph",          // eval-regel 5 (nøkkelfri FRED-form)              // SSB-malen (langformat ved kilden) skal være i prompten
+    "fredgraph",
+    "VARIABELPLAN",       // spørrelogikken: gate før kode ved kausale spørsmål
+    "HENDELSESSØK",       // naturlig eksperiment-leting m/ verifiseringskrav
+    "cors:true",          // pandas-først-dreiningen (portabilitet)          // eval-regel 5 (nøkkelfri FRED-form)              // SSB-malen (langformat ved kilden) skal være i prompten
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

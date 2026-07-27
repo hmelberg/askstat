@@ -124,3 +124,15 @@ DELIVERY: (1) rå API-params som kwargs (geo=/siec=) — parseren avviser høyly
 skal i filters={}; (2) loads uten ✅-probe + «probe-verifisert via søk»-påstander;
 (3) PxWeb-gjetting (Tid=ALL, stub=år); (4) requests/urllib-fallback;
 (5) fred-nøkkelavhengighet — fredgraph.csv er nøkkelfri.
+
+## 2026-07-28
+
+SPØRRELOGIKK-blokk (Hans' metode↔data-innspill): triage deskriptiv/kausal;
+kausal vei = LINSE (kandidatmetoder m/ datakrav, gratis) → HENDELSESSØK
+(naturlige eksperimenter, verifisert m/ dato+URL — fabrikasjonsvern) →
+DATAREKOGNOSERING (metoden dataene bærer; åpne aggregater → oftest event
+study/DiD; «krever data vi ikke har» er gyldig svar) → VARIABELPLAN som gate
+før kode. Deskriptiv vei holdes LETT (én tolkningssetning + brudd-annotering).
+PORTABILITET: cors:true → pd.read_csv direkte, proxy kun ved målt behov.
+Eval-kriterier 8-10 lagt til; målt m/ Q5/Q10/Q11 (kausale) + Q15 (deskriptiv
+kontroll — skal IKKE få stillas).

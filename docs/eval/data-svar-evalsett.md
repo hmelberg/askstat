@@ -19,6 +19,16 @@ Kriterier (alle må holde):
 7. ALDRI rå `pd.read_*`-URL mot SDMX-kilder (OECD/ECB/Norges Bank) — de
    ignorerer ukjente parametere stille; SDMX går via `ost` med kanonisk
    vokabular.
+8. SPØRRELOGIKK-TRIAGE (2026-07-28): kausale spørsmål har VARIABELPLAN
+   (variabel|rolle|kilde|kode|verifisert) FØR koden, med table_metadata-belegg
+   per rad; deskriptive spørsmål har den IKKE (lett vei + én tolknings-
+   setning). Feil begge veier teller: manglende plan ved kausalt spørsmål OG
+   kausal-stillas rundt deskriptivt.
+9. METODE↔DATA-BEGRUNNELSE (kausale): valgt metode begrunnes mot faktisk
+   tilgjengelige data (kandidat forkastet ærlig når data ikke bærer den);
+   hendelser brukt i identifikasjon er verifisert m/ dato + kilde-URL.
+10. PORTABILITET: cors:true + GET-tabell → pd.read_csv DIREKTE (ikke
+    /api/hent-innpakning); proxy kun ved målt CORS-feil eller nøkkelkilde.
 
 | # | Modus | Spørsmål | Forventet kilde(r) |
 |---|-------|----------|--------------------|

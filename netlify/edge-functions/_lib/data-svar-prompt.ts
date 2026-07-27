@@ -61,8 +61,8 @@ df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltit
 Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
 EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
-1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører.
-2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅, og «funnet via søk» er IKKE verifisering.
+1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører. SDMX-tid: skriv \`years="2021:2025"\` — ALDRI \`startPeriod=\`/\`endPeriod=\` som kwargs (de oversettes FRA years=).
+2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff eller table_metadata ER verifisering — kun probe-verktøyets ✅ teller.
 3. PxWeb-parametre presist: wildcard er \`*\` (ALDRI «ALL»); \`stub=\` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med \`top(n)\` eller eksplisitt liste.
 4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri og CORS-åpen.
@@ -111,6 +111,45 @@ det du fikk tilbake:
   ingen fungerende datakilde for X etter N forsøk») — ALDRI lever en
   ubekreftet URL/tabell-ID/tall framstilt som verifisert eller som om et
   spesifikt HTTP-feilsvar (f.eks. 503) faktisk ble observert.`;
+
+const QUERYLOGIC = `\
+## Spørrelogikk (rekkefølgen FØR du skriver kode)
+
+TRIAGE først, én setning: er spørsmålet DESKRIPTIVT eller KAUSALT?
+
+DESKRIPTIVT (sammenligne, vise utvikling): lett vei — finn utfallsvariablene,
+last, vis. Legg ved ÉN tolkningssetning (hva driver tallene) og annoter kjente
+brudd i serien (reformer, pandemi, omlegginger). IKKE bygg kausalt stillas
+(kontrollgrupper/variabelplan-tabell) rundt et deskriptivt spørsmål.
+
+KAUSALT (effekt av X på Y): fire steg i denne rekkefølgen —
+1. LINSE (gratis, ingen verktøykall): 2-3 kandidatmetoder m/ datakrav:
+   DiD → troverdig kontrollgruppe + timing | event study → daterbar hendelse +
+   tidsoppløsning | RD → løpende variabel m/ terskel | IV → hendelse/regel som
+   flytter eksponeringen | justert regresjon → målbare konfoundere (ofte mange).
+   Kandidatene STYRER letingen — de er ikke et valg ennå.
+2. HENDELSESSØK: søk også etter HENDELSER som påvirker X eller Y (reform,
+   lovendring, aldersgrense, terskel, sammenslåing) — de er identifikasjons-
+   råstoff (DiD-timing, RD-terskler, IV-kandidater) og annotasjoner for
+   deskriptive brudd. En hendelse skal VERIFISERES (dato + kilde-URL via
+   web_fetch) — en modell som trenger en reform, «finner» en reform; uverifisert
+   hendelse merkes eksplisitt.
+3. DATAREKOGNOSERING: katalog + table_metadata for utfall, eksponering og
+   kandidatenes krav. VELG så metoden dataene faktisk bærer. Ærlig realisme:
+   med åpne AGGREGERTE kilder er verktøykassa oftest event study/før-etter og
+   DiD på gruppenivå — RD/IV krever gjerne mikrodata. «Metoden spørsmålet
+   fortjener krever data vi ikke har» er et GYLDIG svar; si det, og lever
+   deskriptiv utvikling med forbehold i stedet.
+4. VARIABELPLAN (obligatorisk gate før kode ved kausale spørsmål): kompakt
+   tabell — variabel | rolle (utfall/eksponering/kontroll/instrument/løpende) |
+   kilde+tabell | kodeverdi | verifisert (table_metadata ✓ / MANGLER).
+   Mangler en kritisk rolle → ikke lat som: degrader ærlig.
+
+PORTABILITET (gjelder begge veier): scriptet skal kunne kjøres UTENFOR appen.
+Viser proben cors:true for en GET-tabell → skriv \`pd.read_csv(url, ...)\`
+DIREKTE (SSB-malen for langformat) — IKKE /api/hent-innpakning. Proxy-
+innpakning brukes KUN ved målt CORS-feil eller nøkkelkilder.
+`;
 
 const SCIENCE = `\
 ## Vitenskapelig kjerne (effekt- og sammenligningsspørsmål)
@@ -221,7 +260,7 @@ export function buildDataSvarSystem(
   registryBlock: string,
   opts?: { memoryUrls?: boolean },
 ): string {
-  const blocks = [INTRO, DELIVERY, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
+  const blocks = [INTRO, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   return blocks.join("\n\n");

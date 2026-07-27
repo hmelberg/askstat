@@ -101,6 +101,20 @@ toppmeny m/ bryter; ikoner + finpolish; «Jamovi light» (v1) som egen modus;
 websocket-stub for contTables; kopier-knapp på tabeller og figurer; datasett-synk
 på tvers av moduser; output-rens ved inngang.
 
+## Publisering (lagt til 2026-07-27)
+
+- [ ] **Selvstendig publisering** — publiserte HTML-dokumenter krever i dag
+      appens `js/`-mappe på samme host (relative script-stier; virker ikke
+      åpnet fra `file://` eller kopiert alene til en annen host — bekreftet i
+      Hans' test 2026-07-27). Mål: et valgfritt «helt selvstendig»-nivå ved
+      publisering som inliner de nødvendige js-modulene (+ ev. pinner
+      CDN-motorene) og et valg om å bake inn data. Fundamentet finnes:
+      bro-cachen bakes allerede som `ostbridgedata_`-tags (S4, 2026-07-27),
+      og direktivdata som spec-tags — det som mangler er inlining av
+      script-avhengighetene og et UI-valg. Ikke prioritert nå (Hans
+      2026-07-27). NB: `exportPublish`-tooltipen sier fortsatt bare
+      «# read»-data bakes — oppdateres (med i18n-nøkkelen) når dette tas.
+
 ## Interaktive elementer — backlog (lagt til 2026-07-21)
 
 *Kontekst: fase 1–3 av spec 2026-07-20-unified-interactive-elements-design.md

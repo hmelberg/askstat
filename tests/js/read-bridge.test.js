@@ -109,3 +109,60 @@ test('forPyodideSync: cachet prefetch-feil forgifter ikke — sync-veien prøver
   assert.equal(r.error, null);
   assert.deepEqual(Array.from(r.bytes), [7]);
 });
+
+// ── smoke-revisjon (S5 + M2 + S3b) ──────────────────────────────────────────
+const DL = globalThis.DataLoader;
+
+test('S5 configure: deps når fetchRawUrl', async () => {
+  RB._reset();
+  const orig = DL.fetchRawUrl; const calls = [];
+  DL.fetchRawUrl = async (url, deps) => { calls.push(deps); return { bytes: new Uint8Array([1]), contentType: '' }; };
+  try {
+    RB.configure(() => ({ anthropicKey: 'K' }));
+    await RB.ensure('https://x/k.csv');
+  } finally { DL.fetchRawUrl = orig; RB.configure(null); }
+  assert.equal(calls[0].anthropicKey, 'K');
+});
+
+test('S5 syncXhr: proxy-retryen bærer auth-headere', () => {
+  RB._reset();
+  RB.configure(() => ({ anthropicKey: 'K2' }));
+  const seen = [];
+  RB._setXhr((u, headers) => {
+    seen.push([u, headers || {}]);
+    return u.indexOf('/api/hent?') === 0 ? { status: 200, bytes: new Uint8Array([2]) } : { status: 0, bytes: null };
+  });
+  const r = RB.forPyodideSync('https://cors.example/d.csv');
+  RB.configure(null);
+  assert.equal(r.error, null);
+  assert.equal(seen[1][1]['X-Anthropic-Key'], 'K2');
+});
+
+test('M2 ensureText: charset fra Content-Type respekteres (latin-1-fella)', async () => {
+  RB._reset();
+  // «kjønn» i iso-8859-1: ø = 0xF8 — ugyldig som utf-8
+  RB._setFetcher(async () => ({ bytes: new Uint8Array([0x6b, 0x6a, 0xf8, 0x6e, 0x6e]),
+                                contentType: 'text/csv; charset=iso-8859-1' }));
+  const r = await RB.ensureText('https://x/l1.csv');
+  assert.equal(r.error, undefined);
+  assert.equal(r.text, 'kjønn');
+});
+
+test('M2 ensureText: udeklarert charset + ugyldig utf-8 feiler HØYLYTT, ikke mojibake', async () => {
+  RB._reset();
+  RB._setFetcher(async () => ({ bytes: new Uint8Array([0x6b, 0xf8]), contentType: 'text/csv' }));
+  const r = await RB.ensureText('https://x/m.csv');
+  assert.equal(r.text, undefined);
+  assert.match(r.error, /dekode.*utf-8|charset/i);
+});
+
+test('M2 ensureText: hentefeil gir error videre', async () => {
+  RB._reset();
+  RB._setFetcher(async () => { throw new Error('HTTP 404 for https://x/b.csv'); });
+  const r = await RB.ensureText('https://x/b.csv');
+  assert.match(r.error, /HTTP 404/);
+});
+
+test('S3b pyPatchSource: idempotens-vakt mot wrapper-stabling', () => {
+  assert.ok(RB.pyPatchSource().includes('_ost_url_wrapped'));
+});

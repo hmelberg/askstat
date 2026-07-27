@@ -277,3 +277,21 @@ Deno.test("fetchRawUrl: TypeError (CORS/nettverk) faller tilbake på proxy", asy
   assertEquals(new TextDecoder().decode(out.bytes), "ok");
   assertEquals(calls[1].indexOf("/api/hent?url="), 0);
 });
+
+// S5 (smoke-revisjon): /api/hent er auth-portet — broens proxy-fallback må
+// sende samme headere som direktiv-veien, ellers er den død (målt: 401 i
+// smoke 6).
+Deno.test("fetchRawUrl: proxy-fallback sender auth-headere (S5)", async () => {
+  const seen: Array<Record<string, string>> = [];
+  const fetchImpl = (u: string, init?: RequestInit) => {
+    if (u.indexOf("/api/hent?") === 0) {
+      seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/csv" } }));
+    }
+    return Promise.reject(new TypeError("Failed to fetch"));
+  };
+  await DL.fetchRawUrl("https://cors.example/d.csv", { fetchImpl, anthropicKey: "sk-ant-test" });
+  assertEquals(seen[0]["x-anthropic-key"], "sk-ant-test");
+  await DL.fetchRawUrl("https://cors.example/d.csv", { fetchImpl, authToken: "T1", anthropicKey: "sk-ant-test" });
+  assertEquals(seen[1]["authorization"], "Bearer T1");
+});

@@ -7471,12 +7471,20 @@ for _wl in json.loads(${JSON.stringify(JSON.stringify(loads))}):
       const segAssign = segmentsStrForInit != null
         ? `_segments = json.loads(${JSON.stringify(segmentsStrForInit)})\n`
         : '';
+      // pandas-URL-broen (plan 2026-07-27): patcher pd.read_csv/read_json/
+      // read_parquet til å rute URL-argumenter via ReadBridge (cachen fylles
+      // av prefetchScript ved kjørestart; cache-miss faller til sync XHR i
+      // forPyodideSync). Kilden bor i js/read-bridge.js, ikke inline her, så
+      // node-testene kan asserte direkte på den. buildWebDataLoaderPreamble()
+      // sin '# load'-materialisering (rett under i preamblet) bruker FS-stier
+      // — ikke URL-er — så wrapperen rører den aldri.
       return `
 import ast
 import json
 import numpy as np
 import pandas as pd
 import builtins
+` + (window.ReadBridge ? window.ReadBridge.pyPatchSource() : '') + `
 class DatasetStore:
     """Slankt datasett-register (erstattet MicroInterpreter 2026-07-24, scope B):
     limet bak # load-aliaser, # use på tvers av moduser/celler, to_microdata()
@@ -10371,6 +10379,9 @@ options(width = 200)
         var _pyLoads = [];
         if (activeEditorMode === 'python' || activeEditorMode === 'duckdb') {
           var _dlDeps = { anthropicKey: getAnthropicKey(), promptKey: mdPromptKey };
+          // pandas-URL-broen (plan 2026-07-27): fyller ReadBridge-cachen mens
+          // resolveAndFetchLoads/py-boot pågår — ren hint, aldri autoritativ.
+          if (window.ReadBridge) window.ReadBridge.prefetchScript(effectiveScript);
           var _dl = _duckPreResolved || await window.DataLoader.resolveAndFetchLoads(effectiveScript, _dlDeps);
           var _rawLoads = _dl.loads;
           if (activeEditorMode === 'duckdb') {
@@ -10857,6 +10868,9 @@ async def _m2py_run_segment(_seg_json):
         catch (e) { console.warn('#tag.import (motor-notatbok):', e); }
         if (!sess.isLive()) {
           setStatus(rightStatus, t('Starter økt…'));
+          // pandas-URL-broen (plan 2026-07-27): se kommentaren ved
+          // effectiveScript-stedet over — samme hint-prefetch her.
+          if (window.ReadBridge) window.ReadBridge.prefetchScript(scriptInput.value);
           var _dl = await window.DataLoader.resolveAndFetchLoads(scriptInput.value,
             { anthropicKey: getAnthropicKey(), promptKey: mdPromptKey });
           await sess.ensure(_dl.loads);
@@ -11904,6 +11918,9 @@ async def _m2py_run_segment(_seg_json):
         let _forklarPyLoads = [];
         if (activeEditorMode === 'python' && py) {
           try {
+            // pandas-URL-broen (plan 2026-07-27): samme hint-prefetch som de to
+            // andre Pyodide-inngangene (effectiveScript/scriptInput.value).
+            if (window.ReadBridge) window.ReadBridge.prefetchScript(snapshotScript);
             const _fdl = await window.DataLoader.resolveAndFetchLoads(snapshotScript,
               { anthropicKey: getAnthropicKey(), promptKey: mdPromptKey });
             const _fRawLoads = _fdl.loads || [];
@@ -12130,6 +12147,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/pxweb.js"></script>
   <script src="js/enc-crypto.js"></script>
   <script src="js/data-loader.js"></script>
+  <script src="js/read-bridge.js"></script>
   <script src="js/duckdb-views.js"></script>
   <script src="js/assembly-duckdb.js"></script>
   <script src="js/duckdb-native.js"></script>

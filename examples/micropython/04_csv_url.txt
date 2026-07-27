@@ -1,12 +1,14 @@
 #options.mode = micropython
 # label: Read a CSV from a URL
-# MicroPython: read a CSV from a URL with the `# load` directive.
-# The file is fetched in the browser and bound as a pandas_mpy DataFrame
-# under the name you choose — no DuckDB is needed for CSV (only parquet
-# requires it).
-# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
+# MicroPython: a plain GET URL needs no directive — read it directly, same
+# as plain pandas. The file is fetched in the browser and bound as a
+# pandas_mpy DataFrame (no DuckDB needed for CSV — only parquet requires it).
+# `ost.read(...)` exists for sources that need more than a URL (registries,
+# secret_key, canonical queries, POST bodies, databases).
 import pandas_mpy as pd
 import plotly_express_mpy as pe
+
+iris = pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 # The frame is ready under the name you chose:
 show(iris.head())

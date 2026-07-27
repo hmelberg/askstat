@@ -250,6 +250,35 @@
     };
   }
 
+  // pandas-URL-broen (plan 2026-07-27): samme pending/replay-mønster som
+  // duck-broen — read_csv(url) slår synkront opp her; miss legges i kø og
+  // replay-løkka henter via DataLoader.fetchRawUrl (proxy-fallback +
+  // høylytte HTTP-feil bor der). Feil caches så replay-passet feiler PÅ
+  // kallstedet med status og URL — aldri stille.
+  function beginFetchBridge() {
+    var cache = {};      // url -> JSON-streng {text}|{error}
+    var pending = [];
+    global.__brythonFetchSync = function (url) {
+      if (cache.hasOwnProperty(url)) return cache[url];
+      if (pending.indexOf(url) === -1) pending.push(url);
+      return '{"pending":true}';
+    };
+    return {
+      hasPending: function () { return pending.length > 0; },
+      flush: async function () {
+        var batch = pending; pending = [];
+        for (var i = 0; i < batch.length; i++) {
+          try {
+            var r = await global.DataLoader.fetchRawUrl(batch[i]);
+            cache[batch[i]] = JSON.stringify({ text: new TextDecoder().decode(r.bytes) });
+          } catch (e) {
+            cache[batch[i]] = JSON.stringify({ error: (e && e.message) || String(e) });
+          }
+        }
+      },
+    };
+  }
+
   var __enginePromise = null;
   // ui sync_to (fase 3): siste vellykket resolverte modul-objekt, satt i
   // load() under. syncVar() må svare SYNKRONT (samme kontrakt som
@@ -385,6 +414,7 @@
       // brukerglobals tilbake og kjører hele scriptet på nytt. Uten duckdb i
       // koden er dette nøyaktig ett pass (pending oppstår aldri).
       var duck = beginDuckBridge(spec);
+      var fetchBr = beginFetchBridge();
       mod._snapshot();
       var text = '', err = null, pass;
       for (pass = 0; pass < MAX_DUCK_PASSES; pass++) {
@@ -396,15 +426,17 @@
         text = mod._execute_code(script);
         err = mod._get_last_error();
         if (err !== PENDING_MARKER) break;
-        if (!duck.hasPending()) {
-          return { text: '', error: 'duckdb_brython: replay uten ventende spørringer (intern feil)' };
+        var _hadWork = false;
+        if (duck.hasPending()) { await duck.flush(); _hadWork = true; }
+        if (fetchBr.hasPending()) { await fetchBr.flush(); _hadWork = true; }
+        if (!_hadWork) {
+          return { text: '', error: 'brython: replay uten ventende arbeid (intern feil)' };
         }
-        await duck.flush();
       }
       if (err === PENDING_MARKER) {
-        return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +
-                 MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene av ikke-deterministiske ' +
-                 'verdier (f.eks. random uten seed)?' };
+        return { text: '', error: 'duckdb-spørringene eller url-hentingene stabiliserer seg ' +
+                 'ikke etter ' + MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene/URL-ene av ' +
+                 'ikke-deterministiske verdier (f.eks. random uten seed)?' };
       }
       return { text: String(text == null ? '' : text), error: err ? String(err) : null };
     } catch (e) {
@@ -450,6 +482,7 @@
       // globale sync-hooket til en mellomliggende run() og servert stale
       // cache-treff etter muterende SQL (INSERT/CREATE OR REPLACE).
       var duck = beginDuckBridge(__nb.spec, __nb.duckShared);
+      var fetchBr = beginFetchBridge();   // fersk per celle, som duck-broen
       mod._snapshot();   // duck-replay-spoling gjelder KUN denne cellens pass
       var text = '', err = null, pass;
       for (pass = 0; pass < MAX_DUCK_PASSES; pass++) {
@@ -457,15 +490,17 @@
         text = mod._execute_code(source);
         err = mod._get_last_error();
         if (err !== PENDING_MARKER) break;
-        if (!duck.hasPending()) {
-          return { text: '', error: 'duckdb_brython: replay uten ventende spørringer (intern feil)' };
+        var _hadWork = false;
+        if (duck.hasPending()) { await duck.flush(); _hadWork = true; }
+        if (fetchBr.hasPending()) { await fetchBr.flush(); _hadWork = true; }
+        if (!_hadWork) {
+          return { text: '', error: 'brython: replay uten ventende arbeid (intern feil)' };
         }
-        await duck.flush();
       }
       if (err === PENDING_MARKER) {
-        return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +
-                 MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene av ikke-deterministiske ' +
-                 'verdier (f.eks. random uten seed)?' };
+        return { text: '', error: 'duckdb-spørringene eller url-hentingene stabiliserer seg ' +
+                 'ikke etter ' + MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene/URL-ene av ' +
+                 'ikke-deterministiske verdier (f.eks. random uten seed)?' };
       }
       return { text: String(text == null ? '' : text), error: err ? String(err) : null };
     } catch (e) {

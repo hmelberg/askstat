@@ -5,8 +5,8 @@ denne fila er kildedokument + endringslogg (samme mønster som kode-svar.md).
 Design: docs/superpowers/specs/2026-07-03-web-data-svar-design.md.
 
 Blokkstruktur: INTRO (tre faser: tolk → finn → generer; søkehåndverk),
-DELIVERY (ost-direktiver, proxy, POST-innpakking, kildesitering, lukket
-grammatikk),
+DELIVERY (grenseregel pandas-vs-ost, ost-direktiver, proxy, POST-innpakking,
+kildesitering, lukket grammatikk),
 SCIENCE (rå→justert, identifikasjon, heterogenitet, ærlighet — utvidet fra
 INFERENCE_STRATEGY_PYR i kode-svar.ts), INLINE (datatilfangst-stigen:
 probet → transkribert-fra-web_fetch → modellkunnskap; aldri utfall fra
@@ -78,6 +78,26 @@ urørt — det er en logg, ikke en referanse. Gjeldende syntaks: se siste entry.
   vokabularet lenger.
   UTESTET: evalsettet (docs/eval/data-svar-evalsett.md) er kalibrert mot det
   GAMLE vokabularet og er IKKE kjørt etter denne endringen. Krever API-nøkkel.
+- 2026-07-27 (2): pandas-URL-bro (Task 6). `pd.read_csv(url)` virker nå direkte
+  i Pyodide/Brython/MicroPython (Task 1–5) for rene GET-URL-er — DELIVERY
+  fikk en NY grenseregel-tabell rett under overskriften: åpen tabell-URL →
+  vanlig pandas (\`pd.read_csv\`), ett eksempel; nøkkel/proxy/kanonisk
+  spørring/database → \`ost\`-direktiv, ett eksempel. Resten av DELIVERY
+  (proxy, POST-innpakking, kildesitering, lukket grammatikk) er uendret —
+  regelen gjelder bare HVILKET verktøy man griper til, ikke selve
+  direktivgrammatikken. `data-svar-prompt.test.ts` fikk to nye needles i den
+  eksisterende needle-listen (`pd.read_csv`, `Grenseregel`) — TILLEGG, ingen
+  eldre needle endret eller fjernet. Hele `_lib/`-suiten grønn etter
+  endringen.
+  FIX (Task 6-review, samme dag): SDMX-forbeholdet fantes fra før KUN i
+  hjelp.html:471 (til mennesker), ikke der det virker operasjonelt — i selve
+  modell-prompten. DELIVERY fikk derfor én ny setning rett under
+  grenseregel-tabellen, samme ordlyd som hjelp.html: SDMX-kilder (OECD, ECB,
+  Norges Bank) ignorerer ukjente parametere STILLE i en rå URL — bruk `ost`
+  med `years=`/`countries=`/`indicators=` som sikkerhetsskinne mot disse,
+  ALDRI en rå `pd.read_csv`-URL mot SDMX. `data-svar-prompt.test.ts` fikk én
+  ny needle (`SDMX`) i samme needle-liste — TILLEGG, ingen eldre needle
+  endret.
 
 ### Uten websøk: modellkunnskaps-URL-er
 

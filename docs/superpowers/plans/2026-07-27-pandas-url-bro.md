@@ -23,7 +23,7 @@
 
 - `js/data-loader.js` — MODIFY: ny eksport `fetchRawUrl` (gjenbruker `fetchLoadTarget`-mekanikken `:73-100`).
 - `js/read-bridge.js` — CREATE: skann + cache + `ensure`/`getCached`/`forPyodideSync` + `pyPatchSource()` (Pyodide-patchens Python-kilde, node-testbar streng).
-- `index.html` — MODIFY: last `read-bridge.js`; injiser Pyodide-patchen i interpreter-preamblet; kall `prefetchScript` ved de tre kjøre-inngangene (`:2716`, `:2791`, `:2856`).
+- `index.html` — MODIFY: last `read-bridge.js`; injiser Pyodide-patchen i interpreter-preamblet; kall `prefetchScript` ved de tre PYODIDE-inngangene. **KORRIGERT ved pre-sjekk 2026-07-27:** `:2716`/`:2791`/`:2856` er brython/mpy/js-innganger — de riktige er `:10374` (hovedkjøring, `effectiveScript`), `:10860` (notatbok-boot, `scriptInput.value`), `:11907` (forklar, `snapshotScript`). Patchen i `getInterpreterCorePython` (`:7470`) dekker alle Pyodide-veier automatisk (både `:10458` setupCode og `:11920` explainInit bygger på den).
 - `js/brython-engine.js` — MODIFY: `beginFetchBridge()` parallelt med `beginDuckBridge()`; replay-løkka flusher begge køene.
 - `brython/pandas_brython.py` — MODIFY: URL-gren i `read_csv` (`:4888`).
 - `js/micropython-engine.js` + `micropython/pandas_mpy.py` — MODIFY: samme mønster (`__mpyFetchSync`, `read_csv` `:5161`).
@@ -377,7 +377,7 @@ git commit -m "feat(bro): ReadBridge — URL-skann (hint), byte-cache, sync-fasa
 ### Task 3: Pyodide — wrapperne inn i preamblet + prefetch ved kjørestart
 
 **Files:**
-- Modify: `index.html` — interpreter-preamblet (der `import pandas as pd` skjer i kjernen, samme område som `buildWebDataLoaderPreamble` `:7449`), og de tre kjøre-inngangene `:2716`, `:2791`, `:2856` (linjetall flytter seg — søk etter `resolveAndFetchLoads`).
+- Modify: `index.html` — interpreter-preamblet (`getInterpreterCorePython` `:7470`, som ALLE Pyodide-veier bygger på — både setupCode `:10458` og explainInit `:11920`), og de tre Pyodide-inngangene `:10374`, `:10860`, `:11907` (korrigert ved pre-sjekk; linjetall flytter seg — søk etter `resolveAndFetchLoads`).
 
 **Interfaces:**
 - Consumes: `ReadBridge.pyPatchSource()`, `ReadBridge.prefetchScript(script)` (Task 2).
@@ -402,9 +402,16 @@ I JS-koden som bygger kjerne-preamblet, legg til (etter at kjernens `import pand
       + '\n' + (window.ReadBridge ? window.ReadBridge.pyPatchSource() : '') + '\n'
 ```
 
-- [ ] **Step 3: Prefetch ved de tre kjøre-inngangene**
+- [ ] **Step 3: Prefetch ved de tre PYODIDE-inngangene**
 
-Ved hvert av de tre `resolveAndFetchLoads`-kallene (`:2716`, `:2791`, `:2856`), legg til linjen RETT FØR kallet:
+**KORRIGERT ved pre-sjekk:** planens opprinnelige `:2716`/`:2791`/`:2856` er
+brython/mpy/js-innganger. De riktige Pyodide-stedene er:
+- `:10374` — hovedkjøringen (`effectiveScript`)
+- `:10860` — notatbok-boot (`scriptInput.value`)
+- `:11907` — forklar-veien (`snapshotScript`)
+
+(Søk etter `resolveAndFetchLoads` og verifiser konteksten — linjetall flytter
+seg.) Ved hvert av de tre, legg til linjen RETT FØR kallet:
 
 ```js
           if (window.ReadBridge) window.ReadBridge.prefetchScript(script);

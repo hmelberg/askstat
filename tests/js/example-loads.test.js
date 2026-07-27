@@ -13,7 +13,11 @@ function loadDD() {
   return sandbox.window.DataDirectives;
 }
 const DD = loadDD();
-const FILES = ['python/ex_csv_iris.txt','python/ex_columns_penguins.txt',
+// python/ex_csv_iris.txt is NOT in this list (pandas-url-bro, Task 6): it was
+// converted from a `# iris = ost.read(...)` directive to real
+// `iris = pd.read_csv(...)` code, so it correctly has zero load directives
+// now — see examples/python/ex_csv_iris.txt and .superpowers/sdd/bro-smoke.md.
+const FILES = ['python/ex_columns_penguins.txt',
                'r/rex_csv_iris.txt','r/rex_columns_penguins.txt'];
 
 for (const f of FILES) {

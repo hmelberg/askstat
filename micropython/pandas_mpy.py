@@ -5158,6 +5158,15 @@ def _parse_csv_text(text, sep=','):
     return rows
 
 
+class _PendingFetch(BaseException):
+    """Signal til motorens replay-løkke: URL-en ligger i kø, hent og kjør på
+    nytt. BaseException med KLASSE-attributt, som duckdb-broens _PendingSQL:
+    (1) MicroPython støtter ikke attributt-tilordning på builtin-unntaks-
+    instanser, og (2) brukerkodens «except Exception:» skal ikke sluke
+    signalet — stille fallback-data er verre enn en ekstra pass."""
+    __brython_pending__ = True
+
+
 def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
     """
     Reads CSV data into a dataframe from a file path or StringIO object.
@@ -5167,6 +5176,31 @@ def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
     # csv.reader. Brython-originalens QUOTE_STRINGS/QUOTE_NOTNULL-lapping av
     # _csv (arbeidsrundt for et Brython-stdlib-hull) er droppet — irrelevant
     # utenfor Brython.
+
+    # pandas-URL-broen (plan 2026-07-27): samme JSON-strengprotokoll og
+    # pending-attributt som duckdb_mpy._run_sql — se den for begrunnelsen.
+    if isinstance(filepath, str) and (
+        filepath.startswith("http://") or filepath.startswith("https://")
+        or filepath.startswith("/api/hent?")
+    ):
+        import json as _json
+        import js as _js
+        # felle (se duckdb_mpy.py filhode, pkt. 3): repo-rotens js/-mappe er
+        # en tom CPython-namespace-pakke uten __init__.py. `import js as _js`
+        # alene "lykkes" stille selv utenfor motoren — ingen ekte js-modul og
+        # ingen feil. Sjekk derfor eksplisitt at broen faktisk er koblet
+        # (motoren setter __mpyFetchSync) før vi stoler på attributtet.
+        if not hasattr(_js, "__mpyFetchSync"):
+            raise ValueError(
+                "pandas-URL-broen er ikke koblet (kjører du utenfor motoren?)")
+        _res = _json.loads(_js.__mpyFetchSync(filepath))
+        if _res.get("pending"):
+            raise _PendingFetch("venter paa " + filepath)
+        if _res.get("error"):
+            raise ValueError(str(_res["error"]))
+        import io as _io
+        filepath = _io.StringIO(_res["text"])
+
     index = []
     columns = []
     data = []

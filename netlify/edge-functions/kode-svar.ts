@@ -867,6 +867,8 @@ OpenStat sin JavaScript-modus (kjører native i nettleseren). Du svarer på nors
 og engelsk, i brukerens språk. Lag et komplett, kjørbart script som følger
 modusens konvensjoner nedenfor. Data hentes fra åpne URL-er med
 \`// <navn> = ost.read("<url>")\` (CSV/JSON/parquet — blir en Arquero-tabell)
+— JS-modus har ikke pandas, så dette er alltid veien inn her (i Python-modus
+virker \`pd.read_csv(url)\` også direkte for samme slags URL, uten direktiv)
 eller fra forrige SQL-kjøring med
 \`// <navn> = ost.use("<navn>", source="duckdb")\`. Direktivlinjer er ikke
 JavaScript: grammatikken er lukket (navngitte literal-argumenter, ingen

@@ -467,6 +467,9 @@ summarize kjonn</code></pre>
   <!-- ── DATADIREKTIVER ── -->
   <section id="direktiver">
     <h2>Datadirektiver — hente og montere data</h2>
+    <div class="callout">
+      <strong>Når trenger du IKKE et direktiv?</strong> En ren GET-URL som returnerer en tabell leses med vanlig pandas: <code>iris = pd.read_csv("https://…/iris.csv")</code> — det virker i alle Python-modusene og uendret utenfor appen. Bruk <code>ost</code> når noe mer enn en URL trengs: registerkilder, <code>secret_key</code>, kanonisk spørring (<code>years=</code>/<code>indicators=</code> — tryggest mot SDMX-kilder, som stille ignorerer ukjente parametere i rå URL-er), POST-kropper, databaser/tabeller, kryptering, <code>use</code> og montering.
+    </div>
     <p>Data hentes med <strong>direktivlinjer</strong>: vanlige kommentarer øverst i scriptet som leses <em>før</em> koden kjører. Kommentartegnet følger språket (<code>#</code> i Python, <code>--</code> i SQL, <code>//</code> i JavaScript) — ellers er linjene identiske i alle moduser.</p>
 
     <p>Formen er pythonsk: <code>ost.</code> på inngangspunktene, bart metodekall på det du har fått tilbake. Limer du linjene inn i et vanlig Python-script med <code>import openstat as ost</code> øverst, gjør de det samme der.</p>

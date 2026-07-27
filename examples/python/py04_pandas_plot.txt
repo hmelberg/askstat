@@ -1,7 +1,7 @@
 # label: matplotlib — histogram and boxplot
 # Example: pandas + matplotlib — histogram and boxplot
 # `# load` fetches the data. matplotlib plots directly.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as plot_data
+# plot_data = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 import matplotlib.pyplot as plt
 

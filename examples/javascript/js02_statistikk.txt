@@ -1,6 +1,6 @@
 // label: Statistics — t-test, confidence interval, distributions
 // Example: simple-statistics (ss) and jStat — descriptive statistics and tests
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 const setosa = Array.from(iris.filter(d => d.species === "setosa").array("sepal_length"));
 const virginica = Array.from(iris.filter(d => d.species === "virginica").array("sepal_length"));

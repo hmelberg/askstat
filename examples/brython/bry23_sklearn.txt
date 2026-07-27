@@ -1,6 +1,6 @@
 # label: sklearn — KMeans, PCA, regression
 # Example: machine learning in Brython mode — sklearn subset (pure Python)
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 import plotly_express_brython as pe
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA

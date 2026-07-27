@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-for (const f of ["data-directives.js", "pxweb.js", "assembly-duckdb.js", "portable-export.js"]) {
+for (const f of ["directive-parser.js", "data-directives.js", "pxweb.js", "assembly-duckdb.js", "portable-export.js"]) {
   (0, eval)(await Deno.readTextFile(new URL(`../../../js/${f}`, import.meta.url)));
 }
 // deno-lint-ignore no-explicit-any
@@ -14,11 +14,11 @@ Deno.test("passthrough: script uten direktiver er byte-identisk", () => {
 });
 
 Deno.test("GET csv: direkte URL → pd.read_csv, original som kommentar, header + import lagt til", () => {
-  const s = "# load https://ourworldindata.org/grapher/life-expectancy.csv as co2\nprint(co2.head())\n";
+  const s = '# co2 = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")\nprint(co2.head())\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes("Portabel eksport fra OpenStat")) throw new Error("mangler header:\n" + out.code);
   if (!out.code.includes("import pandas as pd")) throw new Error("mangler pandas-import");
-  if (!out.code.includes('# load https://ourworldindata.org/grapher/life-expectancy.csv as co2')) {
+  if (!out.code.includes('# co2 = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")')) {
     throw new Error("originaldirektivet mangler som kommentar");
   }
   if (!out.code.includes('co2 = pd.read_csv("https://ourworldindata.org/grapher/life-expectancy.csv", sep=None, engine="python")')) {
@@ -29,7 +29,7 @@ Deno.test("GET csv: direkte URL → pd.read_csv, original som kommentar, header 
 
 Deno.test("proxy-utpakking: /api/hent?url=<enc> → indre URL", () => {
   const inner = "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv";
-  const s = "# load /api/hent?url=" + encodeURIComponent(inner) + " as ledighet\n";
+  const s = '# ledighet = ost.read("/api/hent?url=' + encodeURIComponent(inner) + '")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes(`ledighet = pd.read_csv(${JSON.stringify(inner)}, sep=None, engine="python")`)) {
     throw new Error("indre URL ikke pakket ut:\n" + out.code);
@@ -44,7 +44,7 @@ Deno.test("proxy-utpakking: /api/hent?url=<enc> → indre URL", () => {
 Deno.test("POST-reversering: &body= → requests.post + json.loads", () => {
   const inner = "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyokay/tabell.px";
   const body = JSON.stringify({ query: [], response: { format: "csv" } });
-  const s = "# load /api/hent?url=" + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + " as syss\n";
+  const s = '# syss = ost.read("/api/hent?url=' + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + '")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes("requests.post(")) throw new Error("mangler requests.post:\n" + out.code);
   if (!out.code.includes("json.loads(" + JSON.stringify(body) + ")")) throw new Error("body ikke inlinet via json.loads");
@@ -55,7 +55,7 @@ Deno.test("POST-reversering: &body= → requests.post + json.loads", () => {
 });
 
 Deno.test("kind(json) → .json()-emisjon m/ rå-JSON-kommentar", () => {
-  const s = "# load https://api.worldbank.org/v2/country/NO/indicator/X?format=json as wb, kind(json)\n";
+  const s = '# wb = ost.read("https://api.worldbank.org/v2/country/NO/indicator/X?format=json", kind="json")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes('wb = requests.get("https://api.worldbank.org/v2/country/NO/indicator/X?format=json").json()')) {
     throw new Error("feil json-emisjon:\n" + out.code);
@@ -65,7 +65,7 @@ Deno.test("kind(json) → .json()-emisjon m/ rå-JSON-kommentar", () => {
 Deno.test("connect + register-id løses via registry; cors:false-kilde blir DIREKTE URL", () => {
   const REG = [{ id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell", tilgang: "pxweb",
     base_url: "https://data.ssb.no/api/pxwebapi/v2-beta/", cors: false }];
-  const s = "# connect ssb\n# load ssb/tables/05839/metadata as meta, kind(json)\n";
+  const s = '# ssb = ost.connect("ssb")\n# meta = ssb.read("tables/05839/metadata", kind="json")\n';
   const out = PE.transpile(s, "python", REG);
   if (!out.code.includes('meta = requests.get("https://data.ssb.no/api/pxwebapi/v2-beta/tables/05839/metadata").json()')) {
     throw new Error("registry-oppløsning feilet:\n" + out.code);
@@ -73,7 +73,7 @@ Deno.test("connect + register-id løses via registry; cors:false-kilde blir DIRE
 });
 
 Deno.test("parquet og csv-default: endelse styrer; ukjent endelse → csv + warning", () => {
-  const s = "# load https://x.example/data.parquet as p\n# load https://x.example/api/rows as r\n";
+  const s = '# p = ost.read("https://x.example/data.parquet")\n# r = ost.read("https://x.example/api/rows")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes('p = pd.read_parquet("https://x.example/data.parquet")')) throw new Error("parquet-emisjon mangler");
   if (!out.code.includes('r = pd.read_csv("https://x.example/api/rows", sep=None, engine="python")')) throw new Error("csv-default mangler");
@@ -81,14 +81,14 @@ Deno.test("parquet og csv-default: endelse styrer; ukjent endelse → csv + warn
 });
 
 Deno.test("import-dedup: eksisterende 'import pandas as pd' dupliseres ikke", () => {
-  const s = "import pandas as pd\n# load https://x.example/d.csv as df\n";
+  const s = 'import pandas as pd\n# df = ost.read("https://x.example/d.csv")\n';
   const out = PE.transpile(s, "python", []);
   const count = (out.code.match(/^import pandas as pd$/gm) || []).length;
   assertEquals(count, 1);
 });
 
 Deno.test("direktivfeil → Error('Direktivfeil: …')", () => {
-  assertThrows(() => PE.transpile("# load ukjent/tab as x\n", "python", []), Error, "Direktivfeil");
+  assertThrows(() => PE.transpile('# x = ukjent.read("tab")\n', "python", []), Error, "Direktivfeil");
 });
 
 Deno.test("ukjent mode → Error", () => {
@@ -96,7 +96,7 @@ Deno.test("ukjent mode → Error", () => {
 });
 
 Deno.test("R: GET csv → read.csv m/ separator-kommentar", () => {
-  const s = "-- load https://x.example/d.csv as df\nsummary(df)\n";
+  const s = '-- df = ost.read("https://x.example/d.csv")\nsummary(df)\n';
   const out = PE.transpile(s, "r", []);
   if (!out.code.includes('df <- read.csv("https://x.example/d.csv")  # NB: sjekk skilletegn — nordiske CSV-er bruker ofte sep=";"')) {
     throw new Error("feil R-csv-emisjon:\n" + out.code);
@@ -104,7 +104,7 @@ Deno.test("R: GET csv → read.csv m/ separator-kommentar", () => {
 });
 
 Deno.test("R: kind(json) → jsonlite::fromJSON", () => {
-  const s = "# load https://x.example/d as j, kind(json)\n";
+  const s = '# j = ost.read("https://x.example/d", kind="json")\n';
   const out = PE.transpile(s, "r", []);
   if (!out.code.includes('j <- jsonlite::fromJSON("https://x.example/d")  # krever jsonlite')) {
     throw new Error("feil R-json-emisjon:\n" + out.code);
@@ -114,7 +114,7 @@ Deno.test("R: kind(json) → jsonlite::fromJSON", () => {
 Deno.test("R: POST-reversering → httr::POST-skjelett", () => {
   const inner = "https://statfin.stat.fi/PXWeb/api/v1/en/t.px";
   const body = JSON.stringify({ query: [], response: { format: "csv" } });
-  const s = "# load /api/hent?url=" + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + " as syss\n";
+  const s = '# syss = ost.read("/api/hent?url=' + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + '")\n';
   const out = PE.transpile(s, "r", []);
   if (!out.code.includes('httr::POST("https://statfin.stat.fi/PXWeb/api/v1/en/t.px"')) throw new Error("mangler httr::POST:\n" + out.code);
   if (!out.code.includes("body = " + JSON.stringify(body))) {
@@ -126,7 +126,7 @@ Deno.test("R: POST-reversering → httr::POST-skjelett", () => {
 Deno.test("R: POST-body med backslash escapes korrekt (rStr, ikke håndrullet)", () => {
   const inner = "https://x.example/api";
   const body = JSON.stringify({ path: "a\\/b", note: "it's" });
-  const s = "# load /api/hent?url=" + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + " as d\n";
+  const s = '# d = ost.read("/api/hent?url=' + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + '")\n';
   const out = PE.transpile(s, "r", []);
   // JSON.stringify-escaped dobbeltsitert literal skal inneholde bodyen eksakt:
   if (!out.code.includes("body = " + JSON.stringify(body))) {
@@ -135,7 +135,7 @@ Deno.test("R: POST-body med backslash escapes korrekt (rStr, ikke håndrullet)",
 });
 
 Deno.test("R: parquet → nedlasting + arrow, med kommentar", () => {
-  const s = "# load https://x.example/d.parquet as p\n";
+  const s = '# p = ost.read("https://x.example/d.parquet")\n';
   const out = PE.transpile(s, "r", []);
   if (!out.code.includes('download.file("https://x.example/d.parquet"')) throw new Error("mangler download.file:\n" + out.code);
   if (!out.code.includes("arrow::read_parquet")) throw new Error("mangler arrow::read_parquet");
@@ -144,7 +144,7 @@ Deno.test("R: parquet → nedlasting + arrow, med kommentar", () => {
 Deno.test("POST-body med ''' inni lekker/korrumperer ikke — json.loads(<escapet streng>)", () => {
   const inner = "https://x.example/api";
   const body = JSON.stringify({ note: "her er '''tre apostrofer''' inni en verdi" });
-  const s = "# load /api/hent?url=" + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + " as d\n";
+  const s = '# d = ost.read("/api/hent?url=' + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + '")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes("json.loads(" + JSON.stringify(body) + ")")) {
     throw new Error("body med ''' ikke trygt inlinet:\n" + out.code);
@@ -160,7 +160,7 @@ const KAGGLE_REG = [{ id: "kaggle", navn: "Kaggle", utgiver: "K", tillit: "etabl
   auth: { type: "api_key", user: true, valgfri: true, plassering: "basic" } }];
 
 Deno.test("nøkkelkilde (query-plassering) → plassholder-konstant + param i URL + warning", () => {
-  const s = "# connect fred\n# load fred/series/observations?series_id=UNRATE&file_type=json as u, kind(json)\n";
+  const s = '# fred = ost.connect("fred")\n# u = fred.read("series/observations?series_id=UNRATE&file_type=json", kind="json")\n';
   const out = PE.transpile(s, "python", FRED_REG);
   if (!out.code.includes('FRED_API_KEY = "SETT-INN-EGEN-NØKKEL"')) throw new Error("mangler plassholder:\n" + out.code);
   if (!out.code.includes('"&api_key=" + FRED_API_KEY')) throw new Error("nøkkelparam ikke bygget:\n" + out.code);
@@ -169,7 +169,7 @@ Deno.test("nøkkelkilde (query-plassering) → plassholder-konstant + param i UR
 });
 
 Deno.test("valgfri kilde (kaggle) → anonym eksport + kommentar, ingen plassholder", () => {
-  const s = "# connect kaggle\n# load kaggle/datasets/download/o/s/f.csv as k\n";
+  const s = '# kaggle = ost.connect("kaggle")\n# k = kaggle.read("datasets/download/o/s/f.csv")\n';
   const out = PE.transpile(s, "python", KAGGLE_REG);
   if (out.code.includes("SETT-INN-EGEN-NØKKEL")) throw new Error("valgfri kilde skal ikke få plassholder");
   if (!out.code.includes("# nøkkel er valgfri")) throw new Error("mangler valgfri-kommentar:\n" + out.code);
@@ -179,15 +179,16 @@ Deno.test("valgfri kilde (kaggle) → anonym eksport + kommentar, ingen plasshol
 });
 
 Deno.test("key(<literal>) maskeres i output og gir warning", () => {
-  const s = "# load https://x.example/hemmelig.csv as h, key(supersecret123)\n";
+  const s = '# h = ost.read("https://x.example/hemmelig.csv", secret_key="supersecret123")\n';
   const out = PE.transpile(s, "python", []);
   if (out.code.includes("supersecret123")) throw new Error("nøkkelliteral lekket til eksport");
-  if (!out.code.includes("key(***)")) throw new Error("maskering mangler i kommentarlinjen");
+  // ENDRET I TASK 8 (rapportert): maskeringsformatet er secret_key="***" etter Task 5.
+  if (!out.code.includes('secret_key="***"')) throw new Error("maskering mangler i kommentarlinjen");
   if (!out.warnings.some((w: string) => w.includes("h"))) throw new Error("mangler warning for kryptert kilde");
 });
 
 Deno.test("legitim key(...)-formet kode (data.table::key m.fl.) overlever byte-identisk — scrub skopet til direktivlinjer", () => {
-  const s = "dt <- data.table::key(dt)\nx = mapping.key(5)\n# load https://x.example/scrub-safe.csv as s\n";
+  const s = 'dt <- data.table::key(dt)\nx = mapping.key(5)\n# s = ost.read("https://x.example/scrub-safe.csv")\n';
   const out = PE.transpile(s, "python", []);
   if (!out.code.includes("dt <- data.table::key(dt)")) throw new Error("data.table::key(dt) mangla/mangla byte-identisk:\n" + out.code);
   if (!out.code.includes("x = mapping.key(5)")) throw new Error("mapping.key(5) mangla byte-identisk:\n" + out.code);
@@ -197,14 +198,15 @@ Deno.test("legitim key(...)-formet kode (data.table::key m.fl.) overlever byte-i
 });
 
 Deno.test("key(<literal>) på connect-linje maskeres også", () => {
-  const s = "# connect https://x.example/enc as c, key(hemmelig999)\n# load c/d.csv as d\n";
+  const s = '# c = ost.connect("https://x.example/enc", secret_key="hemmelig999")\n# d = c.read("d.csv")\n';
   const out = PE.transpile(s, "python", []);
   if (out.code.includes("hemmelig999")) throw new Error("connect-nøkkelliteral lekket til eksport:\n" + out.code);
-  if (!out.code.includes("key(***)")) throw new Error("maskering mangler på connect-linjen:\n" + out.code);
+  // ENDRET I TASK 8 (rapportert): maskeringsformatet er secret_key="***" etter Task 5.
+  if (!out.code.includes('secret_key="***"')) throw new Error("maskering mangler på connect-linjen:\n" + out.code);
 });
 
 Deno.test("anvil-kilde og exec(remote) → ikke-portabel kommentarblokk, resten eksporteres", () => {
-  const s = "# connect minkilde\n# load minkilde as d\nprint('etterpå')\n";
+  const s = "# minkilde = ost.connect(\"minkilde\")\n# d = minkilde.read()\nprint('etterpå')\n";
   const out = PE.transpile(s, "python", []);   // tomt register → anvil-gren
   if (!out.code.includes("krever OpenStat-appen")) throw new Error("mangler ikke-portabel-blokk:\n" + out.code);
   if (!out.code.includes("print('etterpå')")) throw new Error("resten av scriptet mangler");
@@ -217,7 +219,7 @@ Deno.test("R: POST- og nøkkel-temporaries er gyldige R-navn (starter aldri med 
     auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" } }];
   const inner = "https://x.example/t.px";
   const body = JSON.stringify({ q: 1 });
-  const s = "# connect fred\n# load fred/series?x=1 as u, kind(json)\n# load /api/hent?url=" + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + " as p\n";
+  const s = '# fred = ost.connect("fred")\n# u = fred.read("series?x=1", kind="json")\n# p = ost.read("/api/hent?url=' + encodeURIComponent(inner) + "&body=" + encodeURIComponent(body) + '")\n';
   const out = PE.transpile(s, "r", REG);
   const targets = out.code.split("\n")
     .map((l: string) => (/^\s*([A-Za-z_.][\w.]*)\s*<-/.exec(l) || [])[1])
@@ -239,8 +241,8 @@ Deno.test("fast-path: malformet direktiv m/ key-literal scrubbes også uten pars
 
 // ── pxweb-eksport (plan 2026-07-25 Task 2) ──────────────────────────────────
 const PX_SCRIPT = [
-  "# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)",
-  "# load ssb/05839 as bef",
+  '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")',
+  '# bef = ssb.read("05839")',
   "print(bef.head())",
 ].join("\n");
 
@@ -255,7 +257,7 @@ Deno.test("pxweb python: _px_frame-helper + data-URL med json-stat2", () => {
 });
 
 Deno.test("pxweb python: helperen emitteres ÉN gang ved to pxweb-loads", () => {
-  const s2 = PX_SCRIPT + "\n# load ssb/07459 as pop\n";
+  const s2 = PX_SCRIPT + '\n# pop = ssb.read("07459")\n';
   const out = PE.transpile(s2, "python", []);
   assertEquals(out.code.split("def _px_frame(ds):").length - 1, 1);
 });
@@ -270,11 +272,11 @@ Deno.test("pxweb r: px_frame_-helper + jsonlite-lesing", () => {
 
 // ── montering i eksporten (plan 2026-07-25 Task 3) ──────────────────────────
 const ASM_SCRIPT = [
-  "# connect https://x.example/kommune.parquet as a, kind(parquet)",
-  "# connect https://x.example/kommune2.parquet as b, kind(parquet)",
-  "# create-dataset panel, key(kommune_nr year)",
-  "# import a/skatt into panel",
-  "# import b/avfall into panel",
+  '# a = ost.connect("https://x.example/kommune.parquet", kind="parquet")',
+  '# b = ost.connect("https://x.example/kommune2.parquet", kind="parquet")',
+  '# panel = ost.create(key=["kommune_nr", "year"])',
+  '# panel.add(a, ["skatt"])',
+  '# panel.add(b, ["avfall"])',
   "print(panel.shape)",
 ].join("\n");
 
@@ -303,12 +305,12 @@ Deno.test("montering r: merge med by = c(...) og all.x for left", () => {
 
 Deno.test("montering: join-steg mot datasett-variabel + pxweb-kilde i import", () => {
   const s2 = [
-    "# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)",
-    "# connect https://x.example/f.parquet as p, kind(parquet)",
-    "# load p as ekstra",
-    "# create-dataset d, key(Tid)",
-    "# import ssb/05839.value into d",
-    "# join ekstra into d on Tid inner",
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")',
+    '# p = ost.connect("https://x.example/f.parquet", kind="parquet")',
+    "# ekstra = p.read()",
+    '# d = ost.create(key="Tid")',
+    '# d.add(ssb, ["value"], table="05839")',
+    '# d.join(ekstra, on="Tid", how="inner")',
   ].join("\n");
   const out = PE.transpile(s2, "python", []);
   if (!out.code.includes("src_ssb__05839 = _px_frame(requests.get(")) {
@@ -321,9 +323,9 @@ Deno.test("montering: join-steg mot datasett-variabel + pxweb-kilde i import", (
 
 Deno.test("montering: duckdb-kilde gir kommentar + warning, ikke knekt kode", () => {
   const s3 = [
-    "# connect https://x.example/f.duckdb as db, kind(duckdb)",
-    "# create-dataset d, key(pid)",
-    "# import db/tab.col into d",
+    '# db = ost.connect("https://x.example/f.duckdb", kind="duckdb")',
+    '# d = ost.create(key="pid")',
+    '# d.add(db, ["col"], table="tab")',
   ].join("\n");
   const out = PE.transpile(s3, "python", []);
   if (!out.warnings.some((w: string) => w.includes("duckdb"))) throw new Error("mangler warning");
@@ -332,8 +334,8 @@ Deno.test("montering: duckdb-kilde gir kommentar + warning, ikke knekt kode", ()
 
 Deno.test("eurostat python: samme _px_frame-helper, eurostat-URL", () => {
   const s4 = [
-    "# connect https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data as eu, kind(eurostat)",
-    "# read eu/nama_10_gdp?geo=NO as bnp",
+    '# eu = ost.connect("https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data", kind="eurostat")',
+    '# bnp = eu.read("nama_10_gdp?geo=NO")',
   ].join("\n");
   const out = PE.transpile(s4, "python", []);
   if (!out.code.includes("def _px_frame(ds):")) throw new Error("mangler helper:\n" + out.code);

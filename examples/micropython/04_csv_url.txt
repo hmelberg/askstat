@@ -4,7 +4,7 @@
 # The file is fetched in the browser and bound as a pandas_mpy DataFrame
 # under the name you choose — no DuckDB is needed for CSV (only parquet
 # requires it).
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 import pandas_mpy as pd
 import plotly_express_mpy as pe
 

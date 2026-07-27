@@ -2,7 +2,7 @@
 #options.mode = brython
 #options.title = "Dashboard — regression (cell/ui model)"
 #options.description = "OLS on iris: a single dropdown with on_change=callable updates the plot, R², and model summary directly — push instead of rerun"
-# load https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv")
 
 #%% md
 # What explains sepal length?

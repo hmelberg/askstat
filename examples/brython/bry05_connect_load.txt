@@ -1,8 +1,8 @@
 # label: connect + load — several frames
 # Example: `# connect` — name a data source once, load several frames from it.
-# connect https://raw.githubusercontent.com/hmelberg/openstat/main/data as gh
-# load gh/iris.csv as iris
-# load gh/penguins.csv as penguins
+# gh = ost.connect("https://raw.githubusercontent.com/hmelberg/openstat/main/data")
+# iris = gh.read("iris.csv")
+# penguins = gh.read("penguins.csv")
 import pandas_brython as pd
 import plotly_express_brython as pe
 

@@ -29,78 +29,78 @@ target      := registry-id | url | anvil-name
 ## 1. Public registry source — no options needed
 
 ```
-# connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
-# read ssb/05839/data?outputFormat=csv as ledighet
+# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+# ledighet = ssb.read("05839/data?outputFormat=csv")
 ```
 `ssb` is connected as an alias for a base URL; `read` appends a path to it and binds the result into the script under the name `ledighet`.
 
 Using the short registry id instead of the full URL works the same way:
 ```
-# connect ssb
-# read ssb/tables/05839/data?outputFormat=csv as ledighet
+# ssb = ost.connect("ssb")
+# ledighet = ssb.read("tables/05839/data?outputFormat=csv")
 ```
 
 ## 2. Plain public URL, no `connect` needed at all
 
 ```
-// read https://ourworldindata.org/grapher/co2-emissions.csv as co2
+// co2 = ost.read("https://ourworldindata.org/grapher/co2-emissions.csv")
 ```
 A bare URL can be `read` directly — no `connect` line required, no alias indirection.
 
 ## 3. Legacy `require` (URL-only alias for `read`)
 
 ```
-# require https://x.example/gammel-data.csv as gammel
+# gammel = ost.read("https://x.example/gammel-data.csv")
 ```
 `require` behaves exactly like `read` for URLs. Named (non-URL) sources still use `require` for backward compatibility but are treated specially and NOT rewritten by the client — they route straight to the server.
 
 ## 4. FRED — a registry source that needs the CORS proxy + an API key
 
 ```
-# connect fred
-# read fred/series/observations?series_id=UNRATE&file_type=json as us
+# fred = ost.connect("fred")
+# us = fred.read("series/observations?series_id=UNRATE&file_type=json")
 ```
 Because the FRED registry entry declares `cors:false` and an `auth` block, the fetch is silently routed through `/api/hent` (the same-origin proxy) instead of a direct browser fetch — the script itself doesn't change.
 
 ## 5. Registered protected source — key supplied interactively
 
 ```
-# connect helse2025 as h, key(ask)
-# read h as df
+# h = ost.connect("helse2025", secret_key="ask")
+# df = h.read()
 ```
 `helse2025` isn't a public registry id, so it resolves as an Anvil-registered source. `key(ask)` means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).
 
 ## 6. Registered source with a literal key and forced remote execution
 
 ```
-# connect kilde2 as k, key(qL7xK2mN9pR4sT6v), exec(remote)
-# read k as df
+# k = ost.connect("kilde2", secret_key="qL7xK2mN9pR4sT6v", exec="remote")
+# df = k.read()
 ```
 `exec(remote)` forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, `exec(local)`, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)
 
 ## 7. Directly loading an encrypted file by URL
 
 ```
-# read https://raw.githubusercontent.com/owner/repo/data.enc.json as df, key(abcDEF123)
+# df = ost.read("https://raw.githubusercontent.com/owner/repo/data.enc.json", secret_key="abcDEF123")
 ```
 No `connect`/registration needed if the owner just hands you a URL and a key: the loader sniffs the `safepy-enc-v1` envelope, verifies its fingerprint, and decrypts client-side with WebCrypto using the supplied key.
 
 ## 8. Key precedence — `read`-level key overrides `connect`-level key
 
 ```
-# connect helse2025 as h, key(K1)
-# read h as df, key(K2)
+# h = ost.connect("helse2025", secret_key="K1")
+# df = h.read(secret_key="K2")
 ```
 `df` is decrypted with `K2`. A key on `connect` is just the default for everything loaded through that alias; a key on the individual `load` line wins.
 
 ## 9. Mixing several sources of different kinds in one script
 
 ```
-# connect ssb as s
-# connect helse2025 as h, key(ask)
-# read s/tables as offentlig
-# read h as beskyttet
-# read https://ourworldindata.org/grapher/life-expectancy.csv as owid
+# s = ost.connect("ssb")
+# h = ost.connect("helse2025", secret_key="ask")
+# offentlig = s.read("tables")
+# beskyttet = h.read()
+# owid = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")
 ```
 `offentlig` comes from the public SSB registry, `beskyttet` from a key-gated Anvil source, and `owid` from a plain public URL — each resolved independently by the same script.
 
@@ -110,14 +110,14 @@ The registry carries the kind, so the source name is all you need — the user
 knows the source, not the protocol:
 
 ```
-# connect oecd as o
-# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE/all?startPeriod=2020 as levealder
+# o = ost.connect("oecd")
+# levealder = o.read("OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE/all?startPeriod=2020")
 
-# connect worldbank as wb
-# read wb/country/NOR;SWE/indicator/NY.GDP.MKTP.CD?date=2015:2024 as bnp
+# wb = ost.connect("worldbank")
+# bnp = wb.read("country/NOR;SWE/indicator/NY.GDP.MKTP.CD?date=2015:2024")
 
-# connect dbnomics as dbn
-# read dbn/IMF/WEO:latest/NOR.NGDP_RPCH as vekst
+# dbn = ost.connect("dbnomics")
+# vekst = dbn.read("IMF/WEO:latest/NOR.NGDP_RPCH")
 ```
 
 With a bare URL, name the kind explicitly — source names (`oecd`, `ecb`,
@@ -125,8 +125,8 @@ With a bare URL, name the kind explicitly — source names (`oecd`, `ecb`,
 `worldbank`/`dbnomics` are protocols of their own:
 
 ```
-# connect https://data-api.ecb.europa.eu/service/data as ecb, kind(sdmx)
-# read ecb/EXR/D.USD.EUR.SP00.A?startPeriod=2026-01-01 as kurs
+# ecb = ost.connect("https://data-api.ecb.europa.eu/service/data", kind="sdmx")
+# kurs = ecb.read("EXR/D.USD.EUR.SP00.A?startPeriod=2026-01-01")
 ```
 
 All deliver a tidy long-format frame (the API's own column names —
@@ -143,17 +143,17 @@ for that source (SDMX 2.1 APIs silently ignore unknown parameters, which
 would return wrong-but-plausible data):
 
 ```
-# connect oecd as o
-# read o/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE as le, countries(NOR SWE), years(2020:2023)
+# o = ost.connect("oecd")
+# le = o.read("OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE", countries=["NOR", "SWE"], years="2020:2023")
 
-# connect worldbank as wb
-# read wb as bnp, indicators(NY.GDP.MKTP.CD), countries(NOR SWE), years(2015:2024)
+# wb = ost.connect("worldbank")
+# bnp = wb.read(indicators=["NY.GDP.MKTP.CD"], countries=["NOR", "SWE"], years="2015:2024")
 
-# connect eurostat as eu
-# read eu/nama_10_gdp as bnp2, countries(NO), years(2020:), filters(na_item=B1GQ unit=CP_MEUR)
+# eu = ost.connect("eurostat")
+# bnp2 = eu.read("nama_10_gdp", countries=["NO"], years="2020:", filters={"na_item": "B1GQ", "unit": "CP_MEUR"})
 
-# connect ssb
-# read ssb/05839 as bef, years(2007:), regions(0), indicators(Personer)
+# ssb = ost.connect("ssb")
+# bef = ssb.read("05839", years="2007:", regions=["0"], indicators=["Personer"])
 ```
 
 For SDMX sources, `countries()`/`indicators()`/`filters()` build the dotted
@@ -167,28 +167,28 @@ dataflow's dimensions); `years(a:b)` maps to `startPeriod`/`endPeriod`
 A separate, richer directive set lets you assemble one analysis dataset out of *columns* pulled from multiple registered sources, rather than loading each source as a whole frame:
 
 ```
-# connect people as p
-# connect sales_src as s
-# create panel, key(pid)
-# add p/income, p/edu into panel
-# add p/region into panel
-# read s as sales
-# join sales into panel on pid
+# p = ost.connect("people")
+# s = ost.connect("sales_src")
+# panel = ost.create(key="pid")
+# panel.add(p, ["income", "edu"])
+# panel.add(p, ["region"])
+# sales = s.read()
+# panel.join(sales, on="pid")
 ```
 This declares a dataset called `panel`, keyed on `pid`; pulls the `income` and `edu` columns from source `p` (plus `region` in a second `add` line); separately reads all of `sales_src` as `sales`; then joins `sales` into `panel` on the `pid` key. `add`/`join` default to a `left` join — an explicit join type can be appended:
 
 ```
-# add p/x into panel inner
-# join sales into panel on pid outer
+# panel.add(p, ["x"], how="inner")
+# panel.join(sales, on="pid", how="outer")
 ```
 
 ## 11. Comment-marker flexibility (same directive, three syntaxes)
 
 These three lines are parsed identically — only the comment marker differs, matching whichever language mode the script segment is in:
 ```
-# connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
--- connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
-// connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
+# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+-- ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+// ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
 ```
 
 ## 12. Homomorphically-encrypted (HE) tier
@@ -197,28 +197,28 @@ HE sources (`format="he"`, Paillier-encrypted) use the **same** `connect`/`load`
 
 Referencing a registered HE source is written exactly like a protected source (§5 above):
 ```
-# connect helse_he as h, key(ask)
-# read h as df
+# h = ost.connect("helse_he", secret_key="ask")
+# df = h.read()
 ```
 The difference is invisible in the directive text — it's the registered source's `format` field, checked at `/source_access` resolution time, that routes it into the HE facade instead of a normal remote run.
 
 The legacy `require` form works the same way and is the one actually wired to the "Kryptert" (HE) editor tab, whose `dialect` is fixed to `'he'` for every script run in that tab:
 ```
-# require helse_he as h
+# h = helse_he.read()
 ```
 Running that line while the active editor mode/tab is **Kryptert** sends the whole script to the server with `dialect: 'he'`; the server never decrypts the data, and only the HE facade verbs (`group_agg`, `value_counts`, `crosstab`, `ols`) are available against it.
 
 **`exec(local)` is always refused on an HE source** — there's no plaintext to run against locally:
 ```
-# connect helse_he as h, exec(local)
-# read h as df
+# h = ost.connect("helse_he", exec="local")
+# df = h.read()
 ```
 → rejected with the same "cannot run locally" error protected/sensitive sources get, except here it's unconditional (HE has no local mode at all, unlike `protected`/`sensitive` which can allow `local_mode="open"`/`"strict"`).
 
 **You cannot mix an HE (or any named) source with a plain URL source in one remote run yet:**
 ```
-# require helse_he as h
-# read https://ourworldindata.org/grapher/co2.csv as co2
+# h = helse_he.read()
+# co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")
 ```
 → refused: "Server-kjøring kan ikke kombinere navngitte kilder og URL-kilder (ennå)" (server execution can't yet combine named sources and URL sources — use only named sources).
 

@@ -1,6 +1,6 @@
 // label: Arquero — dataframes (filter, groupby, rollup)
 // Example: Arquero tables — load CSV, filter, group and aggregate
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 // The dataset is ready as an Arquero table under the name you chose:
 console.log("rows:", iris.numRows(), "columns:", iris.numCols());

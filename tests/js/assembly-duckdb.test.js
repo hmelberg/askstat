@@ -96,16 +96,17 @@ test('_topoSort: sirkulær avhengighet kaster', () => {
 });
 
 // ── format()-argumentet i create-dataset (parses i data-directives) ─────────
+require('../../js/directive-parser.js');   // data-directives kaller DirectiveParser ved parsing
 require('../../js/data-directives.js');
 const DD = globalThis.DataDirectives;
 
 test('parseAssembly: format(data.table) fanges, default null', () => {
   const r = DD.parseAssembly([
-    '# connect https://x/p.parquet as p',
-    '# create-dataset a, key(pid), format(data.table)',
-    '# import p/inntekt into a',
-    '# create-dataset b, key(pid)',
-    '# import p/alder into b',
+    '# p = ost.connect("https://x/p.parquet")',
+    '# a = ost.create(key="pid", format="data.table")',
+    '# a.add(p, ["inntekt"])',
+    '# b = ost.create(key="pid")',
+    '# b.add(p, ["alder"])',
   ].join('\n'));
   assert.equal(r.errors.length, 0);
   const byName = {};
@@ -117,9 +118,9 @@ test('parseAssembly: format(data.table) fanges, default null', () => {
 // ── composite keys (spec 2026-07-24-pxweb-sources-design §1) ────────────────
 test('parseAssembly: key(region aar) og key(pid) blir arrays', () => {
   const r = DD.parseAssembly([
-    '# create-dataset a, key(region aar)',
-    '# create-dataset b, key(pid)',
-    '# create-dataset c, key(region, aar), format(pandas)',
+    '# a = ost.create(key=["region", "aar"])',
+    '# b = ost.create(key="pid")',
+    '# c = ost.create(key=["region", "aar"], format="pandas")',
   ].join('\n'));
   assert.equal(r.errors.length, 0);
   const byName = {};
@@ -132,12 +133,12 @@ test('parseAssembly: key(region aar) og key(pid) blir arrays', () => {
 
 test('parseAssembly: join on region, aar inner — komma-liste + how', () => {
   const r = DD.parseAssembly([
-    '# create-dataset a, key(pid)',
-    '# import p/x into a',
-    '# create-dataset b, key(pid)',
-    '# import p/y into b',
-    '# join a into b on region, aar inner',
-    '# join a into b on k left',
+    '# a = ost.create(key="pid")',
+    '# a.add(p, ["x"])',
+    '# b = ost.create(key="pid")',
+    '# b.add(p, ["y"])',
+    '# b.join(a, on=["region", "aar"], how="inner")',
+    '# b.join(a, on="k", how="left")',
   ].join('\n'));
   assert.equal(r.errors.length, 0);
   const b = r.spec.datasets.find(d => d.name === 'b');
@@ -151,15 +152,15 @@ test('parseAssembly: join on region, aar inner — komma-liste + how', () => {
 // ── nye direktivord (2026-07-25): read/add/create kanoniske, gamle ord er
 // stille aliaser (pakke-paritet: ost.connect/read/create/add) ──────────────
 test('direktivord: read/add/create parser likt som load/import/create-dataset', () => {
-  const nyP = DD.parse('# connect https://x/f.csv as k\n# read k as a');
+  const nyP = DD.parse('# k = ost.connect("https://x/f.csv")\n# a = k.read()');
   assert.equal(nyP.loads.length, 1);
   assert.equal(nyP.loads[0].alias, 'a');
   const r = DD.parseAssembly([
-    '# create panel, key(region aar)',
-    '# add p/inntekt into panel',
-    '# create_dataset gammel1, key(pid)',
-    '# create-dataset gammel2, key(pid), format(pandas)',
-    '# import p/x into gammel1',
+    '# panel = ost.create(key=["region", "aar"])',
+    '# panel.add(p, ["inntekt"])',
+    '# gammel1 = ost.create(key="pid")',
+    '# gammel2 = ost.create(key="pid", format="pandas")',
+    '# gammel1.add(p, ["x"])',
   ].join('\n'));
   assert.equal(r.errors.length, 0);
   const byName = {};
@@ -171,7 +172,7 @@ test('direktivord: read/add/create parser likt som load/import/create-dataset', 
 });
 
 test('direktivord: LOADAS-kortformen virker med read', () => {
-  const r = DD.parseAssembly('# connect f as p\n# read p as hele');
+  const r = DD.parseAssembly('# p = ost.connect("f")\n# hele = p.read()');
   assert.ok(r.spec.datasets.find(d => d.name === 'hele' && d.load === 'p'));
 });
 

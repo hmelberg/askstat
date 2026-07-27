@@ -13,16 +13,24 @@
     '# Generert av appen — rediger fritt.',
   ];
 
-  // key(<literal>)-maskering SKOPET til direktivlinjer (connect/load/require):
-  // en helskript-scrub ødela legitim kode med key(...)-formede kall — f.eks.
-  // ble «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer
-  // som ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
-  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(connect|read|load|require)\b/i;
-  var MASK_WARNING = 'key(...)-verdier ble maskert i eksporten — bruk key(ask) eller egen nøkkelhåndtering utenfor appen';
+  // Nøkkelmaskering SKOPET til direktivlinjer: en helskript-scrub ødela
+  // legitim kode med key(...)-formede kall — f.eks. ble
+  // «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer som
+  // ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
+  //
+  // Mønsteret må dekke BEGGE skrivemåtene. Med bare den gamle
+  // (connect|read|load|require) traff det ingenting etter omleggingen, og
+  // «# h = ost.read("…", secret_key="supersecret123")» ble eksportert med
+  // hemmeligheten i klartekst. Den legacy-halen står igjen fordi et malformert
+  // «# load <url> key(<literal>)» (uten «as») aldri parses som direktiv og
+  // ellers ville sluppet gjennom umaskert.
+  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?[A-Za-z_]\w*[ \t]*\.[ \t]*(?:connect|read|create|use|add|join)\b|(?:connect|read|load|require)\b)/i;
+  var LEGACY_KEY_RE = /\bkey\(\s*(?!ask\s*\))[^)]*\)/gi;
+  var MASK_WARNING = 'nøkkelverdier ble maskert i eksporten — bruk secret_key="ask" eller egen nøkkelhåndtering utenfor appen';
 
   function scrubDirectiveLine(line, DD, state) {
     if (!DIRECTIVE_LINE_RE.test(line)) return line;
-    var scrubbed = DD.scrubKeys(line);
+    var scrubbed = DD.scrubKeys(line).replace(LEGACY_KEY_RE, 'key(***)');
     if (scrubbed !== line) state.masked = true;
     return scrubbed;
   }
@@ -564,10 +572,17 @@
       });
     });
     var tables = asm.spec.sourceTables || {};
-    var connectLines = String(script).split('\n').filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
+    // Hjelpe-scriptet må skrives i den PYTHONSKE syntaksen. Det gamle
+    // «# connect»-filteret traff ingen linjer og «# load <k> as src_<k>» ble
+    // stille ignorert av den nye grammatikken, så resolvedSynth ble tom:
+    // eksporten mistet ALLE kildelesingene i en montering — uten feilmelding.
+    var connectLines = String(script).split('\n').filter(function (ln) {
+      return /^[ \t]*(?:#|--|\/\/)[ \t]*[A-Za-z_]\w*[ \t]*=[ \t]*ost[ \t]*\.[ \t]*connect[ \t]*\(/i.test(ln);
+    }).join('\n');
     var synth = srcKeys.map(function (k) {
       var t = tables[k];
-      return '# load ' + (t ? (t.source + '/' + t.table) : k) + ' as src_' + k;
+      return t ? ('# src_' + k + ' = ' + t.source + '.read("' + t.table + '")')
+               : ('# src_' + k + ' = ' + k + '.read()');
     });
     var resolvedSynth = DD.resolve(DD.parse(connectLines + '\n' + synth.join('\n')), registry);
 

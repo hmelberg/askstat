@@ -1,6 +1,6 @@
 # label: Select columns → focused dataset
 # Example: Read a wider CSV and build a FOCUSED dataset from specific columns.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
+# penguins = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
 import pandas_brython as pd
 import plotly_express_brython as pe
 

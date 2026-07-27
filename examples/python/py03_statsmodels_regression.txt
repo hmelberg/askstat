@@ -1,7 +1,7 @@
 # label: statsmodels — OLS regression
 # Example: statsmodels — OLS regression with a formula
 # `# load` fetches the data. statsmodels.formula.api runs OLS.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as reg
+# reg = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 import statsmodels.formula.api as smf
 

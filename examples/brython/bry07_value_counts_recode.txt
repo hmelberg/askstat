@@ -1,6 +1,6 @@
 # label: Counting and recoding
 # Example: counting and recoding — value_counts, apply, fillna
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 import pandas_brython as pd
 import plotly_express_brython as pe
 

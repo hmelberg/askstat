@@ -321,7 +321,12 @@
       if (!ts) { errors.push('linje ' + ln + ': «note» må være en tekst eller en liste av tekster'); return; }
       dropPrevious(metas, ds, variable, 'text');
       ts.forEach(function (t) {
-        metas.push({ target: ds, variable: variable, kind: 'text', text: t, line: raw });
+        // url/label settes eksplisitt til undefined, symmetrisk med pushLinks'
+        // «text: undefined». Formen er en dokumentert kontrakt (deno-testen
+        // sammenligner hele objektet, og assertEquals skiller manglende nøkkel
+        // fra undefined verdi) — ikke fjern dem fordi de «alltid er tomme».
+        metas.push({ target: ds, variable: variable, kind: 'text', text: t,
+                     url: undefined, label: undefined, line: raw });
       });
     }
 
@@ -387,6 +392,15 @@
     res.items.forEach(function (it) {
       if (it.form === 'ns') { collectMeta(it, metas, errors); return; }
       if (it.form !== 'call') return;
+      // optionsFromKwargs kjenner BARE connect/read sine argumenter. Kjørt på
+      // alle verb rapporterte den «ukjent argument «key»» for ost.create,
+      // «table»/«how» for add og «on» for join — og portable-export.js kaster
+      // på parse().errors, så en helt gyldig monteringsscript feilet eksporten
+      // med «Direktivfeil: ukjent argument «key» — mente du «secret_key»?».
+      // create/add/join eies av parseAssembly, use av parseUse; deres kwargs
+      // valideres der.
+      var isConnect = (it.recv === 'ost' && it.verb === 'connect');
+      if (!isConnect && it.verb !== 'read') return;
       var opts = optionsFromKwargs(it.kwargs, errors, it.lineNo);
 
       // Stille dropp er forbudt: «ssb.read("05839", "Personer")» (glemt

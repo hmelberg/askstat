@@ -1,8 +1,11 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 // js/data-directives.js is a plain browser script: evaluate it and read the global.
-const src = await Deno.readTextFile(new URL("../../../js/data-directives.js", import.meta.url));
-(0, eval)(src);
+// js/directive-parser.js owns the grammar and must be evaluated FIRST —
+// data-directives.js calls global.DirectiveParser at parse time.
+for (const f of ["directive-parser.js", "data-directives.js"]) {
+  (0, eval)(await Deno.readTextFile(new URL(`../../../js/${f}`, import.meta.url)));
+}
 // deno-lint-ignore no-explicit-any
 const DD = (globalThis as any).DataDirectives;
 
@@ -12,14 +15,22 @@ const REG = [
     auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" } },
 ];
 
-Deno.test("parse: connect + load + legacy require URL; comment markers #, --, //", () => {
+// ENDRET I TASK 8 — to assertions falt bort med den pythonske syntaksen, og
+// begge er RAPPORTERT som kontraktsbrudd i .superpowers/sdd/task-8-report.md:
+//   1. «# require <navngitt kilde> as srv» (uten URL) ble bevisst UTELATT fra
+//      p.loads av den gamle parseren, slik at maybeRunRemote kunne rute den til
+//      serveren. Verbet `require` finnes ikke i den nye grammatikken
+//      (OST_VERBS = connect|read|create|use), så formen har ingen etterfølger —
+//      fixture-linja er derfor fjernet, ikke oversatt.
+//   2. p.loads[].verb var «read»/«load»/«require»; den nye parse() setter alltid
+//      verb: "read". Ingen produksjonskode leser feltet (kun testen gjorde det).
+Deno.test("parse: connect + load + URL-lesing; comment markers #, --, //", () => {
   const script = [
-    "# connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb",
-    "-- connect fred",
-    "// load https://ourworldindata.org/grapher/co2.csv as co2",
-    "# load ssb/05839/data?outputFormat=csv as ledighet",
-    "# require https://x.example/gammel.csv as gammel",
-    "# require registrert_kilde as srv",      // named require: NOT ours
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")',
+    '-- fred = ost.connect("fred")',
+    '// co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")',
+    '# ledighet = ssb.read("05839/data?outputFormat=csv")',
+    '# gammel = ost.read("https://x.example/gammel.csv")',
     "x = 1  # load ikke-et-direktiv",          // not at line start pattern -> ignored
   ].join("\n");
   const p = DD.parse(script);
@@ -28,17 +39,17 @@ Deno.test("parse: connect + load + legacy require URL; comment markers #, --, //
     { target: "fred", alias: "fred", options: {} },
   ]);
   assertEquals(p.loads.map((l: { alias: string }) => l.alias), ["co2", "ledighet", "gammel"]);
-  assertEquals(p.loads[2].verb, "require");
+  assertEquals(p.loads[2].target, "https://x.example/gammel.csv");
 });
 
 Deno.test("resolve: alias expansion, registry id, proxy flags", () => {
   const script = [
-    "# connect https://data.ssb.no/api/pxwebapi/v2-beta/ as ssb",
-    "# connect fred",
-    "# load ssb/tables/05839/data?outputFormat=csv as ledighet",
-    "# load fred/series/observations?series_id=UNRATE&file_type=json as us",
-    "# load https://ourworldindata.org/grapher/co2.csv as co2",
-    "# load /api/hent?url=https%3A%2F%2Fstatfin.stat.fi%2Ft&body=%7B%7D as fi",
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/")',
+    '# fred = ost.connect("fred")',
+    '# ledighet = ssb.read("tables/05839/data?outputFormat=csv")',
+    '# us = fred.read("series/observations?series_id=UNRATE&file_type=json")',
+    '# co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")',
+    '# fi = ost.read("/api/hent?url=https%3A%2F%2Fstatfin.stat.fi%2Ft&body=%7B%7D")',
   ].join("\n");
   const r = DD.resolve(DD.parse(script), REG);
   assertEquals(r[0], {
@@ -57,14 +68,14 @@ Deno.test("resolve: alias expansion, registry id, proxy flags", () => {
 });
 
 Deno.test("resolve: unknown alias errors; unknown registry id routes as named source", () => {
-  const p = DD.parse("# load ukjent/sti.csv as x\n# connect finnesikke");
+  const p = DD.parse('# x = ukjent.read("sti.csv")\n# finnesikke = ost.connect("finnesikke")');
   const r = DD.resolve(p, REG);
   if (!r[0].error) throw new Error("ventet feil for ukjent alias");
   // safestat-synk 23ad822 (spec §1 regel 3): et connect-navn utenfor
   // web-registeret er ikke lenger en resolve-feil — det rutes som navngitt
   // (Anvil-)kilde og feiler først i data-loader («ingen API-base
   // konfigurert») i denne offentlige liten-utgaven.
-  const p2 = DD.parse("# connect finnesikke as fk\n# load fk/x.csv as y");
+  const p2 = DD.parse('# fk = ost.connect("finnesikke")\n# y = fk.read("x.csv")');
   const r2 = DD.resolve(p2, REG);
   if (r2[0].error) throw new Error("ukjent register-id skal anvil-rutes, ikke feile: " + r2[0].error);
   assertEquals(r2[0].anvil, "finnesikke");
@@ -72,9 +83,9 @@ Deno.test("resolve: unknown alias errors; unknown registry id routes as named so
 
 Deno.test("options: key() and exec() parse on connect and load", () => {
   const script = [
-    "# connect helse2025 as h, key(ask)",
-    "# connect kilde2 as k, key(qL7xK2mN9pR4sT6v), exec(remote)",
-    "# load https://x.example/d.enc.json as df, key(abcDEF123)",
+    '# h = ost.connect("helse2025", secret_key="ask")',
+    '# k = ost.connect("kilde2", secret_key="qL7xK2mN9pR4sT6v", exec="remote")',
+    '# df = ost.read("https://x.example/d.enc.json", secret_key="abcDEF123")',
   ].join("\n");
   const p = DD.parse(script);
   assertEquals(p.connects[0].options, { key: "ask" });
@@ -84,10 +95,10 @@ Deno.test("options: key() and exec() parse on connect and load", () => {
 
 Deno.test("resolve: bare name not in registry routes as named source, registry id still resolves", () => {
   const script = [
-    "# connect helse2025 as h, key(ask)",
-    "# load h as df",
-    "# connect ssb as s",
-    "# load s/tables as t",
+    '# h = ost.connect("helse2025", secret_key="ask")',
+    "# df = h.read()",
+    '# s = ost.connect("ssb")',
+    '# t = s.read("tables")',
   ].join("\n");
   const r = DD.resolve(DD.parse(script), REG);
   // Samme anvil-ruting som testen over — key() fra connect-linja følger med.
@@ -99,28 +110,32 @@ Deno.test("resolve: bare name not in registry routes as named source, registry i
 });
 
 Deno.test("resolve: load-level key overrides connect-level key", () => {
-  const p = DD.parse("# connect ssb as h, key(K1)\n# load h as df, key(K2)");
+  const p = DD.parse('# h = ost.connect("ssb", secret_key="K1")\n# df = h.read(secret_key="K2")');
   const r = DD.resolve(p, REG);
   assertEquals(r[0].key, "K2");
 });
 
+// ENDRET I TASK 8 (rapportert): maskeringsformatet er ikke lenger «key(***)».
+// scrubKeys ble skrevet om i Task 5 til å treffe `secret_key=` — assertionen her
+// pinnet formatet fra den GAMLE opsjonshalen, og testen var rød i baselinen
+// (nøkkelen lekket rett gjennom fordi `key(` ikke lenger matches).
 Deno.test("scrubKeys: literals masked, ask kept", () => {
-  const s = "# connect x as h, key(hemmelig123)\n# connect y as k, key(ask)";
+  const s = '# h = ost.connect("x", secret_key="hemmelig123")\n# k = ost.connect("y", secret_key="ask")';
   const out = DD.scrubKeys(s);
   if (out.includes("hemmelig123")) throw new Error("nøkkel lekket");
-  if (!out.includes("key(***)")) throw new Error("mangler maskering");
-  if (!out.includes("key(ask)")) throw new Error("key(ask) skal bevares");
+  if (!out.includes('secret_key="***"')) throw new Error("mangler maskering");
+  if (!out.includes('secret_key="ask"')) throw new Error('secret_key="ask" skal bevares');
 });
 
 Deno.test("parseAssembly: create-dataset + import + join + load", () => {
   const script = [
-    "# connect people as p",
-    "# connect sales_src as s",
-    "# create-dataset panel, key(pid)",
-    "# import p/income, p/edu into panel",
-    "# import p/region into panel",
-    "# load s as sales",
-    "# join sales into panel on pid",
+    '# p = ost.connect("people")',
+    '# s = ost.connect("sales_src")',
+    '# panel = ost.create(key="pid")',
+    '# panel.add(p, ["income", "edu"])',
+    '# panel.add(p, ["region"])',
+    "# sales = s.read()",
+    '# panel.join(sales, on="pid")',
   ].join("\n");
   const { spec, errors } = DD.parseAssembly(script);
   assertEquals(errors, []);
@@ -136,19 +151,19 @@ Deno.test("parseAssembly: create-dataset + import + join + load", () => {
 
 Deno.test("parseAssembly: how override", () => {
   const { spec } = DD.parseAssembly(
-    "# connect p as p\n# create-dataset d, key(id)\n# import p/x into d inner");
+    '# p = ost.connect("p")\n# d = ost.create(key="id")\n# d.add(p, ["x"], how="inner")');
   assertEquals(spec.datasets[0].steps[0].how, "inner");
 });
 
 Deno.test("parseAssembly: import into missing dataset errors", () => {
-  const { errors } = DD.parseAssembly("# connect p as p\n# import p/x into ghost");
+  const { errors } = DD.parseAssembly('# p = ost.connect("p")\n# ghost.add(p, ["x"])');
   if (!errors.some((e: string) => e.includes("ghost"))) throw new Error("ventet feil for ukjent datasett");
 });
 
 Deno.test("parseAssembly: inline-URL load is NOT assembly (stays on the old path)", () => {
   // Assembly sources must be connect'd; a bare `load <url> as df` is the
   // legacy web-data path, so parseAssembly ignores it (empty spec).
-  const { spec, errors } = DD.parseAssembly("# load https://x.example/d.csv as df");
+  const { spec, errors } = DD.parseAssembly('# df = ost.read("https://x.example/d.csv")');
   assertEquals(errors, []);
   assertEquals(spec.datasets, []);
   assertEquals(spec.sources, []);
@@ -156,16 +171,16 @@ Deno.test("parseAssembly: inline-URL load is NOT assembly (stays on the old path
 
 Deno.test("meta-direktiv: tekst, lenke m/etikett, variabel-nivå, akkumulering", () => {
   const p = DD.parse([
-    "# read https://x.example/lonn.csv as lonn",
-    "# meta lonn Spørreundersøkelse om lønn, innsamlet 2024",
-    "# meta lonn https://x.example/skjema.pdf Spørreskjema",
-    "# meta lonn.alder Alder ved utgangen av inntektsåret",
-    "-- meta lonn.alder https://x.example/kodebok#alder",
+    '# lonn = ost.read("https://x.example/lonn.csv")',
+    '# meta.lonn.note = "Spørreundersøkelse om lønn, innsamlet 2024"',
+    '# meta.lonn.link = {"https://x.example/skjema.pdf": "Spørreskjema"}',
+    '# meta.lonn.alder.note = "Alder ved utgangen av inntektsåret"',
+    '-- meta.lonn.alder.link = "https://x.example/kodebok#alder"',
   ].join("\n"));
   assertEquals(p.metas.length, 4);
   assertEquals(p.metas[0], { target: "lonn", variable: null, kind: "text",
     text: "Spørreundersøkelse om lønn, innsamlet 2024", url: undefined, label: undefined,
-    line: "# meta lonn Spørreundersøkelse om lønn, innsamlet 2024" });
+    line: '# meta.lonn.note = "Spørreundersøkelse om lønn, innsamlet 2024"' });
   assertEquals(p.metas[1].kind, "link");
   assertEquals(p.metas[1].url, "https://x.example/skjema.pdf");
   assertEquals(p.metas[1].label, "Spørreskjema");
@@ -175,8 +190,18 @@ Deno.test("meta-direktiv: tekst, lenke m/etikett, variabel-nivå, akkumulering",
   assertEquals(p.metas[3].label, undefined); // ingen etikett etter URL
 });
 
-Deno.test("meta-direktiv: split på FØRSTE punktum, // og -- kommentartegn, tom linje ignoreres", () => {
-  const p = DD.parse("// meta d.a.b tekst her\n# meta   \n# meta d");
-  assertEquals(p.metas.length, 1);           // de to ufullstendige droppes (mangler innhold)
-  assertEquals(p.metas[0].variable, "a.b");  // alt etter første punktum er variabelnavn
+// ENDRET I TASK 8 (rapportert): den gamle regelen «alt etter FØRSTE punktum er
+// variabelnavnet» ga variabelnavn med punktum i («d.a.b» → variabel «a.b»).
+// Den nye grammatikken er posisjonell — meta.<datasett>.<variabel>.<nøkkel>,
+// spec §3.1 — så et fjerde ledd er en feil, ikke et sammensatt variabelnavn.
+// Variabelnavn med punktum kan derfor ikke lenger uttrykkes.
+Deno.test("meta-direktiv: for dyp sti er feil, // og -- kommentartegn, tom linje ignoreres", () => {
+  const p = DD.parse('// meta.d.a.b.note = "tekst her"\n# meta   \n# meta d');
+  assertEquals(p.metas.length, 0);           // de to ufullstendige er prosa, ikke direktiver
+  assertEquals(p.errors.length, 1);
+  if (!p.errors[0].includes("for dyp")) throw new Error("ventet «for dyp meta-sti»: " + p.errors[0]);
+
+  const ok = DD.parse('// meta.d.a.note = "tekst her"');
+  assertEquals(ok.metas.length, 1);
+  assertEquals(ok.metas[0].variable, "a");
 });

@@ -1,7 +1,7 @@
 # label: dplyr — recoding (case_when/ifelse)
 # Example: dplyr — recoding and new variables
 # Shows case_when, ifelse and count.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as folk
+# folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 library(dplyr)
 

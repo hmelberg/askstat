@@ -5,9 +5,9 @@
 # (f.eks. species) under «penguins» i Datasett-listen — notatet vises
 # øverst i panelet, med 💬 som åpner kommentartråden direkte der (lazy,
 # først ved klikk).
-# read https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
-# meta penguins.species Art: Adelie, Chinstrap eller Gentoo
-# meta penguins.flipper_length_mm Sveivelengde i mm — god artsskiller
+# penguins = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
+# meta.penguins.species.note = "Art: Adelie, Chinstrap eller Gentoo"
+# meta.penguins.flipper_length_mm.note = "Sveivelengde i mm — god artsskiller"
 import pandas_brython as pd
 
 show(penguins.groupby("species")["flipper_length_mm"].mean())

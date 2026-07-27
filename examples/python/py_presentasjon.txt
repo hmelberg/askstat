@@ -2,7 +2,7 @@
 #options.mode = python
 #options.title = "Presentation — slides from cells"
 #options.description = "the slide= attribute groups cells into slides; arrow keys/click zones navigate, Esc exits; #options.view = present opens shared links straight into the presentation"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md slide=1
 # Iris as a presentation

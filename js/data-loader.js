@@ -440,6 +440,24 @@
   // table), honoring grants/decrypt/remote routing exactly like load does, and
   // return the spec so the runtime can assemble. Same fetch layer as
   // resolveAndFetchLoads — only the shape of the request changes.
+  // Monteringen synter et lite hjelpe-script (connect-linjene + én lesing per
+  // kilde) og kjører det gjennom den vanlige lastepipelinen. Begge halvdelene
+  // må snakke den PYTHONSKE syntaksen: den gamle «# connect …»-filteret traff
+  // ingen linjer og «# load <a> as <a>» ble stille ignorert av den nye
+  // grammatikken, så spec.sources ble aldri hentet — montering i web-modus
+  // returnerte tomt uten én feilmelding.
+  function keepConnectLines(script) {
+    return String(script == null ? '' : script).split(/\r?\n/).filter(function (ln) {
+      return /^[ \t]*(?:#|--|\/\/)[ \t]*[A-Za-z_]\w*[ \t]*=[ \t]*ost[ \t]*\.[ \t]*connect[ \t]*\(/i.test(ln);
+    }).join('\n');
+  }
+
+  // srcKey er «<alias>» eller «<alias>__<tabell>» (se parseAssembly.noteSource).
+  function synthReadLine(srcKey, table) {
+    return table ? ('# ' + srcKey + ' = ' + table.source + '.read("' + table.table + '")')
+                 : ('# ' + srcKey + ' = ' + srcKey + '.read()');
+  }
+
   async function resolveAndAssemble(script, deps) {
     deps = deps || {};
     var DD = global.DataDirectives;
@@ -452,12 +470,10 @@
     // Synthesize a "load <alias> as <alias>" per source and run the existing
     // pipeline against just the connect lines, so each source is fetched
     // exactly once (skip any original bare `load` lines from the script).
-    var connectLines = script.split(/\r?\n/).filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
+    var connectLines = keepConnectLines(script);
     var tables = spec.sourceTables || {};
     var srcScript = connectLines + '\n' + spec.sources.map(function (a) {
-      var t = tables[a];
-      var target = t ? (t.source + '/' + t.table) : a;
-      return '# load ' + target + ' as ' + a;
+      return synthReadLine(a, tables[a]);
     }).join('\n');
     var loaded = await resolveAndFetchLoads(srcScript, deps);
     return { sources: loaded.loads, remote: loaded.remote, spec: spec };
@@ -474,10 +490,9 @@
     if (parsed.errors.length) throw new Error('Monteringsfeil: ' + parsed.errors.join('; '));
     var spec = parsed.spec;
     var tables = spec.sourceTables || {};
-    var connectLines = script.split(/\r?\n/).filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
+    var connectLines = keepConnectLines(script);
     var descLines = connectLines + '\n' + spec.sources.map(function (a) {
-      var t = tables[a];
-      return '# load ' + (t ? (t.source + '/' + t.table) : a) + ' as ' + a;
+      return synthReadLine(a, tables[a]);
     }).join('\n');
     var parsedLoads = DD.parse(descLines);
     // Same registry-loading convention as resolveAndFetchLoads: use whatever

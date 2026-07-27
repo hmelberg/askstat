@@ -65,6 +65,7 @@ test('columnsToCsv: header + rader, null → tom celle, quoting ved behov', () =
 
 // ── resolve + lastelag for kind(pxweb) (samme eval-mønster som deno-testene:
 // data-loader.js er et rent browser-script som setter globalThis) ───────────
+require('../../js/directive-parser.js');   // data-directives kaller DirectiveParser ved parsing
 require('../../js/data-directives.js');
 (0, eval)(fs.readFileSync(path.join(__dirname, '../../js/data-loader.js'), 'utf8'));
 const DD = globalThis.DataDirectives;
@@ -72,9 +73,9 @@ const DL = globalThis.DataLoader;
 
 test('resolve: kind(pxweb) krever tabell-id og setter table', () => {
   const p = DD.parse([
-    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)',
-    '# load ssb/05839?valueCodes[Tid]=2020 as bef',
-    '# load ssb as feil',
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")',
+    '# bef = ssb.read("05839?valueCodes[Tid]=2020")',
+    '# feil = ssb.read()',
   ].join('\n'));
   const r = DD.resolve(p, []);
   const bef = r.find(x => x.alias === 'bef');
@@ -88,11 +89,11 @@ test('resolve: kind(pxweb) krever tabell-id og setter table', () => {
 // ── cache()-opsjonen (plan 2026-07-25-eksportgap-cache-openstatpy Task 1) ───
 test('parseOptions/resolve: cache() følger med fra connect og load', () => {
   const p = DD.parse([
-    '# connect https://x/data.csv as k, kind(csv), cache(1d)',
-    '# load k as a',
-    '# load https://y/f.parquet as b, cache(30m)',
-    '# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb), cache(2h)',
-    '# load ssb/05839 as c',
+    '# k = ost.connect("https://x/data.csv", kind="csv", cache="1d")',
+    '# a = k.read()',
+    '# b = ost.read("https://y/f.parquet", cache="30m")',
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb", cache="2h")',
+    '# c = ssb.read("05839")',
   ].join('\n'));
   const r = DD.resolve(p, []);
   assert.equal(r.find(x => x.alias === 'a').cache, '1d');    // arves fra connect
@@ -114,9 +115,9 @@ test('parseCacheTtl: enheter, bust-verdier og ugyldig', () => {
 
 test('resolve: kind(eurostat) krever tabell-id, som pxweb', () => {
   const p = DD.parse([
-    '# connect https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data as eu, kind(eurostat)',
-    '# read eu/nama_10_gdp?geo=NO as bnp',
-    '# read eu as feil',
+    '# eu = ost.connect("https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data", kind="eurostat")',
+    '# bnp = eu.read("nama_10_gdp?geo=NO")',
+    '# feil = eu.read()',
   ].join('\n'));
   const r = DD.resolve(p, []);
   const bnp = r.find(x => x.alias === 'bnp');

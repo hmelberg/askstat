@@ -1,6 +1,6 @@
 // label: Graphics — Plotly and Observable Plot
 // Example: interactive Plotly figure and declarative Observable Plot graphics
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
+# penguins = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
 
 // Plotly: a {data, layout} object as the last expression becomes an interactive figure.
 const speciesList = ["Adelie", "Chinstrap", "Gentoo"];

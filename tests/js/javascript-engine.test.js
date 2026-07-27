@@ -4,11 +4,15 @@
 // fangst, notebookSession). Kjør: node --test tests/js/javascript-engine.test.js
 const test = require('node:test');
 const assert = require('node:assert');
+// scanDuckUses eier ikke lenger sin egen use-regex — den spør
+// DataDirectives.parseUse, så grammatikken må lastes her også.
+require('../../js/directive-parser.js');
+require('../../js/data-directives.js');
 require('../../js/javascript-engine.js');
 const E = globalThis.JsEngine;
 
 test('prepass: stripper direktivlinjer, beholder linjetall', () => {
-  const out = E._prepass('# load x.csv as x\n#%% js\nconst a = 1;');
+  const out = E._prepass('# x = ost.read("x.csv")\n#%% js\nconst a = 1;');
   assert.strictEqual(out, '\n\na = 1;');
 });
 
@@ -62,9 +66,9 @@ test('scanLibs: finner registernøkler via ordgrense, op → aq', () => {
 });
 
 test('scanDuckUses: finner use-from-duckdb-direktiver', () => {
-  assert.deepStrictEqual(E._scanDuckUses('# use tab1 from duckdb\nx = 1;\n# use t2 from duckdb'),
+  assert.deepStrictEqual(E._scanDuckUses('# tab1 = ost.use("tab1", source="duckdb")\nx = 1;\n# t2 = ost.use("t2", source="duckdb")'),
     ['tab1', 't2']);
-  assert.deepStrictEqual(E._scanDuckUses('# use x from python'), []);
+  assert.deepStrictEqual(E._scanDuckUses('# x = ost.use("x", source="python")'), []);
 });
 
 test('valueToOutput: null/undefined → tom streng', () => {

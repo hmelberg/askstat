@@ -2,7 +2,7 @@
 #options.mode = micropython
 #options.title = "Notebook with widgets (MicroPython)"
 #options.description = "Cell notebook in MicroPython mode: ui widgets (the pull model) and the #@param form"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md
 # Widgets in a MicroPython notebook

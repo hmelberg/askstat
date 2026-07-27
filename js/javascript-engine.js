@@ -46,12 +46,21 @@
     return needed;
   }
 
-  // "# use <navn> from duckdb" — hent forrige duckdb-kjørings tabell som
-  // arquero-tabell (via parquet-bytes, se bindDuckUses i runtime-halvdelen).
+  // "# <navn> = ost.use("<navn>", source="duckdb")" — hent forrige
+  // duckdb-kjørings tabell som arquero-tabell (via parquet-bytes, se
+  // bindDuckUses i runtime-halvdelen).
+  //
+  // Grammatikken eies av DataDirectives.parseUse, ikke av en egen regex her:
+  // JS-modus går ikke gjennom parseSegmentUses, så en lokal kopi ville brutt
+  // STILLE ved syntaksomlegginger — brukeren fikk «ReferenceError: tall is not
+  // defined» i stedet for et migrasjonshint. Guarden dekker at modulen kan
+  // lastes uten data-directives.js (index.html laster den før denne).
   function scanDuckUses(script) {
-    var out = [], re = /^#\s*use\s+([A-Za-z_]\w*)\s+from\s+duckdb\s*$/gmi, m;
-    while ((m = re.exec(String(script)))) out.push(m[1]);
-    return out;
+    var DD = global.DataDirectives;
+    if (!DD || !DD.parseUse) return [];
+    return DD.parseUse(script).uses
+      .filter(function (u) { return u.from === 'duckdb'; })
+      .map(function (u) { return u.name; });
   }
 
   // Pre-pass — toppnivå (kolonne 0)-omskrivinger, linjetall bevares:
@@ -318,7 +327,7 @@
     }
   }
 
-  // "# use <navn> from duckdb" — parquet-bytes fra forrige duckdb-kjørings
+  // "# <navn> = ost.use("<navn>", source="duckdb")" — parquet-bytes fra forrige duckdb-kjørings
   // wasm-katalog (window.__duckUseBytes, eksponert av index.html) →
   // arquero-tabell. Samme økt-semantikk som use from duckdb i python/r.
   async function bindDuckUses(scope, script) {

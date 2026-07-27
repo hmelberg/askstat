@@ -2,7 +2,7 @@
 # Example: tidyverse on an open dataset
 # The `# load` directive fetches a CSV and binds it as a data frame
 # named after the alias.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as folk
+# folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 library(dplyr)
 

@@ -1,6 +1,6 @@
 # label: Select columns → focused dataset
 # Read a wider CSV and build a FOCUSED dataset from specific columns.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
+# penguins = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
 # (equivalent: penguins <- read.csv("…/penguins.csv"))
 
 flippers <- na.omit(penguins[, c("species", "flipper_length_mm")])

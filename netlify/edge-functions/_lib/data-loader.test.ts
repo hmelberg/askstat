@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-for (const f of ["data-directives.js", "data-loader.js", "enc-crypto.js"]) {
+for (const f of ["directive-parser.js", "data-directives.js", "data-loader.js", "enc-crypto.js"]) {
   (0, eval)(await Deno.readTextFile(new URL(`../../../js/${f}`, import.meta.url)));
 }
 // deno-lint-ignore no-explicit-any
@@ -16,8 +16,8 @@ Deno.test("resolveAndFetchLoads: fetches, sniffs format, proxy fallback on CORS"
     return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const script = [
-    "# load https://open.example/d.csv as direkte",
-    "# load https://blocked.example/d.csv as sperret",
+    '# direkte = ost.read("https://open.example/d.csv")',
+    '# sperret = ost.read("https://blocked.example/d.csv")',
   ].join("\n");
   const out = await DL.resolveAndFetchLoads(script, { fetchImpl, registry: [], authToken: "T" });
   assertEquals(out.loads.map((o: { alias: string; format: string }) => [o.alias, o.format]),
@@ -42,7 +42,7 @@ Deno.test("resolveAndFetchLoads: BYOK-nøkkel sendes som X-Anthropic-Key på pro
     if (url.startsWith("https://blocked-byok.example/")) return Promise.reject(new TypeError("CORS"));
     return Promise.resolve(new Response("x,y\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
-  const script = "# load https://blocked-byok.example/d.csv as sperret";
+  const script = '# sperret = ost.read("https://blocked-byok.example/d.csv")';
   await DL.resolveAndFetchLoads(script, { fetchImpl, registry: [], anthropicKey: "sk-ant-test123" });
   const proxy = calls.find((c) => c.url.includes("/api/hent?url="));
   if (!proxy) throw new Error("ingen proxy-kall: " + calls.map((c) => c.url).join(" | "));
@@ -56,7 +56,7 @@ Deno.test("resolveAndFetchLoads: innloggingstoken har forrang over BYOK-nøkkel"
     calls.push({ url: String(input), headers: (init?.headers as Record<string, string>) ?? {} });
     return Promise.resolve(new Response("x,y\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
-  const script = "# load /api/hent?url=https%3A%2F%2Fx.example%2Fd.csv as via";
+  const script = '# via = ost.read("/api/hent?url=https%3A%2F%2Fx.example%2Fd.csv")';
   await DL.resolveAndFetchLoads(script, { fetchImpl, registry: [], authToken: "T", anthropicKey: "sk-ant-test123" });
   const proxy = calls.find((c) => c.url.includes("/api/hent?url="));
   if (!proxy) throw new Error("ingen proxy-kall");
@@ -84,7 +84,7 @@ Deno.test("resolveAndFetchLoads: connect/load to an unregistered name errors", a
   // Etter safestat-synk 23ad822 anvil-rutes ukjente navn i resolve; i den
   // offentlige liten-utgaven (ingen Anvil-API-base) feiler de her i stedet.
   await assertRejects(
-    () => DL.resolveAndFetchLoads("# connect ukjent as u\n# load u as df",
+    () => DL.resolveAndFetchLoads('# u = ost.connect("ukjent")\n# df = u.read()',
       { fetchImpl, registry: [] }),
     Error, "ingen API-base konfigurert for kilden «ukjent»");
 });
@@ -94,7 +94,7 @@ Deno.test("url envelope + key literal decrypts", async () => {
   const { envelope, key } = await EC.encryptBytes(plain, "csv");
   const fetchImpl = (() => Promise.resolve(jsonResp(envelope))) as typeof fetch;
   const out = await DL.resolveAndFetchLoads(
-    `# load https://x.example/d.enc.json as df, key(${key})`,
+    `# df = ost.read("https://x.example/d.enc.json", secret_key="${key}")`,
     { fetchImpl, registry: [] });
   assertEquals(new TextDecoder().decode(out.loads[0].bytes), "x,y\n9,8\n");
 });
@@ -107,7 +107,7 @@ Deno.test("envelope without key prompts via promptKey(ask)", async () => {
   // Egen URL (d-ask.enc.json): testen over cachet alt bytes for d.enc.json —
   // samme URL her ville dekryptert FEIL envelope («feil nøkkel eller ødelagt fil»).
   const out = await DL.resolveAndFetchLoads(
-    "# load https://x.example/d-ask.enc.json as df, key(ask)",
+    '# df = ost.read("https://x.example/d-ask.enc.json", secret_key="ask")',
     { fetchImpl, registry: [], promptKey: (alias: string) => { asked = alias; return Promise.resolve(key); } });
   assertEquals(asked, "df");
   assertEquals(new TextDecoder().decode(out.loads[0].bytes), "q\n1\n");
@@ -119,7 +119,7 @@ Deno.test("byte-cache: samme URL hentes ikke på nytt i samme økt (page reload 
     fetches++;
     return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
-  const script = "# load https://cachetest.example/d.csv as df";
+  const script = '# df = ost.read("https://cachetest.example/d.csv")';
   await DL.resolveAndFetchLoads(script, { fetchImpl, registry: [] });
   const out = await DL.resolveAndFetchLoads(script, { fetchImpl, registry: [] });
   assertEquals(fetches, 1);   // andre kjøring traff _bufCache
@@ -133,12 +133,12 @@ Deno.test("resolveAndAssemble: fetches spec sources + returns spec", async () =>
     return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const script = [
-    "# connect https://x.example/people.csv as p",
-    "# connect https://x.example/sales.csv as s",
-    "# create-dataset panel, key(pid)",
-    "# import p/income into panel",
-    "# load s as sales",
-    "# join sales into panel on pid",
+    '# p = ost.connect("https://x.example/people.csv")',
+    '# s = ost.connect("https://x.example/sales.csv")',
+    '# panel = ost.create(key="pid")',
+    '# panel.add(p, ["income"])',
+    "# sales = s.read()",
+    '# panel.join(sales, on="pid")',
   ].join("\n");
   const out = await DL.resolveAndAssemble(script, { fetchImpl, registry: [] });
   assertEquals(out.remote, []);
@@ -161,7 +161,7 @@ Deno.test("data-loader: X-Source-Key settes på proxy-kall for user-auth-kilde",
     return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const inner = encodeURIComponent("https://www.kaggle.com/api/v1/datasets/download/own/slug/fil-a.csv");
-  const script = "# load /api/hent?url=" + inner + " as kag";
+  const script = '# kag = ost.read("/api/hent?url=' + inner + '")';
   const keysApi = { get: (t: string) => (t === "kaggle" ? "bruker:K9" : "") };
   const out = await DL.resolveAndFetchLoads(script, { fetchImpl, registry: KAGGLE_REG, keysApi });
   assertEquals(out.loads[0].alias, "kag");
@@ -176,7 +176,7 @@ Deno.test("data-loader: manglende brukernøkkel → norsk feil før fetch", asyn
     return Promise.resolve(new Response("x", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const inner = encodeURIComponent("https://www.kaggle.com/api/v1/datasets/download/own/slug/fil-b.csv");
-  const script = "# load /api/hent?url=" + inner + " as kag2";
+  const script = '# kag2 = ost.read("/api/hent?url=' + inner + '")';
   await assertRejects(
     () => DL.resolveAndFetchLoads(script, { fetchImpl, registry: KAGGLE_REG, keysApi: { get: () => "" } }),
     Error, "krever API-nøkkel",
@@ -191,8 +191,8 @@ Deno.test("data-loader: connect-basert user-auth-kilde rutes via proxy med nøkk
     return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const script = [
-    "# connect kaggle",
-    "# load kaggle/datasets/download/own/slug/fil-c.csv as kag3",
+    '# kaggle = ost.connect("kaggle")',
+    '# kag3 = kaggle.read("datasets/download/own/slug/fil-c.csv")',
   ].join("\n");
   const keysApi = { get: (t: string) => (t === "kaggle" ? "bruker:K10" : "") };
   await DL.resolveAndFetchLoads(script, { fetchImpl, registry: KAGGLE_REG, keysApi });
@@ -207,7 +207,7 @@ Deno.test("data-loader: bar URL mot user-auth-kilde rutes via proxy (aldri direk
     calls.push({ url: String(input), headers: (init?.headers as Record<string, string>) ?? {} });
     return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
-  const script = "# load https://www.kaggle.com/api/v1/datasets/download/own/slug/fil-d.csv as kag4";
+  const script = '# kag4 = ost.read("https://www.kaggle.com/api/v1/datasets/download/own/slug/fil-d.csv")';
   const keysApi = { get: (t: string) => (t === "kaggle" ? "bruker:K11" : "") };
   await DL.resolveAndFetchLoads(script, { fetchImpl, registry: KAGGLE_REG, keysApi });
   assertEquals(calls.length, 1);
@@ -228,7 +228,7 @@ Deno.test("data-loader: valgfri kilde uten nøkkel kaster ikke — via proxy ute
     return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
   }) as typeof fetch;
   const inner = encodeURIComponent("https://open.kagglefri.example/api/fil-e.csv");
-  const out = await DL.resolveAndFetchLoads("# load /api/hent?url=" + inner + " as fri",
+  const out = await DL.resolveAndFetchLoads('# fri = ost.read("/api/hent?url=' + inner + '")',
     { fetchImpl, registry: KAGGLE_FRI_REG, keysApi: { get: () => "" } });
   assertEquals(out.loads[0].alias, "fri");
   const proxy = calls.find((c) => c.url.includes("/api/hent?url="));

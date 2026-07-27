@@ -2,7 +2,7 @@
 #options.mode = python
 #options.title = "Widgets — ui.slider/dropdown"
 #options.description = "the ui module: a slider and a dropdown driving output in a notebook cell"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md
 # Widgets with `ui`

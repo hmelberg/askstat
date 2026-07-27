@@ -6,12 +6,12 @@
 # klikk og har hele variabellisten inni containeren — klikk f.eks.
 # species der for samme notat. 💬 åpner kommentartråden direkte i
 # sidepanelet.
-# connect https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
-# read https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv as penguins
-# meta penguins Palmer-pingvinene: 344 pingviner fra Palmer-stasjonen, Antarktis (2007-2009)
-# meta penguins https://allisonhorst.github.io/palmerpenguins/ Om datasettet
-# meta penguins.species Art: Adelie, Chinstrap eller Gentoo
-# meta penguins.body_mass_g Kroppsvekt i gram, målt ved fangst
+# penguins = ost.connect("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
+# penguins = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/penguins.csv")
+# meta.penguins.note = "Palmer-pingvinene: 344 pingviner fra Palmer-stasjonen, Antarktis (2007-2009)"
+# meta.penguins.link = {"https://allisonhorst.github.io/palmerpenguins/": "Om datasettet"}
+# meta.penguins.species.note = "Art: Adelie, Chinstrap eller Gentoo"
+# meta.penguins.body_mass_g.note = "Kroppsvekt i gram, målt ved fangst"
 import pandas_brython as pd
 
 show(penguins.groupby("species")["body_mass_g"].mean())

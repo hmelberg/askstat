@@ -1,6 +1,6 @@
 # label: Load a CSV from GitHub
 # Example: Load a CSV from the web with the `# load` directive
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 import pandas_brython as pd
 import plotly_express_brython as pe
 

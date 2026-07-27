@@ -1,6 +1,6 @@
 # label: regression — lm + glm
 # Example: regression — linear and logistic
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as folk
+# folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 library(dplyr)
 

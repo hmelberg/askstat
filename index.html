@@ -2255,7 +2255,7 @@
     // Datasets are registered as views from Parquet buffers; results come back
     // through the existing __arrowToColumns helper. A fresh connection per run
     // keeps pandas (micro_interpreter.datasets) the single source of truth.
-    // "# use <navn> from duckdb": trekk en tabell/visning ut av wasm-
+    // «# <navn> = ost.use('<navn>', source='duckdb')»: trekk en tabell/visning ut av wasm-
     // katalogen som parquet-bytes. Katalogen lever til NESTE duckdb-kjøring
     // starter (begin() rydder) — semantikken er altså «hent resultatet av
     // forrige duckdb-kjøring», samme økt-logikk som use from r/python.
@@ -9071,8 +9071,8 @@ json.dumps(out)
     // __ensureUiR: fetch + evalRVoid av webr/ui.R sin kildetekst, memoisert i
     // et modulnivå-promise som nullstilles ved feil (neste kall prøver på
     // nytt). jsonlite installeres defensivt her også, samme oppskrift som
-    // runHybridR sin json-load-gren (~7709-7713) bruker for "# load ... as
-    // json".
+    // runHybridR sin json-lastegren (~7709-7713) bruker for
+    // «# <navn> = <alias>.read(…, kind='json')».
     var __uiRP = null;
     function __ensureUiR() {
       if (__uiRP) return __uiRP;
@@ -9180,7 +9180,7 @@ json.dumps(out)
       var _rDeps = { anthropicKey: getAnthropicKey(), promptKey: mdPromptKey };
       var _dlR = await window.DataLoader.resolveAndFetchLoads(src, _rDeps);
       var _loadsR = _dlR.loads;
-      // "# use …" håndteres nå på segmentnivå (plan 2026-07-11): use-
+      // "# <navn> = ost.use(…)" håndteres nå på segmentnivå (plan 2026-07-11): use-
       // linjene parses/strippes per blokk, og kopiene materialiseres etter
       // micro-fasen — se _rUses-blokken lenger ned.
       if (_loadsR.length && _loadsR.some(function (l) { return l.format === 'json'; })) {
@@ -10372,7 +10372,7 @@ options(width = 200)
             var _htmlLoad = _rawLoads.find(function (l) { return l.format === 'html'; });
             if (_htmlLoad) throw new Error(t('html-kilder støttes ikke i duckdb-modus ({alias}) — bruk python/r', { alias: _htmlLoad.alias }));
           }
-          // "# use …" håndteres nå på SEGMENTNIVÅ (plan 2026-07-11 i
+          // "# <navn> = ost.use(…)" håndteres nå på SEGMENTNIVÅ (plan 2026-07-11 i
           // safestat): use-linjene parses/strippes per blokk og
           // materialiseres ved blokkgrensen i kjøringsløkka lenger ned.
           if (_rawLoads.some(function (l) { return l.bytes; })) py.FS.mkdirTree('/home/pyodide/_webdata');
@@ -11885,7 +11885,7 @@ async def _m2py_run_segment(_seg_json):
         const suppress = suppressEmbedded.checked;
         let explainInit = null;
         // B2 exit-gate fiks: Forklar bygde sitt EGET e/_g uten NOENGANG å hente/
-        // skrive "# load … as X"-direktivets data — bootNotebookSession ("Kjør
+        // skrive "# X = …read(…)"-direktivets data — bootNotebookSession ("Kjør
         // alle"/per-celle-kjøring, linje ~8885) gjør dette rutinemessig, Forklar
         // gjorde det aldri. Funnet ved sveip: ETHVERT python-script med en
         // # load-linje (inkl. selve standard-oppstartseksempelet, notatbok eller

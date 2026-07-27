@@ -4,7 +4,6 @@ const assert = require('node:assert');
 require('../../js/data-loader.js');
 require('../../js/read-bridge.js');
 const RB = globalThis.ReadBridge;
-const DL = globalThis.DataLoader;
 
 test('scanUrls: finner literaler i read_csv/read_json/read_parquet', () => {
   const s = [
@@ -62,4 +61,51 @@ test('pyPatchSource: wrapper alle tre leserne og feiler høylytt', () => {
   ['read_csv', 'read_json', 'read_parquet'].forEach((n) => assert.ok(src.includes(n), n));
   assert.ok(src.includes('ValueError'));
   assert.ok(src.includes('/api/hent?'));
+});
+
+test('ensure: cachet feil er retrybar — neste ensure henter på nytt', async () => {
+  RB._reset();
+  let calls = 0;
+  RB._setFetcher(async () => { calls++; if (calls === 1) throw new Error('HTTP 500 for x'); return { bytes: new Uint8Array([99]), contentType: 'text/csv' }; });
+  const e1 = await RB.ensure('https://x/flaky.csv');
+  assert.match(e1.error, /HTTP 500/);
+  const e2 = await RB.ensure('https://x/flaky.csv');
+  assert.equal(calls, 2);
+  assert.deepEqual(Array.from(e2.bytes), [99]);
+});
+
+test('forPyodideSync: miss går til XHR og cacher suksess', () => {
+  RB._reset();
+  const urls = [];
+  RB._setXhr((u) => { urls.push(u); return { status: 200, bytes: new Uint8Array([100]) }; });
+  const r = RB.forPyodideSync('https://x/miss.csv');
+  assert.deepEqual(Array.from(r.bytes), [100]);
+  assert.deepEqual(urls, ['https://x/miss.csv']);
+  assert.deepEqual(Array.from(RB.getCached('https://x/miss.csv').bytes), [100]);
+});
+
+test('forPyodideSync: status 0 (CORS) prøver proxy; 404 gjør IKKE', () => {
+  RB._reset();
+  let urls = [];
+  RB._setXhr((u) => { urls.push(u); return u.indexOf('/api/hent?') === 0 ? { status: 200, bytes: new Uint8Array([1]) } : { status: 0, bytes: null }; });
+  const ok = RB.forPyodideSync('https://cors.example/d.csv');
+  assert.equal(ok.error, null);
+  assert.equal(urls[1].indexOf('/api/hent?url='), 0);
+
+  urls = [];
+  RB._setXhr((u) => { urls.push(u); return { status: 404, bytes: null }; });
+  const nope = RB.forPyodideSync('https://x/borte.csv');
+  assert.equal(nope.bytes, null);
+  assert.match(nope.error, /HTTP 404 for https:\/\/x\/borte\.csv/);
+  assert.equal(urls.length, 1, 'ingen proxy-retry på ekte HTTP-status');
+});
+
+test('forPyodideSync: cachet prefetch-feil forgifter ikke — sync-veien prøver selv', async () => {
+  RB._reset();
+  RB._setFetcher(async () => { throw new Error('HTTP 503 for x (transient)'); });
+  await RB.ensure('https://x/transient.csv');
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([7]) }));
+  const r = RB.forPyodideSync('https://x/transient.csv');
+  assert.equal(r.error, null);
+  assert.deepEqual(Array.from(r.bytes), [7]);
 });

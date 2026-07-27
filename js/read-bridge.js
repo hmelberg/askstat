@@ -28,7 +28,11 @@
   }
 
   function ensure(url) {
-    if (cache[url]) return Promise.resolve(cache[url]);
+    var c = cache[url];
+    // Bytes er autoritative; en cachet FEIL er retrybar — en transient 500
+    // under prefetch skal ikke forgifte økten (hint-prinsippet: en mislykket
+    // prefetch koster tid, aldri korrekthet).
+    if (c && !c.error) return Promise.resolve(c);
     if (inflight[url]) return inflight[url];
     inflight[url] = fetcher(url).then(function (r) {
       cache[url] = { bytes: r.bytes, contentType: r.contentType };
@@ -62,19 +66,28 @@
     return { status: xhr.status, bytes: u8 };
   }
 
+  // Test-hook (_setXhr) av samme grunn som _setFetcher: sync-XHR-veien er
+  // den mest risikable koden i modulen og skal ikke være usett av CI.
+  var xhrImpl = null;
+  function xhr(url) { return (xhrImpl || syncXhr)(url); }
+
   function forPyodideSync(url) {
     var c = cache[url];
-    if (c) return c.error ? { bytes: null, error: c.error } : { bytes: c.bytes, error: null };
-    if (typeof XMLHttpRequest === 'undefined') {
-      return { bytes: null, error: 'ingen cache-oppføring og ingen XHR for ' + url };
+    if (c && !c.error) return { bytes: c.bytes, error: null };
+    // En cachet FEIL behandles som miss: sync-veien får prøve selv.
+    var canXhr = xhrImpl || typeof XMLHttpRequest !== 'undefined';
+    if (!canXhr) {
+      return { bytes: null, error: (c && c.error) || ('ingen cache-oppføring og ingen XHR for ' + url) };
     }
-    var r = syncXhr(url);
-    if (r.bytes === null && url.indexOf('/api/hent?') !== 0) {
-      // status 0 = CORS/nettverk → samme proxy-fallback som fetchRawUrl
-      r = syncXhr('/api/hent?url=' + encodeURIComponent(url));
+    var r = xhr(url);
+    // Proxy KUN ved status 0 (CORS/nettverk) — samme konvensjon som
+    // fetchRawUrl/fetchLoadTarget. En ekte 404 er like ekte via proxyen,
+    // og «HTTP 404» er en klarere melding enn «proxy 404».
+    if (r.bytes === null && r.status === 0 && url.indexOf('/api/hent?') !== 0) {
+      r = xhr('/api/hent?url=' + encodeURIComponent(url));
     }
     if (r.bytes === null) {
-      return { bytes: null, error: 'HTTP ' + (r.status || 'CORS/nettverksfeil') + ' for ' + url };
+      return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url };
     }
     cache[url] = { bytes: r.bytes, contentType: '' };
     return { bytes: r.bytes, error: null };
@@ -109,7 +122,8 @@
   global.ReadBridge = {
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure,
     getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
-    _reset: function () { cache = Object.create(null); inflight = Object.create(null); },
+    _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; },
     _setFetcher: function (f) { fetcher = f; },
+    _setXhr: function (f) { xhrImpl = f; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

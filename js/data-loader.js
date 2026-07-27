@@ -98,6 +98,37 @@
     }
   }
 
+  // Rå URL-henting for pandas-URL-broen (plan 2026-07-27): pd.read_csv(url)
+  // i motorene ruter hit. Kontrakten er «aldri stille feil data»: HTTP-feil
+  // KASTER (med status og URL) i stedet for å levere en feilkropp som
+  // parseren ville gjort om til en absurd én-kolonnes ramme. CORS/nettverk
+  // (TypeError) prøver proxyen — samme fallback som direktiv-veien.
+  async function fetchRawUrl(url, deps) {
+    deps = deps || {};
+    var fetchImpl = deps.fetchImpl || (typeof fetch !== 'undefined' ? fetch.bind(global) : null);
+    if (!fetchImpl) throw new Error('fetchRawUrl: ingen fetch tilgjengelig');
+    async function viaProxy() {
+      var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(url));
+      if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + url);
+      return pr;
+    }
+    var resp;
+    if (url.indexOf('/api/hent?') === 0) {
+      resp = await fetchImpl(url);
+      if (!resp.ok) throw new Error('proxy ' + resp.status + ' for ' + url);
+    } else {
+      try {
+        resp = await fetchImpl(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' for ' + url);
+      } catch (e) {
+        if (e instanceof TypeError) resp = await viaProxy();
+        else throw e;
+      }
+    }
+    var buf = await resp.arrayBuffer();
+    return { bytes: new Uint8Array(buf), contentType: resp.headers.get('content-type') || '' };
+  }
+
   // cache(<ttl>)-opsjonen (plan 2026-07-25 Task 1): '90'/'90s'/'30m'/'2h'/'1d'
   // -> millisekunder; '0'/'no'/'off' -> 0 (bust); ugyldig -> null (ingen cache).
   function parseCacheTtl(v) {
@@ -513,7 +544,7 @@
   }
 
   global.DataLoader = { resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
-    resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, _sniffFormat: sniffFormat,
+    resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
     _parseCacheTtl: parseCacheTtl,
     // Test-only: the cross-run fetch cache is module-scoped by design (see
     // _bufCache above), which is exactly wrong for a test file that evals

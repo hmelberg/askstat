@@ -248,3 +248,32 @@ Deno.test("resolveAndFetchLoads: tar imot et ferdig parset objekt", async () => 
   assertEquals(out.loads.length, 1);
   assertEquals(out.loads[0].alias, "df");
 });
+
+Deno.test("fetchRawUrl: bytes + contentType ved 200", async () => {
+  const fetchImpl = (u: string) =>
+    Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
+  const out = await DL.fetchRawUrl("https://x.example/d.csv", { fetchImpl });
+  assertEquals(new TextDecoder().decode(out.bytes), "a,b\n1,2");
+  assertEquals(out.contentType.includes("text/csv"), true);
+});
+
+Deno.test("fetchRawUrl: HTTP-feil kaster med status og URL — aldri bytes fra en feilkropp", async () => {
+  const fetchImpl = (u: string) =>
+    Promise.resolve(new Response('{"type":"Parameter error","status":400}', { status: 400 }));
+  await assertRejects(
+    () => DL.fetchRawUrl("https://x.example/d.csv", { fetchImpl }),
+    Error, "HTTP 400");
+});
+
+Deno.test("fetchRawUrl: TypeError (CORS/nettverk) faller tilbake på proxy", async () => {
+  const calls: string[] = [];
+  const fetchImpl = (u: string) => {
+    calls.push(u);
+    if (u.indexOf("/api/hent?") === 0)
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/csv" } }));
+    return Promise.reject(new TypeError("Failed to fetch"));
+  };
+  const out = await DL.fetchRawUrl("https://cors-stengt.example/d.csv", { fetchImpl });
+  assertEquals(new TextDecoder().decode(out.bytes), "ok");
+  assertEquals(calls[1].indexOf("/api/hent?url="), 0);
+});

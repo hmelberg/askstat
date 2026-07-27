@@ -379,3 +379,45 @@ test('isDirectiveLine: alle direktivformer må ut av SQL, linjetall bevart', () 
   assert.equal(stripped, '\n\n\n\n-- en vanlig SQL-kommentar\nSELECT * FROM bef');
   assert.equal(stripped.split('\n').length, sql.split('\n').length);
 });
+
+// ── makeLoad (Task 10) ────────────────────────────────────────────────────
+// Direktivstrenger som skrives ett sted og parses et annet har ingen kobling
+// mellom seg: tre ganger i denne omleggingen endret grammatikken seg og
+// strengen sluttet stille å matche. makeLoad bygger elementet DIREKTE, og
+// disse testene pinner at formen er identisk med parserens.
+test('makeLoad: gir nøyaktig samme form som parse().loads', () => {
+  const made = DD.makeLoad({ alias: 'bef', source: 'ssb', table: '05839' });
+  const parsed = DD.parse('# bef = ssb.read("05839")').loads[0];
+  assert.deepEqual(made, parsed);
+});
+
+test('makeLoad: uten tabell', () => {
+  const made = DD.makeLoad({ alias: 'df', source: 'h', table: null });
+  const parsed = DD.parse('# df = h.read()').loads[0];
+  assert.deepEqual(made, parsed);
+});
+
+// Regresjon for feilklassen: den syntetiserte lastelisten må resolve likt
+// enten den er bygget direkte eller skrevet som tekst og parset tilbake.
+// Tekstveien døde stille tre ganger under omleggingen.
+test('makeLoad: monteringskilder resolver likt som tekstveien', () => {
+  const script = ['# p = ost.connect("https://x.example/personer.csv")',
+                  '# db = ost.connect("https://x/panel.duckdb", kind="duckdb")',
+                  '# panel = ost.create(key="pid")',
+                  '# panel.add(p, ["income"])',
+                  '# panel.add(db, ["age"], table="patients")'].join('\n');
+  const spec = DD.parseAssembly(script).spec;
+  const tables = spec.sourceTables || {};
+  const direct = { connects: DD.parse(script).connects,
+                   loads: spec.sources.map((a) => {
+                     const t = tables[a];
+                     return DD.makeLoad({ alias: a, source: t ? t.source : a, table: t ? t.table : null });
+                   }), metas: [], errors: [] };
+  const viaText = DD.parse(script + '\n' + spec.sources.map((a) => {
+    const t = tables[a];
+    return t ? `# ${a} = ${t.source}.read("${t.table}")` : `# ${a} = ${a}.read()`;
+  }).join('\n'));
+  assert.deepEqual(DD.resolve(direct, []),
+                   DD.resolve({ connects: viaText.connects,
+                                loads: viaText.loads.filter((l) => spec.sources.indexOf(l.alias) >= 0) }, []));
+});

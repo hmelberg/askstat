@@ -34,14 +34,6 @@
     return scrubbed;
   }
 
-  // Delt med js/data-loader.js: sjekken går på parsetreet, ikke på en
-  // håndrullet regex — en regex kan drifte fra grammatikken (det var nettopp
-  // slik det gamle «# connect»-filteret døde), parsetreet kan ikke.
-  function isConnectLine(ln) {
-    var p = global.DirectiveParser.parseLine(ln);
-    return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'connect');
-  }
-
   // /api/hent?url=<enc>[&body=<enc-json>] → {url, body|null}; ellers null.
   function decodeHentUrl(target) {
     if (target.indexOf('/api/hent?') !== 0) return null;
@@ -587,17 +579,19 @@
       });
     });
     var tables = asm.spec.sourceTables || {};
-    // Hjelpe-scriptet må skrives i den PYTHONSKE syntaksen. Det gamle
-    // «# connect»-filteret traff ingen linjer og «# load <k> as src_<k>» ble
-    // stille ignorert av den nye grammatikken, så resolvedSynth ble tom:
-    // eksporten mistet ALLE kildelesingene i en montering — uten feilmelding.
-    var connectLines = String(script).split('\n').filter(isConnectLine).join('\n');
-    var synth = srcKeys.map(function (k) {
-      var t = tables[k];
-      return t ? ('# src_' + k + ' = ' + t.source + '.read("' + t.table + '")')
-               : ('# src_' + k + ' = ' + k + '.read()');
-    });
-    var resolvedSynth = DD.resolve(DD.parse(connectLines + '\n' + synth.join('\n')), registry);
+    // Lastelisten bygges DIREKTE (DD.makeLoad), ikke som en direktivstreng som
+    // parses tilbake. Tekstveien døde stille: «# connect»-filteret traff ingen
+    // linjer og «# load <k> as src_<k>» ble ignorert av den nye grammatikken,
+    // så resolvedSynth ble tom og eksporten mistet ALLE kildelesingene i en
+    // montering — uten feilmelding. Connect-listen tas rett fra parsetreet.
+    var resolvedSynth = DD.resolve({
+      connects: DD.parse(script).connects,
+      loads: srcKeys.map(function (k) {
+        var t = tables[k];
+        return DD.makeLoad({ alias: 'src_' + k, source: t ? t.source : k, table: t ? t.table : null });
+      }),
+      metas: [], errors: []
+    }, registry);
 
     var lines = [], failed = {};
     resolvedSynth.forEach(function (item, i) {

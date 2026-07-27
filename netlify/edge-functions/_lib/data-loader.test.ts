@@ -234,3 +234,17 @@ Deno.test("data-loader: valgfri kilde uten nøkkel kaster ikke — via proxy ute
   const proxy = calls.find((c) => c.url.includes("/api/hent?url="));
   assertEquals(proxy?.headers["X-Source-Key"], undefined);
 });
+
+// Task 10: resolveAndAssemble/resolveSourcesOnly bygger lastelisten DIREKTE
+// (DD.makeLoad) i stedet for å skrive en direktivstreng og parse den tilbake.
+// resolveAndFetchLoads må derfor ta imot et ferdig parset objekt like godt
+// som et script. NB: fersk URL — modul-cachen deler prosess (se over).
+Deno.test("resolveAndFetchLoads: tar imot et ferdig parset objekt", async () => {
+  const fetchImpl = (() =>
+    Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }))) as typeof fetch;
+  // deno-lint-ignore no-explicit-any
+  const parsed = (globalThis as any).DataDirectives.parse('# df = ost.read("https://parsed-obj.example/d.csv")');
+  const out = await DL.resolveAndFetchLoads(parsed, { fetchImpl, registry: [] });
+  assertEquals(out.loads.length, 1);
+  assertEquals(out.loads[0].alias, "df");
+});

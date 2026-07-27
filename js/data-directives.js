@@ -440,6 +440,19 @@
     return { connects: connects, loads: loads, metas: metas, errors: errors };
   }
 
+  // Ett element på nøyaktig parse().loads[i]-form, bygget DIREKTE. Alternativet
+  // — å skrive en direktivstreng og parse den tilbake — har dødd stille tre
+  // ganger i denne omleggingen: strengen og grammatikken har ingen kobling, så
+  // en syntaksendring gjør bare at ingenting matcher. Ingen feil, ingen data.
+  // `line` er kun for feilmeldinger og logg; ingenting parser den igjen.
+  function makeLoad(o) {
+    var target = o.target || (o.table ? (o.source + '/' + o.table) : o.source);
+    var line = o.table
+      ? ('# ' + o.alias + ' = ' + o.source + '.read("' + o.table + '")')
+      : ('# ' + o.alias + ' = ' + o.source + '.read()');
+    return { verb: 'read', target: target, alias: o.alias, options: {}, line: line };
+  }
+
   function findRegistrySource(registry, id) {
     if (!registry) return null;
     for (var i = 0; i < registry.length; i++) if (registry[i].id === id) return registry[i];
@@ -841,5 +854,5 @@
   // pythonsk. Én kilde til sannhet: parsetreet.
   function isDirectiveLine(line) { return global.DirectiveParser.isDirectiveLine(line); }
 
-  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily, isDirectiveLine: isDirectiveLine };
+  global.DataDirectives = { parse: parse, makeLoad: makeLoad, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily, isDirectiveLine: isDirectiveLine };
 })(typeof window !== 'undefined' ? window : globalThis);

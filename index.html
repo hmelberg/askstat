@@ -3200,8 +3200,8 @@
 
     const _STARTUP_PY = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# read` directive (below), or plain pandas.',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `ost.read` directive (below), or plain pandas.',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris = pd.read_csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3215,8 +3215,8 @@
 
     const _STARTUP_R = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# read` directive (below), or plain read.csv().',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `ost.read` directive (below), or plain read.csv().',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris <- read.csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3229,7 +3229,7 @@
     const _STARTUP_BRYTHON = [
       '# OpenStat — try the controls: the chart updates instantly.',
       '# This is lightweight Python (Brython); full Python, R and SQL live in the mode menu.',
-      '# load ' + _DATA_RAW + 'penguins.csv as penguins',
+      '# penguins = ost.read("' + _DATA_RAW + 'penguins.csv")',
       'import ui',
       'import plotly_express_brython as px',
       '',
@@ -3257,7 +3257,7 @@
       '// OpenStat — JavaScript: kjører direkte i nettleseren, ingen nedlasting.',
       '// Biblioteker lastes automatisk når de brukes: aq/op (Arquero, dataframes),',
       '// ss (simple-statistics), jStat (fordelinger), ML (ml.js), Plot, Plotly.',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '',
       'const stats = iris',
       '  .groupby("species")',
@@ -7959,22 +7959,19 @@ async def _run_duck_sql(_sql, _fresh=True):
         if (!DD) return;
         var connects = DD.parse(script).connects || [];
         if (!connects.length) return;
-        // Begge ender må snakke den PYTHONSKE syntaksen: det gamle
-        // «# connect»-filteret traff ingen linjer og den syntetiserte
-        // «# load <a> as <a>» ble stille ignorert av den nye grammatikken,
-        // så sidepanelet «Tilkoblede kilder» fikk aldri data. Filteret går
-        // nå på parsetreet (som js/data-loader.js sin keepConnectLines), og
-        // synt-linja har samme form som synthReadLine der.
-        var connectLines = script.split(/\r?\n/).filter(function (ln) {
-          var p = window.DirectiveParser && window.DirectiveParser.parseLine(ln);
-          return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'connect');
-        }).join('\n');
-        var descLines = connectLines + '\n' + connects.map(function (c) {
-          return '# ' + c.alias + ' = ' + c.alias + '.read()';
-        }).join('\n');
-        var registry = await (window.DataLoader && fetch ? Promise.resolve(null) : null);
-        var parsedLoads = DD.parse(descLines);
-        var resolved = DD.resolve(parsedLoads, []);
+        // Lastelisten bygges DIREKTE (DD.makeLoad), ikke som en direktivstreng
+        // som parses tilbake: den syntetiserte «# load <a> as <a>» ble stille
+        // ignorert av den nye grammatikken, så sidepanelet «Tilkoblede kilder»
+        // fikk aldri data. En streng skrevet her og lest av parseren der har
+        // ingen kobling mellom seg; et objekt på parserens egen form kan ikke
+        // drifte fra den. connects er allerede parsetreets egen liste.
+        var resolved = DD.resolve({
+          connects: connects,
+          loads: connects.map(function (c) {
+            return DD.makeLoad({ alias: c.alias, source: c.alias, table: null });
+          }),
+          metas: [], errors: []
+        }, []);
         var db = null;
         for (var i = 0; i < resolved.length; i++) {
           var r = resolved[i];
@@ -8014,8 +8011,14 @@ async def _run_duck_sql(_sql, _fresh=True):
         if (DD.parseAssembly) {
           var pa = DD.parseAssembly(script);
           var st = (pa.spec && pa.spec.sourceTables) || {};
-          var stLines = Object.keys(st).map(function (k) { return '# load ' + st[k].source + '/' + st[k].table + ' as ' + k; });
-          if (stLines.length) collectPx(DD.parse(connectLines + '\n' + stLines.join('\n')));
+          // Samme feilklasse en gang til: dette syntet «# load <kilde>/<tabell>
+          // as <k>», som den pythonske grammatikken avviser som gammel syntaks
+          // — parse() ga null loads, så monteringens pxweb-tabeller ble ALDRI
+          // lagt i katalogen. Bygges nå direkte på parserens egen form.
+          var stLoads = Object.keys(st).map(function (k) {
+            return DD.makeLoad({ alias: k, source: st[k].source, table: st[k].table });
+          });
+          if (stLoads.length) collectPx({ connects: connects, loads: stLoads, metas: [], errors: [] });
         }
         for (var pk in pxPairs) {
           try {

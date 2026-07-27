@@ -45,7 +45,20 @@ i og utenfor appen:
 SDMX-kilder (OECD, ECB, Norges Bank) ignorerer ukjente parametere STILLE i en
 rå URL — bruk \`ost\` med \`years=\`/\`countries=\`/\`indicators=\` som
 sikkerhetsskinne mot disse kildene, ALDRI en rå \`pd.read_csv\`-URL mot SDMX.
-NB om formen på svaret: \`outputFormat=csv\` fra PxWeb er BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat (Kjonn/ContentsCode/Tid/value), bruk \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde i stedet — og husk at verdiene der er KODER (Kjonn=1/2), ikke etiketter.
+NB om formen på svaret: \`outputFormat=csv\` fra PxWeb er som standard BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat, bruk SSB-MALEN — alle fire delene hører sammen (verifisert mot ekte SSB 2026-07-27; PxWeb-v2-generisk i design):
+
+\`\`\`python
+import pandas as pd
+url = ("https://data.ssb.no/api/pxwebapi/v2/tables/<TABELL>/data"
+       "?valueCodes[<DIM>]=..."
+       "&outputFormat=csv"
+       "&stub=<ALLE,DIMENSJONER>"          # langformat: én rad per kombinasjon
+       "&outputFormatParams=UseTexts")     # etiketter (Menn/Kvinner) i stedet for koder
+df = pd.read_csv(url, encoding="latin-1")  # OBLIGATORISK: SSB serverer iso-8859-1
+df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltittelen
+\`\`\`
+
+Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,

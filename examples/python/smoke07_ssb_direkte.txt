@@ -1,6 +1,16 @@
 # label: Smoke 7 — SSB-CSV rett i pandas (uten direktiv)
-# PxWeb v2 med outputFormat=csv er «en fil med parametere» — ren pandas.
-# Forvent en liten tabell med de to siste årene.
+# SSB-malen: stub= gir LANGFORMAT ved kilden, UseTexts gir etiketter, og
+# encoding="latin-1" er obligatorisk (SSB serverer iso-8859-1).
+# Forvent: tidy tabell (kjønn/statistikkvariabel/år/verdi) med Menn/Kvinner
+# som verdier — ikke koder, og ikke én kolonne per år.
 import pandas as pd
-ssb = pd.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05810/data?lang=no&valueCodes[Kjonn]=*&valueCodes[Alder]=*&valueCodes[ContentsCode]=*&valueCodes[Tid]=top(2)&outputFormat=csv")
-ssb.head()
+
+url = ("https://data.ssb.no/api/pxwebapi/v2/tables/09855/data"
+       "?valueCodes[Kjonn]=1,2"
+       "&valueCodes[ContentsCode]=Personer,Inntekt,InntektMedian"
+       "&valueCodes[Tid]=top(5)"
+       "&outputFormat=csv&stub=Kjonn,ContentsCode,Tid"
+       "&outputFormatParams=UseTexts")
+ssb = pd.read_csv(url, encoding="latin-1")
+ssb.columns = list(ssb.columns[:-1]) + ["verdi"]
+ssb

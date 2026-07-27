@@ -108,13 +108,17 @@
     var fetchImpl = deps.fetchImpl || (typeof fetch !== 'undefined' ? fetch.bind(global) : null);
     if (!fetchImpl) throw new Error('fetchRawUrl: ingen fetch tilgjengelig');
     async function viaProxy() {
-      var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(url));
+      // /api/hent er auth-portet (Bearer eller X-Anthropic-Key) — uten samme
+      // headere som direktiv-veien er fallbacken død (401, målt i smoke 6).
+      // Headerne sendes KUN til proxyen, aldri til eksterne kilder.
+      var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(url),
+                               { headers: proxyHeaders(deps.authToken, deps.anthropicKey) });
       if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + url);
       return pr;
     }
     var resp;
     if (url.indexOf('/api/hent?') === 0) {
-      resp = await fetchImpl(url);
+      resp = await fetchImpl(url, { headers: proxyHeaders(deps.authToken, deps.anthropicKey) });
       if (!resp.ok) throw new Error('proxy ' + resp.status + ' for ' + url);
     } else {
       try {
@@ -543,7 +547,7 @@
     return { spec: spec, descriptors: descriptors };
   }
 
-  global.DataLoader = { resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
+  global.DataLoader = { proxyHeaders: proxyHeaders, resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
     _parseCacheTtl: parseCacheTtl,
     // Test-only: the cross-run fetch cache is module-scoped by design (see

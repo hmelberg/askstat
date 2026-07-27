@@ -284,8 +284,18 @@
         var batch = pending; pending = [];
         for (var i = 0; i < batch.length; i++) {
           try {
-            var r = await global.DataLoader.fetchRawUrl(batch[i]);
-            cache[batch[i]] = JSON.stringify({ text: new TextDecoder().decode(r.bytes) });
+            // Via ReadBridge.ensureText (smoke-revisjon S5+M2): deler cache,
+            // auth-deps (proxyen er auth-portet — 401 uten) og charset-dekoding
+            // (SSB-CSV er iso-8859-1; blind utf-8 ga stille mojibake) med
+            // Pyodide-veien. Fallback for isolerte lastinger uten broen.
+            var RB = global.ReadBridge;
+            if (RB && RB.ensureText) {
+              var t = await RB.ensureText(batch[i]);
+              cache[batch[i]] = JSON.stringify(t.error ? { error: t.error } : { text: t.text });
+            } else {
+              var r = await global.DataLoader.fetchRawUrl(batch[i]);
+              cache[batch[i]] = JSON.stringify({ text: new TextDecoder().decode(r.bytes) });
+            }
           } catch (e) {
             cache[batch[i]] = JSON.stringify({ error: (e && e.message) || String(e) });
           }

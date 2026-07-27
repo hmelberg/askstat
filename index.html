@@ -2093,6 +2093,13 @@
       return (window.Keys && window.Keys.get('anthropic')) || null;
     }
 
+    // S5 (smoke-revisjon): ReadBridge må sende samme auth-headere som
+    // direktiv-veien når den faller tilbake på /api/hent (auth-portet — 401
+    // uten, målt i smoke 6). Global krok, ikke ReadBridge.configure(): denne
+    // koden kjører FØR js/read-bridge.js er lastet, og kroken leses lat ved
+    // hver henting — en nøkkel lagt inn midt i økten plukkes opp.
+    window.__readBridgeDeps = function () { return { anthropicKey: getAnthropicKey() }; };
+
     // key(ask): modal passordfelt; nøkkelen caches KUN i minnet for økten.
     var __encKeyCache = {};
     function mdPromptKey(alias) {
@@ -10464,6 +10471,15 @@ options(width = 200)
                             files: _afiles };
           }
         }
+        // S3 (smoke-revisjon): plain parquet-loads og monteringsfiler bindes
+        // via pd.read_parquet i preamblene — sørg for pyarrow med samme vakt
+        // som duckdb-segmentene og use-broen bruker. Hullet var at BARE denne
+        // veien manglet den (smoke 2: ImportError pyarrow, 2026-07-27); ingen
+        // eksempler hadde hel-parquet-load i python-modus før smoke-settet.
+        if (_pyLoads.some(function (l) { return l.format === 'parquet'; }) ||
+            (_asmPayload && (_asmPayload.files || []).some(function (f) { return f.format === 'parquet'; }))) {
+          await ensurePyarrowFor(py, function () { setStatus(rightStatus, t('Installerer pyarrow…')); });
+        }
         const segmentsStr = JSON.stringify(segments);
         const _dataPreamble = buildWebDataLoaderPreamble(_pyLoads) + buildAssemblyPreamble(_asmPayload);
         const setupCode = getInterpreterCorePython(pageBase, segmentsStr) + _dataPreamble + `
@@ -11934,6 +11950,11 @@ async def _m2py_run_segment(_seg_json):
         }
         if (activeEditorMode !== 'r') {
           const pageBase = window.location.href.replace(/[^/]+$/, '');
+          // S3: samme pyarrow-vakt som hovedveien — forklar-preamblet bruker
+          // også pd.read_parquet for parquet-loads.
+          if (_forklarPyLoads.some(function (l) { return l.format === 'parquet'; })) {
+            try { await ensurePyarrowFor(py); } catch (e) { console.warn('pyarrow ensure (forklar):', e); }
+          }
           explainInit = getInterpreterCorePython(pageBase, null) + buildWebDataLoaderPreamble(_forklarPyLoads);
           await py.runPythonAsync(explainInit);
           // Forklar bygger sitt EGET e/_g her (nå MED # load-dataene bundet inn,

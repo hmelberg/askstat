@@ -9,9 +9,23 @@
   var cache = Object.create(null);   // url -> {bytes, contentType} | {error}
   var inflight = Object.create(null);
 
+  // S5: /api/hent er auth-portet — broen må sende samme headere som
+  // direktiv-veien. depsFn settes av index.html (configure() eller den
+  // lastrekkefølge-uavhengige window.__readBridgeDeps-kroken) og kalles ved
+  // HVER henting, så en nøkkel lagt inn midt i økten plukkes opp.
+  var depsFn = null;
+  function currentDeps() {
+    if (depsFn) return depsFn();
+    var g = global.__readBridgeDeps;
+    return typeof g === 'function' ? g() : undefined;
+  }
+
   // Testbar henter — produksjon bruker DataLoader.fetchRawUrl (proxy-fallback
-  // + høylytte HTTP-feil bor DER, ikke her).
-  var fetcher = function (url) { return global.DataLoader.fetchRawUrl(url); };
+  // + høylytte HTTP-feil bor DER, ikke her). Default holdes ved navn så
+  // _reset() kan gjenopprette den — uten det lekker en tests _setFetcher inn
+  // i neste (funnet da configure-testen aldri nådde DataLoader).
+  function defaultFetcher(url) { return global.DataLoader.fetchRawUrl(url, currentDeps()); }
+  var fetcher = defaultFetcher;
 
   // Rene string-literaler i de tre leserne. BEVISST enkel: variabler,
   // f-strenger og sammensatte uttrykk dekkes av sync-fallbackene i stedet —
@@ -46,6 +60,30 @@
     return inflight[url];
   }
 
+  // M2: dekod med charset fra Content-Type (SSB serverer iso-8859-1!), og
+  // FATAL utf-8 som fallback — TextDecoder uten fatal gjør norske etiketter
+  // til stille U+FFFD-mojibake, som er verre enn en høylytt feil. Teksten
+  // memoiseres på entryen (dekoding per replay-pass er bortkastet).
+  function decodeEntry(entry, url) {
+    if (entry.error) return { error: entry.error };
+    if (entry.text !== undefined) return { text: entry.text };
+    var m = /charset=([\w-]+)/i.exec(entry.contentType || '');
+    var enc = m ? m[1].toLowerCase() : 'utf-8';
+    try {
+      entry.text = new TextDecoder(enc, { fatal: true }).decode(entry.bytes);
+      return { text: entry.text };
+    } catch (e) {
+      return { error: 'kunne ikke dekode svaret fra ' + url + ' som ' + enc +
+                      (m ? '' : ' (ingen charset i Content-Type — er kilden utf-8?)') };
+    }
+  }
+
+  // Tekstfasaden brython/mpy-flushene bruker: deler cache, deps (auth) og
+  // retry-semantikk med resten av broen — unifiseringen fra Task 10-vurderingen.
+  function ensureText(url) {
+    return ensure(url).then(function (entry) { return decodeEntry(entry, url); });
+  }
+
   function prefetchScript(script) {
     scanUrls(script).forEach(function (u) { ensure(u); });
   }
@@ -55,10 +93,11 @@
   // Synkron XHR for cache-miss i Pyodide (dynamisk bygde URL-er). Kun
   // main thread — og sync XHR kan ikke bruke responseType, så binærdata
   // hentes med x-user-defined-trikset (charCode & 0xff per byte).
-  function syncXhr(url) {
+  function syncXhr(url, headers) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, false);
     xhr.overrideMimeType('text/plain; charset=x-user-defined');
+    for (var h in (headers || {})) xhr.setRequestHeader(h, headers[h]);
     try { xhr.send(null); } catch (e) { return { status: 0, bytes: null }; }
     if (xhr.status === 0 || xhr.status >= 400) return { status: xhr.status, bytes: null };
     var t = xhr.responseText, u8 = new Uint8Array(t.length);
@@ -69,7 +108,7 @@
   // Test-hook (_setXhr) av samme grunn som _setFetcher: sync-XHR-veien er
   // den mest risikable koden i modulen og skal ikke være usett av CI.
   var xhrImpl = null;
-  function xhr(url) { return (xhrImpl || syncXhr)(url); }
+  function xhr(url, headers) { return (xhrImpl || syncXhr)(url, headers); }
 
   function forPyodideSync(url) {
     var c = cache[url];
@@ -84,7 +123,11 @@
     // fetchRawUrl/fetchLoadTarget. En ekte 404 er like ekte via proxyen,
     // og «HTTP 404» er en klarere melding enn «proxy 404».
     if (r.bytes === null && r.status === 0 && url.indexOf('/api/hent?') !== 0) {
-      r = xhr('/api/hent?url=' + encodeURIComponent(url));
+      // S5: samme auth-headere som direktiv-veien — proxyen er auth-portet.
+      var d = currentDeps() || {};
+      var ph = (global.DataLoader && global.DataLoader.proxyHeaders)
+        ? global.DataLoader.proxyHeaders(d.authToken, d.anthropicKey) : {};
+      r = xhr('/api/hent?url=' + encodeURIComponent(url), ph);
     }
     if (r.bytes === null) {
       return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url };
@@ -107,6 +150,10 @@
       '        raise ValueError(str(_r.error))',
       '    return _ost_io.BytesIO(bytes(_r.bytes.to_py()))',
       'def _ost_wrap_reader(_orig):',
+      '    # Idempotens-vakt: kjerne-preamblet re-kjøres per kjøring, og uten',
+      '    # denne stables wrapperne én per run (målt: _w x4 i en traceback).',
+      '    if getattr(_orig, "_ost_url_wrapped", False):',
+      '        return _orig',
       '    def _w(*a, **kw):',
       '        if not a:',
       '            return _orig(*a, **kw)',
@@ -114,6 +161,7 @@
       '        if isinstance(_fp, str) and (_fp.startswith("http://") or _fp.startswith("https://") or _fp.startswith("/api/hent?")):',
       '            return _orig(_ost_url_buf(_fp), *a[1:], **kw)',
       '        return _orig(*a, **kw)',
+      '    _w._ost_url_wrapped = True',
       '    return _w',
       'pd.read_csv = _ost_wrap_reader(pd.read_csv)',
       'pd.read_json = _ost_wrap_reader(pd.read_json)',
@@ -123,9 +171,10 @@
   }
 
   global.ReadBridge = {
-    scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure,
+    configure: function (f) { depsFn = f; },
+    scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
     getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
-    _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; },
+    _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },
   };

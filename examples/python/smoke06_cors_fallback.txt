@@ -1,6 +1,8 @@
 # label: Smoke 6 — CORS-fallback via proxy (krever netlify dev)
 # Wikipedia sender ikke CORS-headere: hentingen skal falle stille tilbake på
-# /api/hent-proxyen. KREVER netlify dev (ikke http.server) — ellers HTTP-feil.
+# /api/hent-proxyen. KREVER netlify dev OG nøkkel i AI-innstillingene (eller
+# innlogging) — proxyen er auth-portet med vilje; uten nøkkel er HTTP 401
+# forventet resultat, ikke en bug.
 import pandas as pd
 res = pd.read_json("https://en.wikipedia.org/w/api.php?action=query&titles=Iris&format=json")
 res

@@ -272,6 +272,25 @@
     return [];
   }
 
+  // Notater, symmetrisk med lenker (streng = ett, liste = flere). Listeformen
+  // er ikke pynt: uten den overlever ikke to notater på samme mål migreringen
+  // fra gammel syntaks. Der AKKUMULERTE gjentatte «# meta iris …»-linjer; her
+  // fjerner dropPrevious den forrige, så «# meta.iris.note» skrevet to ganger
+  // ville mistet det første notatet i stillhet.
+  // -> [tekst, …], eller null når verdien ikke er tekst (kalleren feiler).
+  function toTexts(v) {
+    if (typeof v === 'string') return v ? [v] : [];
+    if (isArr(v)) {
+      var out = [];
+      for (var i = 0; i < v.length; i++) {
+        if (typeof v[i] !== 'string') return null;
+        if (v[i]) out.push(v[i]);
+      }
+      return out;
+    }
+    return null;
+  }
+
   function collectMeta(item, metas, errors) {
     var p = item.path, raw = item.raw, ln = item.lineNo;
     if (p.length < 2) {
@@ -296,11 +315,34 @@
       });
     }
 
+    // Ett notat eller flere, på datasett- eller variabelnivå.
+    function pushNotes(variable, val) {
+      var ts = toTexts(val);
+      if (!ts) { errors.push('linje ' + ln + ': «note» må være en tekst eller en liste av tekster'); return; }
+      dropPrevious(metas, ds, variable, 'text');
+      ts.forEach(function (t) {
+        metas.push({ target: ds, variable: variable, kind: 'text', text: t, line: raw });
+      });
+    }
+
+    // Enkeltverdier: en liste eller dict her ville blitt «A,B» eller
+    // «[object Object]» gjennom String() — stille søppel i sidepanelet.
+    function textOrNull(val, key) {
+      if (typeof val === 'string') return val;
+      errors.push('linje ' + ln + ': «' + key + '» må være en tekst');
+      return null;
+    }
+
     // Datasettnivå (to ledd)
     if (p.length === 2) {
       if (k1 === 'link') { pushLinks(null, v); return; }
-      if (k1 === 'title') { dropPrevious(metas, ds, null, 'title'); metas.push({ target: ds, variable: null, kind: 'title', text: String(v), line: raw }); return; }
-      if (k1 === 'note') { dropPrevious(metas, ds, null, 'text'); metas.push({ target: ds, variable: null, kind: 'text', text: String(v), line: raw }); return; }
+      if (k1 === 'title') {
+        var ti = textOrNull(v, 'title'); if (ti === null) return;
+        dropPrevious(metas, ds, null, 'title');
+        metas.push({ target: ds, variable: null, kind: 'title', text: ti, line: raw });
+        return;
+      }
+      if (k1 === 'note') { pushNotes(null, v); return; }
       if (k1 === 'labels') {
         if (typeof v !== 'object' || v === null || isArr(v)) {
           errors.push('linje ' + ln + ': «labels» må være en dict — labels={"kolonne": "Etikett"}');
@@ -308,13 +350,15 @@
         }
         Object.keys(v).forEach(function (name) {
           if (unsafeName(name)) { errors.push('linje ' + ln + ': «' + name + '» kan ikke brukes som variabelnavn'); return; }
+          var lb = textOrNull(v[name], 'labels.' + name); if (lb === null) return;
           dropPrevious(metas, ds, name, 'label');
-          metas.push({ target: ds, variable: name, kind: 'label', text: String(v[name]), line: raw });
+          metas.push({ target: ds, variable: name, kind: 'label', text: lb, line: raw });
         });
         return;
       }
+      var fv = textOrNull(v, k1); if (fv === null) return;
       dropPrevious(metas, ds, null, 'field', k1);
-      metas.push({ target: ds, variable: null, kind: 'field', field: k1, text: String(v), line: raw });
+      metas.push({ target: ds, variable: null, kind: 'field', field: k1, text: fv, line: raw });
       return;
     }
 
@@ -330,9 +374,10 @@
       return;
     }
     if (k2 === 'link') { pushLinks(k1, v); return; }
-    dropPrevious(metas, ds, k1, k2 === 'label' ? 'label' : 'text');
-    metas.push({ target: ds, variable: k1, kind: k2 === 'label' ? 'label' : 'text',
-                 text: String(v), line: raw });
+    if (k2 === 'note') { pushNotes(k1, v); return; }
+    var lv = textOrNull(v, 'label'); if (lv === null) return;
+    dropPrevious(metas, ds, k1, 'label');
+    metas.push({ target: ds, variable: k1, kind: 'label', text: lv, line: raw });
   }
 
   function parse(script) {

@@ -260,3 +260,49 @@ test('metaByTarget: felter, tittel og variabler', () => {
   assert.deepEqual(out.bef.links, [{ url: 'https://ssb.no', label: 'Om SSB' }]);
   assert.equal(out.bef.variables.alder.label, 'Alder');
 });
+
+// Notatlister (Task 8-forberedelse): gammel syntaks AKKUMULERTE gjentatte
+// «# meta iris …»-linjer, ny modell lar dropPrevious fjerne den forrige. Uten
+// listeformen ville migreringen mistet alle notater unntatt det siste — se
+// examples/brython/bry35_meta_lenker_advarsel.txt, som har to for «iris».
+test('meta: note tar en liste — flere notater på samme mål', () => {
+  const r = DD.parse('# meta.iris.note = ["Fishers irisdata (1936)", "Målt i cm"]');
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.metas.map((m) => [m.kind, m.variable, m.text]), [
+    ['text', null, 'Fishers irisdata (1936)'],
+    ['text', null, 'Målt i cm'],
+  ]);
+});
+
+test('meta: note-liste virker også på variabelnivå', () => {
+  const r = DD.parse('# meta.iris.sepal_length.note = ["A", "B"]');
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.metas.map((m) => [m.kind, m.variable, m.text]), [
+    ['text', 'sepal_length', 'A'], ['text', 'sepal_length', 'B'],
+  ]);
+});
+
+test('meta: note som streng er uendret', () => {
+  const r = DD.parse('# meta.iris.note = "A"');
+  assert.deepEqual(r.metas.map((m) => [m.kind, m.text]), [['text', 'A']]);
+});
+
+test('meta: gjentatt note overskriver fortsatt (spec §3.3)', () => {
+  const r = DD.parse('# meta.iris.note = "A"\n# meta.iris.note = "B"');
+  assert.deepEqual(r.metas.map((m) => m.text), ['B']);
+});
+
+// String(v) på en liste ga «A,B» og på en dict «[object Object]» — søppel i
+// sidepanelet uten et ord til brukeren.
+test('meta: ikke-tekst i enkeltverdifelt gir feil, ikke søppel', () => {
+  [['# meta.iris.title = ["A","B"]', /«title» må være en tekst/],
+   ['# meta.iris.kilde = {"a": "b"}', /«kilde» må være en tekst/],
+   ['# meta.iris.note = [1, 2]', /«note» må være en tekst eller en liste/],
+   ['# meta.iris.sepal_length.label = ["A"]', /«label» må være en tekst/],
+   ['# meta.iris.labels = {"k": ["A"]}', /«labels.k» må være en tekst/],
+  ].forEach(([line, re]) => {
+    const r = DD.parse(line);
+    assert.deepEqual(r.metas, [], line);
+    assert.match(r.errors[0], re, line);
+  });
+});

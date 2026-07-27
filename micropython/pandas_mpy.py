@@ -5167,6 +5167,25 @@ def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
     # csv.reader. Brython-originalens QUOTE_STRINGS/QUOTE_NOTNULL-lapping av
     # _csv (arbeidsrundt for et Brython-stdlib-hull) er droppet — irrelevant
     # utenfor Brython.
+
+    # pandas-URL-broen (plan 2026-07-27): samme JSON-strengprotokoll og
+    # pending-attributt som duckdb_mpy._run_sql — se den for begrunnelsen.
+    if isinstance(filepath, str) and (
+        filepath.startswith("http://") or filepath.startswith("https://")
+        or filepath.startswith("/api/hent?")
+    ):
+        import json as _json
+        import js as _js
+        _res = _json.loads(_js.__mpyFetchSync(filepath))
+        if _res.get("pending"):
+            _e = RuntimeError("venter paa " + filepath)
+            _e.__brython_pending__ = True
+            raise _e
+        if _res.get("error"):
+            raise ValueError(str(_res["error"]))
+        import io as _io
+        filepath = _io.StringIO(_res["text"])
+
     index = []
     columns = []
     data = []

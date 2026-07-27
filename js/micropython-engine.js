@@ -265,6 +265,35 @@
     };
   }
 
+  // pandas-URL-broen (plan 2026-07-27): samme pending/replay-mønster som
+  // duck-broen — read_csv(url) slår synkront opp her; miss legges i kø og
+  // replay-løkka henter via DataLoader.fetchRawUrl (proxy-fallback +
+  // høylytte HTTP-feil bor der). Feil caches så replay-passet feiler PÅ
+  // kallstedet med status og URL — aldri stille.
+  function beginFetchBridge() {
+    var cache = {};      // url -> JSON-streng {text}|{error}
+    var pending = [];
+    global.__mpyFetchSync = function (url) {
+      if (cache.hasOwnProperty(url)) return cache[url];
+      if (pending.indexOf(url) === -1) pending.push(url);
+      return '{"pending":true}';
+    };
+    return {
+      hasPending: function () { return pending.length > 0; },
+      flush: async function () {
+        var batch = pending; pending = [];
+        for (var i = 0; i < batch.length; i++) {
+          try {
+            var r = await global.DataLoader.fetchRawUrl(batch[i]);
+            cache[batch[i]] = JSON.stringify({ text: new TextDecoder().decode(r.bytes) });
+          } catch (e) {
+            cache[batch[i]] = JSON.stringify({ error: (e && e.message) || String(e) });
+          }
+        }
+      },
+    };
+  }
+
   // Samme kildeoppsett som Brython-motorens buildDatasetSpec; embed-tags
   // heter mpydata_<navn>.
   async function buildDatasetSpec(loads, code) {
@@ -342,6 +371,7 @@
       }
       await ensureLibs(mod, needed);
       var duck = beginDuckBridge(spec);
+      var fetchBr = beginFetchBridge();
       mod._snapshot();
       var err = null, pass;
       for (pass = 0; pass < MAX_DUCK_PASSES; pass++) {
@@ -355,10 +385,12 @@
         mod._execute_code(script);
         err = mod._get_last_error();
         if (err !== PENDING_MARKER) break;
-        if (!duck.hasPending()) {
-          return { text: '', error: 'duckdb_mpy: replay uten ventende spørringer (intern feil)' };
+        var _hadWork = false;
+        if (duck.hasPending()) { await duck.flush(); _hadWork = true; }
+        if (fetchBr.hasPending()) { await fetchBr.flush(); _hadWork = true; }
+        if (!_hadWork) {
+          return { text: '', error: 'micropython: replay uten ventende arbeid (intern feil)' };
         }
-        await duck.flush();
       }
       if (err === PENDING_MARKER) {
         return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +
@@ -409,6 +441,7 @@
       // globale sync-hooket til en mellomliggende run() og servert stale
       // cache-treff etter muterende SQL (INSERT/CREATE OR REPLACE).
       var duck = beginDuckBridge(__nb.spec, __nb.duckShared);
+      var fetchBr = beginFetchBridge();   // fersk per celle, som duck-broen
       mod._snapshot();
       var err = null, pass;
       for (pass = 0; pass < MAX_DUCK_PASSES; pass++) {
@@ -418,10 +451,12 @@
         mod._execute_code(source);
         err = mod._get_last_error();
         if (err !== PENDING_MARKER) break;
-        if (!duck.hasPending()) {
-          return { text: '', error: 'duckdb_mpy: replay uten ventende spørringer (intern feil)' };
+        var _hadWork = false;
+        if (duck.hasPending()) { await duck.flush(); _hadWork = true; }
+        if (fetchBr.hasPending()) { await fetchBr.flush(); _hadWork = true; }
+        if (!_hadWork) {
+          return { text: '', error: 'micropython: replay uten ventende arbeid (intern feil)' };
         }
-        await duck.flush();
       }
       if (err === PENDING_MARKER) {
         return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +

@@ -377,7 +377,7 @@ git commit -m "feat(bro): ReadBridge — URL-skann (hint), byte-cache, sync-fasa
 ### Task 3: Pyodide — wrapperne inn i preamblet + prefetch ved kjørestart
 
 **Files:**
-- Modify: `index.html` — interpreter-preamblet (der `import pandas as pd` skjer i kjernen, samme område som `buildWebDataLoaderPreamble` `:7449`), og de tre kjøre-inngangene `:2716`, `:2791`, `:2856` (linjetall flytter seg — søk etter `resolveAndFetchLoads`).
+- Modify: `index.html` — interpreter-preamblet (`getInterpreterCorePython` `:7470`, som ALLE Pyodide-veier bygger på — både setupCode `:10458` og explainInit `:11920`), og de tre Pyodide-inngangene `:10374`, `:10860`, `:11907` (korrigert ved pre-sjekk; linjetall flytter seg — søk etter `resolveAndFetchLoads`).
 
 **Interfaces:**
 - Consumes: `ReadBridge.pyPatchSource()`, `ReadBridge.prefetchScript(script)` (Task 2).
@@ -402,9 +402,16 @@ I JS-koden som bygger kjerne-preamblet, legg til (etter at kjernens `import pand
       + '\n' + (window.ReadBridge ? window.ReadBridge.pyPatchSource() : '') + '\n'
 ```
 
-- [ ] **Step 3: Prefetch ved de tre kjøre-inngangene**
+- [ ] **Step 3: Prefetch ved de tre PYODIDE-inngangene**
 
-Ved hvert av de tre `resolveAndFetchLoads`-kallene (`:2716`, `:2791`, `:2856`), legg til linjen RETT FØR kallet:
+**KORRIGERT ved pre-sjekk:** planens opprinnelige `:2716`/`:2791`/`:2856` er
+brython/mpy/js-innganger. De riktige Pyodide-stedene er:
+- `:10374` — hovedkjøringen (`effectiveScript`)
+- `:10860` — notatbok-boot (`scriptInput.value`)
+- `:11907` — forklar-veien (`snapshotScript`)
+
+(Søk etter `resolveAndFetchLoads` og verifiser konteksten — linjetall flytter
+seg.) Ved hvert av de tre, legg til linjen RETT FØR kallet:
 
 ```js
           if (window.ReadBridge) window.ReadBridge.prefetchScript(script);

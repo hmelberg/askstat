@@ -1,7 +1,8 @@
 # Pythonsk direktivsyntaks — én grammatikk for alle direktivlinjer
 
 **Dato:** 2026-07-26
-**Status:** design godkjent, ikke implementert
+**Status:** implementert 2026-07-27 (Task 1–13). Teksten under er rettet mot det
+som faktisk ble bygget; se §12 «Status ved levering» for det som ble utsatt.
 **Beslutningstakere:** Hans + Claude
 
 ---
@@ -86,21 +87,23 @@ Utvider mønsteret som allerede finnes i `#tag.` og `#options.`:
 ```
 direktiv := marker WS* NAVNEROM "." STI WS* "=" WS* literal EOL
 marker   := "#" | "--" | "//"
-NAVNEROM := "options" | "tag" | "meta"
+NAVNEROM := "meta"
 STI      := IDENT ("." IDENT)*
 ```
 
 ```python
-#options.view = "output-only"        # finnes i dag, uendret
-#tag.hide-code = true                # finnes i dag, uendret
+#options.view = "output-only"        # finnes i dag, uendret (egen parser)
+#tag.hide-code = true                # finnes i dag, uendret (egen parser)
 #meta.bef.note = "Folkemengde etter alder og kjønn 2000-2009"
-#meta.bef.link = "https://ssb.no/befolkning", "Om SSBs befolkningsstatistikk"
+#meta.bef.link = {"https://ssb.no/befolkning": "Om SSBs befolkningsstatistikk"}
 #meta.bef.publisher = "SSB"
 #meta.bef.alder.label = "Alder i hele år"
 ```
 
-`#options.` og `#tag.` er uendret — de er allerede på denne formen. Kun `meta`
-er ny.
+`#options.` og `#tag.` er uendret — de er allerede på denne formen, men de
+beholder sine egne parsere i `js/cells.js`. Denne grammatikken kjenner bare
+`meta` (`NS = { meta: 1 }`, `js/directive-parser.js:102`); å flytte de to andre
+inn er opprydding uten brukersynlig gevinst (§10).
 
 ### 3.1 Meta-modellen
 
@@ -112,11 +115,21 @@ Målformen er `MetaInfo` fra `2026-07-25-metadata-sidebar-design.md`:
 | Nøkkel | Type | Til |
 |---|---|---|
 | `title` | streng | `tittel` |
-| `note` | streng | `beskrivelse` |
-| `link` | tuppel *eller* liste av tupler | `lenker[]` |
-| `labels` | dict | `variabler[].label` (bulk, §3.1) |
-| `publisher`, `license`, `unit`, `retrieved`, `source` | streng | `felter[]` (kjent etikett) |
-| *hva som helst annet* | streng/tall | `felter[]` (nøkkelnavnet som etikett) |
+| `note` | streng *eller* liste av strenger | `beskrivelse` |
+| `link` | streng, liste eller dict | `lenker[]` (§3.2) |
+| `labels` | dict | `variabler[].label` (bulk) |
+| *hva som helst annet* | streng | `felter[]` (nøkkelnavnet som etikett) |
+
+`publisher`, `license`, `unit`, `retrieved` og `source` er ikke egne
+tilfeller i parseren — de faller i den siste raden, som alle andre navn.
+Verdien må være en **streng**: en liste eller dict her ville blitt `"A,B"`
+eller `"[object Object]"` gjennom `String()`, altså stille søppel i
+sidepanelet, så den gir feil (`js/data-directives.js:335-339`).
+
+**`note` tar også en liste** (`note = ["A", "B"]`), symmetrisk med `link`.
+Listeformen er ikke pynt: `=` **overskriver** (§3.3), mens den gamle
+`# meta`-syntaksen akkumulerte, så uten en listeform ville to notater på samme
+mål mistet det første i stillhet under migreringen.
 
 **Variabelnivå** — `meta.<alias>.<variabel>.<nøkkel>`, eller bulk:
 
@@ -126,23 +139,52 @@ Målformen er `MetaInfo` fra `2026-07-25-metadata-sidebar-design.md`:
 #meta.bef.labels = {"alder": "Alder i hele år", "kjonn": "Kjønn"}
 ```
 
-**Tvetydighetsregelen:** `meta.<alias>.<x>` der `<x>` er en kjent
-datasettnøkkel (tabellen over) tolkes som datasettnivå. Alt annet er et
-variabelnavn, og krever da et videre ledd (`meta.bef.alder.label`). En
-`meta.bef.alder = "…"` uten videre ledd er en **feil** med melding
-*«ukjent datasett-nøkkel `alder` — mente du `meta.bef.alder.label`?»*.
-`labels` er reservert som datasettnøkkel (bulk-formen over) og kan derfor ikke
-være et variabelnavn.
+Variabelnøklene er et lukket sett: `label`, `note`, `link`.
 
-### 3.2 Lenker: tuppel eller liste
+**Tvetydighetsregelen — omgjort under implementering.** Designet sa først at
+`meta.bef.alder = "…"` uten videre ledd var en **feil** («ukjent datasett-nøkkel
+`alder`»). Det lot seg ikke gjøre uten å ofre det siste punktet i tabellen over:
+hele poenget med «hva som helst annet → `felter[]`» er at meta skal kunne
+utvides *uten ny syntaks*, og da finnes det ingen liste over lovlige navn å
+avvise mot. Regelen ble derfor snudd og gjort rent posisjonell:
+
+- **To ledd** (`meta.<alias>.<nøkkel>`) er alltid datasettnivå. Er nøkkelen
+  ukjent, blir den et **visningsfelt** med nøkkelnavnet som etikett — ikke en
+  feil.
+- **Tre ledd** (`meta.<alias>.<variabel>.<nøkkel>`) er alltid variabelnivå.
+  Variabelnivå krever altså *alltid* tre ledd; det finnes ingen to-ledds
+  variabelform å forveksle med.
+- Fire ledd eller mer er en feil («for dyp meta-sti»).
+
+Prisen er at en skrivefeil på variabelnivå (`meta.bef.alder = "…"` når du mente
+`meta.bef.alder.label`) blir et visningsfelt som heter «alder» i stedet for en
+feilmelding. Det er den samme prisen som gjør feltene utvidbare, og feilen er
+synlig i sidepanelet med én gang.
+
+Motsatt vei er det derimot en feil: en kjent datasettnøkkel brukt som
+variabelnavn (`meta.bef.link.x = …`) avvises med *«`link` tar en verdi, ikke en
+sti»*. Reservasjonen gjelder alle fire datasettnøklene (`title`, `note`, `link`,
+`labels`), ikke bare `labels` som designet først sa.
+
+### 3.2 Lenker: streng, liste eller dict
 
 ```python
-#meta.bef.link = "https://ssb.no/befolkning", "Om SSB"
-#meta.bef.link = [("https://ssb.no/befolkning", "Om SSB"),
-#                 ("https://ssb.no/05839", "Tabellen")]
+#meta.bef.link = "https://ssb.no/befolkning"
+#meta.bef.link = ["https://ssb.no/befolkning", "https://ssb.no/05839"]
+#meta.bef.link = {"https://ssb.no/befolkning": "Om SSB",
+#                 "https://ssb.no/05839": "Tabellen"}
 ```
-Én nøkkel; parseren skiller på type. Etiketten er valgfri
-(`#meta.bef.link = "https://ssb.no/befolkning"`).
+
+Én nøkkel; parseren skiller på type. Streng = én lenke uten etikett, liste =
+flere uten etikett, dict = `url: etikett`.
+
+**Tuppelformen ble droppet** (Hans, 2026-07-27). Designet foreslo først
+`link = "url", "etikett"` og `link = [("url", "etikett"), …]`. Det viste seg
+uskillbart: parseren representerer `(…)` og `[…]` med samme JS-array
+(`js/directive-parser.js:23-24`), så `("a", "b")` og `["a", "b"]` er *samme
+verdi*. «To lenker» ville altså blitt stille til «én lenke med etikett» — den
+posisjonelle gjettingen §1.4 skulle fjerne, gjeninnført i en ny form. Dicten
+sier hvem som er URL og hvem som er etikett i selve syntaksen.
 
 **Ingen `.add()`, ingen `add_link`.** Vurdert og forkastet: et metodekall ved
 siden av tilordning ville gjeninnføre to mekanismer, og en
@@ -189,9 +231,9 @@ Python. Begrunnelse (§4.3).
 |---|---|
 | `# connect X as ssb, kind(pxweb)` | `# ssb = ost.connect("X", kind="pxweb")` |
 | `# connect ssb` | `# ssb = ost.connect("ssb")` |
-| `# connect h, key(ask)` | `# h = ost.connect("h", key="ask")` |
+| `# connect h, key(ask)` | `# h = ost.connect("h", secret_key="ask")` |
 | `# read ssb/05839 as bef, years(2000:2009)` | `# bef = ssb.read("05839", years="2000:2009")` |
-| `# read URL as df, key(ask)` | `# df = ost.read("URL", key="ask")` |
+| `# read URL as df, key(ask)` | `# df = ost.read("URL", secret_key="ask")` |
 | `# read db/patients as p` | `# p = db.read("patients")` |
 | `# require URL as gammel` | `# gammel = ost.read("URL")` |
 | `# create panel, key(kommune_nr year)` | `# panel = ost.create(key=["kommune_nr", "year"])` |
@@ -204,11 +246,24 @@ Python. Begrunnelse (§4.3).
 | `# use df` | `# df = ost.use("df")` |
 | `# use tall from duckdb` | `# tall = ost.use("tall", source="duckdb")` |
 
+**`key` → `secret_key`** (Hans, 2026-07-26, etter at tabellen først ble
+skrevet). Ordet `key` var overlastet: `key(ask)` var en hemmelighet, mens
+`create … key(kommune_nr)` var kolonnenavn. I den nye grammatikken står de to
+ved siden av hverandre som kwargs på samme form, og forvekslingen ville vært
+gratis. Derfor: **`key=` betyr nå utelukkende kolonnenavn i `ost.create`**, og
+hemmeligheten heter `secret_key=`. `key=` på `connect`/`read` avvises med
+*«ukjent argument «key» — mente du «secret_key»?»* (`js/data-directives.js:147`,
+`:169-177`). Internt heter feltet fortsatt `key`, så `resolve()` er urørt.
+
+`# require URL as gammel` i tabellen gjelder kun **URL**-formen. Den navngitte
+formen (`# require <registrert-kilde> as <alias>`) er fjernet uten etterfølger
+— se §12.
+
 Opsjoner:
 
 | I dag | Ny |
 |---|---|
-| `key(ask)` / `key(LITERAL)` | `key="ask"` / `key="LITERAL"` |
+| `key(ask)` / `key(LITERAL)` | `secret_key="ask"` / `secret_key="LITERAL"` |
 | `exec(remote)` | `exec="remote"` |
 | `kind(pxweb)` | `kind="pxweb"` |
 | `cache(30m)` | `cache="30m"` |
@@ -220,13 +275,32 @@ Opsjoner:
 
 Enkeltverdier godtas uten liste: `countries="NOR"` ≡ `countries=["NOR"]`.
 
-### 4.2 To gevinster på kjøpet
+`how=` er et **lukket sett** — `left`, `inner`, `outer`. Uten det ville
+`how="innner"` falt til `left` uten et ord: feil sammenslåing, riktig-utseende
+resultat. `create`, `add` og `join` validerer dessuten sine *egne* kwargs
+(`create`: `key`, `format`; `add`: `table`, `how`; `join`: `on`, `how`), fordi
+`parse()` bare kjenner `connect`/`read` sine argumenter og ellers ropte
+«ukjent argument «key»» på en helt gyldig `ost.create`.
 
-- `ost.use` kan nå **døpe om**: `mine = ost.use("df", source="duckdb")`. Dagens
-  `# use` kan ikke det.
+### 4.2 Én gevinst på kjøpet — og én som ble utsatt
+
 - `filters` blir en ekte dict i stedet for en mellomromsdelt streng, og
   siterte strenger fjerner en reell bug-klasse: URL-er som inneholder komma
   eller parentes brekker dagens `\S+`-mønster og `,\s*\w+\([^)]*\)`-hale.
+
+- **Omdøping i `ost.use` er utsatt, ikke levert.** Designet lovet
+  `mine = ost.use("df", source="duckdb")`. Grammatikken tillater det, men
+  `parseUse` avviser det eksplisitt: *«omdøping i use er ikke støttet ennå»*
+  (`js/data-directives.js:730-733`). Årsaken er forbrukersiden, ikke parseren.
+  `parseUse`/`parseSegmentUses` returnerer `{name, from}` med **ett** navn, og
+  `index.html` bruker `u.name` til begge ender av kopien: til å slå opp
+  datasettet i *kildekjøretiden* (`exists(u.name)` i webR `:8511`, dict-oppslag
+  i pyodide `:8530`, `__duckUseBytes(u.name)` `:8508`) og til å binde det i
+  *målkjøretiden* (`_bindUseIntoPy(py, u.name, …)` `:11046`, `:11155`).
+  Omdøping krever et andre navn gjennom hele den kjeden. Å la det passere
+  stille ville bundet datasettet under kildenavnet uansett hva brukeren skrev —
+  akkurat den stille-feil-klassen designet ellers verner mot. Feilmeldingen
+  koster én linje; navneparet er en egen runde.
 
 ### 4.3 Hvorfor `ost.` og ikke bart `connect(...)`
 
@@ -267,42 +341,74 @@ Kopier-og-lim-påstanden i §4.3 må kvalifiseres ærlig. Tre nivåer:
 
 | Direktiv | Pakkesignatur |
 |---|---|
-| `ost.connect(url, kind=…)` | `openstat.py:485` |
-| `ost.read(url, table=…, columns=…, kind=…, **query)` | `:489` |
-| `kilde.read(table, columns=…, **query)` | `:391` |
-| `ost.create(key=…, name=…, how=…)` | `:527` |
-| `panel.add(kilde, kolonner, table=…, how=…)` | `:508` |
-| Kanonisk vokabular: `years`, `countries`, `regions`, `indicators`, `filters` | `_CANONICAL_KEYS` `:239` |
+| `ost.connect(url, kind=…)` | `openstat.py:522` |
+| `ost.read(url, table=…, columns=…, kind=…, **query)` | `:526` |
+| `kilde.read(table, columns=…, **query)` | `:423` |
+| `ost.create(key=…, name=…, how=…, format=…)` | `:606` |
+| `panel.add(kilde, kolonner, table=…, how=…)` | `:572` |
+| `panel.join(annen, on=…, how=…)` | `:585` |
+| Kanonisk vokabular: `years`, `countries`, `regions`, `indicators`, `filters`, `all` | `_CANONICAL_KEYS` `:243` |
 
 Merk at `add` tar **én** `columns`-parameter (streng eller liste), ikke
-varargs — derav `panel.add(p, ["income", "edu"])` i §4.1.
+varargs — derav `panel.add(p, ["income", "edu"])` i §4.1. Dette **håndheves nå
+i parseren**: `add(p, "income", "edu")` er en feil med forslag om å samle
+kolonnene i en liste. Uten vakten ga den linja to kolonner i editoren og én i
+pakken, der `"edu"` ble lest som `table=` og forsvant stille — samme linje, to
+svar, altså nøyaktig det kopier-og-lim-pariteten lover at ikke skjer.
 
-**(b) Mangler i pakken — foreslås lagt til (små, ~10–20 linjer hver):**
+`all=True` er et **unntak i tabellen over**: ordet er kanonisk i begge
+implementasjonene, men ekspansjonen (les alle verdier av uspesifiserte
+dimensjoner) finnes bare i editorens laster. Pakken sender det derfor ikke
+videre rått — `&all=True` ville blitt ignorert av kilden, og brukeren hadde
+fått kildens default i stedet for alt — men kaster med *«all=True ekspanderes
+foreløpig bare i OpenStat-editoren»* (`openstat.py:285-290`). Begge sider avviser
+dessuten `all` for andre kilder enn pxweb, med samme melding.
 
-- `Dataset.join(frame_eller_kilde, on=…, how=…)`. `Dataset` har i dag bare
-  `add`/`frame` (`openstat.py:496-524`). Uten denne er `# panel.join(…)` ikke
-  kopierbar. Anbefales lagt til i samme runde — den er nesten identisk med
-  `add`, bare med eksplisitt `on` i stedet for datasettets deklarerte nøkkel.
-- `format=`-kwarg på `ost.create` (leverer rammen som
-  `pandas`/`data.table`/`tibble`/`duckdb`). Finnes i direktivet siden
-  2026-07-24, ikke i pakken.
+**(b) Manglet i pakken — LEVERT i Task 11:**
+
+- `Dataset.join(other, on, how=None)` (`openstat.py:585`). `Dataset` hadde bare
+  `add`/`frame`, så `# panel.join(…)` var ikke kopierbar. Den er nesten
+  identisk med `add`, bare med eksplisitt `on` i stedet for datasettets
+  deklarerte nøkkel — og den sjekker at `on`-kolonnene finnes i *begge* rammer
+  før merge, siden pandas ellers kaster en melding som ikke sier hvilken side
+  som mangler kolonnen.
+- `format=`-kwarg på `ost.create` (`openstat.py:606`), levert via `_deliver`
+  (`:535`): `pandas` (default), `polars`, `duckdb`. `data.table`/`tibble`
+  finnes bare i R-modus i editoren og gir en egen feilmelding som sier det;
+  en ukjent verdi er en feil, ikke noe å ignorere — å returnere pandas
+  stillferdig ville flyttet feilen til neste linje der den ser ut som noe
+  helt annet.
 
 **(c) Editor-only — har og skal ikke ha noen pakkeekvivalent:**
 
 | Kwarg/verb | Hvorfor |
 |---|---|
-| `key="ask"` | interaktiv passordmodal; ingen mening utenfor nettleseren |
+| `secret_key="ask"` | interaktiv passordmodal; ingen mening utenfor nettleseren |
 | `exec="local"/"remote"` | kjøringslokalitet mot serveren |
 | `cache="30m"` | Cache-API/service worker |
 | `ost.use(navn, source=…)` | kopierer datasett mellom kjøretider i editoren |
 
-**Dette er en felle å håndtere eksplisitt:** `openstat.py:391` tar `**query`,
-så et innlimt `ost.read("URL", key="ask")` ville sende `key=ask` som
-*spørringsparameter* i stedet for å feile. Portable export må derfor stripe
-(c)-kwargene og erstatte dem med en kommentar, slik den allerede maskerer
-`key()` i dag (`js/portable-export.js:23-28`). Alternativt kan `openstat.py`
-avvise disse fire navnene eksplisitt med en peker til editoren; det er
-billigere og feiler høylytt. **Anbefales: begge.**
+**Dette var en felle å håndtere eksplisitt:** `Source.read` tar `**query`, så et
+innlimt `ost.read("URL", secret_key="ask")` ville sendt `secret_key=ask` som
+*spørringsparameter* og fått et rart svar i stedet for en feil. Begge halvdeler
+ble bygget, som anbefalt:
+
+1. `openstat.py:402-428` avviser `secret_key`, `exec` og `cache` høylytt i
+   `Source.read`, hver med sin egen begrunnelse. `key` står i samme liste med
+   teksten «argumentet het «key» før 2026-07-26» — et innlimt script fra før
+   omdøpingen skal ikke feile som spørringsparameter.
+2. Portabel eksport (Task 12) fjerner `secret_key`/`exec`/`cache` fra den
+   kommenterte direktivlinja og skriver notisen *«editor-argumenter
+   (secret_key/exec/cache) er fjernet — de virker bare i OpenStat»* i headeren
+   (`js/portable-export.js:46-48`).
+
+**`source` hører IKKE hjemme i denne listen** — designet førte den opp, og det
+var feil. `source` er en ekte World Bank-spørringsparameter (`?source=<db-id>`),
+så `Source.read` må slippe den gjennom. Editor-formen er
+`ost.use(navn, source=…)`, der **hele linja** er editor-only: `ost.use()` finnes
+som egen funksjon i pakken (`openstat.py:611`) og kaster med en peker til
+editoren. Eksporten fjerner derfor ikke `source=` fra en `use`-linje heller —
+det ville gjort kommentaren mindre sann, ikke mer.
 
 ---
 
@@ -335,8 +441,13 @@ literal  := streng | tall | True | False | None
           | KILDENAVN
 VERB     := connect | read | create | use
 METODE   := read | add | join
-NAVNEROM := options | tag | meta
+NAVNEROM := meta
 ```
+
+`NAVNEROM` er **kun `meta`** (`NS = { meta: 1 }`, `js/directive-parser.js:102`).
+`#options.` og `#tag.` er på samme form, men beholder sine egne parsere i
+`js/cells.js` — å slå dem sammen er opprydding uten brukersynlig gevinst
+(§10), og denne parseren skal ikke stjele linjer den ikke eier.
 
 Strenger: både `"` og `'`. Etterfølgende kommentar etter `#`-direktivet er
 fortsatt ikke lovlig (uendret fra i dag, og ikke verdt komplikasjonen).
@@ -427,15 +538,24 @@ Per prosjektets policy (ingen brukere ennå; erstatt fremfor å fryse):
    direktivlinjer i `examples/**` (34+ filer), `web_examples/**` og
    `docs/directive-language-examples.md`. Kjøres én gang, committes,
    og slettes ikke — det er også dokumentasjon av oversettelsen.
-3. **Manuelt oppdateres:** `hjelp.html`, `hjelp.en.html`, `command_help.js`,
-   `README.md`, `netlify/edge-functions/prompts/data-svar.md`,
-   `netlify/edge-functions/_lib/data-svar-prompt.ts:34-60,91-92,137-157`.
-4. **AI-evalene må re-kjøres.** `ROADMAP.md:369` flagger allerede at
+3. **Manuelt oppdatert (Task 13):** `hjelp.html`, `hjelp.en.html`,
+   `docs/directive-language-examples.md` + `.html` (prosaen),
+   `netlify/edge-functions/prompts/data-svar.md`,
+   `netlify/edge-functions/_lib/data-svar-prompt.ts` og
+   `netlify/edge-functions/kode-svar.ts` (JS-modusens promptmal — planen
+   glemte den). `js/command_help.js` finnes **ikke** i openstat (den lever i
+   safestat), og `README.md` har ingen direktiveksempler — begge er verifisert
+   med grep og trengte ingenting.
+4. **AI-evalene må re-kjøres.** ROADMAP flagger allerede at
    `data-svar`-evalene er kalibrert mot gammelt vokabular fra omdøpingen
    2026-07-25 og ikke er kjørt siden. Krever API-nøkkel. Dette er den eneste
    delen av migreringen som ikke kan verifiseres automatisk i repoet.
-5. **Publiseringsveien** (`index.html:1603`, `:1626`, `:1633`) har egne
-   `# load`- og `# use`-regexer som må følge med.
+5. **Publiseringsveien** (`index.html`) hadde egne `# load`- og
+   `# use`-regexer. De var i praksis allerede døde — `/#[ \t]*load\b/` matchet
+   ingenting etter omdøpingen 2026-07-25, så både advarselen «scriptet har
+   read-linjer men ingen data er hentet» og strippingen var uten effekt, og
+   publiserte dokumenter beholdt `ost.read`-linjer de ikke kan kjøre. Erstattet
+   av `DataDirectives.isDirectiveLine` (commit `15d2e1b`).
 
 ---
 
@@ -482,14 +602,63 @@ Per prosjektets policy (ingen brukere ennå; erstatt fremfor å fryse):
   hard-feil-ved-uoversettbart-regelen (SDMX-fellen). Divergensen er bevisst og
   skal kommenteres i begge filer.
 - **Testene i §9 må dekke §4.5(c)-fellen**: at portable export stripper
-  `key`/`exec`/`cache`/`use`, og at `openstat.py` avviser dem høylytt. Uten
+  `secret_key`/`exec`/`cache`, og at `openstat.py` avviser dem høylytt. Uten
   dette blir et innlimt script stille feil, ikke høylytt feil — den verste
   utfallsklassen, og nøyaktig samme feilmodus som SDMX-fellen designet ellers
-  verner mot.
+  verner mot. (`use` er ikke i strippelista: hele linja er editor-only, og
+  `openstat.use()` feiler selv med en peker til editoren.)
 - Delt fixture for paritet: `Dataset.join` må inn i både `tests/test_openstat.py`
   og `netlify/edge-functions/_lib/data-directives.test.ts` med samme
   forventede merge-resultat, slik `tests/fixtures/pxweb_dataset.json` gjør for
   pxweb.
-- `# require` for **navngitte** kilder (HE/remote) hoppes over av klienten i
-  dag (`js/data-directives.js:177`) og rutes til serveren. `ost.read("navn")`
-  må bevare nøyaktig samme forbigåelse, ellers brekker HE-fanen.
+- ~~`# require` for **navngitte** kilder (HE/remote) hoppes over av klienten i
+  dag og rutes til serveren. `ost.read("navn")` må bevare nøyaktig samme
+  forbigåelse, ellers brekker HE-fanen.~~ **Løst ved å fjerne formen.** Se §12:
+  den navngitte `require`-formen har ingen etterfølger. En registrert kilde nås
+  nå via `ost.connect("navn")` + `<alias>.read()`, som `resolve()` returnerer
+  som `{anvil: …}` og ruter til serveren på vanlig vis.
+
+---
+
+## 12. Status ved levering (2026-07-27)
+
+Levert i Task 1–13: én grammatikk (`js/directive-parser.js`), `#meta.`-navnerommet,
+`isDirectiveLine()` i stedet for de divergerende verblistene, `makeLoad()` i
+stedet for tekst-rundturene, `Dataset.join`/`format=` i `openstat.py`, avvisning
+av editor-argumenter i pakken, og fjerning av dem i portabel eksport.
+
+**Fjernet uten etterfølger:**
+
+- **`# require <navn> as <alias>` for navngitte kilder.** Den gamle formen viste
+  til en registrert kilde *uten* en `connect`-linje, og ble rutet til den
+  «Krypterte» (HE) editorfanen, hvis `dialect` var låst til `'he'`. Den nye
+  grammatikken har ingen måte å si «vis til en registrert kilde uten connect»,
+  og å finne på én ville gjeninnført en andre skrivemåte for det
+  `ost.connect("navn")` + `<alias>.read()` allerede gjør. Skriv `connect`-linja.
+  HE-fanen er ikke en del av OpenStat (den lever i SafeStat), så ingenting i
+  dette repoet mistet en fungerende vei. `# require <url> as <navn>` er dekket
+  av `ost.read("<url>")`, som i §4.1.
+
+**Utsatt (bevisst, med grunn):**
+
+- **Omdøping i `ost.use`** — §4.2. Krever et navnepar (kildenavn + målnavn)
+  gjennom `parseUse`, `parseSegmentUses` og seks kallsteder i `index.html`.
+  Avvises i mellomtiden med *«omdøping i use er ikke støttet ennå»*, ikke stille.
+- **`all=True`-ekspansjon i `openstat.py`** — §4.5(a). Ordet er kanonisk i
+  begge implementasjonene; ekspansjonen (les kildens json-stat2-metadata og
+  fyll ut de uspesifiserte dimensjonene) finnes bare i editorens laster. Pakken
+  kaster med en peker dit, i stedet for å sende `all=True` videre som en rå
+  spørringsparameter kilden ignorerer.
+- **`+=` for liste-nøkler i meta** — §3.3. `note`/`link` tar liste, som dekker
+  behovet så lenge meta for ett datasett skrives på ett sted.
+- Resten av §10 (`#%% data`-celletype, `ost.meta()`/`sources()`/
+  `attribution()`, `#meta` → `df.attrs['meta']` i pyodide, sammenslåing av
+  `#tag.`/`#options.`/`#@param`).
+
+**Ikke verifisert automatisk:**
+
+- **AI-evalene** (`docs/eval/data-svar-evalsett.md`) er kalibrert mot det gamle
+  vokabularet og må kjøres på nytt med API-nøkkel. Promptmalene er oppdatert
+  (Task 13), men treffraten er ukjent til evalsettet er kjørt.
+- **Nettleserverifiseringen** (§9, siste punkt) — sjekklista ligger i
+  `.superpowers/sdd/task-13-smoke.md`.

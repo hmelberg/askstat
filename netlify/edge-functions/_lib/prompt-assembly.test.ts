@@ -43,7 +43,8 @@ Deno.test("coerceMode validates the enum, defaulting to microdata", () => {
 Deno.test("javascript prefix has JS environment, omits catalog/#micro/command blocks", () => {
   const out = assemblePrefix("javascript", PARTS);
   assertEquals(out.includes("JavaScript-miljø"), true);
-  assertEquals(out.includes("# load"), true);
+  // «# load» til 2026-07-27; verbet heter read og formen er pythonsk.
+  assertEquals(out.includes("ost.read"), true);
   assertEquals(out.includes("#micro-bro"), false);
   assertEquals(out.includes("CATX"), false);
   assertEquals(out.includes("KOMX"), false);

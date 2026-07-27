@@ -1,28 +1,30 @@
 // connect/load-direktiver for Web-modus (spec 5b/5c i
 // docs/superpowers/specs/2026-07-03-web-data-svar-design.md, utvidet av
 // docs/superpowers/specs/2026-07-05-encrypted-external-sources-design.md §1).
-//   # connect <base-url|register-id|anvil-navn> [as alias] [, key(...)][, exec(...)][, kind(...)]
-//   # read <url|alias/sti> as navn [, key(...)]  — uttrekk (hel ramme)
-//   Kanoniske ord 2026-07-25 (pakke-paritet): read/add/create — load/import/
-//   create-dataset/require godtas som stille aliaser (ett ord i regexene).
-//   kind(csv|parquet|duckdb|sqlite|json) — eksplisitt kildetype, hopper over sniffing
-//   duckdb/sqlite: "load <alias>/<tabell> as <navn>" og "import <alias>/<tabell>.<kolonne>, ... into <navn>"
-//   (punktum skiller tabell fra kolonne — bekreftet 2026-07-06, se
-//   docs/superpowers/specs/2026-07-06-remote-columnar-sources-design.md)
+// Syntaksen er pythonsk siden 2026-07-27 (spec
+// docs/superpowers/specs/2026-07-26-pythonsk-direktivsyntaks-design.md).
+// Formen parses av js/directive-parser.js; denne fila gir den betydning:
+//   # <alias> = ost.connect("<base-url|register-id|anvil-navn>", kind="…")
+//   # <navn>  = ost.read("<url>", secret_key="…", exec="…", cache="…")
+//   # <navn>  = <alias>.read("<sti|tabell>", years="…", countries=[…], …)
+//   kind="csv|parquet|duckdb|sqlite|json" — eksplisitt kildetype, hopper over sniffing
+//   duckdb/sqlite: <alias>.read("<tabell>") og <datasett>.add(<alias>, ["<kolonne>"], table="<tabell>")
+//   (se docs/superpowers/specs/2026-07-06-remote-columnar-sources-design.md)
+//   INGEN aliaser: load/import/create-dataset/require er borte, ikke stille
+//   oversatt — gammel syntaks gir migrasjonshint (js/directive-parser.js:124).
 // Ren parsing/resolusjon — ingen fetch her. Brukes av index.html
 // (materialisering) og testes med deno via eval (data-directives.test.ts).
 (function (global) {
   'use strict';
 
-  // Project A (variable-level assembly): create-dataset/import/join/load ->
-  // AssemblySpec. See docs/superpowers/plans/2026-07-05-variable-level-assembly.md.
-  // format(<navn>) (2026-07-24): lever datasettet direkte i valgt frameformat
+  // Project A (variable-level assembly): ost.create/add/join -> AssemblySpec.
+  // See docs/superpowers/plans/2026-07-05-variable-level-assembly.md.
+  // format="<navn>" (2026-07-24): lever datasettet direkte i valgt frameformat
   // uten konverteringslinje — data.table/tibble i R, pandas i python (polars
   // når wasm-bygget finnes). Ustøttede kombinasjoner feiler høyt ved binding.
-  // Composite keys (spec 2026-07-24-pxweb-sources-design §1): key(region aar)
-  // tar 1+ kolonner (mellomrom/komma — parentesene avgrenser), join-on tar
-  // komma-liste («on region, aar» — mellomrom alene ville vært tvetydig mot
-  // left|inner|outer-halen). d.key og step.on er ALLTID arrays.
+  // Composite keys (spec 2026-07-24-pxweb-sources-design §1): key=["region",
+  // "aar"] tar 1+ kolonner, likeså on=[…] på join. d.key og step.on er ALLTID
+  // arrays (én streng pakkes).
   function isUrlish(target) {
     return /^https?:\/\//i.test(target) || target.indexOf('/api/hent?') === 0;
   }

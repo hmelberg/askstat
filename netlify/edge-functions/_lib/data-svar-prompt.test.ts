@@ -15,7 +15,10 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
   const a = buildDataSvarSystem("python", reg);
   assertEquals(a, buildDataSvarSystem("python", reg));
   for (const needle of [
-    "connect", "load", "probe", "aldri", "konfunder", "heterogenitet",
+    // «load» var her til 2026-07-27; ordet finnes ikke i vokabularet lenger
+    // (ost.read erstattet det), så needelen ville bare målt at en gammel
+    // prosaformulering overlevde. ost.connect/ost.read er de nye ankrene.
+    "ost.connect", "ost.read", "probe", "aldri", "konfunder", "heterogenitet",
     "join", "Kilderegister", "transkribert", "modellkunnskap", "site:",
     "Søketips", "data.europa.eu",
   ]) {

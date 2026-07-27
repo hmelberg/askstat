@@ -129,7 +129,7 @@ export default async (request: Request): Promise<Response> => {
   const errors = (body.errors ?? "").trim();
 
   // ── Pass 1: pick relevant variables (best-effort; degrade to no block). ──
-  // javascript-modus har ingen microdata-katalog å plukke fra (# load-URL-er,
+  // javascript-modus har ingen microdata-katalog å plukke fra (ost.read-URL-er,
   // ikke registervariabler) — hopp over plukkeren helt.
   let focusedBlock = "";
   if (mode !== "javascript") try {

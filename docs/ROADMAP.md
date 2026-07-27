@@ -41,7 +41,7 @@ prioritert idéliste. Kilder: designdok/reviews fra jamovi 2.0 fase 1–3
       relevant hvis cellevisningen endres.
 - [ ] AI auto-retting nivå 2 (sandkasse-prøvekjøring) — kun hvis nivå 1
       viser seg å fange for lite i praksis.
-- [ ] jamovi RM-ANOVA + CFA, scatr-wasm (venter på Hans), `# requires:`-
+- [ ] jamovi RM-ANOVA + CFA, scatr-wasm (venter på Hans), pakkekrav-
       direktivet, minnebruk på svake maskiner — funksjonalitet/komfort,
       ikke risiko; se seksjonene under.
 
@@ -194,7 +194,9 @@ kjører `webr::install()`. Service workeren cacher pakke-hostene (offline etter 
 Mål: brukeren skal kunne installere alt fra Pyodide-wheels til ting man kan
 prøve fra PyPI eller GitHub. Nivåene:
 
-- [ ] **`# requires:`-direktiv** (husets direktiv-stil à la `# load`) med:
+- [ ] **Pakkekrav-direktiv** (husets direktiv-stil er pythonsk siden
+      2026-07-27, så formen må avklares mot den grammatikken — ikke
+      `# requires: <navn>`) med:
       - versjonspinning (`plotnine==0.13`)
       - alias-kart for navne-mismatch (`sklearn`→scikit-learn, `PIL`→pillow, `cv2`→opencv)
       - eksplisitte kilder, se nivåene under
@@ -204,7 +206,8 @@ prøve fra PyPI eller GitHub. Nivåene:
       3. Wheel-URL: `micropip.install('https://…/pakke.whl')` — inkl. wheels fra
          GitHub-releases (raw/objects.githubusercontent har CORS)
       4. GitHub-repo uten wheel (kun ren Python): hent zip → `pyodide.unpackArchive`
-         → sys.path; direktivsyntaks f.eks. `# requires: github:bruker/repo`
+         → sys.path; direktivsyntaks f.eks. `# ost.require("github:bruker/repo")`
+         (formen er ikke avgjort — se punktet over)
       (Grense: pakker med ubygget C/Fortran kan ikke installeres i nettleseren.)
 - [ ] **R-kilder**:
       1. repo.r-wasm.org-binærer (auto, virker i dag)
@@ -372,7 +375,7 @@ prøve fra PyPI eller GitHub. Nivåene:
       er størst i safestat, som deler `js/data-directives.js`.
 
 - [ ] **Streaming-/levende kilder** (notert 2026-07-25). Trapp: (1)
-      polling — `# connect …, refresh(30s)` som re-henter og re-rendrer en
+      polling — `# <alias> = ost.connect(…, refresh="30s")` som re-henter og re-rendrer en
       utpekt output; passer dagens batch-modell (fersk økt per kjøring) og
       dekker det meste av statistikk-kilder; liten økt. (2) Ekte push
       (websocket/SSE → løpende INSERT i duckdb-tabell + reaktiv visning) —
@@ -380,12 +383,24 @@ prøve fra PyPI eller GitHub. Nivåene:
       charts; passer LIB_REGISTRY-mønsteret som js-dep). Stort — egen spec
       først, og avklar hvilke kilder som faktisk streamer.
 
+- [x] **Pythonsk direktivsyntaks** — LEVERT 2026-07-27: én grammatikk
+      (`# <navn> = ost.<verb>(…)` og `#meta.<datasett>.<nøkkel> = …`) erstatter
+      åtte regexer; `isDirectiveLine()` erstatter de divergerende verblistene.
+      `key` → `secret_key` for hemmeligheter; `key` er nå kun kolonnenavn.
+      openstat.py fikk `Dataset.join` og `format=`, og avviser editor-argumenter.
+      Portabel eksport fjerner dem. Hard omlegging uten aliaser — gammel syntaks
+      gir feilmelding med forslag.
+      FJERNET UTEN ETTERFØLGER: `# require <navn> as <alias>`.
+      UTESTET: AI-evalene (`data-svar`) er kalibrert mot gammelt vokabular og må
+      re-kjøres med nøkkel.
+
 - [x] **Direktivord-omdøping (pakke-paritet)** — LEVERT 2026-07-25 (Hans'
       beslutning): kanoniske ord er nå `# read` (før load), `# add` (før
       import) og `# create` (før create-dataset; `create` valgt fremfor
       `dataset` — fanger intuisjonen, og pakken fikk `ost.create()` i samme
-      slengen). Gamle ord godtas som STILLE aliaser i parseren (ett ord i
-      regexene — ingen dobbel API); alt synlig (hjelp, eksempler,
+      slengen). Gamle ord ble den gang godtatt som STILLE aliaser i parseren
+      (ett ord i regexene — ingen dobbel API); den aksepten falt bort
+      2026-07-27, se punktet over. Alt synlig (hjelp, eksempler,
       directive-language-examples, starteksempler, AI-promptmalene,
       eksport-headeren) lærer bort de nye. `connect`/`join`/`use` uendret.
       NB: data-svar-EVALENE er kalibrert mot gammelt vokabular — re-kjør

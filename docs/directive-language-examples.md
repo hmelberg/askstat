@@ -8,16 +8,32 @@ treats them identically.
 ## Grammar
 
 ```
-directive   := connect | read | create | add | join   (aliaser: load/require=read, import=add, create-dataset/create_dataset=create)
+line        := marker (assignment | methodcall)
+marker      := "#" | "--" | "//"
+assignment  := NAME "=" expr
+             | "meta" "." PATH "=" literal
+methodcall  := NAME "." METHOD "(" args ")"
+expr        := "ost" "." VERB "(" args ")" | NAME "." METHOD "(" args ")"
+args        := literal ("," literal)* ("," IDENT "=" literal)*
+literal     := string | number | True | False | None
+             | "[" literal* "]" | "{" pairs "}" | SOURCE-NAME
+VERB        := connect | read | create | use
+METHOD      := read | add | join
 
-connect     := "connect" target ["as" alias] ["," option]*
-read        := "read" (alias["/" path] | url) "as" NAME ["," option]*
-require     := "require" target "as" NAME              # legacy alias for read
-option      := "key(" (literal | "ask") ")"
-             | "exec(" ("local" | "remote") ")"
-
-target      := registry-id | url | anvil-name
+target      := registry-id | url | anvil-name    (first argument to connect/read)
 ```
+
+There are **no aliases**. `load`, `import`, `create-dataset` and `require` were
+removed with the Python-style syntax on 2026-07-27; writing them produces an
+error message that suggests the new form. Common named arguments:
+`kind=`, `secret_key=`, `exec="local"|"remote"`, `cache=`, the canonical query
+vocabulary (`years=`, `countries=`, `regions=`, `indicators=`, `filters={…}`,
+`all=True`), and `how="left"|"inner"|"outer"` on `add`/`join`.
+
+> **Directive lines are not Python.** The grammar is closed: no variables in
+> arguments (except source names), no expressions, no f-strings, no arithmetic,
+> no loops or conditionals, no imports. A trailing comment on a directive line
+> is not legal either.
 
 `target` resolves in this order:
 1. **Registry id** — an entry in `data/data-sources.json` (`ssb`, `eurostat`, `worldbank`, `oecd`, `who`, ...) → public web API, fetched with that entry's `base_url`/proxy rules.
@@ -32,7 +48,7 @@ target      := registry-id | url | anvil-name
 # ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
 # ledighet = ssb.read("05839/data?outputFormat=csv")
 ```
-`ssb` is connected as an alias for a base URL; `read` appends a path to it and binds the result into the script under the name `ledighet`.
+`ssb` is connected as an alias for a base URL; `ssb.read(…)` appends a path to it and binds the result into the script under the name `ledighet`.
 
 Using the short registry id instead of the full URL works the same way:
 ```
@@ -47,12 +63,15 @@ Using the short registry id instead of the full URL works the same way:
 ```
 A bare URL can be `read` directly — no `connect` line required, no alias indirection.
 
-## 3. Legacy `require` (URL-only alias for `read`)
+## 3. What replaced `require`
 
 ```
 # gammel = ost.read("https://x.example/gammel-data.csv")
 ```
-`require` behaves exactly like `read` for URLs. Named (non-URL) sources still use `require` for backward compatibility but are treated specially and NOT rewritten by the client — they route straight to the server.
+The old `# require <url> as <navn>` was a URL-only alias for `read`; `ost.read`
+covers it exactly. The **named** form (`# require <registered-source> as <alias>`
+— a registered source referenced without a `connect` line, routed straight to
+the server) has **no successor**; see §12 for why.
 
 ## 4. FRED — a registry source that needs the CORS proxy + an API key
 
@@ -68,7 +87,9 @@ Because the FRED registry entry declares `cors:false` and an `auth` block, the f
 # h = ost.connect("helse2025", secret_key="ask")
 # df = h.read()
 ```
-`helse2025` isn't a public registry id, so it resolves as an Anvil-registered source. `key(ask)` means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).
+`helse2025` isn't a public registry id, so it resolves as an Anvil-registered source. `secret_key="ask"` means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).
+
+The argument is called `secret_key`, not `key`: since 2026-07-26 `key=` means **column names** and nothing else (`ost.create(key=["kommune_nr", "year"])`). Writing `key=` on `connect`/`read` is an error with the suggestion *«mente du «secret_key»?»*.
 
 ## 6. Registered source with a literal key and forced remote execution
 
@@ -76,7 +97,7 @@ Because the FRED registry entry declares `cors:false` and an `auth` block, the f
 # k = ost.connect("kilde2", secret_key="qL7xK2mN9pR4sT6v", exec="remote")
 # df = k.read()
 ```
-`exec(remote)` forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, `exec(local)`, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)
+`exec="remote"` forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, `exec="local"`, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)
 
 ## 7. Directly loading an encrypted file by URL
 
@@ -85,13 +106,13 @@ Because the FRED registry entry declares `cors:false` and an `auth` block, the f
 ```
 No `connect`/registration needed if the owner just hands you a URL and a key: the loader sniffs the `safepy-enc-v1` envelope, verifies its fingerprint, and decrypts client-side with WebCrypto using the supplied key.
 
-## 8. Key precedence — `read`-level key overrides `connect`-level key
+## 8. Secret precedence — `read`-level key overrides `connect`-level key
 
 ```
 # h = ost.connect("helse2025", secret_key="K1")
 # df = h.read(secret_key="K2")
 ```
-`df` is decrypted with `K2`. A key on `connect` is just the default for everything loaded through that alias; a key on the individual `load` line wins.
+`df` is decrypted with `K2`. A `secret_key` on `connect` is just the default for everything read through that alias; a `secret_key` on the individual `read` line wins.
 
 ## 9. Mixing several sources of different kinds in one script
 
@@ -136,8 +157,8 @@ for DBnomics).
 
 ## 9c. Canonical query vocabulary — translated per source (2026-07-25)
 
-`years(a:b)`, `countries(…)`, `regions(…)`, `indicators(…)` and
-`filters(k=v …)` on the `read` line are translated to each source's own
+`years="a:b"`, `countries=[…]`, `regions=[…]`, `indicators=[…]` and
+`filters={…}` on the `read` line are translated to each source's own
 query model — and fail loudly when a field can't be translated verifiably
 for that source (SDMX 2.1 APIs silently ignore unknown parameters, which
 would return wrong-but-plausible data):
@@ -156,11 +177,14 @@ would return wrong-but-plausible data):
 # bef = ssb.read("05839", years="2007:", regions=["0"], indicators=["Personer"])
 ```
 
-For SDMX sources, `countries()`/`indicators()`/`filters()` build the dotted
+For SDMX sources, `countries=`/`indicators=`/`filters=` build the dotted
 key path automatically (one small `lastNObservations=1` probe reveals the
-dataflow's dimensions); `years(a:b)` maps to `startPeriod`/`endPeriod`
+dataflow's dimensions); `years="a:b"` maps to `startPeriod`/`endPeriod`
 (SDMX), `date=` (Verdensbanken), `sinceTimePeriod`/`untilTimePeriod`
-(Eurostat) and `valueCodes[Tid]` (PxWeb). Open ends work: `years(2020:)`.
+(Eurostat) and `valueCodes[Tid]` (PxWeb). Open ends work: `years="2020:"`.
+Single values need no list: `countries="NOR"` ≡ `countries=["NOR"]`.
+A number is an error, not something to coerce — `years=2020` would silently
+have meant one year instead of five, so it is rejected.
 
 ## 10. Variable-level assembly — `create` / `add` / `join`
 
@@ -175,7 +199,7 @@ A separate, richer directive set lets you assemble one analysis dataset out of *
 # sales = s.read()
 # panel.join(sales, on="pid")
 ```
-This declares a dataset called `panel`, keyed on `pid`; pulls the `income` and `edu` columns from source `p` (plus `region` in a second `add` line); separately reads all of `sales_src` as `sales`; then joins `sales` into `panel` on the `pid` key. `add`/`join` default to a `left` join — an explicit join type can be appended:
+This declares a dataset called `panel`, keyed on `pid`; pulls the `income` and `edu` columns from source `p` (plus `region` in a second `add` line); separately reads all of `sales_src` as `sales`; then joins `sales` into `panel` on the `pid` key. `add` takes **one** column parameter (a string or a list) — `panel.add(p, "income", "edu")` is an error, because the package signature is `add(source, columns, table=None, how=None)` and `"edu"` would silently become `table=`. `add`/`join` default to a `left` join; `how=` is a closed set (`left`/`inner`/`outer`):
 
 ```
 # panel.add(p, ["x"], how="inner")
@@ -191,9 +215,37 @@ These three lines are parsed identically — only the comment marker differs, ma
 // ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
 ```
 
+## 11b. Your own metadata — `#meta.`
+
+The second form in the grammar is a namespace assignment. It carries the
+script author's own description of a dataset into the ⓘ modal in the dataset
+panel:
+
+```
+# meta.lonn.title = "Lønnsundersøkelsen 2024"
+# meta.lonn.note = "Spørreundersøkelse om lønn, innsamlet 2024"
+# meta.lonn.publisher = "Eget prosjekt"
+# meta.lonn.link = {"https://x.example/skjema.pdf": "Spørreskjema"}
+# meta.lonn.alder.note = "Alder ved utgangen av inntektsåret"
+```
+
+The path is positional, not keyword-driven:
+
+- **Two segments** = dataset level. `title`, `note`, `link` and `labels` have
+  fixed meanings; **any other name becomes a display field** with the name as
+  its label, which is what makes the model extensible without new syntax.
+- **Three segments** = variable level, and the last segment must be `label`,
+  `note` or `link`. Variable level *always* needs three segments.
+
+`link` takes a string (one link), a list (several, unlabelled) or a dict
+(`url: label`). `note` takes a string or a list. `=` **overwrites** — repeated
+assignments to the same target replace rather than accumulate, which is why
+`note`/`link` take lists at all. Source metadata from `/api/metadata` is merged
+separately; the author's text is rendered first and never silently overridden.
+
 ## 12. Homomorphically-encrypted (HE) tier
 
-HE sources (`format="he"`, Paillier-encrypted) use the **same** `connect`/`load`/`require` directives as any other registered source — there is no separate directive syntax. What's different is the *editor mode/dialect* the script runs under, and what happens on resolution: the ciphertext is useless without the authority key, so an HE source is **always executed remotely** through the HE facade, never fetched or decrypted into the browser.
+HE sources (`format="he"`, Paillier-encrypted) use the **same** `ost.connect`/`.read` directives as any other registered source — there is no separate directive syntax. What's different is the *editor mode/dialect* the script runs under, and what happens on resolution: the ciphertext is useless without the authority key, so an HE source is **always executed remotely** through the HE facade, never fetched or decrypted into the browser.
 
 Referencing a registered HE source is written exactly like a protected source (§5 above):
 ```
@@ -210,7 +262,7 @@ The difference is invisible in the directive text — it's the registered source
 > The HE tab itself is not part of OpenStat (it lives in SafeStat), so nothing
 > in this repo lost a working path — but do not expect `require` to parse.
 
-**`exec(local)` is always refused on an HE source** — there's no plaintext to run against locally:
+**`exec="local"` is always refused on an HE source** — there's no plaintext to run against locally:
 ```
 # h = ost.connect("helse_he", exec="local")
 # df = h.read()

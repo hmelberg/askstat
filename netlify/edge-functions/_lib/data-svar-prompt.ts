@@ -60,6 +60,13 @@ df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltit
 
 Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
+EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
+1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører.
+2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅, og «funnet via søk» er IKKE verifisering.
+3. PxWeb-parametre presist: wildcard er \`*\` (ALDRI «ALL»); \`stub=\` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med \`top(n)\` eller eksplisitt liste.
+4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
+5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri og CORS-åpen.
+
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
 //). Formen er pythonsk — \`ost.\` på inngangspunktene, bart metodekall på

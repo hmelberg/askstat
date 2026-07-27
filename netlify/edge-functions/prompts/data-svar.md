@@ -115,3 +115,12 @@ URL-en.
 
 Se `_lib/data-svar-prompt.ts` — innholdet er inlinet som TS-konstanter fordi
 Deno Deploy ikke bundler .md-filer ved kjøretid.
+
+## 2026-07-27 (3)
+
+Eval-batch (Q1/Q3/Q8/Q9/Q13) etter syntaks-cutover: Q1 PASS (SSB-mal probet,
+ost.read m/ ✅-URL, tidy-samsvar). Fem målte feilmønstre → EVAL-REGLER 1-5 i
+DELIVERY: (1) rå API-params som kwargs (geo=/siec=) — parseren avviser høylytt;
+skal i filters={}; (2) loads uten ✅-probe + «probe-verifisert via søk»-påstander;
+(3) PxWeb-gjetting (Tid=ALL, stub=år); (4) requests/urllib-fallback;
+(5) fred-nøkkelavhengighet — fredgraph.csv er nøkkelfri.

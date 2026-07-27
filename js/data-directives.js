@@ -545,6 +545,33 @@
     var res = global.DirectiveParser.parseScript(script);
     res.errors.forEach(function (e) { errors.push(e); });
 
+    // parse() validerer BARE connect/read sine argumenter (den skopet seg til
+    // dem i Task 8 fordi den ellers ropte «ukjent argument «key»» på en helt
+    // gyldig ost.create). Da mistet create/add/join den tilfeldige dekningen de
+    // hadde. Uten denne vakten er «add(py, ["a"], hwo="inner")» stille: steget
+    // bygges med how="left", brukeren ba om inner, ingen sier fra.
+    var ASM_KWARGS = { create: ['key', 'format'], add: ['table', 'how'], join: ['on', 'how'] };
+    function checkKwargs(it) {
+      var ok = ASM_KWARGS[it.verb], bad = Object.keys(it.kwargs).filter(function (k) {
+        return ok.indexOf(k) < 0;
+      });
+      if (!bad.length) return true;
+      errors.push('linje ' + it.lineNo + ': ukjent argument «' + bad[0] + '» for ' + it.verb +
+                  ' — gyldige: ' + ok.join(', '));
+      return false;
+    }
+
+    // how= er et lukket sett. «innner» eller «Inner » ville ellers falt til
+    // left uten et ord — feil sammenslåing, riktig-utseende resultat.
+    function checkHow(it) {
+      if (!Object.prototype.hasOwnProperty.call(it.kwargs, 'how')) return 'left';
+      var h = typeof it.kwargs.how === 'string' ? it.kwargs.how.toLowerCase() : null;
+      if (h === 'left' || h === 'inner' || h === 'outer') return h;
+      errors.push('linje ' + it.lineNo + ': how må være left, inner eller outer, fikk «' +
+                  String(it.kwargs.how) + '»');
+      return null;
+    }
+
     function srcKey(alias, table) { return table ? (alias + '__' + table) : alias; }
     function noteSource(alias, table) {
       var k = srcKey(alias, table);
@@ -566,6 +593,7 @@
       if (it.recv === 'ost' && it.verb === 'create') {
         if (!it.target) { errors.push('linje ' + it.lineNo + ': ost.create krever en tilordning'); return; }
         if (byName[it.target]) { errors.push('datasettet «' + it.target + '» er allerede opprettet'); return; }
+        if (!checkKwargs(it)) return;
         var key = names(it.kwargs.key);
         if (!key.length) { errors.push('linje ' + it.lineNo + ': ost.create krever key="<kolonne>" eller key=[…]'); return; }
         var d = { name: it.target, key: key,
@@ -608,7 +636,9 @@
       }
       var d = byName[it.recv];
       if (!d || d.load) { errors.push('ukjent datasett «' + it.recv + '» (mangler ost.create?)'); return; }
-      var how = it.kwargs.how ? String(it.kwargs.how).toLowerCase() : 'left';
+      if (!checkKwargs(it)) return;
+      var how = checkHow(it);
+      if (how === null) return;
 
       if (it.verb === 'add') {
         var ref = it.args[0];

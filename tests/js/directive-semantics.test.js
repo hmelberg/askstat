@@ -306,3 +306,52 @@ test('meta: ikke-tekst i enkeltverdifelt gir feil, ikke søppel', () => {
     assert.match(r.errors[0], re, line);
   });
 });
+
+// parse() skopet seg til connect/read i Task 8 (den ropte ellers «ukjent
+// argument «key»» på en gyldig ost.create og knakk portabel eksport). Da
+// mistet create/add/join den TILFELDIGE kwarg-dekningen de hadde — uten
+// vakten under er «add(py, ["a"], hwo="inner")» stille: steget bygges med
+// how="left" og brukeren tror han ba om inner.
+test('parseAssembly: ukjent argument på create/add/join gir feil', () => {
+  const pre = ['# py = ost.connect("https://x/py.parquet")',
+               '# demo = ost.create(key="unit_id")',
+               '# sales = py.read("salg")', ''].join('\n');
+  [['# demo.add(py, ["alder"], hwo="inner")', /ukjent argument «hwo» for add/],
+   ['# demo.add(py, ["alder"], tabel="t")', /ukjent argument «tabel» for add/],
+   ['# demo.join(sales, onn="pid")', /ukjent argument «onn» for join/],
+   ['# d2 = ost.create(key="pid", secret_key="lekk")', /ukjent argument «secret_key» for create/],
+  ].forEach(([line, re]) => {
+    const r = DD.parseAssembly(pre + line);
+    assert.match(r.errors[0] || '', re, line);
+  });
+});
+
+test('parseAssembly: how er et lukket sett', () => {
+  const pre = ['# py = ost.connect("https://x/py.parquet")',
+               '# demo = ost.create(key="unit_id")', ''].join('\n');
+  const bad = DD.parseAssembly(pre + '# demo.add(py, ["a"], how="innner")');
+  assert.match(bad.errors[0], /how må være left, inner eller outer/);
+  assert.deepEqual(bad.spec.datasets.find((d) => d.name === 'demo').steps, []);
+
+  ['left', 'inner', 'outer', 'INNER'].forEach((h) => {
+    const ok = DD.parseAssembly(pre + '# demo.add(py, ["a"], how="' + h + '")');
+    assert.deepEqual(ok.errors, [], h);
+    assert.equal(ok.spec.datasets.find((d) => d.name === 'demo').steps[0].how, h.toLowerCase());
+  });
+});
+
+test('parseAssembly: gyldige argumenter er urørt', () => {
+  const r = DD.parseAssembly([
+    '# py = ost.connect("https://x/py.parquet")',
+    '# demo = ost.create(key=["a", "b"], format="duckdb")',
+    '# sales = py.read("salg")',
+    '# demo.add(py, ["alder"], table="t", how="outer")',
+    '# demo.join(sales, on="pid", how="inner")',
+  ].join('\n'));
+  assert.deepEqual(r.errors, []);
+  const d = r.spec.datasets.find((x) => x.name === 'demo');
+  assert.deepEqual(d.steps, [
+    { op: 'import', source: 'py__t', columns: ['alder'], how: 'outer' },
+    { op: 'join', from: 'sales', on: ['pid'], how: 'inner' },
+  ]);
+});

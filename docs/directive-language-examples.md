@@ -202,11 +202,13 @@ Referencing a registered HE source is written exactly like a protected source (�
 ```
 The difference is invisible in the directive text — it's the registered source's `format` field, checked at `/source_access` resolution time, that routes it into the HE facade instead of a normal remote run.
 
-The legacy `require` form works the same way and is the one actually wired to the "Kryptert" (HE) editor tab, whose `dialect` is fixed to `'he'` for every script run in that tab:
-```
-# h = helse_he.read()
-```
-Running that line while the active editor mode/tab is **Kryptert** sends the whole script to the server with `dialect: 'he'`; the server never decrypts the data, and only the HE facade verbs (`group_agg`, `value_counts`, `crosstab`, `ols`) are available against it.
+> **Removed with the Python-style syntax (2026-07-27).** The legacy
+> `# require helse_he as h` form — a registered source referenced *without* a
+> `connect` line, wired to the "Kryptert" (HE) editor tab whose `dialect` was
+> fixed to `'he'` — has **no successor**. The new grammar has no way to say
+> "reference a registered source with no connect": write the `connect` line.
+> The HE tab itself is not part of OpenStat (it lives in SafeStat), so nothing
+> in this repo lost a working path — but do not expect `require` to parse.
 
 **`exec(local)` is always refused on an HE source** — there's no plaintext to run against locally:
 ```
@@ -217,7 +219,8 @@ Running that line while the active editor mode/tab is **Kryptert** sends the who
 
 **You cannot mix an HE (or any named) source with a plain URL source in one remote run yet:**
 ```
-# h = helse_he.read()
+# h = ost.connect("helse_he", secret_key="ask")
+# df = h.read()
 # co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")
 ```
 → refused: "Server-kjøring kan ikke kombinere navngitte kilder og URL-kilder (ennå)" (server execution can't yet combine named sources and URL sources — use only named sources).

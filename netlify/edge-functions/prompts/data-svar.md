@@ -5,7 +5,8 @@ denne fila er kildedokument + endringslogg (samme mønster som kode-svar.md).
 Design: docs/superpowers/specs/2026-07-03-web-data-svar-design.md.
 
 Blokkstruktur: INTRO (tre faser: tolk → finn → generer; søkehåndverk),
-DELIVERY (connect/load-direktiver, proxy, POST-innpakking, kildesitering),
+DELIVERY (ost-direktiver, proxy, POST-innpakking, kildesitering, lukket
+grammatikk),
 SCIENCE (rå→justert, identifikasjon, heterogenitet, ærlighet — utvidet fra
 INFERENCE_STRATEGY_PYR i kode-svar.ts), INLINE (datatilfangst-stigen:
 probet → transkribert-fra-web_fetch → modellkunnskap; aldri utfall fra
@@ -19,6 +20,9 @@ Prompt-utviklingsloop (spec §7): endringer kjøres mot evalsettet
 reparasjonsrunder blir nye promptregler eller register-quirks.
 
 ENDRINGSLOGG
+NB: entries FØR 2026-07-27 siterer direktivsyntaksen slik den var DA
+(`# read <url> as <navn>`, `key(ask)`, `# connect X as ssb`). De står med vilje
+urørt — det er en logg, ikke en referanse. Gjeldende syntaks: se siste entry.
 - 2026-07-03: v1 — blokkene opprettet per spec.
 - 2026-07-03: v1.1 — Evalsett-kjøring #1 (11 spørsmål, docs/eval/data-svar-evalsett.md):
   5/11 PASS, 6/11 FAIL. Klart gjentakende mønster i 5 av 6 feil (Q3/Q5/Q7/Q8/Q9):
@@ -58,6 +62,22 @@ ENDRINGSLOGG
 - 2026-07-25: SEARCH_HINTS peker ikke lenger på awesome-public-datasets som
   web_search-mål — den er nå en registerkilde (search_catalog(apd, …), se
   docs/superpowers/specs/2026-07-25-apd-catalog-design.md).
+- 2026-07-27: PYTHONSK DIREKTIVSYNTAKS (spec
+  docs/superpowers/specs/2026-07-26-pythonsk-direktivsyntaks-design.md). Alle
+  direktiveksempler i DELIVERY, INLINE, MULTI og modus-blokkene er skrevet om:
+  `# connect ssb` → `# ssb = ost.connect("ssb")`, `# read <url> as <navn>` →
+  `# <navn> = ost.read("<url>")`, `# read <alias>/<sti> as <navn>` →
+  `# <navn> = <alias>.read("<sti>")`, `key(ask)` → `secret_key="ask"`.
+  Prosaordet «load-linje/load-rammene» er borte (verbet heter `read`).
+  DELIVERY fikk ett NYTT krav: grammatikken er LUKKET — ingen uttrykk,
+  f-strenger eller variabler i argumenter, kun navngitte literaler. Uten den
+  regelen skriver modellen Python inne i direktivlinja, som er den nærliggende
+  feilen når linja *ser ut* som Python. MODE_DUCK sier nå eksplisitt at `#`
+  ikke er kommentar i DuckDB-SQL (bruk `--`). `data-svar-prompt.test.ts`:
+  needelen «load» byttet til «ost.connect»/«ost.read» — ordet finnes ikke i
+  vokabularet lenger.
+  UTESTET: evalsettet (docs/eval/data-svar-evalsett.md) er kalibrert mot det
+  GAMLE vokabularet og er IKKE kjørt etter denne endringen. Krever API-nøkkel.
 
 ### Uten websøk: modellkunnskaps-URL-er
 

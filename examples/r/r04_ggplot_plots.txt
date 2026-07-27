@@ -1,7 +1,7 @@
 # label: ggplot2 — histogram and boxplot
 # Example: ggplot2 — histogram and boxplot on an open dataset
 # `# load` fetches the data. ggplot2 plots.
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as plottdata
+# plottdata = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 library(ggplot2)
 

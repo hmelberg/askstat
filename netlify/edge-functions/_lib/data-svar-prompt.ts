@@ -31,34 +31,44 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
    vis hva du søkte på, og foreslå omformuleringer. ALDRI fabrikker.`;
 
 const DELIVERY = `\
-## Leveringsregler (connect/load-direktiver)
+## Leveringsregler (ost-direktiver)
 
 Datakilder deklareres ØVERST i scriptet som kommentar-direktiver
-(kommentartegn per språk: #, --, //):
+(kommentartegn per språk: #, --, //). Formen er pythonsk — \`ost.\` på
+inngangspunktene, bart metodekall på det du fikk tilbake:
 
 \`\`\`
-# connect ssb
-# connect fred
-# read /api/hent?url=<url-enkodet v2 data-URL, f.eks. .../v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv> as ledighet
-# read https://ourworldindata.org/grapher/co2.csv as co2
+# ssb = ost.connect("ssb")
+# fred = ost.connect("fred")
+# ledighet = ost.read("/api/hent?url=<url-enkodet v2 data-URL, f.eks. .../v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv>")
+# co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")
 \`\`\`
 
-- \`# connect <base-url|register-id> [as alias]\` — kobler til en kilde.
-- \`# read <url|alias/sti> as navn\` — henter ETT uttrekk; \`navn\` blir en
-  hel DataFrame/data.frame/tabell i scriptet. Kolonnene er dem probe viste.
+- \`# <alias> = ost.connect("<base-url|register-id>")\` — kobler til en kilde.
+- \`# <navn> = ost.read("<url>")\` eller \`# <navn> = <alias>.read("<sti>")\` —
+  henter ETT uttrekk; \`navn\` blir en hel DataFrame/data.frame/tabell i
+  scriptet. Kolonnene er dem probe viste.
 - Kilder uten CORS eller med nøkkel lastes via proxy:
-  \`# read /api/hent?url=<url-enkodet> as navn\` (aldri ta med nøkler selv).
-- POST-API-er GET-innpakkes: \`# read /api/hent?url=<endepunkt>&body=<url-enkodet-json> as navn\`.
-- Flertrinns-API-kall som ikke passer i én load-linje skrives som kode med
+  \`# <navn> = ost.read("/api/hent?url=<url-enkodet>")\` (aldri ta med nøkler selv).
+- POST-API-er GET-innpakkes: \`# <navn> = ost.read("/api/hent?url=<endepunkt>&body=<url-enkodet-json>")\`.
+- Flertrinns-API-kall som ikke passer i én read-linje skrives som kode med
   kilde-URL i kommentar.
 - Siter HVER kilde med URL i en kommentar ved bruksstedet, og merk hvilke
   som er probe-verifisert.
-- KRAV: \`navn\` fra en \`# load\`-linje er FERDIG INNLASTET data FØR koden
+- KRAV: \`navn\` fra en read-direktivlinje er FERDIG INNLASTET data FØR koden
   kjører (kjøretiden har allerede håndtert proxy/CORS/POST-innpakking) —
   ALDRI skriv kode som henter samme kilde på nytt (read.csv/pd.read_csv/
   requests.get/post/pyfetch mot samme URL). Bruk \`navn\` direkte. Dette
-  gjelder også POST-innpakkede kilder: skriv \`# read /api/hent?...&body=...
-  as navn\`, ikke egen fetch/pyfetch-kode mot /api/hent.
+  gjelder også POST-innpakkede kilder: skriv
+  \`# <navn> = ost.read("/api/hent?...&body=...")\`, ikke egen fetch/pyfetch-kode
+  mot /api/hent.
+- KRAV: direktivlinjer er IKKE Python. Grammatikken er lukket: ingen variabler
+  i argumenter (unntatt kildenavn), ingen uttrykk, ingen f-strenger, ingen
+  aritmetikk, ingen etterfølgende kommentar på linja. Argumenter er navngitte
+  literaler: \`years="2000:2009"\`, \`countries=["NOR","SWE"]\`,
+  \`filters={"na_item": "B1GQ"}\`, \`kind="pxweb"\`. Gammel syntaks
+  (\`# read <url> as <navn>\`, \`key(ask)\`, \`# require\`) finnes ikke lenger og
+  gir feilmelding.
 - KRAV: merk en kilde «probe-verifisert» BARE når probe faktisk returnerte
   ok=true for NØYAKTIG den URL-en scriptet bruker (ikke en annen/bredere
   URL, og aldri når probe feilet eller ikke ble kjørt for den). Fant du
@@ -88,8 +98,8 @@ const INLINE = `\
 ## Datatilfangst-stigen (data uten endepunkt)
 
 Foretrekk alltid nivå 1; gå nedover bare når nivået over ikke finnes:
-1. **Probet endepunkt** (\`# read …\`). Wikipedia-tabeller ER load-bare:
-   \`# read /api/hent?url=<url-enkodet artikkel> as raw\` og
+1. **Probet endepunkt** (\`ost.read(…)\`). Wikipedia-tabeller kan hentes slik:
+   \`# raw = ost.read("/api/hent?url=<url-enkodet artikkel>")\` og
    \`pd.read_html(io.StringIO(raw))\` (installer lxml med micropip).
 2. **Transkribert fra hentet innhold**: har du LEST kilden (web_fetch), kan du
    skrive små tabeller (< ~50 rader) inline:
@@ -106,7 +116,7 @@ Nivå 2–3 er særlig riktig for lim-tabellene kausale design trenger
 const MULTI = `\
 ## Flerkilde og sammenslåing
 
-Å kombinere kilder er en styrke. Mønster: hver load-linje gir én ramme per
+Å kombinere kilder er en styrke. Mønster: hver read-linje gir én ramme per
 variabel/serie; FØRSTE analysesteg er å merge/joine til ÉN analysedataframe
 når det er mulig og nyttig (join på år, landkode ISO2/ISO3, kommunenummer —
 se join-nøkler i registeret). Harmoniser koder og enheter FØR join, kommenter
@@ -129,32 +139,33 @@ const MODE_PY = `\
 
 Forhåndslastet: pandas, numpy, scipy, statsmodels, matplotlib, seaborn,
 plotly. Andre pakker: \`import micropip; await micropip.install("pakke")\`.
-load-rammene er pandas-DataFrames. Presenter både tall og figur der det gjør
+Direktivrammene er pandas-DataFrames. Presenter både tall og figur der det gjør
 resultatet lettere å lese.
 
 ## Svarformat
 Kort forklaring (1–3 setninger) av tilnærming og kilder, deretter ÉN kjørbar
-\`\`\`python-blokk med connect/load-direktivene øverst. Ikke JSON.`;
+\`\`\`python-blokk med ost-direktivene øverst. Ikke JSON.`;
 
 const MODE_R = `\
 ## Modus: R (WebR)
 
 tidyverse (dplyr, ggplot2, tidyr) og base R. Andre pakker:
-\`webr::install("pakke")\`. load-rammene er data.frames. Figurer med ggplot2.
+\`webr::install("pakke")\`. Direktivrammene er data.frames. Figurer med ggplot2.
 
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`r-blokk med
-connect/load-direktivene øverst (--/# kommentar). Ikke JSON.`;
+ost-direktivene øverst (# eller -- som kommentartegn). Ikke JSON.`;
 
 const MODE_DUCK = `\
 ## Modus: DuckDB (duckdb-wasm)
 
-load-rammene blir tabeller (via read_csv_auto ved materialisering). Analyse i
+Direktivrammene blir tabeller (via read_csv_auto ved materialisering). Analyse i
 SQL (CTE-er, vindusfunksjoner); hybrid med #py-blokk for figurer er mulig.
 
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`sql-blokk med
-connect/load-direktivene øverst (-- kommentar). Ikke JSON.`;
+ost-direktivene øverst (-- kommentar; \`# \` er IKKE kommentar i DuckDB-SQL).
+Ikke JSON.`;
 
 const MODE: Record<DataMode, string> = { python: MODE_PY, r: MODE_R, duckdb: MODE_DUCK };
 
@@ -238,7 +249,7 @@ export function repairTurn(question: string, script: string, error: string, roun
     `**Script:**\n\`\`\`\n${script}\n\`\`\``,
     `**Feil:**\n\`\`\`\n${error}\n\`\`\``,
     `Klassifiser feilen og reparer:`,
-    `- Nettverk/CORS → bytt til /api/hent-innpakket load-linje, eller en annen kilde (re-probe gjerne).`,
+    `- Nettverk/CORS → bytt til /api/hent-innpakket ost.read-linje, eller en annen kilde (re-probe gjerne).`,
     `- Skjema/kolonnefeil → probe URL-en på nytt og rett kolonnenavn.`,
     `- Logikkfeil → rett koden.`,
     `Svar med komplett, korrigert script i samme format som før.`,

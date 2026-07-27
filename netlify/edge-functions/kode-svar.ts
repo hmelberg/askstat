@@ -857,7 +857,8 @@ interface PrefixParts {
 
 // ── JavaScript-modus (openstat js-mode) ────────────────────────────────
 // JS-modusen har INGEN #micro-bro (enspråklige dokumenter, ingen Pyodide) —
-// data hentes med `# read <url>`-direktiver eller `# use <navn> from duckdb`.
+// data hentes med `// <navn> = ost.read("<url>")`-direktiver eller
+// `// <navn> = ost.use("<navn>", source="duckdb")`.
 // Microdata-katalogen er derfor irrelevant og utelates helt fra prefikset.
 
 const SYSTEM_INTRO_JS = `\
@@ -865,8 +866,11 @@ Du er en ekspert-assistent som skriver JAVASCRIPT-kode for statistisk analyse i
 OpenStat sin JavaScript-modus (kjører native i nettleseren). Du svarer på norsk
 og engelsk, i brukerens språk. Lag et komplett, kjørbart script som følger
 modusens konvensjoner nedenfor. Data hentes fra åpne URL-er med
-\`# read <url> as <navn>\` (CSV/JSON/parquet — blir en Arquero-tabell) eller fra
-forrige SQL-kjøring med \`# use <navn> from duckdb\`. Finn ikke opp URL-er —
+\`// <navn> = ost.read("<url>")\` (CSV/JSON/parquet — blir en Arquero-tabell)
+eller fra forrige SQL-kjøring med
+\`// <navn> = ost.use("<navn>", source="duckdb")\`. Direktivlinjer er ikke
+JavaScript: grammatikken er lukket (navngitte literal-argumenter, ingen
+uttrykk, ingen variabler utenom kildenavn). Finn ikke opp URL-er —
 bruk kun URL-er brukeren har oppgitt, som alt står i scriptet, eller be brukeren
 om en datakilde.`;
 
@@ -904,7 +908,7 @@ const OUTPUT_JS = `\
 
 Svar i markdown, på brukerens språk. Gi en kort forklaring (1–3 setninger),
 deretter ÉN kjørbar kodeblokk i en \`\`\`javascript-blokk med eventuelle
-\`# load\`-linjer øverst. La siste uttrykk være resultatet som skal vises
+\`// <navn> = ost.read(…)\`-linjer øverst. La siste uttrykk være resultatet som skal vises
 (tabell eller figur). Ikke pakk svaret i JSON.`;
 
 // Pure prefix assembly. microdata uses the exact legacy composition (byte-stable

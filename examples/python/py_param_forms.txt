@@ -2,7 +2,7 @@
 #options.mode = python
 #options.title = "#@param forms (Colab-compatible)"
 #options.description = "Colab-style comment forms: #@param builds a control above the cell and writes the value straight into the source text"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md
 # #@param forms

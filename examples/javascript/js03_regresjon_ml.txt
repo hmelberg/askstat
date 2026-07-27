@@ -1,6 +1,6 @@
 // label: Regression and machine learning (ml.js)
 // Example: linear regression (ss) and k-means clustering (ML)
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 // Simple linear regression: petal_length ~ sepal_length
 const pairs = iris.objects().map(d => [d.sepal_length, d.petal_length]);

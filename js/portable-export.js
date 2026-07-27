@@ -13,18 +13,47 @@
     '# Generert av appen — rediger fritt.',
   ];
 
-  // key(<literal>)-maskering SKOPET til direktivlinjer (connect/load/require):
-  // en helskript-scrub ødela legitim kode med key(...)-formede kall — f.eks.
-  // ble «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer
-  // som ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
-  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(connect|read|load|require)\b/i;
-  var MASK_WARNING = 'key(...)-verdier ble maskert i eksporten — bruk key(ask) eller egen nøkkelhåndtering utenfor appen';
+  // Nøkkelmaskering SKOPET til direktivlinjer: en helskript-scrub ødela
+  // legitim kode med key(...)-formede kall — f.eks. ble
+  // «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer som
+  // ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
+  //
+  // Den nye syntaksen dekkes av DD.isDirectiveLine (parsetreet). Legacy-halen
+  // står IGJEN med vilje og må ikke fjernes: «# load https://x/d.enc.json
+  // key(hemmelig)» (uten «as») er malformert, så ingen grammatikk kjenner den
+  // igjen — isDirectiveLine er false — og linja ville gått umaskert ut i
+  // eksporten. Halen er altså en nøkkellekkasje-vakt, ikke en verbliste.
+  var LEGACY_DIRECTIVE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:connect|read|load|require)\b/i;
+  var LEGACY_KEY_RE = /\bkey\(\s*(?!ask\s*\))[^)]*\)/gi;
+  var MASK_WARNING = 'nøkkelverdier ble maskert i eksporten — bruk secret_key="ask" eller egen nøkkelhåndtering utenfor appen';
+
+  // Editor-argumenter (spec §4.5c) har ingen mening utenfor appen, og
+  // openstat.py avviser dem nå høylytt (Task 11). Fjern dem fra den
+  // kommenterte direktivlinja, så et innlimt script ikke feiler.
+  //
+  // TO pass, ikke ett: «# df = h.read(secret_key="ask")» — den dokumenterte
+  // formen for en beskyttet kilde — har INGEN ledende komma, og et
+  // komma-mønster alene ville latt nøkkelargumentet stå igjen.
+  // Verdimønsteret er [^,)\s]+, ikke \S+. Det er DEFENSIVT: grammatikken avviser
+  // usiterte verdier i dag («cache=30m» gir parsefeil, og transpile kaster før
+  // den kommer hit), men med \S+ ville et framtidig usitert argument slukt det
+  // etterfølgende kommaet og etterlatt «ost.read("url" kind="csv")».
+  // «source» er BEVISST utelatt: parseren avviser det allerede på read/connect
+  // («ukjent argument «source»»), så det kan ikke stå i et gyldig script — og
+  // på «ost.use(navn, source=…)» er HELE linja editor-only, så å fjerne bare
+  // argumentet ville gjort kommentaren mindre sann, ikke mer.
+  var _EO_VAL = '(?:"[^"]*"|\'[^\']*\'|[^,)\\s]+)';
+  var EDITOR_ONLY_COMMA_RE = new RegExp(',[ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL, 'gi');
+  var EDITOR_ONLY_PAREN_RE = new RegExp('\\([ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL + '[ \\t]*,?[ \\t]*', 'gi');
+  var EDITOR_ONLY_NOTE = '# editor-argumenter (secret_key/exec/cache) er fjernet — de virker bare i OpenStat';
 
   function scrubDirectiveLine(line, DD, state) {
-    if (!DIRECTIVE_LINE_RE.test(line)) return line;
-    var scrubbed = DD.scrubKeys(line);
+    if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) return line;
+    var scrubbed = DD.scrubKeys(line).replace(LEGACY_KEY_RE, 'key(***)');
     if (scrubbed !== line) state.masked = true;
-    return scrubbed;
+    var stripped = scrubbed.replace(EDITOR_ONLY_COMMA_RE, '').replace(EDITOR_ONLY_PAREN_RE, '(');
+    if (stripped !== scrubbed) state.strippedEditorOnly = true;
+    return stripped;
   }
 
   // /api/hent?url=<enc>[&body=<enc-json>] → {url, body|null}; ellers null.
@@ -540,7 +569,15 @@
   // Datasett med .load er alt emittert av sine egne load-linjer; kilder som
   // ikke kan gjøres portable (duckdb/sqlite/kryptert/uløselig) gjør at
   // datasettet hoppes over med kommentar + warning i stedet for knekt kode.
-  var ASM_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(create(?:[-_]dataset)?|add|import|join)\b/i;
+  // Parsetre-sjekk, ikke verbliste: den gamle listen sluttet å matche da
+  // grammatikken ble pythonsk, lastAsmIdx ble stående på -1 og
+  // monteringsblokken havnet NEDERST — etter koden som bruker datasettet
+  // (NameError i den eksporterte fila, uten én advarsel).
+  function isAssemblyLine(ln) {
+    var p = global.DirectiveParser.parseLine(ln);
+    return !!(p && p.form === 'call' &&
+              ((p.recv === 'ost' && p.verb === 'create') || p.verb === 'add' || p.verb === 'join'));
+  }
 
   function mergeLine(name, rightExpr, keys, how, mode) {
     if (mode === 'python') {
@@ -564,12 +601,19 @@
       });
     });
     var tables = asm.spec.sourceTables || {};
-    var connectLines = String(script).split('\n').filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
-    var synth = srcKeys.map(function (k) {
-      var t = tables[k];
-      return '# load ' + (t ? (t.source + '/' + t.table) : k) + ' as src_' + k;
-    });
-    var resolvedSynth = DD.resolve(DD.parse(connectLines + '\n' + synth.join('\n')), registry);
+    // Lastelisten bygges DIREKTE (DD.makeLoad), ikke som en direktivstreng som
+    // parses tilbake. Tekstveien døde stille: «# connect»-filteret traff ingen
+    // linjer og «# load <k> as src_<k>» ble ignorert av den nye grammatikken,
+    // så resolvedSynth ble tom og eksporten mistet ALLE kildelesingene i en
+    // montering — uten feilmelding. Connect-listen tas rett fra parsetreet.
+    var resolvedSynth = DD.resolve({
+      connects: DD.parse(script).connects,
+      loads: srcKeys.map(function (k) {
+        var t = tables[k];
+        return DD.makeLoad({ alias: 'src_' + k, source: t ? t.source : k, table: t ? t.table : null });
+      }),
+      metas: [], errors: []
+    }, registry);
 
     var lines = [], failed = {};
     resolvedSynth.forEach(function (item, i) {
@@ -635,12 +679,12 @@
       // som direktiver (også malformerte, f.eks. «# load … key(secret)» uten
       // «as») kan likevel bære nøkkelliteraler. Kjør derfor alltid den
       // linje-skopede scrubben — output blir byte-identisk når ingen linje
-      // matcher direktivformen (DIRECTIVE_LINE_RE), så passthrough-testen
-      // holder uendret.
+      // matcher direktivformen, så passthrough-testen holder uendret.
       var st0 = { masked: false };
       var passthrough = String(script).split('\n').map(function (l) {
         return scrubDirectiveLine(l, DD, st0);
       }).join('\n');
+      if (st0.strippedEditorOnly) passthrough = EDITOR_ONLY_NOTE + '\n' + passthrough;
       return { code: passthrough, warnings: st0.masked ? [MASK_WARNING] : [] };
     }
     var resolved = DD.resolve(parsed, registry || []);
@@ -673,7 +717,7 @@
         // passthrough — connect-linjer (også direktiver) linje-skopes
         outLines.push(scrubDirectiveLine(lines[i], DD, maskState));
       }
-      if (ASM_LINE_RE.test(lines[i])) lastAsmIdx = outLines.length;
+      if (isAssemblyLine(lines[i])) lastAsmIdx = outLines.length;
     }
     // Monteringsblokken settes inn rett etter siste monteringsdirektiv-linje.
     var asmBlock = _hasAsm ? emitAssembly(script, mode, registry || [], warnings, needs, DD) : null;
@@ -683,6 +727,7 @@
     if (maskState.masked) warnings.push(MASK_WARNING);
 
     var head = HEADER.slice();
+    if (maskState.strippedEditorOnly) head.push(EDITOR_ONLY_NOTE);
     // Plassholder-konstanter øverst (etter header, før imports): NAVN = "..."
     // (python) / NAVN <- "..." (r) — én linje per oppdaget plassholder, i
     // rekkefølgen de ble oppdaget (needs.placeholders-nøkler er unike, så

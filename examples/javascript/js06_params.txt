@@ -1,6 +1,6 @@
 // label: Parameters — //@param forms in cells
 // Example: interactive parameters — slider/text/boolean with auto-rerun
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 #%% md
 # Parameters in JavaScript cells
 

@@ -85,92 +85,118 @@
 <p><strong>Note (this build):</strong> this is the public, BYOK-only build — there is no login, no registered/protected data sources, no server-side remote execution, and no homomorphic (HE) tier. Sections 1, 2, 4, 7 and 11 below (public registry ids and plain URLs) apply as written. Sections 3, 5, 6, 8, 9, 10 and 12 describe the Anvil-registered-source, variable-level-assembly and HE behavior of the full/advanced sibling app — a bare name that isn't a known registry id is simply an error here, not a routed remote source.</p>
 <p>Directives are plain comments at the start of a line, understood by <code>js/data-directives.js</code> before any script actually runs. The comment marker can be <code>#</code>, <code>--</code>, or <code>//</code> (whichever the active mode uses) — the parser treats them identically.</p>
 <h2>Grammar</h2>
-<pre><code>directive   := connect | read | create | add | join   (aliaser: load/require=read, import=add, create-dataset/create_dataset=create)
+<pre><code>line        := marker (assignment | methodcall)
+marker      := "#" | "--" | "//"
+assignment  := NAME "=" expr
+             | "meta" "." PATH "=" literal
+methodcall  := NAME "." METHOD "(" args ")"
+expr        := "ost" "." VERB "(" args ")" | NAME "." METHOD "(" args ")"
+args        := literal ("," literal)* ("," IDENT "=" literal)*
+literal     := string | number | True | False | None
+             | "[" literal* "]" | "{" pairs "}" | SOURCE-NAME
+VERB        := connect | read | create | use
+METHOD      := read | add | join
 
-connect     := "connect" target ["as" alias] ["," option]*
-read        := "read" (alias["/" path] | url) "as" NAME ["," option]*
-require     := "require" target "as" NAME              # legacy alias for read
-option      := "key(" (literal | "ask") ")"
-             | "exec(" ("local" | "remote") ")"
-
-target      := registry-id | url | anvil-name</code></pre>
+target      := registry-id | url | anvil-name    (first argument to connect/read)</code></pre>
+<p>There are <strong>no aliases</strong>. <code>load</code>, <code>import</code>, <code>create-dataset</code> and <code>require</code> were removed with the Python-style syntax on 2026-07-27; writing them produces an error message that suggests the new form. Common named arguments: <code>kind=</code>, <code>secret_key=</code>, <code>exec="local"|"remote"</code>, <code>cache=</code>, the canonical query vocabulary (<code>years=</code>, <code>countries=</code>, <code>regions=</code>, <code>indicators=</code>, <code>filters={…}</code>, <code>all=True</code>), and <code>how="left"|"inner"|"outer"</code> on <code>add</code>/<code>join</code>.</p>
+<blockquote><p><strong>Directive lines are not Python.</strong> The grammar is closed: no variables in
+arguments (except source names), no expressions, no f-strings, no arithmetic,
+no loops or conditionals, no imports. A trailing comment on a directive line
+is not legal either.</p></blockquote>
 <p><code>target</code> resolves in this order:</p>
 <p>1. <strong>Registry id</strong> — an entry in <code>data/data-sources.json</code> (<code>ssb</code>, <code>eurostat</code>, <code>worldbank</code>, <code>oecd</code>, <code>who</code>, ...) → public web API, fetched with that entry's <code>base_url</code>/proxy rules.</p>
 <p>2. <strong>URL</strong> (<code>http(s)://...</code>) → fetched directly. If the bytes turn out to be a <code>safepy-enc-v1</code> encrypted envelope, a key is required.</p>
 <p>3. <strong>Bare name that isn't a known registry id</strong> → treated as a <strong>registered Anvil source</strong> (<code>GET /_/api/source_access?id=&lt;name&gt;</code>); the source's registered <code>level</code>/<code>local_mode</code> then decides whether it downloads locally, requires a key, or is remote-only.</p>
 <hr>
 <h2>1. Public registry source — no options needed</h2>
-<pre><code># connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
-# read ssb/05839/data?outputFormat=csv as ledighet</code></pre>
-<p><code>ssb</code> is connected as an alias for a base URL; <code>load</code> appends a path to it and binds the result into the script under the name <code>ledighet</code>.</p>
+<pre><code># ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+# ledighet = ssb.read("05839/data?outputFormat=csv")</code></pre>
+<p><code>ssb</code> is connected as an alias for a base URL; <code>ssb.read(…)</code> appends a path to it and binds the result into the script under the name <code>ledighet</code>.</p>
 <p>Using the short registry id instead of the full URL works the same way:</p>
-<pre><code># connect ssb
-# read ssb/tables/05839/data?outputFormat=csv as ledighet</code></pre>
+<pre><code># ssb = ost.connect("ssb")
+# ledighet = ssb.read("tables/05839/data?outputFormat=csv")</code></pre>
 <h2>2. Plain public URL, no <code>connect</code> needed at all</h2>
-<pre><code>// read https://ourworldindata.org/grapher/co2-emissions.csv as co2</code></pre>
-<p>A bare URL can be <code>load</code>ed directly — no <code>connect</code> line required, no alias indirection.</p>
-<h2>3. Legacy <code>require</code> (URL-only alias for <code>load</code>)</h2>
-<pre><code># require https://x.example/gammel-data.csv as gammel</code></pre>
-<p><code>require</code> behaves exactly like <code>load</code> for URLs. Named (non-URL) sources still use <code>require</code> for backward compatibility but are treated specially and NOT rewritten by the client — they route straight to the server.</p>
+<pre><code>// co2 = ost.read("https://ourworldindata.org/grapher/co2-emissions.csv")</code></pre>
+<p>A bare URL can be <code>read</code> directly — no <code>connect</code> line required, no alias indirection.</p>
+<h2>3. What replaced <code>require</code></h2>
+<pre><code># gammel = ost.read("https://x.example/gammel-data.csv")</code></pre>
+<p>The old <code># require &lt;url&gt; as &lt;navn&gt;</code> was a URL-only alias for <code>read</code>; <code>ost.read</code> covers it exactly. The <strong>named</strong> form (<code># require &lt;registered-source&gt; as &lt;alias&gt;</code> — a registered source referenced without a <code>connect</code> line, routed straight to the server) has <strong>no successor</strong>; see §12 for why.</p>
 <h2>4. FRED — a registry source that needs the CORS proxy + an API key</h2>
-<pre><code># connect fred
-# read fred/series/observations?series_id=UNRATE&amp;file_type=json as us</code></pre>
+<pre><code># fred = ost.connect("fred")
+# us = fred.read("series/observations?series_id=UNRATE&amp;file_type=json")</code></pre>
 <p>Because the FRED registry entry declares <code>cors:false</code> and an <code>auth</code> block, the fetch is silently routed through <code>/api/hent</code> (the same-origin proxy) instead of a direct browser fetch — the script itself doesn't change.</p>
 <h2>5. Registered protected source — key supplied interactively</h2>
-<pre><code># connect helse2025 as h, key(ask)
-# read h as df</code></pre>
-<p><code>helse2025</code> isn't a public registry id, so it resolves as an Anvil-registered source. <code>key(ask)</code> means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).</p>
+<pre><code># h = ost.connect("helse2025", secret_key="ask")
+# df = h.read()</code></pre>
+<p><code>helse2025</code> isn't a public registry id, so it resolves as an Anvil-registered source. <code>secret_key="ask"</code> means: don't hard-code a secret in the script — pop a password modal at run time, held in memory only for that session (never written to localStorage, never logged).</p>
+<p>The argument is called <code>secret_key</code>, not <code>key</code>: since 2026-07-26 <code>key=</code> means <strong>column names</strong> and nothing else (<code>ost.create(key=["kommune_nr", "year"])</code>). Writing <code>key=</code> on <code>connect</code>/<code>read</code> is an error with the suggestion «mente du «secret_key»?».</p>
 <h2>6. Registered source with a literal key and forced remote execution</h2>
-<pre><code># connect kilde2 as k, key(qL7xK2mN9pR4sT6v), exec(remote)
-# read k as df</code></pre>
-<p><code>exec(remote)</code> forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, <code>exec(local)</code>, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)</p>
+<pre><code># k = ost.connect("kilde2", secret_key="qL7xK2mN9pR4sT6v", exec="remote")
+# df = k.read()</code></pre>
+<p><code>exec="remote"</code> forces the whole script for this source onto the server, even if the source's policy would otherwise allow local analysis. (The reverse, <code>exec="local"</code>, is refused by the client if the source's registered level is non-public — protected/sensitive sources can never be forced local.)</p>
 <h2>7. Directly loading an encrypted file by URL</h2>
-<pre><code># read https://raw.githubusercontent.com/owner/repo/data.enc.json as df, key(abcDEF123)</code></pre>
+<pre><code># df = ost.read("https://raw.githubusercontent.com/owner/repo/data.enc.json", secret_key="abcDEF123")</code></pre>
 <p>No <code>connect</code>/registration needed if the owner just hands you a URL and a key: the loader sniffs the <code>safepy-enc-v1</code> envelope, verifies its fingerprint, and decrypts client-side with WebCrypto using the supplied key.</p>
-<h2>8. Key precedence — <code>load</code>-level key overrides <code>connect</code>-level key</h2>
-<pre><code># connect helse2025 as h, key(K1)
-# read h as df, key(K2)</code></pre>
-<p><code>df</code> is decrypted with <code>K2</code>. A key on <code>connect</code> is just the default for everything loaded through that alias; a key on the individual <code>load</code> line wins.</p>
+<h2>8. Secret precedence — <code>read</code>-level key overrides <code>connect</code>-level key</h2>
+<pre><code># h = ost.connect("helse2025", secret_key="K1")
+# df = h.read(secret_key="K2")</code></pre>
+<p><code>df</code> is decrypted with <code>K2</code>. A <code>secret_key</code> on <code>connect</code> is just the default for everything read through that alias; a <code>secret_key</code> on the individual <code>read</code> line wins.</p>
 <h2>9. Mixing several sources of different kinds in one script</h2>
-<pre><code># connect ssb as s
-# connect helse2025 as h, key(ask)
-# read s/tables as offentlig
-# read h as beskyttet
-# read https://ourworldindata.org/grapher/life-expectancy.csv as owid</code></pre>
+<pre><code># s = ost.connect("ssb")
+# h = ost.connect("helse2025", secret_key="ask")
+# offentlig = s.read("tables")
+# beskyttet = h.read()
+# owid = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")</code></pre>
 <p><code>offentlig</code> comes from the public SSB registry, <code>beskyttet</code> from a key-gated Anvil source, and <code>owid</code> from a plain public URL — each resolved independently by the same script.</p>
-<h2>10. Variable-level assembly — <code>create-dataset</code> / <code>import</code> / <code>join</code></h2>
+<h2>10. Variable-level assembly — <code>create</code> / <code>add</code> / <code>join</code></h2>
 <p>A separate, richer directive set lets you assemble one analysis dataset out of *columns* pulled from multiple registered sources, rather than loading each source as a whole frame:</p>
-<pre><code># connect people as p
-# connect sales_src as s
-# create panel, key(pid)
-# add p/income, p/edu into panel
-# add p/region into panel
-# read s as sales
-# join sales into panel on pid</code></pre>
-<p>This declares a dataset called <code>panel</code>, keyed on <code>pid</code>; pulls the <code>income</code> and <code>edu</code> columns from source <code>p</code> (plus <code>region</code> in a second <code>import</code> line); separately loads all of <code>sales_src</code> as <code>sales</code>; then joins <code>sales</code> into <code>panel</code> on the <code>pid</code> key. <code>import</code>/<code>join</code> default to a <code>left</code> join — an explicit join type can be appended:</p>
-<pre><code># add p/x into panel inner
-# join sales into panel on pid outer</code></pre>
+<pre><code># p = ost.connect("people")
+# s = ost.connect("sales_src")
+# panel = ost.create(key="pid")
+# panel.add(p, ["income", "edu"])
+# panel.add(p, ["region"])
+# sales = s.read()
+# panel.join(sales, on="pid")</code></pre>
+<p>This declares a dataset called <code>panel</code>, keyed on <code>pid</code>; pulls the <code>income</code> and <code>edu</code> columns from source <code>p</code> (plus <code>region</code> in a second <code>add</code> line); separately reads all of <code>sales_src</code> as <code>sales</code>; then joins <code>sales</code> into <code>panel</code> on the <code>pid</code> key. <code>add</code> takes <strong>one</strong> column parameter (a string or a list) — <code>panel.add(p, "income", "edu")</code> is an error, because the package signature is <code>add(source, columns, table=None, how=None)</code> and <code>"edu"</code> would silently become <code>table=</code>. <code>add</code>/<code>join</code> default to a <code>left</code> join; <code>how=</code> is a closed set (<code>left</code>/<code>inner</code>/<code>outer</code>):</p>
+<pre><code># panel.add(p, ["x"], how="inner")
+# panel.join(sales, on="pid", how="outer")</code></pre>
 <h2>11. Comment-marker flexibility (same directive, three syntaxes)</h2>
 <p>These three lines are parsed identically — only the comment marker differs, matching whichever language mode the script segment is in:</p>
-<pre><code># connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
--- connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb
-// connect https://data.ssb.no/api/pxwebapi/v2-beta/tables as ssb</code></pre>
+<pre><code># ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+-- ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")
+// ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2-beta/tables")</code></pre>
+<h2>11b. Your own metadata — <code>#meta.</code></h2>
+<p>The second form in the grammar is a namespace assignment. It carries the script author's own description of a dataset into the ⓘ modal in the dataset panel:</p>
+<pre><code># meta.lonn.title = "Lønnsundersøkelsen 2024"
+# meta.lonn.note = "Spørreundersøkelse om lønn, innsamlet 2024"
+# meta.lonn.publisher = "Eget prosjekt"
+# meta.lonn.link = {"https://x.example/skjema.pdf": "Spørreskjema"}
+# meta.lonn.alder.note = "Alder ved utgangen av inntektsåret"</code></pre>
+<p>The path is positional, not keyword-driven:</p>
+<p><strong>Two segments</strong> = dataset level. <code>title</code>, <code>note</code>, <code>link</code> and <code>labels</code> have fixed meanings; <strong>any other name becomes a display field</strong> with the name as its label, which is what makes the model extensible without new syntax.</p>
+<p><strong>Three segments</strong> = variable level, and the last segment must be <code>label</code>, <code>note</code> or <code>link</code>. Variable level <em>always</em> needs three segments.</p>
+<p><code>link</code> takes a string (one link), a list (several, unlabelled) or a dict (<code>url: label</code>). <code>note</code> takes a string or a list. <code>=</code> <strong>overwrites</strong> — repeated assignments to the same target replace rather than accumulate, which is why <code>note</code>/<code>link</code> take lists at all. Source metadata from <code>/api/metadata</code> is merged separately; the author's text is rendered first and never silently overridden.</p>
 <h2>12. Homomorphically-encrypted (HE) tier</h2>
-<p>HE sources (<code>format="he"</code>, Paillier-encrypted) use the <strong>same</strong> <code>connect</code>/<code>load</code>/<code>require</code> directives as any other registered source — there is no separate directive syntax. What's different is the *editor mode/dialect* the script runs under, and what happens on resolution: the ciphertext is useless without the authority key, so an HE source is <strong>always executed remotely</strong> through the HE facade, never fetched or decrypted into the browser.</p>
+<p>HE sources (<code>format="he"</code>, Paillier-encrypted) use the <strong>same</strong> <code>ost.connect</code>/<code>.read</code> directives as any other registered source — there is no separate directive syntax. What's different is the *editor mode/dialect* the script runs under, and what happens on resolution: the ciphertext is useless without the authority key, so an HE source is <strong>always executed remotely</strong> through the HE facade, never fetched or decrypted into the browser.</p>
 <p>Referencing a registered HE source is written exactly like a protected source (§5 above):</p>
-<pre><code># connect helse_he as h, key(ask)
-# read h as df</code></pre>
+<pre><code># h = ost.connect("helse_he", secret_key="ask")
+# df = h.read()</code></pre>
 <p>The difference is invisible in the directive text — it's the registered source's <code>format</code> field, checked at <code>/source_access</code> resolution time, that routes it into the HE facade instead of a normal remote run.</p>
-<p>The legacy <code>require</code> form works the same way and is the one actually wired to the "Kryptert" (HE) editor tab, whose <code>dialect</code> is fixed to <code>'he'</code> for every script run in that tab:</p>
-<pre><code># require helse_he as h</code></pre>
-<p>Running that line while the active editor mode/tab is <strong>Kryptert</strong> sends the whole script to the server with <code>dialect: 'he'</code>; the server never decrypts the data, and only the HE facade verbs (<code>group_agg</code>, <code>value_counts</code>, <code>crosstab</code>, <code>ols</code>) are available against it.</p>
-<p><strong><code>exec(local)</code> is always refused on an HE source</strong> — there's no plaintext to run against locally:</p>
-<pre><code># connect helse_he as h, exec(local)
-# read h as df</code></pre>
+<blockquote><p><strong>Removed with the Python-style syntax (2026-07-27).</strong> The legacy
+<code># require helse_he as h</code> form — a registered source referenced <em>without</em> a
+<code>connect</code> line, wired to the "Kryptert" (HE) editor tab whose <code>dialect</code> was
+fixed to <code>'he'</code> — has <strong>no successor</strong>. The new grammar has no way to say
+"reference a registered source with no connect": write the <code>connect</code> line.
+The HE tab itself is not part of OpenStat (it lives in SafeStat), so nothing in this
+repo lost a working path — but do not expect <code>require</code> to parse.</p></blockquote>
+<p><strong><code>exec="local"</code> is always refused on an HE source</strong> — there's no plaintext to run against locally:</p>
+<pre><code># h = ost.connect("helse_he", exec="local")
+# df = h.read()</code></pre>
 <p>→ rejected with the same "cannot run locally" error protected/sensitive sources get, except here it's unconditional (HE has no local mode at all, unlike <code>protected</code>/<code>sensitive</code> which can allow <code>local_mode="open"</code>/<code>"strict"</code>).</p>
 <p><strong>You cannot mix an HE (or any named) source with a plain URL source in one remote run yet:</strong></p>
-<pre><code># require helse_he as h
-# read https://ourworldindata.org/grapher/co2.csv as co2</code></pre>
+<pre><code># h = ost.connect("helse_he", secret_key="ask")
+# df = h.read()
+# co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")</code></pre>
 <p>→ refused: "Server-kjøring kan ikke kombinere navngitte kilder og URL-kilder (ennå)" (server execution can't yet combine named sources and URL sources — use only named sources).</p>
 <hr>
 <p><strong>Source:</strong> grammar and resolution order from <code>docs/superpowers/specs/2026-07-05-encrypted-external-sources-design.md</code> §1; parsing implemented in <code>js/data-directives.js</code>; fetch/decrypt implemented in <code>js/data-loader.js</code>; every example above (except #9, a composite) mirrors a case asserted in <code>netlify/edge-functions/_lib/data-directives.test.ts</code>.</p>

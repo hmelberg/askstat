@@ -275,3 +275,92 @@ def test_read_dbnomics_kanonisk_aarsfilter(monkeypatch):
     dbn = ost.connect("https://api.db.nomics.world/v22/series", kind="dbnomics")
     df = dbn.read("IMF/WEO:latest/NOR.NGDP_RPCH", years="2025:2026")
     assert list(df["period"]) == ["2025", "2026", "2025", "2026"]
+
+
+def test_dataset_join_merges_on_explicit_key():
+    a = pd.DataFrame({"k": [1, 2], "x": [10, 20]})
+    b = pd.DataFrame({"k": [1, 2], "y": [7, 8]})
+    d = ost.create(key="k")
+    d.add(a, "x")
+    d.join(b, on="k")
+    out = d.frame()
+    assert list(out.columns) == ["k", "x", "y"]
+    assert out["y"].tolist() == [7, 8]
+
+
+def test_dataset_join_how_outer():
+    a = pd.DataFrame({"k": [1, 2], "x": [10, 20]})
+    b = pd.DataFrame({"k": [2, 3], "y": [8, 9]})
+    d = ost.create(key="k")
+    d.add(a, "x").join(b, on="k", how="outer")
+    assert len(d.frame()) == 3
+
+
+def test_dataset_join_uten_add_feiler():
+    d = ost.create(key="k")
+    with pytest.raises(ValueError, match="add"):
+        d.join(pd.DataFrame({"k": [1]}), on="k")
+
+
+def test_dataset_join_manglende_noekkelkolonne_navngir_siden():
+    d = ost.create(key="k")
+    d.add(pd.DataFrame({"k": [1], "x": [1]}), "x")
+    with pytest.raises(ValueError, match="høyre"):
+        d.join(pd.DataFrame({"annet": [1]}), on="k")
+
+
+def test_create_format_leveres_ikke_bare_lagres():
+    import polars
+    frame = pd.DataFrame({"k": [1], "x": [2]})
+    assert isinstance(ost.create(key="k", format="pandas").add(frame, "x").frame(), pd.DataFrame)
+    assert isinstance(ost.create(key="k", format="polars").add(frame, "x").frame(), polars.DataFrame)
+    assert hasattr(ost.create(key="k", format="duckdb").add(frame, "x").frame(), "df")
+
+
+def test_create_format_r_only_og_ukjent_feiler():
+    frame = pd.DataFrame({"k": [1], "x": [2]})
+    with pytest.raises(ValueError, match="R-modus"):
+        ost.create(key="k", format="tibble").add(frame, "x").frame()
+    with pytest.raises(ValueError, match="ukjent format"):
+        ost.create(key="k", format="arrow").add(frame, "x").frame()
+
+
+def test_editor_only_kwargs_are_rejected_loudly():
+    src = ost.connect("https://x/d.csv", kind="csv")
+    for bad in ("secret_key", "key", "exec", "cache"):
+        with pytest.raises(ValueError, match=bad):
+            src.read(**{bad: "ask"})
+
+
+def test_source_kwarg_er_ikke_avvist():
+    # source= er en ekte World Bank-parameter (?source=<db-id>). Editor-formen
+    # er ost.use(navn, source=…), som ikke finnes i pakken.
+    src = ost.connect("https://api.worldbank.org/v2", kind="worldbank")
+    try:
+        src.read("country/NOR/indicator/NY.GDP.MKTP.CD", source="2")
+    except ValueError as e:
+        assert "editor-argument" not in str(e), e
+    except Exception:
+        pass          # nettverksfeil er greit — vi tester bare at den slipper vakten
+
+
+def test_ost_use_feiler_hoeylytt():
+    with pytest.raises(ValueError, match="editoren"):
+        ost.use("df", source="python")
+
+
+def test_all_kwarg_er_kanonisk_ikke_raa_spoerringsparameter():
+    # Uten «all» i _CANONICAL_KEYS falt all=True gjennom som «&all=True» —
+    # kilden ignorerer den, og brukeren som ba om ALLE verdier fikk kildens
+    # standardutvalg uten et ord. Spec §0: aldri stille passthrough.
+    q = {"all": True, "regions": ["0"]}
+    assert ost._canonical_from_query(q) == {"all": True, "regions": ["0"]}
+    assert q == {}, "all/regions skal være konsumert, ikke bli spørringsparametere"
+
+
+def test_all_feiler_hoeylytt_i_pakken():
+    with pytest.raises(ValueError, match="editoren"):
+        ost._translate_canonical("pxweb", "05839", {"all": True})
+    for kind in ("sdmx", "worldbank", "dbnomics", "eurostat"):
+        with pytest.raises(ValueError, match="kun for pxweb"):
+            ost._translate_canonical(kind, "x", {"all": True})

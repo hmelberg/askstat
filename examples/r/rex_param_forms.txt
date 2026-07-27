@@ -2,7 +2,7 @@
 #options.mode = r
 #options.title = "#@param forms (R)"
 #options.description = "Colab-style #@param comments in R cells: the form writes the value straight into the source line and reruns the cell"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md
 # `#@param` forms in R

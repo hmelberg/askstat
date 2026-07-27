@@ -171,7 +171,12 @@
     var fetchImpl = deps.fetchImpl || (typeof fetch !== 'undefined' ? fetch.bind(global) : null);
     var DD = global.DataDirectives;
     if (!DD || !fetchImpl) return { loads: [], remote: [] };
-    var parsed = DD.parse(script);
+    // Kallere utenfra sender et script; resolveAndAssemble sender et ferdig
+    // parset objekt, så det ikke må omveien om en streng den selv nettopp
+    // bygget (se DD.makeLoad). Testen er «er det et objekt», ikke «er det en
+    // streng»: DD.parse(null) er tolerant og gir tomt resultat, og den
+    // toleransen skal ikke bli til en TypeError her.
+    var parsed = (script && typeof script === 'object') ? script : DD.parse(script);
     if (!parsed.loads.length) return { loads: [], remote: [] };
     var registry = deps.registry || await loadRegistry(fetchImpl);
     var resolved = DD.resolve(parsed, registry);
@@ -440,6 +445,28 @@
   // table), honoring grants/decrypt/remote routing exactly like load does, and
   // return the spec so the runtime can assemble. Same fetch layer as
   // resolveAndFetchLoads — only the shape of the request changes.
+  // Monteringen bygger lastelisten DIREKTE (DD.makeLoad) i stedet for å skrive
+  // et hjelpe-script og parse det tilbake. Tekstveien døde stille to ganger:
+  // «# connect …»-filteret traff ingen linjer og «# load <a> as <a>» ble
+  // ignorert av den nye grammatikken, så spec.sources ble aldri hentet —
+  // montering i web-modus returnerte tomt uten én feilmelding. En streng som
+  // skrives ett sted og leses av parseren et annet har ingen kobling mellom
+  // seg; et objekt bygget på parserens egen form kan ikke drifte fra den.
+  // Connect-listen tas rett fra parsetreet: DD.parse(<hele scriptet>).connects
+  // er identisk med å parse et filtrert utvalg av connect-linjene.
+  // srcKey er «<alias>» eller «<alias>__<tabell>» (se parseAssembly.noteSource).
+  function synthSourceLoads(script, spec, DD) {
+    var tables = spec.sourceTables || {};
+    return {
+      connects: DD.parse(script).connects,
+      loads: spec.sources.map(function (a) {
+        var t = tables[a];
+        return DD.makeLoad({ alias: a, source: t ? t.source : a, table: t ? t.table : null });
+      }),
+      metas: [], errors: []
+    };
+  }
+
   async function resolveAndAssemble(script, deps) {
     deps = deps || {};
     var DD = global.DataDirectives;
@@ -449,17 +476,9 @@
     var spec = parsed.spec;
     if (!spec.sources.length) return { sources: [], remote: [], spec: spec };
 
-    // Synthesize a "load <alias> as <alias>" per source and run the existing
-    // pipeline against just the connect lines, so each source is fetched
-    // exactly once (skip any original bare `load` lines from the script).
-    var connectLines = script.split(/\r?\n/).filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
-    var tables = spec.sourceTables || {};
-    var srcScript = connectLines + '\n' + spec.sources.map(function (a) {
-      var t = tables[a];
-      var target = t ? (t.source + '/' + t.table) : a;
-      return '# load ' + target + ' as ' + a;
-    }).join('\n');
-    var loaded = await resolveAndFetchLoads(srcScript, deps);
+    // Én lesing per spec-kilde gjennom den vanlige lastepipelinen, så hver
+    // kilde hentes nøyaktig én gang (scriptets egne read-linjer er ikke med).
+    var loaded = await resolveAndFetchLoads(synthSourceLoads(script, spec, DD), deps);
     return { sources: loaded.loads, remote: loaded.remote, spec: spec };
   }
 
@@ -473,13 +492,7 @@
     var parsed = DD.parseAssembly(script);
     if (parsed.errors.length) throw new Error('Monteringsfeil: ' + parsed.errors.join('; '));
     var spec = parsed.spec;
-    var tables = spec.sourceTables || {};
-    var connectLines = script.split(/\r?\n/).filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
-    var descLines = connectLines + '\n' + spec.sources.map(function (a) {
-      var t = tables[a];
-      return '# load ' + (t ? (t.source + '/' + t.table) : a) + ' as ' + a;
-    }).join('\n');
-    var parsedLoads = DD.parse(descLines);
+    var parsedLoads = synthSourceLoads(script, spec, DD);
     // Same registry-loading convention as resolveAndFetchLoads: use whatever
     // was passed in, or load+memoize the web registry on demand (a tiny JSON
     // manifest, not the large source itself — resolving named registry

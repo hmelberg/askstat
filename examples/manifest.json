@@ -177,7 +177,7 @@
     },
     {
       "file": "brython/bry35_meta_lenker_advarsel.txt",
-      "label": "«# meta» — flere lenker, akkumulering og advarsel",
+      "label": "«# meta» — flere lenker, lister og advarsel",
       "group": null
     }
   ],
@@ -224,7 +224,7 @@
     },
     {
       "file": "duckdb/sql09_load_then_sql.txt",
-      "label": "SQL — # load → DuckDB",
+      "label": "SQL — ost.read → DuckDB",
       "group": null
     },
     {

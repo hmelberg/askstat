@@ -236,7 +236,11 @@ def sdmx_key_path(dims, canonical):
     return ".".join(want.get(i, "") for i in range(len(dims)))
 
 
-_CANONICAL_KEYS = ("years", "countries", "regions", "indicators", "filters")
+# «all» hører med her selv om pakken ikke kan utføre den (se _translate_canonical):
+# uten den falt all=True gjennom som en RÅ spørringsparameter («&all=True»),
+# som kilden ignorerer — brukeren ba om alle verdier og fikk kildens
+# standardutvalg, uten et ord. Spec §0: aldri stille passthrough.
+_CANONICAL_KEYS = ("years", "countries", "regions", "indicators", "filters", "all")
 
 
 def _as_code_list(v):
@@ -262,6 +266,8 @@ def _canonical_from_query(query):
                               "to": (b.strip() or None) if sep else (a.strip() or None)}
         elif k == "filters":
             c["filters"] = {str(fk): str(fv) for fk, fv in dict(v).items()}
+        elif k == "all":
+            c["all"] = bool(v)
         else:
             c[k] = _as_code_list(v)
     return c or None
@@ -272,6 +278,18 @@ def _translate_canonical(kind, rest, c):
     samme feiltekster; -> (rest, params, needs_key, client_years)."""
     params, needs_key, client_years = [], None, None
     y = c.get("years")
+    # Speiler js/data-directives.js translateCanonical: all() er kun definert
+    # for pxweb. Editoren ekspanderer der de uspesifiserte dimensjonene fra
+    # kildens json-stat2-metadata; pakken har ikke det steget, så den sier fra
+    # i stedet for å late som (spec §0 — en hard feil slår stille feil data).
+    if c.get("all"):
+        if kind != "pxweb":
+            raise ValueError("all() støttes foreløpig kun for pxweb-kilder — for andre kilder, "
+                             "angi utvalg eksplisitt")
+        raise ValueError("all=True ekspanderes foreløpig bare i OpenStat-editoren, som leser "
+                         "kildens json-stat2-metadata for å liste dimensjonsverdiene. Angi "
+                         "utvalget eksplisitt her, f.eks. regions(…), indicators(…) eller "
+                         "filters(<variabel>=…)")
     if kind == "worldbank":
         if c.get("regions"):
             raise ValueError("regions() støttes ikke for worldbank — bruk landkoder i countries()")
@@ -381,6 +399,20 @@ def _sniff_kind(url):
     return "csv"
 
 
+# Editor-argumenter har ingen mening utenfor nettleseren. Uten denne vakten
+# blir de STILLE til spørringsparametere: read(url, secret_key="ask") ville
+# sendt «secret_key=ask» til kilden og fått et rart svar i stedet for en feil.
+# «source» står bevisst IKKE her — det er en ekte World Bank-parameter
+# (?source=<db-id>), og editor-formen er ost.use(navn, source=…), som ikke
+# finnes i pakken (se use() nederst).
+_EDITOR_ONLY = {
+    "secret_key": "nøkkelhåndtering skjer i nettleseren (passordmodal / lagret nøkkel)",
+    "key":        "nøkkelhåndtering skjer i nettleseren — argumentet het «key» før 2026-07-26",
+    "exec":       "kjøringslokalitet (lokal/server) er en editor-innstilling",
+    "cache":      "cache= bruker nettleserens Cache-API",
+}
+
+
 class Source:
     """Én datakilde: en fil-URL eller en API-base (kind='pxweb')."""
 
@@ -389,6 +421,11 @@ class Source:
         self.kind = kind
 
     def read(self, table=None, columns=None, **query):
+        for _bad in _EDITOR_ONLY:
+            if _bad in query:
+                raise ValueError(
+                    "«%s» er et editor-argument uten mening utenfor nettleseren (%s). "
+                    "Fjern det, eller kjør scriptet i OpenStat." % (_bad, _EDITOR_ONLY[_bad]))
         kind = self.kind or _sniff_kind(self.url)
         kind = _KIND_ALIAS.get(str(kind).lower(), kind)
         if kind in ("sdmx", "worldbank", "dbnomics"):
@@ -492,15 +529,42 @@ def read(url, table=None, columns=None, kind=None, **query):
 
 _DATASETS = {}
 
+_FORMATS = ("pandas", "polars", "duckdb")
+
+
+def _deliver(df, fmt):
+    """format= fra direktivet, levert på ekte. Å ignorere en ukjent format-
+    verdi og returnere pandas ville flyttet feilen til neste linje, der den
+    ser ut som noe helt annet."""
+    if fmt in (None, "pandas"):
+        return df
+    if fmt == "polars":
+        try:
+            import polars
+        except ImportError:
+            raise ValueError('format="polars" krever polars — pip install polars')
+        return polars.from_pandas(df)
+    if fmt == "duckdb":
+        try:
+            import duckdb
+        except ImportError:
+            raise ValueError('format="duckdb" krever duckdb — pip install duckdb')
+        return duckdb.from_df(df)
+    if fmt in ("data.table", "tibble"):
+        raise ValueError('format="%s" finnes bare i R-modus i OpenStat — bruk %s her'
+                         % (fmt, " eller ".join(_FORMATS)))
+    raise ValueError('ukjent format «%s» — gyldige: %s' % (fmt, ", ".join(_FORMATS)))
+
 
 class Dataset:
     """Variabel-for-variabel-bygging: deklarer nøkkelen én gang, add() legger
     til kolonner fra rammer eller kilder, frame() gir resultatet."""
 
-    def __init__(self, key, name=None, how="left"):
+    def __init__(self, key, name=None, how="left", format=None):
         self.key = [key] if isinstance(key, str) else list(key)
         self.name = name
         self.how = how
+        self.format = format
         self._df = None
         if name:
             _DATASETS[name] = self
@@ -518,15 +582,38 @@ class Dataset:
             self._df = self._df.merge(piece, on=self.key, how=how or self.how)
         return self
 
+    def join(self, other, on, how=None):
+        """Slå sammen en ramme eller kilde på en EKSPLISITT nøkkel — i motsetning
+        til add(), som bruker datasettets deklarerte nøkkel."""
+        keys = [on] if isinstance(on, str) else list(on)
+        piece = other if isinstance(other, pd.DataFrame) else other.read()
+        if self._df is None:
+            raise ValueError("join krever at datasettet har innhold — bruk add() først")
+        for _side, _frame in (("venstre", self._df), ("høyre", piece)):
+            _miss = [k for k in keys if k not in _frame.columns]
+            if _miss:
+                raise ValueError("join: kolonnen(e) %s finnes ikke i %s ramme"
+                                 % (", ".join(_miss), _side))
+        self._df = self._df.merge(piece, on=keys, how=how or self.how)
+        return self
+
     def frame(self):
         if self._df is None:
             raise ValueError("datasettet er tomt — bruk add() først")
-        return self._df
+        return _deliver(self._df, self.format)
 
 
-def create(key, name=None, how="left"):
-    """Lag et tomt datasett med deklarert nøkkel — bygg det med add()."""
-    return Dataset(key, name=name, how=how)
+def create(key, name=None, how="left", format=None):
+    """Lag et tomt datasett med deklarert nøkkel — bygg det med add()/join()."""
+    return Dataset(key, name=name, how=how, format=format)
+
+
+def use(name, source=None):
+    """ost.use finnes bare i editoren — her er datasettet allerede en variabel."""
+    raise ValueError(
+        "ost.use kopierer datasett MELLOM kjøretider (python/r/duckdb) i "
+        "OpenStat-editoren og har ingen mening i pakken — «%s» er allerede en "
+        "variabel i dette scriptet." % name)
 
 
 def datasets():

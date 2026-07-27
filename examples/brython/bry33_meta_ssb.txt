@@ -7,10 +7,10 @@
 # HELE variabellisten fra kilden (inkl. Alder, som SSB fjerner fra bef
 # fordi den ikke velges eksplisitt) inni containeren — klikk Alder der
 # for kodelisten. 💬 åpner kommentartråden direkte i sidepanelet.
-# connect https://data.ssb.no/api/pxwebapi/v2/tables as ssb, kind(pxweb)
-# load ssb/05839 as bef, years(2000:2009), indicators(Personer)
-# meta bef Folkemengde etter alder og kjønn 2000-2009 (SSB tabell 05839)
-# meta bef https://www.ssb.no/befolkning Om SSBs befolkningsstatistikk
+# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")
+# bef = ssb.read("05839", years="2000:2009", indicators=["Personer"])
+# meta.bef.note = "Folkemengde etter alder og kjønn 2000-2009 (SSB tabell 05839)"
+# meta.bef.link = {"https://www.ssb.no/befolkning": "Om SSBs befolkningsstatistikk"}
 import pandas_brython as pd
 
 show(bef.head(10))

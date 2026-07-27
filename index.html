@@ -1600,7 +1600,22 @@
         var rawScript = __si ? __si.value : '';
         if (!rawScript.trim()) { alert(t('Editoren er tom — ingenting å publisere.')); return; }
         var spec = engine.getLastDatasetSpec() || {};
-        var hasLoadLines = /^[ \t]*#[ \t]*load\b/mi.test(rawScript);
+        // Parsetre, ikke verbliste: /#[ \t]*load\b/ sluttet å matche da
+        // grammatikken ble pythonsk, så både denne advarselen og strippingen
+        // under var DØDE — publiserte dokumenter beholdt sine ost.read-linjer
+        // selv om dataene var bakt inn som tag.
+        function isReadDirective(ln) {
+          var p = window.DirectiveParser && window.DirectiveParser.parseLine(ln);
+          return !!(p && p.form === 'call' && p.verb === 'read');
+        }
+        // javascript-modus: samme predikat som JsEngine.scanDuckUses bruker
+        // (eksplisitt source="duckdb"; kortformen henter ikke fra duckdb der).
+        function isDuckUseDirective(ln) {
+          var p = window.DirectiveParser && window.DirectiveParser.parseLine(ln);
+          return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'use' &&
+                    String((p.kwargs || {}).source || '').toLowerCase() === 'duckdb');
+        }
+        var hasLoadLines = rawScript.split(/\r?\n/).some(isReadDirective);
         if (hasLoadLines && !Object.keys(spec).length) {
           if (!confirm(t('Scriptet har «# read»-linjer, men ingen data er hentet ennå i denne økten (kjør scriptet først for å bake dem inn). Publisere uten data likevel?'))) return;
         }
@@ -1623,16 +1638,17 @@
             JSON.stringify(tagPayload).replace(/</g, '\\u003c') + '<\/script>\n    ';
         }
 
-        var publishedScript = rawScript.replace(/^[ \t]*#[ \t]*load\b.*$/gmi,
-          '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix }));
-        // javascript-modus: «# use <navn> from duckdb» krever en levende
+        // Linja ERSTATTES, ikke slettes — linjenummer skal stå.
+        // javascript-modus: «ost.use(…, source="duckdb")» krever en levende
         // duckdb-økt som den publiserte sida ikke har — tabellen er alt bakt
         // inn i spec-en (JsEngine.bindDuckUses skriver til __lastSpec), så
-        // linja strippes på samme måte som # load.
-        if (mode === 'javascript') {
-          publishedScript = publishedScript.replace(/^[ \t]*#[ \t]*use\b.*\bfrom[ \t]+duckdb[ \t]*$/gmi,
-            '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix }));
-        }
+        // linja strippes på samme måte som lesedirektivene.
+        var _pubPlaceholder = '# ' + t('(fjernet ved publisering — data er baked inn som «{prefix}<navn>»-tag)', { prefix: prefix });
+        var publishedScript = rawScript.split(/\r?\n/).map(function (ln) {
+          if (isReadDirective(ln)) return _pubPlaceholder;
+          if (mode === 'javascript' && isDuckUseDirective(ln)) return _pubPlaceholder;
+          return ln;
+        }).join('\n');
 
         // Output-only-injeksjon (spec §5): et publisert dokument skal åpne som
         // en ferdig rapport, ikke redigerbar kode — MEN kun når scriptet ikke
@@ -2239,7 +2255,7 @@
     // Datasets are registered as views from Parquet buffers; results come back
     // through the existing __arrowToColumns helper. A fresh connection per run
     // keeps pandas (micro_interpreter.datasets) the single source of truth.
-    // "# use <navn> from duckdb": trekk en tabell/visning ut av wasm-
+    // «# <navn> = ost.use('<navn>', source='duckdb')»: trekk en tabell/visning ut av wasm-
     // katalogen som parquet-bytes. Katalogen lever til NESTE duckdb-kjøring
     // starter (begin() rydder) — semantikken er altså «hent resultatet av
     // forrige duckdb-kjøring», samme økt-logikk som use from r/python.
@@ -3200,8 +3216,8 @@
 
     const _STARTUP_PY = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# read` directive (below), or plain pandas.',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `ost.read` directive (below), or plain pandas.',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris = pd.read_csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3215,8 +3231,8 @@
 
     const _STARTUP_R = [
       '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
-      '# Two ways to load data: the `# read` directive (below), or plain read.csv().',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# Two ways to load data: the `ost.read` directive (below), or plain read.csv().',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris <- read.csv("' + _DATA_RAW + 'iris.csv"))',
       '',
       '# A table — mean measurements per species:',
@@ -3229,7 +3245,7 @@
     const _STARTUP_BRYTHON = [
       '# OpenStat — try the controls: the chart updates instantly.',
       '# This is lightweight Python (Brython); full Python, R and SQL live in the mode menu.',
-      '# load ' + _DATA_RAW + 'penguins.csv as penguins',
+      '# penguins = ost.read("' + _DATA_RAW + 'penguins.csv")',
       'import ui',
       'import plotly_express_brython as px',
       '',
@@ -3257,7 +3273,7 @@
       '// OpenStat — JavaScript: kjører direkte i nettleseren, ingen nedlasting.',
       '// Biblioteker lastes automatisk når de brukes: aq/op (Arquero, dataframes),',
       '// ss (simple-statistics), jStat (fordelinger), ML (ml.js), Plot, Plotly.',
-      '# read ' + _DATA_RAW + 'iris.csv as iris',
+      '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '',
       'const stats = iris',
       '  .groupby("species")',
@@ -7959,11 +7975,19 @@ async def _run_duck_sql(_sql, _fresh=True):
         if (!DD) return;
         var connects = DD.parse(script).connects || [];
         if (!connects.length) return;
-        var connectLines = script.split(/\r?\n/).filter(function (ln) { return /^[ \t]*(?:#|--|\/\/)[ \t]*connect\b/i.test(ln); }).join('\n');
-        var descLines = connectLines + '\n' + connects.map(function (c) { return '# load ' + c.alias + ' as ' + c.alias; }).join('\n');
-        var registry = await (window.DataLoader && fetch ? Promise.resolve(null) : null);
-        var parsedLoads = DD.parse(descLines);
-        var resolved = DD.resolve(parsedLoads, []);
+        // Lastelisten bygges DIREKTE (DD.makeLoad), ikke som en direktivstreng
+        // som parses tilbake: den syntetiserte «# load <a> as <a>» ble stille
+        // ignorert av den nye grammatikken, så sidepanelet «Tilkoblede kilder»
+        // fikk aldri data. En streng skrevet her og lest av parseren der har
+        // ingen kobling mellom seg; et objekt på parserens egen form kan ikke
+        // drifte fra den. connects er allerede parsetreets egen liste.
+        var resolved = DD.resolve({
+          connects: connects,
+          loads: connects.map(function (c) {
+            return DD.makeLoad({ alias: c.alias, source: c.alias, table: null });
+          }),
+          metas: [], errors: []
+        }, []);
         var db = null;
         for (var i = 0; i < resolved.length; i++) {
           var r = resolved[i];
@@ -8003,8 +8027,14 @@ async def _run_duck_sql(_sql, _fresh=True):
         if (DD.parseAssembly) {
           var pa = DD.parseAssembly(script);
           var st = (pa.spec && pa.spec.sourceTables) || {};
-          var stLines = Object.keys(st).map(function (k) { return '# load ' + st[k].source + '/' + st[k].table + ' as ' + k; });
-          if (stLines.length) collectPx(DD.parse(connectLines + '\n' + stLines.join('\n')));
+          // Samme feilklasse en gang til: dette syntet «# load <kilde>/<tabell>
+          // as <k>», som den pythonske grammatikken avviser som gammel syntaks
+          // — parse() ga null loads, så monteringens pxweb-tabeller ble ALDRI
+          // lagt i katalogen. Bygges nå direkte på parserens egen form.
+          var stLoads = Object.keys(st).map(function (k) {
+            return DD.makeLoad({ alias: k, source: st[k].source, table: st[k].table });
+          });
+          if (stLoads.length) collectPx({ connects: connects, loads: stLoads, metas: [], errors: [] });
         }
         for (var pk in pxPairs) {
           try {
@@ -8351,10 +8381,17 @@ if _asm.get('spec'):
       }
     }
 
-    // Direktivlinjene er metadata («# load» er ikke gyldig SQL) — fjernes fra
-    // duckdb-SQL før exec. Delt av native-veien og buildDocumentSegments.
+    // Direktivlinjer er metadata, og «#» er ikke kommentar i DuckDB — de må
+    // ut av SQL-en. Én kilde til sannhet: DirectiveParser, ikke en verbliste
+    // som stille slutter å matche når grammatikken endres (den gjorde det).
+    // Linja TØMMES, den slettes ikke: DuckDB rapporterer posisjon, og et
+    // linjenummer som peker feil er verre enn en tom linje.
     function stripDataDirectiveLines(text) {
-      return String(text || '').replace(/^[ \t]*(?:#|--|\/\/)[ \t]*(?:connect|read|load|require|add|import|join|create(?:[-_]dataset)?)\b[^\n]*\n?/gim, '');
+      var DD = window.DataDirectives;
+      if (!DD) return String(text || '');
+      return String(text || '').split(/(\r?\n)/).map(function (part, i) {
+        return (i % 2 === 0 && DD.isDirectiveLine(part)) ? '' : part;
+      }).join('');
     }
 
     // ── Fase 1: native duckdb-kjørevei, uten Pyodide (plan 2026-07-11 i
@@ -9034,8 +9071,8 @@ json.dumps(out)
     // __ensureUiR: fetch + evalRVoid av webr/ui.R sin kildetekst, memoisert i
     // et modulnivå-promise som nullstilles ved feil (neste kall prøver på
     // nytt). jsonlite installeres defensivt her også, samme oppskrift som
-    // runHybridR sin json-load-gren (~7709-7713) bruker for "# load ... as
-    // json".
+    // runHybridR sin json-lastegren (~7709-7713) bruker for
+    // «# <navn> = <alias>.read(…, kind='json')».
     var __uiRP = null;
     function __ensureUiR() {
       if (__uiRP) return __uiRP;
@@ -9143,7 +9180,7 @@ json.dumps(out)
       var _rDeps = { anthropicKey: getAnthropicKey(), promptKey: mdPromptKey };
       var _dlR = await window.DataLoader.resolveAndFetchLoads(src, _rDeps);
       var _loadsR = _dlR.loads;
-      // "# use …" håndteres nå på segmentnivå (plan 2026-07-11): use-
+      // "# <navn> = ost.use(…)" håndteres nå på segmentnivå (plan 2026-07-11): use-
       // linjene parses/strippes per blokk, og kopiene materialiseres etter
       // micro-fasen — se _rUses-blokken lenger ned.
       if (_loadsR.length && _loadsR.some(function (l) { return l.format === 'json'; })) {
@@ -10335,7 +10372,7 @@ options(width = 200)
             var _htmlLoad = _rawLoads.find(function (l) { return l.format === 'html'; });
             if (_htmlLoad) throw new Error(t('html-kilder støttes ikke i duckdb-modus ({alias}) — bruk python/r', { alias: _htmlLoad.alias }));
           }
-          // "# use …" håndteres nå på SEGMENTNIVÅ (plan 2026-07-11 i
+          // "# <navn> = ost.use(…)" håndteres nå på SEGMENTNIVÅ (plan 2026-07-11 i
           // safestat): use-linjene parses/strippes per blokk og
           // materialiseres ved blokkgrensen i kjøringsløkka lenger ned.
           if (_rawLoads.some(function (l) { return l.bytes; })) py.FS.mkdirTree('/home/pyodide/_webdata');
@@ -11848,7 +11885,7 @@ async def _m2py_run_segment(_seg_json):
         const suppress = suppressEmbedded.checked;
         let explainInit = null;
         // B2 exit-gate fiks: Forklar bygde sitt EGET e/_g uten NOENGANG å hente/
-        // skrive "# load … as X"-direktivets data — bootNotebookSession ("Kjør
+        // skrive "# X = …read(…)"-direktivets data — bootNotebookSession ("Kjør
         // alle"/per-celle-kjøring, linje ~8885) gjør dette rutinemessig, Forklar
         // gjorde det aldri. Funnet ved sveip: ETHVERT python-script med en
         // # load-linje (inkl. selve standard-oppstartseksempelet, notatbok eller
@@ -12080,6 +12117,7 @@ async def _m2py_run_segment(_seg_json):
   </script>
   <script src="js/keys.js"></script>
   <script src="js/api-kinds.js"></script>
+  <script src="js/directive-parser.js"></script>
   <script src="js/data-directives.js"></script>
   <script src="js/meta-info.js"></script>
   <script src="js/comments.js"></script>

@@ -2,7 +2,7 @@
 #options.mode = brython
 #options.title = "Dashboard — DuckDB (SQL) (cell/ui model)"
 #options.description = "SQL aggregation in DuckDB + an interactive dashboard. The queries run in their own cell (replay-safe per cell); the dropdown options are pre-queried so the control cell always hits the cache."
-# load https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv")
 
 #%% md
 # Iris via DuckDB

@@ -1,8 +1,8 @@
 #duckdb
 -- Variable-level assembly in DuckDB mode. Two ways:
 -- (1) The shared assembly verbs (same as python/r):
--- connect https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv as pen
--- load pen as penguins
+-- pen = ost.connect("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv")
+-- penguins = pen.read()
 SELECT island, avg(body_mass_g) AS mean_mass
 FROM penguins
 GROUP BY island
@@ -10,8 +10,8 @@ ORDER BY island;
 
 -- (2) DuckDB-native SQL is the more powerful "power path": JOIN, WHERE and
 --     computed columns are expressed directly in SQL (sources are registered as views):
--- connect https://x.example/personer.csv as p
--- connect https://x.example/salg.csv as s
+-- p = ost.connect("https://x.example/personer.csv")
+-- s = ost.connect("https://x.example/salg.csv")
 -- SELECT p.region, avg(s.amount) AS mean_amount
 -- FROM p JOIN s ON p.pid = s.pid
 -- GROUP BY p.region;

@@ -19,8 +19,8 @@ show(df.groupby("g").sum())
 #   - combine filters step by step (no `&` between masks)
 #   - select columns BEFORE groupby (no groupby(...)["col"])
 
-# Data in:  # load <url> as <name>   (csv/json/parquet)
-#           # connect <base> as <alias>  +  # load <alias>/<fil> as <name>
+# Data in:  # <name> = ost.read("<url>")   (csv/json/parquet)
+#           # <alias> = ost.connect("<base>")  +  # <name> = <alias>.read("<fil>")
 #           from browser import ajax     (live APIs)
 
 pe.bar(df, x="g", y="v", title="Brython is fastest — Python mode is most complete")

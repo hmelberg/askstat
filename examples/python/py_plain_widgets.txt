@@ -2,7 +2,7 @@
 #options.mode = python
 #options.title = "Widgets without cells"
 #options.description = "ui controls in a plain script: values are read on the next Run (pull); rerun=\"all\" reruns the whole script on change; sync_to keeps a variable updated without running"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 import ui
 

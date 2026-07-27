@@ -1,6 +1,6 @@
 # label: base R — subset/transform/aggregate
 # Example: base R — subset, transform, aggregate
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv as folk
+# folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 
 # Keep only people with positive wage income
 adults <- subset(folk, !is.na(income) & income > 0)

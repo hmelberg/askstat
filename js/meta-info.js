@@ -35,16 +35,20 @@
     return COMMENT_BASE + encodeURIComponent(String(target || ''));
   }
 
-  // Direktiver mot ETT mål (datasett eller variabel): lenker i angitt
-  // rekkefølge + tekstene slått sammen (§3: "gjentatte direktiver ...
-  // legges til, aldri overskriving").
+  // Direktiver mot ETT mål (datasett eller variabel): lenker, tittel,
+  // variabeletiketter, felter og beskrivelsestekst i angitt rekkefølge
+  // (§3: "gjentatte direktiver ... legges til, aldri overskriving").
   function collectDirectives(list) {
-    var links = [], texts = [];
+    var links = [], texts = [], fields = [], title, label;
     (list || []).forEach(function (m) {
       if (m.kind === 'link' && m.url) links.push({ label: m.label || m.url, url: m.url });
       else if (m.kind === 'text' && m.text) texts.push(m.text);
+      else if (m.kind === 'title' && m.text) title = m.text;
+      else if (m.kind === 'label' && m.text) label = m.text;
+      else if (m.kind === 'field' && m.field && m.text) fields.push({ label: m.field, verdi: m.text });
     });
-    return { links: links, text: texts.join('\n\n') };
+    return { links: links, text: texts.join('\n\n'),
+             fields: fields, title: title, label: label };
   }
 
   // §2: brukerens tekst FØRST, kildens beholdt under — flat streng (MetaInfo-
@@ -68,15 +72,19 @@
     var list = (metas || []).filter(function (m) { return m.target === target && m.variable == null; });
     var d = collectDirectives(list);
     return {
-      tittel: api.tittel || undefined,
+      tittel: d.title || api.tittel || undefined,
       beskrivelse: combineBeskrivelse(d.text, api.beskrivelse),
-      felter: (api.felter || []).slice(),
+      felter: d.fields.concat(api.felter || []),
       lenker: d.links.concat(api.lenker || []),
       variabler: (api.variabler || []).slice(),
       direktivBeskrivelse: d.text || undefined,
       autoBeskrivelse: api.beskrivelse || undefined,
       direktivLenker: d.links,
-      autoLenker: (api.lenker || []).slice()
+      autoLenker: (api.lenker || []).slice(),
+      direktivTittel: d.title || undefined,
+      autoTittel: api.tittel || undefined,
+      direktivFelter: d.fields,
+      autoFelter: (api.felter || []).slice()
     };
   }
 
@@ -93,14 +101,15 @@
     });
     var api = apiVar || {};
     return {
-      label: api.label || varName,
+      label: d.label || api.label || varName,
       beskrivelse: combineBeskrivelse(d.text, api.beskrivelse),
       kodeliste: api.kodeliste || undefined,
       lenker: d.links.concat(api.lenker || []),
       direktivBeskrivelse: d.text || undefined,
       autoBeskrivelse: api.beskrivelse || undefined,
       direktivLenker: d.links,
-      autoLenker: (api.lenker || []).slice()
+      autoLenker: (api.lenker || []).slice(),
+      direktivLabel: d.label || undefined
     };
   }
 
@@ -151,6 +160,12 @@
     var labels = opts.labels || {};
     var parts = [];
     if (mi.tittel) parts.push('<div class="var-detail-section-title">' + esc(mi.tittel) + '</div>');
+    // §2-regelen gjelder også tittelen: brukerens vinner overskriften, men
+    // kildens egen katalogtittel skal ikke forsvinne stille. Vises dempet
+    // under, på samme måte som autoBeskrivelse.
+    if (mi.direktivTittel && mi.autoTittel && mi.autoTittel !== mi.direktivTittel) {
+      parts.push('<div class="var-detail-prose">' + esc(mi.autoTittel) + '</div>');
+    }
     if (mi.direktivBeskrivelse) parts.push('<div class="meta-info-user">' + splitParas(mi.direktivBeskrivelse) + '</div>');
     if (mi.autoBeskrivelse) parts.push(splitParas(mi.autoBeskrivelse));
     if (mi.felter && mi.felter.length) {

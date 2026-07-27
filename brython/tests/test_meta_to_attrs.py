@@ -17,11 +17,11 @@ sys.path.insert(0, os.path.join(ROOT, 'brython'))
 sys.path.insert(0, os.path.join(ROOT, 'micropython'))
 
 SCRIPT = '\n'.join([
-    '# load ssb/07459 as boliger',
-    '# meta boliger Kilde: SSB tabell 07459',
-    '# meta boliger https://www.ssb.no/07459 Tabellside',
-    '# meta boliger.region Fylkesinndeling per 2024',
-    '# meta urelatert Skal ikke havne paa boliger',
+    '# boliger = ssb.read("07459")',
+    '# meta.boliger.note = "Kilde: SSB tabell 07459"',
+    '# meta.boliger.link = {"https://www.ssb.no/07459": "Tabellside"}',
+    '# meta.boliger.region.note = "Fylkesinndeling per 2024"',
+    '# meta.urelatert.note = "Skal ikke havne paa boliger"',
 ])
 
 
@@ -33,13 +33,20 @@ def _meta_by_target(script):
     """
     if shutil.which('node') is None:
         pytest.skip('node er ikke installert')
+    # js/directive-parser.js eier grammatikken og MÅ lastes før
+    # data-directives.js (som kaller global.DirectiveParser ved parsing).
+    # try/catch: safestat-repoet har ikke fila, og skal fortsatt treffe
+    # skip-grenen under i stedet for å krasje.
     js = ("global.window = global;"
+          "try { require(process.argv[2]); } catch (e) {}"
           "require(process.argv[1]);"
           "const src = require('fs').readFileSync(0, 'utf8');"
           "if (typeof DataDirectives.metaByTarget !== 'function') "
           "{ process.stdout.write('null'); } else "
           "{ process.stdout.write(JSON.stringify(DataDirectives.metaByTarget(src))); }")
-    r = subprocess.run(['node', '-e', js, os.path.join(ROOT, 'js', 'data-directives.js')],
+    r = subprocess.run(['node', '-e', js,
+                        os.path.join(ROOT, 'js', 'data-directives.js'),
+                        os.path.join(ROOT, 'js', 'directive-parser.js')],
                        input=script, capture_output=True, text=True, check=True)
     got = json.loads(r.stdout)
     if got is None:

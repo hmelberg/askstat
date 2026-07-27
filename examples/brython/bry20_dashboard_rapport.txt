@@ -2,7 +2,7 @@
 #options.mode = brython
 #options.title = "Dashboard — report (cell/ui model)"
 #options.description = "ui.html builds a grid card with KPIs and figures in one cell — explicit layout instead of cols="
-# load https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/safestat/master/data/iris.csv")
 
 #%% md
 # Iris — data report

@@ -183,6 +183,7 @@
   <a href="#editor">Editor and shortcuts</a>
   <a href="#tab-intro">Tab autocomplete</a>
   <a href="#sidebar">Dataset panel</a>
+  <a href="#direktiver">Data directives</a>
   <div class="nav-section">Save and share</div>
   <a href="#lagre-dele">Save, share and fetch</a>
   <div class="nav-section">Step-by-step run</div>
@@ -463,6 +464,48 @@ summarize kjonn</code></pre>
     <p>The sidebar updates automatically after each run and after each block in Run step by step mode.</p>
   </section>
 
+  <!-- ── DATA DIRECTIVES ── -->
+  <section id="direktiver">
+    <h2>Data directives — fetching and assembling data</h2>
+    <p>Data is fetched with <strong>directive lines</strong>: ordinary comments at the top of the script, read <em>before</em> the code runs. The comment marker follows the language (<code>#</code> in Python, <code>--</code> in SQL, <code>//</code> in JavaScript) — otherwise the lines are identical in every mode.</p>
+
+    <p>The form is Python-shaped: <code>ost.</code> on the entry points, bare method calls on what you got back. Paste the lines into a plain Python script with <code>import openstat as ost</code> at the top and they do the same thing there.</p>
+
+    <table class="doc-table">
+      <thead><tr><th>Line</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code># ssb = ost.connect("ssb")</code></td><td>Connect to a source (registry id, base URL or registered source name) and name it</td></tr>
+        <tr><td><code># bef = ssb.read("05839", years="2000:2009")</code></td><td>Fetch one extract from a connected source; <code>bef</code> becomes a ready-made frame in the script</td></tr>
+        <tr><td><code># co2 = ost.read("https://…/co2.csv")</code></td><td>Read a URL directly — no <code>connect</code> line needed</td></tr>
+        <tr><td><code># panel = ost.create(key="pid")</code></td><td>Create an empty dataset with a declared key column</td></tr>
+        <tr><td><code># panel.add(p, ["income", "edu"])</code></td><td>Add columns from a source. <strong>One</strong> column parameter — several columns go in a list</td></tr>
+        <tr><td><code># panel.join(sales, on="pid")</code></td><td>Merge on an explicit key</td></tr>
+        <tr><td><code># df = ost.use("df")</code></td><td>Fetch a dataset from another runtime (see Hybrid scripts)</td></tr>
+        <tr><td><code>#meta.bef.note = "Population …"</code></td><td>Your own metadata about a dataset — shown in the ⓘ modal in the dataset panel</td></tr>
+      </tbody>
+    </table>
+
+    <p>Common named arguments: <code>kind=</code> (source type), <code>secret_key=</code> (see below), <code>exec="local"|"remote"</code>, <code>cache="30m"</code>, and the canonical query vocabulary <code>years=</code>, <code>countries=</code>, <code>regions=</code>, <code>indicators=</code>, <code>filters={…}</code>, <code>all=True</code>. <code>how=</code> on <code>add</code>/<code>join</code> is a closed set: <code>left</code> (default), <code>inner</code>, <code>outer</code>.</p>
+
+    <h3>Three things called "key"</h3>
+    <p>The word covers three different things. They are easy to mix up, so here is the distinction:</p>
+    <table class="doc-table">
+      <thead><tr><th>Written as</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>ost.create(key=["kommune_nr", "year"])</code></td><td>the dataset's key columns — declared <strong>once</strong>, and <code>add()</code> uses them automatically</td></tr>
+        <tr><td><code>panel.join(sales, on="pid")</code></td><td>explicit join columns for one merge</td></tr>
+        <tr><td><code>ost.read(…, secret_key="ask")</code></td><td>credentials (API/decryption key). <code>"ask"</code> pops a password modal at run time — the key never enters the script</td></tr>
+      </tbody>
+    </table>
+    <p>The point: you <strong>never</strong> give a merge key on <code>read</code>. It comes from <code>create</code>, and <code>add()</code> asks for the key plus the columns you want all by itself.</p>
+
+    <div class="callout">
+      <strong>Directive lines are not Python.</strong> The grammar is closed: no variables in arguments (except source names), no expressions, no f-strings, no arithmetic, no loops or conditionals, no imports.
+    </div>
+
+    <p>The old syntax (<code># read &lt;url&gt; as &lt;name&gt;</code>, <code># connect X as ssb, key(ask)</code>, <code># require …</code>) has been removed without aliases and gives an error message suggesting the new form.</p>
+  </section>
+
   <!-- ── LAGRE OG DELE ── -->
   <section id="lagre-dele">
     <h2>Save, share and fetch scripts</h2>
@@ -733,7 +776,7 @@ summarize kjonn
       <li><code>ML</code> — <a href="https://github.com/mljs/ml" target="_blank" rel="noopener">ml.js</a>: regression, PCA, k-means, random forest</li>
       <li><code>Plot</code> — <a href="https://observablehq.com/plot/" target="_blank" rel="noopener">Observable Plot</a> and <code>Plotly</code> — graphics</li>
     </ul>
-    <p>Load data with <code># read &lt;url&gt; as &lt;name&gt;</code> (becomes an Arquero table), and <code># use &lt;name&gt; from duckdb</code> fetches a table from the previous SQL run. Variables persist between cells; the last expression in a cell is displayed automatically (tables as HTML, <code>{data, layout}</code> objects as Plotly figures, DOM nodes as HTML). <code>#%%</code> cells and the notebook view work as in Python mode.</p>
+    <p>Load data with <code>// &lt;name&gt; = ost.read("&lt;url&gt;")</code> (becomes an Arquero table), and <code>// &lt;name&gt; = ost.use("&lt;name&gt;", source="duckdb")</code> fetches a table from the previous SQL run. Variables persist between cells; the last expression in a cell is displayed automatically (tables as HTML, <code>{data, layout}</code> objects as Plotly figures, DOM nodes as HTML). <code>#%%</code> cells and the notebook view work as in Python mode.</p>
   </section>
 
   <!-- ── HYBRID ── -->
@@ -751,15 +794,15 @@ summarize kjonn
       </tbody>
     </table>
 
-    <h3>Sharing data between languages: <code># use</code></h3>
-    <p>Microdata and Python blocks share datasets automatically (same engine). Between <strong>different</strong> engines — Python↔R, microdata→R, DuckDB↔others — fetch a dataset explicitly with a <code>use</code> line at the top of the block:</p>
+    <h3>Sharing data between languages: <code>ost.use</code></h3>
+    <p>Microdata and Python blocks share datasets automatically (same engine). Between <strong>different</strong> engines — Python↔R, microdata→R, DuckDB↔others — fetch a dataset explicitly with an <code>ost.use</code> line at the top of the block:</p>
     <pre><code>#py
 df["ny"] = df["x"] * 2
 
 #r
-# use df
+# df = ost.use("df")
 summary(df$ny)</code></pre>
-    <p>Without <code>from</code>, the dataset is fetched from the nearest earlier block in a different language; specify <code># use df from python|r|duckdb</code> when needed (required when the source is a <em>previous run</em>). Copy semantics: the block gets a snapshot — changes do not propagate back to the source engine.</p>
+    <p>Without <code>source=</code>, the dataset is fetched from the nearest earlier block in a different language; specify <code># df = ost.use("df", source="python")</code> (<code>python</code>, <code>r</code> or <code>duckdb</code>) when needed — required when the source is a <em>previous run</em>. The name must be repeated on both sides: renaming (<code># new = ost.use("df")</code>) is not supported yet and gives an error. Copy semantics: the block gets a snapshot — changes do not propagate back to the source engine.</p>
 
     <h3>Example: microdata + Python</h3>
     <pre><code>## microdata

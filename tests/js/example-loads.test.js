@@ -5,8 +5,11 @@ const fs = require('node:fs'); const path = require('node:path'); const vm = req
 const root = path.join(__dirname, '..', '..');
 
 function loadDD() {
-  const code = fs.readFileSync(path.join(root, 'js', 'data-directives.js'), 'utf8');
-  const sandbox = { window: {}, console }; vm.createContext(sandbox); vm.runInContext(code, sandbox);
+  const sandbox = { window: {}, console }; vm.createContext(sandbox);
+  // data-directives.js kaller global.DirectiveParser ved parsing — grammatikken
+  // må lastes FØRST, ellers er feilen en TypeError og ikke et assertion-avvik.
+  vm.runInContext(fs.readFileSync(path.join(root, 'js', 'directive-parser.js'), 'utf8'), sandbox);
+  vm.runInContext(fs.readFileSync(path.join(root, 'js', 'data-directives.js'), 'utf8'), sandbox);
   return sandbox.window.DataDirectives;
 }
 const DD = loadDD();

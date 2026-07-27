@@ -157,3 +157,57 @@ test('render: direktiv-beskrivelse ligger i meta-info-user, øverst (før kilden
   assert.ok(userIdx >= 0 && userIdx < userTextIdx);
   assert.ok(userTextIdx < apiTextIdx);
 });
+
+test('merge: title og field fra direktiver når fram til MetaInfo', () => {
+  const metas = [
+    { target: 'bef', variable: null, kind: 'title', text: 'Folkemengde' },
+    { target: 'bef', variable: null, kind: 'text', text: 'Etter alder' },
+    { target: 'bef', variable: null, kind: 'field', field: 'publisher', text: 'SSB' },
+    { target: 'bef', variable: null, kind: 'field', field: 'lisens', text: 'CC BY 4.0' },
+  ];
+  const mi = MI.merge(null, metas, 'bef');
+  assert.equal(mi.tittel, 'Folkemengde');
+  assert.equal(mi.beskrivelse, 'Etter alder');
+  assert.deepEqual(mi.felter, [{ label: 'publisher', verdi: 'SSB' },
+                               { label: 'lisens', verdi: 'CC BY 4.0' }]);
+});
+
+test('forVariable: label fra direktiv vinner over råt variabelnavn', () => {
+  const metas = [{ target: 'bef', variable: 'alder', kind: 'label', text: 'Alder i hele år' }];
+  const mi = MI.merge(null, metas, 'bef');
+  const v = MI.forVariable(mi, metas, 'bef', 'alder');
+  assert.equal(v.label, 'Alder i hele år');
+});
+
+// Kildens egen metadata skal fortsatt ikke overstyres stille (dagens regel).
+test('merge: brukerens title overstyrer ikke kildens uten å vises som brukerinnhold', () => {
+  const api = { tittel: 'SSB 05839' };
+  const metas = [{ target: 'bef', variable: null, kind: 'title', text: 'Min tittel' }];
+  const mi = MI.merge(api, metas, 'bef');
+  assert.ok(mi.tittel);   // en av dem, men merket som brukerinnhold i renderingen
+});
+
+test('render: direktivtittel, felt og kildens tittel havner alle i HTML-en', () => {
+  const metas = [
+    { target: 'bef', variable: null, kind: 'title', text: 'Folkemengde' },
+    { target: 'bef', variable: null, kind: 'field', field: 'publisher', text: 'SSB' },
+    { target: 'bef', variable: null, kind: 'field', field: 'tom', text: '' },
+  ];
+  const html = MI.render(MI.merge({ tittel: 'SSB 05839', felter: [] }, metas, 'bef'), 'bef');
+  assert.match(html, /Folkemengde/);      // brukerens tittel
+  assert.match(html, /SSB 05839/);        // kildens tittel bevart
+  assert.match(html, /publisher/);        // fritt felt vises
+  assert.doesNotMatch(html, /<dt>tom<\/dt>/);   // tomt felt droppes
+});
+
+test('renderVariable: direktivetiketten havner i HTML-en', () => {
+  const metas = [{ target: 'bef', variable: 'alder', kind: 'label', text: 'Alder i hele år' }];
+  const v = MI.forVariable(MI.merge(null, metas, 'bef'), metas, 'bef', 'alder');
+  assert.match(MI.renderVariable(v, 'bef.alder'), /Alder i hele år/);
+});
+
+test('render: brukerinnhold escapes', () => {
+  const metas = [{ target: 'bef', variable: null, kind: 'title', text: '<script>alert(1)</script>' }];
+  const html = MI.render(MI.merge(null, metas, 'bef'), 'bef');
+  assert.doesNotMatch(html, /<script>/);
+});

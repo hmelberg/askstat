@@ -183,6 +183,7 @@
   <a href="#editor">Editor og snarveier</a>
   <a href="#tab-intro">Tab-autocomplete</a>
   <a href="#sidebar">Datasett-panel</a>
+  <a href="#direktiver">Datadirektiver</a>
   <div class="nav-section">Lagre og dele</div>
   <a href="#lagre-dele">Lagre, dele og hente</a>
   <div class="nav-section">Skrittvis kjøring</div>
@@ -463,6 +464,48 @@ summarize kjonn</code></pre>
     <p>Sidemenyen oppdateres automatisk etter hver kjøring og etter hvert blokk i Kjør skrittvis-modus.</p>
   </section>
 
+  <!-- ── DATADIREKTIVER ── -->
+  <section id="direktiver">
+    <h2>Datadirektiver — hente og montere data</h2>
+    <p>Data hentes med <strong>direktivlinjer</strong>: vanlige kommentarer øverst i scriptet som leses <em>før</em> koden kjører. Kommentartegnet følger språket (<code>#</code> i Python, <code>--</code> i SQL, <code>//</code> i JavaScript) — ellers er linjene identiske i alle moduser.</p>
+
+    <p>Formen er pythonsk: <code>ost.</code> på inngangspunktene, bart metodekall på det du har fått tilbake. Limer du linjene inn i et vanlig Python-script med <code>import openstat as ost</code> øverst, gjør de det samme der.</p>
+
+    <table class="doc-table">
+      <thead><tr><th>Linje</th><th>Betydning</th></tr></thead>
+      <tbody>
+        <tr><td><code># ssb = ost.connect("ssb")</code></td><td>Koble til en kilde (register-id, base-URL eller registrert kildenavn) og gi den et navn</td></tr>
+        <tr><td><code># bef = ssb.read("05839", years="2000:2009")</code></td><td>Hent ett uttrekk fra en tilkoblet kilde; <code>bef</code> blir en ferdig ramme i scriptet</td></tr>
+        <tr><td><code># co2 = ost.read("https://…/co2.csv")</code></td><td>Les en URL direkte — ingen <code>connect</code>-linje nødvendig</td></tr>
+        <tr><td><code># panel = ost.create(key="pid")</code></td><td>Opprett et tomt datasett med deklarert nøkkelkolonne</td></tr>
+        <tr><td><code># panel.add(p, ["income", "edu"])</code></td><td>Legg til kolonner fra en kilde. <strong>Én</strong> kolonneparameter — flere kolonner samles i en liste</td></tr>
+        <tr><td><code># panel.join(sales, on="pid")</code></td><td>Slå sammen på en eksplisitt nøkkel</td></tr>
+        <tr><td><code># df = ost.use("df")</code></td><td>Hent et datasett fra en annen kjøretid (se Hybrid-skript)</td></tr>
+        <tr><td><code>#meta.bef.note = "Folkemengde …"</code></td><td>Egen metadata om et datasett — vises i ⓘ-modalen i datasettpanelet</td></tr>
+      </tbody>
+    </table>
+
+    <p>Vanlige navngitte argumenter: <code>kind=</code> (kildetype), <code>secret_key=</code> (se under), <code>exec="local"|"remote"</code>, <code>cache="30m"</code>, og det kanoniske spørrevokabularet <code>years=</code>, <code>countries=</code>, <code>regions=</code>, <code>indicators=</code>, <code>filters={…}</code>, <code>all=True</code>. <code>how=</code> på <code>add</code>/<code>join</code> er et lukket sett: <code>left</code> (standard), <code>inner</code>, <code>outer</code>.</p>
+
+    <h3>Tre ting som heter «nøkkel»</h3>
+    <p>Ordet brukes om tre forskjellige ting. De blandes lett, så her er skillet:</p>
+    <table class="doc-table">
+      <thead><tr><th>Skrivemåte</th><th>Betydning</th></tr></thead>
+      <tbody>
+        <tr><td><code>ost.create(key=["kommune_nr", "year"])</code></td><td>datasettets nøkkelkolonner — deklareres <strong>én gang</strong>, og <code>add()</code> bruker dem automatisk</td></tr>
+        <tr><td><code>panel.join(sales, on="pid")</code></td><td>eksplisitte join-kolonner for én sammenslåing</td></tr>
+        <tr><td><code>ost.read(…, secret_key="ask")</code></td><td>legitimasjon (API-/dekrypteringsnøkkel). <code>"ask"</code> gir en passordmodal ved kjøring — nøkkelen havner aldri i scriptet</td></tr>
+      </tbody>
+    </table>
+    <p>Poenget: du oppgir <strong>aldri</strong> en merge-nøkkel på <code>read</code>. Den kommer fra <code>create</code>, og <code>add()</code> ber om nøkkelen + de kolonnene du vil ha, helt av seg selv.</p>
+
+    <div class="callout">
+      <strong>Direktivlinjer er ikke Python.</strong> Grammatikken er lukket: ingen variabler i argumenter (unntatt kildenavn), ingen uttrykk, ingen f-strenger, ingen aritmetikk, ingen løkker eller betingelser, ingen import.
+    </div>
+
+    <p>Gammel syntaks (<code># read &lt;url&gt; as &lt;navn&gt;</code>, <code># connect X as ssb, key(ask)</code>, <code># require …</code>) er fjernet uten aliaser og gir en feilmelding med forslag til den nye formen.</p>
+  </section>
+
   <!-- ── LAGRE OG DELE ── -->
   <section id="lagre-dele">
     <h2>Lagre, dele og hente scripts</h2>
@@ -733,7 +776,7 @@ summarize kjonn
       <li><code>ML</code> — <a href="https://github.com/mljs/ml" target="_blank" rel="noopener">ml.js</a>: regresjon, PCA, k-means, random forest</li>
       <li><code>Plot</code> — <a href="https://observablehq.com/plot/" target="_blank" rel="noopener">Observable Plot</a> og <code>Plotly</code> — grafikk</li>
     </ul>
-    <p>Data inn med <code># read &lt;url&gt; as &lt;navn&gt;</code> (blir en Arquero-tabell), og <code># use &lt;navn&gt; from duckdb</code> henter en tabell fra forrige SQL-kjøring. Variabler overlever mellom celler; siste uttrykk i en celle vises automatisk (tabeller som HTML, <code>{data, layout}</code>-objekter som Plotly-figur, DOM-noder som HTML). <code>#%%</code>-celler og notatbokvisningen virker som i Python-modus.</p>
+    <p>Data inn med <code>// &lt;navn&gt; = ost.read("&lt;url&gt;")</code> (blir en Arquero-tabell), og <code>// &lt;navn&gt; = ost.use("&lt;navn&gt;", source="duckdb")</code> henter en tabell fra forrige SQL-kjøring. Variabler overlever mellom celler; siste uttrykk i en celle vises automatisk (tabeller som HTML, <code>{data, layout}</code>-objekter som Plotly-figur, DOM-noder som HTML). <code>#%%</code>-celler og notatbokvisningen virker som i Python-modus.</p>
   </section>
 
   <!-- ── HYBRID ── -->
@@ -751,15 +794,15 @@ summarize kjonn
       </tbody>
     </table>
 
-    <h3>Dele data mellom språk: <code># use</code></h3>
-    <p>Microdata- og Python-blokker deler samme datasett automatisk (samme motor). Mellom <strong>ulike</strong> motorer — Python↔R, microdata→R, DuckDB↔andre — henter du et datasett eksplisitt med en <code>use</code>-linje øverst i blokken:</p>
+    <h3>Dele data mellom språk: <code>ost.use</code></h3>
+    <p>Microdata- og Python-blokker deler samme datasett automatisk (samme motor). Mellom <strong>ulike</strong> motorer — Python↔R, microdata→R, DuckDB↔andre — henter du et datasett eksplisitt med en <code>ost.use</code>-linje øverst i blokken:</p>
     <pre><code>#py
 df["ny"] = df["x"] * 2
 
 #r
-# use df
+# df = ost.use("df")
 summary(df$ny)</code></pre>
-    <p>Uten <code>from</code> hentes datasettet fra nærmeste tidligere blokk med et annet språk; presiser med <code># use df from python|r|duckdb</code> ved behov (må angis når kilden er en <em>tidligere kjøring</em>). Kopisemantikk: blokken får et øyeblikksbilde — endringer smitter ikke tilbake til kildemotoren.</p>
+    <p>Uten <code>source=</code> hentes datasettet fra nærmeste tidligere blokk med et annet språk; presiser med <code># df = ost.use("df", source="python")</code> (<code>python</code>, <code>r</code> eller <code>duckdb</code>) ved behov — må angis når kilden er en <em>tidligere kjøring</em>. Navnet må gjentas på begge sider: omdøping (<code># nytt = ost.use("df")</code>) er ikke støttet ennå og gir feilmelding. Kopisemantikk: blokken får et øyeblikksbilde — endringer smitter ikke tilbake til kildemotoren.</p>
 
     <h3>Eksempel: microdata + Python</h3>
     <pre><code>## microdata

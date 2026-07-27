@@ -2,7 +2,7 @@
 #options.mode = r
 #options.title = "Widgets — ui_slider/ui_dropdown (R)"
 #options.description = "The ui_*() functions in R: the declare-and-inject model for sliders, dropdowns and buttons"
-# load https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv as iris
+# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 #%% md
 # Widgets with `ui_*()` in R

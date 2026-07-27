@@ -8,8 +8,10 @@ import { tableMetadata } from "./_lib/tools/table-metadata.ts";
 import { probeUrl } from "./_lib/tools/probe.ts";
 import { injectBeforeDone } from "./_lib/sse-util.ts";
 import {
-  buildDataSvarSystem, CLIENT_TOOL_DEFS, coerceDataMode, progressLabel, questionTurn, repairTurn, TOOL_DEFS,
+  buildDataSvarSystem, buildToolDefs, CLIENT_TOOL_DEFS, coerceDataMode, coerceDepth,
+  depthClientToolCalls, progressLabel, questionTurn, repairTurn,
 } from "./_lib/data-svar-prompt.ts";
+import { searchLiterature } from "./_lib/tools/search-literature.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { runProviderAgenticStream } from "./_lib/providers/agentic.ts";
 import { makeOpenAiCompatTurn } from "./_lib/providers/openai-compat.ts";
@@ -20,6 +22,7 @@ interface ResumeBody { state?: AgenticResumeState; probed?: unknown; }
 interface RequestBody {
   question?: string;
   mode?: string;
+  depth?: string;
   script?: string;
   available_keys?: unknown;
   provider?: unknown;
@@ -104,6 +107,9 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const mode = coerceDataMode(body.mode);
+  // Dybde styrer både prompt-blokk (budsjett-tabell) og runtime-knotter;
+  // "deep" er default og identisk med oppførselen før parameteren fantes.
+  const depth = coerceDepth(body.depth);
   // Kun kilde-ider (aldri verdier): styrer om user-auth-kilder framstår som
   // brukbare i registerblokken. Endrer prompt-prefikset → egen cache-nøkkel
   // per nøkkeloppsett; bevisst (få varianter, riktighet > cache-treff).
@@ -113,7 +119,7 @@ export default async (request: Request): Promise<Response> => {
       .slice(0, 20)
     : [];
   const memoryUrls = provider ? provider.webSearch === "none" : false;
-  const system = buildDataSvarSystem(mode, renderRegistryBlock(registry, availableKeys), { memoryUrls });
+  const system = buildDataSvarSystem(mode, renderRegistryBlock(registry, availableKeys), { memoryUrls, depth });
 
   // Deterministic source manifest: collected from probe calls, not model text.
   // On resume, re-seeded from the previous invocations' manifest so the final
@@ -140,6 +146,14 @@ export default async (request: Request): Promise<Response> => {
       probed.push({ url, ok: r.ok, cors: r.cors, viaProxy: r.ok && !r.cors });
       return JSON.stringify(r);
     }
+    if (name === "search_literature") {
+      const fromYear = Number.isInteger(input.from_year) ? Number(input.from_year) : undefined;
+      // mailto er valgfri (OpenAlex' "polite pool"); settes i Netlify-env
+      // og lokal .env som OPENALEX_MAILTO. Uten den virker alt, bare tregere.
+      return JSON.stringify(await searchLiterature(String(input.query ?? ""), fromYear, {
+        mailto: Deno.env.get("OPENALEX_MAILTO") || undefined,
+      }));
+    }
     throw new Error(`ukjent verktøy: ${name}`);
   };
 
@@ -151,7 +165,7 @@ export default async (request: Request): Promise<Response> => {
     system, userContent,
     executeTool, progressLabel,
     maxTokens: 8192,
-    maxClientToolCalls: 12,
+    maxClientToolCalls: depthClientToolCalls(depth),
     resume: resumeState,
     continueExtra: () => ({ probed }),
   };
@@ -168,7 +182,7 @@ export default async (request: Request): Promise<Response> => {
     inner = runAgenticStream({
       ...commonOpts,
       apiKey, model,
-      tools: TOOL_DEFS,
+      tools: buildToolDefs(depth),
       cacheTtl: "1h",
       apiBase: provider?.type === "anthropic-compat" ? provider.baseUrl : undefined,
     });

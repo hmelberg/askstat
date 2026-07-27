@@ -40,6 +40,7 @@
          'aiSettingsBackdrop','aiCfgAnthropicKey','aiCfgSave','aiCfgCancel',
          'aiCfgByokStored','aiCfgByokRemove','aiCfgSourceKeys',
          'aiCfgProviderType','aiCfgProviderFields','aiCfgProviderUrl','aiCfgProviderModel','aiCfgLlmKey',
+         'aiCfgDepth',
          'sidebarRight','sidebarOpenTab','scriptInput'
         ].forEach(id => { dom[id] = $(id); });
         dom.containers = document.querySelectorAll('.container');
@@ -698,6 +699,7 @@
             body: JSON.stringify({
               question,
               mode,
+              depth: aiDepth(),
               available_keys: (window.Keys ? window.Keys.registered() : []),
               script: scrubScript((dom.scriptInput && dom.scriptInput.value) || ''),
               repair: repair ? { script: repair.script, error: repair.error, round } : undefined,
@@ -1224,6 +1226,14 @@
         });
       }
 
+      // Dybde for Web-modus (data-svar): 'deep' er default (= oppførselen før
+      // parameteren fantes); 'fast' senker budsjettet/ambisjonen serverside.
+      var LS_DEPTH = 'md_ai_depth';
+      function aiDepth() {
+        try { return localStorage.getItem(LS_DEPTH) === 'fast' ? 'fast' : 'deep'; }
+        catch (e) { return 'deep'; }
+      }
+
       // Global AI-leverandør (spec 2026-07-23-llm-provider-tiers A1): type +
       // base-URL + modell i md_llm_provider (ikke hemmelig); nøkkelen i det
       // felles nøkkellageret (js/keys.js, type 'llm').
@@ -1263,6 +1273,7 @@
         if (dom.aiCfgProviderUrl) dom.aiCfgProviderUrl.value = (provRaw && provRaw.base_url) || '';
         if (dom.aiCfgProviderModel) dom.aiCfgProviderModel.value = (provRaw && provRaw.model) || '';
         if (dom.aiCfgLlmKey) dom.aiCfgLlmKey.value = '';
+        if (dom.aiCfgDepth) dom.aiCfgDepth.value = aiDepth();
         syncProviderFields();
         dom.aiSettingsBackdrop.classList.add('open');
       }
@@ -1278,6 +1289,10 @@
             var v = inp.value.trim();
             if (v) window.Keys.set(inp.dataset.sourceKeyId, v);
           });
+        }
+        if (dom.aiCfgDepth) {
+          try { localStorage.setItem(LS_DEPTH, dom.aiCfgDepth.value === 'fast' ? 'fast' : 'deep'); }
+          catch (e) { /* private-modus e.l. — depth forblir deep */ }
         }
         if (dom.aiCfgProviderType) {
           var ptype = dom.aiCfgProviderType.value;

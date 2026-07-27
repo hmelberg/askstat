@@ -29,6 +29,15 @@ Kriterier (alle må holde):
    hendelser brukt i identifikasjon er verifisert m/ dato + kilde-URL.
 10. PORTABILITET: cors:true + GET-tabell → pd.read_csv DIREKTE (ikke
     /api/hent-innpakning); proxy kun ved målt CORS-feil eller nøkkelkilde.
+11. FORSKNINGSSYNTESE-SITERINGER (2026-07-28): studier omtalt med
+    funn/tall/årstall skal stå i et search_literature-treff (DOI-URL oppgitt
+    i svaret) eller være web_fetch-lest; ellers merket «fra modellkunnskap —
+    verifiser». Mekanisk sjekk: åpne DOI-URL-ene fra svaret.
+
+Dybde (2026-07-28): settet kjøres i Deep (default). Fast måles med
+Fast/Deep-PAR på samme spørsmål og bedømmes etter «Fast reduserer ambisjon,
+aldri ærlighet»: ærlighetskriteriene (1, 2, 5, 11) gjelder UENDRET i Fast;
+omfangskriterier (flerkilde, heterogenitet, svarlengde) slakkes.
 
 | # | Modus | Spørsmål | Forventet kilde(r) |
 |---|-------|----------|--------------------|

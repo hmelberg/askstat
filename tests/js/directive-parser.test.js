@@ -217,3 +217,29 @@ test('isDirectiveLine: usann for kommentarer, kode, celler og tags', () => {
   assert.equal(DP.isDirectiveLine('#tag.hide-code = true'), false);
   assert.equal(DP.isDirectiveLine('#options.view = "output-only"'), false);
 });
+
+// «__proto__» er den ene nøkkelen som er en aksessor på Object.prototype:
+// out['__proto__'] = v setter prototypen i stedet for å lage en egen nøkkel,
+// så verdien forsvant STILLE og ingen Object.keys-basert vakt nedstrøms så
+// den. For ost.use ga det gjetning av kjøretid uten et ord (Task 7-review).
+test('parseLine: «__proto__» som argumentnavn avvises', () => {
+  const r = DP.parseLine('# df = ost.use("df", __proto__="python")');
+  assert.match(r.error, /«__proto__» kan ikke brukes som argumentnavn/);
+});
+
+test('parseLine: «__proto__» som dict-nøkkel avvises', () => {
+  const r = DP.parseLine('# meta.bef.link = {"__proto__": "x"}');
+  assert.match(r.error, /«__proto__» kan ikke brukes som dict-nøkkel/);
+});
+
+test('parseLine: «constructor» skygges normalt og fanges av vaktene nedstrøms', () => {
+  const r = DP.parseLine('# df = ost.use("df", constructor="python")');
+  assert.deepEqual(Object.keys(r.kwargs), ['constructor']);
+});
+
+test('parseLine: Object.prototype forblir urørt etter parsing', () => {
+  DP.parseLine('# df = ost.use("df", __proto__="python")');
+  DP.parseLine('# meta.bef.link = {"__proto__": "x"}');
+  assert.equal(({}).source, undefined);
+  assert.equal(({}).x, undefined);
+});

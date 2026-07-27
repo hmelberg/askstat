@@ -586,10 +586,14 @@
   // klassen kostet allerede fikserunder i Task 5 og 6.
   function isUseSource(s) { return s === 'r' || s === 'python' || s === 'duckdb'; }
 
-  // Linjer som SER UT som gammel use-syntaks. Uten denne ville
-  // «# use df from python» blitt stille ignorert av den nye grammatikken —
-  // ingen use, ingen feil, ingen kopi. Hard omlegging betyr feilmelding.
-  var USE_SHAPED_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*use\b/i;
+  // Linjene DENNE funksjonen eier: gammel «# use …» og ny «# x = ost.use(…)».
+  // Parserfeil på dem videresendes; alt annet er parse()/parseAssembly() sitt.
+  // Uten første halvdel ville «# use df from python» blitt stille ignorert av
+  // den nye grammatikken (ingen use, ingen feil, ingen kopi) — hard omlegging
+  // betyr feilmelding. Uten andre halvdel ville en avvist ny-syntaks-linje
+  // (f.eks. «__proto__=» som argumentnavn) lent seg på at en ANNEN kaller
+  // rekker å rapportere den først.
+  var USE_SHAPED_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:use\b|(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?ost[ \t]*\.[ \t]*use\b)/i;
 
   // parseLiteral gir {__ref:"df"} for bare ord — «[object Object]» i en
   // feilmelding hjelper ingen.

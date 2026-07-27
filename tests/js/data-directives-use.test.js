@@ -189,3 +189,26 @@ test('parseSegmentUses: andre direktivlinjer blir stående', () => {
   assert.deepEqual(r.segments[1].uses, [{ name: 'x', from: 'python' }]);
   assert.equal(r.segments[1].text, '# s = ost.connect("ssb")\n\nx');
 });
+
+test('parseUse: «__proto__» som argumentnavn gjetter ikke kjøretiden i stillhet', () => {
+  const r = DD.parseUse('# df = ost.use("df", __proto__="python")');
+  assert.deepEqual(r.uses, []);
+  assert.match(r.errors[0], /«__proto__» kan ikke brukes som argumentnavn/);
+});
+
+test('parseSegmentUses: ødelagt ost.use-linje varsles, ikke bare gammel syntaks', () => {
+  const r = DD.parseSegmentUses([
+    { kind: 'duckdb', text: 'CREATE TABLE tall AS SELECT 1' },
+    { kind: 'pyodide', text: 'tall = 999' },
+    { kind: 'r', text: '# tall = ost.use("tall", __proto__="duckdb")\ntall' },
+  ]);
+  assert.deepEqual(r.segments[2].uses, []);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /__proto__/);
+});
+
+test('parseUse: prosa med ordet «ost» eller «use» blir ikke feil', () => {
+  ['# use caution here', '# ost is a nice place', '# we use ost.use later',
+   '# connect early as needed', '# read this as int',
+  ].forEach((line) => assert.deepEqual(DD.parseUse(line).errors, [], line));
+});

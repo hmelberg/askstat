@@ -67,12 +67,25 @@
     fail('mangler «' + close + '»');
   }
 
+  // «__proto__» er den ENE nøkkelen som er en aksessor på Object.prototype:
+  // out['__proto__'] = v setter prototypen i stedet for å lage en egen
+  // nøkkel, så verdien forsvinner STILLE og ingen Object.keys-basert vakt
+  // nedstrøms ser den. «constructor» og resten er vanlige dataegenskaper som
+  // skygges normalt. Vi avviser den i stedet for å gi alle dicter og
+  // kwargs-objekter null-prototype: Object.create(null) ville fått String(v)
+  // til å kaste hos hver forbruker som formaterer en verdi.
+  function checkKey(k, what) {
+    if (k === '__proto__') fail('«__proto__» kan ikke brukes som ' + what);
+    return k;
+  }
+
   function parseDict(s, i) {
     var out = {}, j = skipWs(s, i + 1);
     if (s.charAt(j) === '}') return { value: out, pos: j + 1 };
     while (j < s.length) {
       var k = parseLiteral(s, j);
       if (typeof k.value !== 'string') fail('dict-nøkkel må være streng');
+      checkKey(k.value, 'dict-nøkkel');
       j = skipWs(s, k.pos);
       if (s.charAt(j) !== ':') fail('forventet «:» etter dict-nøkkel');
       var v = parseLiteral(s, j + 1);
@@ -133,6 +146,10 @@
     while (i < s.length) {
       var kw = /^([A-Za-z_]\w*)[ \t]*=(?!=)/.exec(s.slice(i));
       if (kw) {
+        // Samme grunn som i parseDict: «__proto__="python"» ville slukt seg
+        // selv, og ost.use ville stille GJETTET kjøretiden i stedet for å
+        // varsle om et ukjent argument (funnet i Task 7-reviewen).
+        checkKey(kw[1], 'argumentnavn');
         var v = parseLiteral(s, i + kw[0].length);
         kwargs[kw[1]] = v.value;
         i = skipWs(s, v.pos);

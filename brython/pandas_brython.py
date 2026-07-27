@@ -4918,6 +4918,28 @@ def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
     except ImportError:
         pass
     import csv
+
+    # pandas-URL-broen (plan 2026-07-27): URL-er ruter via motorens
+    # per-run-cache (window.__brythonFetchSync). Protokollen er ALLTID en
+    # JSON-streng ({pending}|{text}|{error}) — samme mønster og samme
+    # begrunnelse som duckdb_brython._run_sql (JS null != Python None).
+    # Miss → pending-unntak → motorens replay-løkke henter og kjører på nytt.
+    if isinstance(filepath, str) and (
+        filepath.startswith("http://") or filepath.startswith("https://")
+        or filepath.startswith("/api/hent?")
+    ):
+        import json as _json
+        from browser import window as _window
+        _res = _json.loads(_window.__brythonFetchSync(filepath))
+        if _res.get("pending"):
+            _e = RuntimeError("venter på " + filepath)
+            _e.__brython_pending__ = True
+            raise _e
+        if _res.get("error"):
+            raise ValueError(str(_res["error"]))
+        import io as _io
+        filepath = _io.StringIO(_res["text"])
+
     index = []
     columns = []
     data = []

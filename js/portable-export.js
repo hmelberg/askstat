@@ -27,11 +27,33 @@
   var LEGACY_KEY_RE = /\bkey\(\s*(?!ask\s*\))[^)]*\)/gi;
   var MASK_WARNING = 'nøkkelverdier ble maskert i eksporten — bruk secret_key="ask" eller egen nøkkelhåndtering utenfor appen';
 
+  // Editor-argumenter (spec §4.5c) har ingen mening utenfor appen, og
+  // openstat.py avviser dem nå høylytt (Task 11). Fjern dem fra den
+  // kommenterte direktivlinja, så et innlimt script ikke feiler.
+  //
+  // TO pass, ikke ett: «# df = h.read(secret_key="ask")» — den dokumenterte
+  // formen for en beskyttet kilde — har INGEN ledende komma, og et
+  // komma-mønster alene ville latt nøkkelargumentet stå igjen.
+  // Verdimønsteret er [^,)\s]+, ikke \S+. Det er DEFENSIVT: grammatikken avviser
+  // usiterte verdier i dag («cache=30m» gir parsefeil, og transpile kaster før
+  // den kommer hit), men med \S+ ville et framtidig usitert argument slukt det
+  // etterfølgende kommaet og etterlatt «ost.read("url" kind="csv")».
+  // «source» er BEVISST utelatt: parseren avviser det allerede på read/connect
+  // («ukjent argument «source»»), så det kan ikke stå i et gyldig script — og
+  // på «ost.use(navn, source=…)» er HELE linja editor-only, så å fjerne bare
+  // argumentet ville gjort kommentaren mindre sann, ikke mer.
+  var _EO_VAL = '(?:"[^"]*"|\'[^\']*\'|[^,)\\s]+)';
+  var EDITOR_ONLY_COMMA_RE = new RegExp(',[ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL, 'gi');
+  var EDITOR_ONLY_PAREN_RE = new RegExp('\\([ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL + '[ \\t]*,?[ \\t]*', 'gi');
+  var EDITOR_ONLY_NOTE = '# editor-argumenter (secret_key/exec/cache) er fjernet — de virker bare i OpenStat';
+
   function scrubDirectiveLine(line, DD, state) {
     if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) return line;
     var scrubbed = DD.scrubKeys(line).replace(LEGACY_KEY_RE, 'key(***)');
     if (scrubbed !== line) state.masked = true;
-    return scrubbed;
+    var stripped = scrubbed.replace(EDITOR_ONLY_COMMA_RE, '').replace(EDITOR_ONLY_PAREN_RE, '(');
+    if (stripped !== scrubbed) state.strippedEditorOnly = true;
+    return stripped;
   }
 
   // /api/hent?url=<enc>[&body=<enc-json>] → {url, body|null}; ellers null.
@@ -662,6 +684,7 @@
       var passthrough = String(script).split('\n').map(function (l) {
         return scrubDirectiveLine(l, DD, st0);
       }).join('\n');
+      if (st0.strippedEditorOnly) passthrough = EDITOR_ONLY_NOTE + '\n' + passthrough;
       return { code: passthrough, warnings: st0.masked ? [MASK_WARNING] : [] };
     }
     var resolved = DD.resolve(parsed, registry || []);
@@ -704,6 +727,7 @@
     if (maskState.masked) warnings.push(MASK_WARNING);
 
     var head = HEADER.slice();
+    if (maskState.strippedEditorOnly) head.push(EDITOR_ONLY_NOTE);
     // Plassholder-konstanter øverst (etter header, før imports): NAVN = "..."
     // (python) / NAVN <- "..." (r) — én linje per oppdaget plassholder, i
     // rekkefølgen de ble oppdaget (needs.placeholders-nøkler er unike, så

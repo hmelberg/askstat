@@ -182,8 +182,12 @@ Deno.test("key(<literal>) maskeres i output og gir warning", () => {
   const s = '# h = ost.read("https://x.example/hemmelig.csv", secret_key="supersecret123")\n';
   const out = PE.transpile(s, "python", []);
   if (out.code.includes("supersecret123")) throw new Error("nøkkelliteral lekket til eksport");
-  // ENDRET I TASK 8 (rapportert): maskeringsformatet er secret_key="***" etter Task 5.
-  if (!out.code.includes('secret_key="***"')) throw new Error("maskering mangler i kommentarlinjen");
+  // ENDRET I TASK 12: kontrakten er nå STRIPPING, ikke maskering. secret_key
+  // maskeres først (belte) og fjernes så helt fra kommentarlinja (bukseseler),
+  // fordi openstat.py avviser editor-argumenter høylytt. Notisen i headeren
+  // forteller brukeren hva som ble tatt bort.
+  if (out.code.includes("secret_key=")) throw new Error("editor-argumentet skulle vært fjernet:\n" + out.code);
+  if (!out.code.includes("editor-argumenter")) throw new Error("mangler notis om hva som ble fjernet:\n" + out.code);
   if (!out.warnings.some((w: string) => w.includes("h"))) throw new Error("mangler warning for kryptert kilde");
 });
 
@@ -201,8 +205,9 @@ Deno.test("key(<literal>) på connect-linje maskeres også", () => {
   const s = '# c = ost.connect("https://x.example/enc", secret_key="hemmelig999")\n# d = c.read("d.csv")\n';
   const out = PE.transpile(s, "python", []);
   if (out.code.includes("hemmelig999")) throw new Error("connect-nøkkelliteral lekket til eksport:\n" + out.code);
-  // ENDRET I TASK 8 (rapportert): maskeringsformatet er secret_key="***" etter Task 5.
-  if (!out.code.includes('secret_key="***"')) throw new Error("maskering mangler på connect-linjen:\n" + out.code);
+  // ENDRET I TASK 12: se testen over — argumentet fjernes nå i stedet for å maskeres.
+  if (out.code.includes("secret_key=")) throw new Error("editor-argumentet skulle vært fjernet:\n" + out.code);
+  if (!out.code.includes('# c = ost.connect("https://x.example/enc")')) throw new Error("connect-linja skal stå igjen uten argumentet:\n" + out.code);
 });
 
 Deno.test("anvil-kilde og exec(remote) → ikke-portabel kommentarblokk, resten eksporteres", () => {
@@ -357,4 +362,33 @@ Deno.test("montering: blokken settes inn FØR koden som bruker den", () => {
   const asm = lines.findIndex((l: string) => l.startsWith('panel = '));
   const use = lines.findIndex((l: string) => l.includes('print(panel.head())'));
   assertEquals(asm >= 0 && use >= 0 && asm < use, true, out.code);
+});
+
+// Editor-argumenter (spec §4.5c) virker bare i appen, og openstat.py avviser
+// dem nå høylytt — eksporten skal derfor ikke produsere dem i det hele tatt.
+Deno.test("export: editor-argumenter fjernes fra den kommenterte direktivlinja", () => {
+  const out = PE.transpile(
+    '# df = ost.read("https://x.example/d.csv", cache="30m")\nprint(df)',
+    "python", []);
+  assertEquals(out.code.includes("cache="), false, out.code);
+  assertEquals(out.code.includes("editor-argumenter"), true, out.code);
+  assertEquals(out.code.includes('# df = ost.read("https://x.example/d.csv")'), true, out.code);
+});
+
+// «h.read(secret_key="ask")» — den dokumenterte formen for en beskyttet kilde
+// — har INGEN ledende komma. Et komma-mønster alene lot argumentet stå igjen.
+Deno.test("export: editor-argument uten ledende komma fjernes også", () => {
+  const out = PE.transpile(
+    '# h = ost.connect("https://x.example/d.csv")\n# df = h.read(secret_key="abcDEF123")\nprint(df)',
+    "python", []);
+  assertEquals(out.code.includes("secret_key="), false, out.code);   // NB: notisen nevner ordet
+  assertEquals(out.code.includes("abcDEF123"), false, out.code);
+  assertEquals(out.code.includes("# df = h.read()"), true, out.code);
+});
+
+// \S+ som verdimønster slukte det etterfølgende kommaet på usiterte verdier
+// og etterlot «ost.read("url" kind="csv")» — malformert.
+Deno.test("export: uten editor-argumenter kommer ingen notis", () => {
+  const out = PE.transpile('# df = ost.read("https://x.example/d.csv")\nprint(df)', "python", []);
+  assertEquals(out.code.includes("editor-argumenter"), false, out.code);
 });

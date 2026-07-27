@@ -470,6 +470,18 @@ summarize kjonn</code></pre>
     <div class="callout">
       <strong>Når trenger du IKKE et direktiv?</strong> En ren GET-URL som returnerer en tabell leses med vanlig pandas: <code>iris = pd.read_csv("https://…/iris.csv")</code> — det virker i alle Python-modusene og uendret utenfor appen. Bruk <code>ost</code> når noe mer enn en URL trengs: registerkilder, <code>secret_key</code>, kanonisk spørring (<code>years=</code>/<code>indicators=</code> — tryggest mot SDMX-kilder, som stille ignorerer ukjente parametere i rå URL-er), POST-kropper, databaser/tabeller, kryptering, <code>use</code> og montering.
     </div>
+
+    <div class="callout tip">
+      <strong>SSB-malen (langformat rett fra kilden):</strong> PxWeb-CSV er som standard <em>bred</em> (år som kolonner). Vil du ha tidy langformat i ren pandas — uten direktiver, kjørbart hvor som helst — hører fire deler sammen:
+      <pre><code>url = ("https://data.ssb.no/api/pxwebapi/v2/tables/09855/data"
+       "?valueCodes[Kjonn]=1,2&amp;valueCodes[ContentsCode]=Personer"
+       "&amp;valueCodes[Tid]=top(10)"
+       "&amp;outputFormat=csv&amp;stub=Kjonn,ContentsCode,Tid"   # langformat
+       "&amp;outputFormatParams=UseTexts")                    # etiketter
+df = pd.read_csv(url, encoding="latin-1")   # SSB serverer iso-8859-1
+df.columns = list(df.columns[:-1]) + ["verdi"]</code></pre>
+      Utelat <code>UseTexts</code> når du skal koble på koder. Alternativet er <code>ssb.read("09855", years=…, indicators=…)</code> — tidy med koder.
+    </div>
     <p>Data hentes med <strong>direktivlinjer</strong>: vanlige kommentarer øverst i scriptet som leses <em>før</em> koden kjører. Kommentartegnet følger språket (<code>#</code> i Python, <code>--</code> i SQL, <code>//</code> i JavaScript) — ellers er linjene identiske i alle moduser.</p>
 
     <p>Formen er pythonsk: <code>ost.</code> på inngangspunktene, bart metodekall på det du har fått tilbake. Limer du linjene inn i et vanlig Python-script med <code>import openstat as ost</code> øverst, gjør de det samme der.</p>

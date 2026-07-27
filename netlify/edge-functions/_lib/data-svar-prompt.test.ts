@@ -27,6 +27,7 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     // Task 6-review: SDMX-forbeholdet manglet operasjonelt i DELIVERY (fantes
     // KUN i hjelp.html for mennesker) — TILLEGG, ingen eldre needle endret.
     "SDMX",
+    "stub=",              // SSB-malen (langformat ved kilden) skal være i prompten
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

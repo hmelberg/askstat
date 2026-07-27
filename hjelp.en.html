@@ -470,6 +470,18 @@ summarize kjonn</code></pre>
     <div class="callout">
       <strong>When do you NOT need a directive?</strong> A plain GET URL that returns a table is read with ordinary pandas: <code>iris = pd.read_csv("https://…/iris.csv")</code> — it works in every Python mode and is unchanged code outside the app. Use <code>ost</code> when something more than a URL is needed: registry sources, <code>secret_key</code>, the canonical query vocabulary (<code>years=</code>/<code>indicators=</code> — safest against SDMX sources, which silently ignore unknown parameters in a raw URL), POST bodies, databases/tables, encryption, <code>use</code> and mounting.
     </div>
+
+    <div class="callout tip">
+      <strong>The SSB pattern (long format straight from the source):</strong> PxWeb CSV is <em>wide</em> by default (years as columns). For tidy long format in plain pandas — no directives, runs anywhere — four parts belong together:
+      <pre><code>url = ("https://data.ssb.no/api/pxwebapi/v2/tables/09855/data"
+       "?valueCodes[Kjonn]=1,2&amp;valueCodes[ContentsCode]=Personer"
+       "&amp;valueCodes[Tid]=top(10)"
+       "&amp;outputFormat=csv&amp;stub=Kjonn,ContentsCode,Tid"   # long format
+       "&amp;outputFormatParams=UseTexts")                    # labels
+df = pd.read_csv(url, encoding="latin-1")   # SSB serves iso-8859-1
+df.columns = list(df.columns[:-1]) + ["verdi"]</code></pre>
+      Omit <code>UseTexts</code> when joining on codes. The alternative is <code>ssb.read("09855", years=…, indicators=…)</code> — tidy with codes.
+    </div>
     <p>Data is fetched with <strong>directive lines</strong>: ordinary comments at the top of the script, read <em>before</em> the code runs. The comment marker follows the language (<code>#</code> in Python, <code>--</code> in SQL, <code>//</code> in JavaScript) — otherwise the lines are identical in every mode.</p>
 
     <p>The form is Python-shaped: <code>ost.</code> on the entry points, bare method calls on what you got back. Paste the lines into a plain Python script with <code>import openstat as ost</code> at the top and they do the same thing there.</p>

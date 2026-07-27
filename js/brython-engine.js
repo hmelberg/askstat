@@ -434,9 +434,9 @@
         }
       }
       if (err === PENDING_MARKER) {
-        return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +
-                 MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene av ikke-deterministiske ' +
-                 'verdier (f.eks. random uten seed)?' };
+        return { text: '', error: 'duckdb-spørringene eller url-hentingene stabiliserer seg ' +
+                 'ikke etter ' + MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene/URL-ene av ' +
+                 'ikke-deterministiske verdier (f.eks. random uten seed)?' };
       }
       return { text: String(text == null ? '' : text), error: err ? String(err) : null };
     } catch (e) {
@@ -498,9 +498,9 @@
         }
       }
       if (err === PENDING_MARKER) {
-        return { text: '', error: 'duckdb-spørringene stabiliserer seg ikke etter ' +
-                 MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene av ikke-deterministiske ' +
-                 'verdier (f.eks. random uten seed)?' };
+        return { text: '', error: 'duckdb-spørringene eller url-hentingene stabiliserer seg ' +
+                 'ikke etter ' + MAX_DUCK_PASSES + ' pass — bygges SQL-tekstene/URL-ene av ' +
+                 'ikke-deterministiske verdier (f.eks. random uten seed)?' };
       }
       return { text: String(text == null ? '' : text), error: err ? String(err) : null };
     } catch (e) {

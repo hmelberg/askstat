@@ -39,7 +39,9 @@ def test_read_csv_url_pending_reiser_replay_unntak():
     try:
         pd.read_csv("https://x.example/sen.csv")
         raise AssertionError("skulle reist pending-unntak")
-    except Exception as e:
+    # _PendingFetch er BaseException (ikke Exception) med vilje — signalet
+    # skal overleve brukerkodens `except Exception:`, se _PendingFetch.
+    except BaseException as e:
         assert getattr(e, "__brython_pending__", False), e
 
 

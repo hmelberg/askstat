@@ -238,10 +238,20 @@ The path is positional, not keyword-driven:
   `note` or `link`. Variable level *always* needs three segments.
 
 `link` takes a string (one link), a list (several, unlabelled) or a dict
-(`url: label`). `note` takes a string or a list. `=` **overwrites** — repeated
-assignments to the same target replace rather than accumulate, which is why
-`note`/`link` take lists at all. Source metadata from `/api/metadata` is merged
-separately; the author's text is rendered first and never silently overridden.
+(`url: label`). `note` takes a string or a list. `=` **overwrites** and `+=`
+**appends** (standard Python semantics; `+=` is valid only for `note` and
+`link` — on single-value keys it errors rather than silently concatenating):
+
+```
+# meta.lonn.note += "Uteliggerne i alder er verifisert mot originalskjemaet"
+# meta.lonn.link += {"https://doi.org/10.xxxx": "Metodeartikkelen"}
+```
+
+Repeated `=` on `note`/`link` that actually drops an earlier entry raises a
+⚠-warning in the sidebar (never silent — the pre-2026-07-27 syntax
+accumulated, so the habit lingers). Source metadata from `/api/metadata` is
+merged separately; the author's text is rendered first and never silently
+overridden.
 
 ## 12. Homomorphically-encrypted (HE) tier
 

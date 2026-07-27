@@ -243,3 +243,20 @@ test('parseLine: Object.prototype forblir urørt etter parsing', () => {
   assert.equal(({}).source, undefined);
   assert.equal(({}).x, undefined);
 });
+
+// += (2026-07-27): «=» erstatter, «+=» føyer til — standard Python-semantikk.
+// Før denne fantes var «# meta.iris.note += "x"» en STILLE kommentar (parseLine
+// ga null) — formen er så naturlig at folk kommer til å skrive den uansett.
+test('parseLine: += gir augment-flagg, = gir ikke', () => {
+  const r = DP.parseLine('# meta.iris.note += "B"');
+  assert.equal(r.form, 'ns');
+  assert.deepEqual(r.path, ['iris', 'note']);
+  assert.equal(r.augment, true);
+  assert.equal(DP.parseLine('# meta.iris.note = "B"').augment, false);
+});
+
+test('parseLine: += virker også for tuppel- og dict-verdier', () => {
+  const r = DP.parseLine('# meta.iris.link += {"https://a": "A"}');
+  assert.equal(r.augment, true);
+  assert.deepEqual(r.value, { 'https://a': 'A' });
+});

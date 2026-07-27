@@ -234,14 +234,19 @@
   function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
   function unsafeName(n) { return n === '__proto__' || n === 'constructor' || n === 'prototype'; }
 
-  // Spec §3.3: «=» betyr OVERSKRIV. Uten dette akkumulerer gjentatte
-  // tilordninger som i gammel syntaks — to «publisher»-rader i sidepanelet.
+  // Spec §3.3: «=» betyr OVERSKRIV, «+=» betyr FØYD TIL (2026-07-27). Uten
+  // dropPrevious akkumulerer gjentatte tilordninger som i gammel syntaks —
+  // to «publisher»-rader i sidepanelet. Returnerer antall fjernede: gjentatt
+  // «=» på note/link varsler (før migreringen akkumulerte de, så vanen
+  // sitter, og tapet er brukerens egen tekst — aldri stille).
   function dropPrevious(metas, target, variable, kind, field) {
+    var n = 0;
     for (var i = metas.length - 1; i >= 0; i--) {
       var m = metas[i];
       if (m.target === target && m.variable === variable && m.kind === kind &&
-          (kind !== 'field' || m.field === field)) metas.splice(i, 1);
+          (kind !== 'field' || m.field === field)) { metas.splice(i, 1); n++; }
     }
+    return n;
   }
 
   var DS_KEYS = { title: 1, note: 1, link: 1, labels: 1 };
@@ -293,8 +298,9 @@
     return null;
   }
 
-  function collectMeta(item, metas, errors) {
+  function collectMeta(item, metas, errors, warnings) {
     var p = item.path, raw = item.raw, ln = item.lineNo;
+    var augment = !!item.augment;
     if (p.length < 2) {
       errors.push('linje ' + ln + ': meta krever datasett og nøkkel — «# meta.<datasett>.note = …»');
       return;
@@ -307,10 +313,27 @@
       }
     }
 
+    // += gir bare mening for de akkumulerende nøklene. På enkeltverdinøkler
+    // (title/label/felt) ville den enten vært et synonym for = eller en
+    // strengkonkatenering ingen ba om — begge stille overraskende.
+    function rejectAugment(key) {
+      if (!augment) return false;
+      errors.push('linje ' + ln + ': «+=» støttes bare for note og link — «' + key + '» settes med =');
+      return true;
+    }
+
+    // Overskriving med = er lov (spec §3.3) men aldri stille: før migreringen
+    // AKKUMULERTE gjentatte meta-linjer, så vanen sitter.
+    function warnOverwrite(what, variable) {
+      var target = variable ? ds + '.' + variable : ds;
+      (warnings || []).push('linje ' + ln + ': ' + what + ' for «' + target +
+                            '» overskriver en tidligere — bruk «+=» for å beholde begge');
+    }
+
     function pushLinks(variable, val) {
       var ls = toLinks(val);
       if (!ls.length) { errors.push('linje ' + ln + ': «link» må være en URL, en liste av URL-er, eller en dict {url: etikett}'); return; }
-      dropPrevious(metas, ds, variable, 'link');
+      if (!augment && dropPrevious(metas, ds, variable, 'link')) warnOverwrite('link', variable);
       ls.forEach(function (l) {
         metas.push({ target: ds, variable: variable, kind: 'link',
                      url: l.url, label: l.label, text: undefined, line: raw });
@@ -321,7 +344,7 @@
     function pushNotes(variable, val) {
       var ts = toTexts(val);
       if (!ts) { errors.push('linje ' + ln + ': «note» må være en tekst eller en liste av tekster'); return; }
-      dropPrevious(metas, ds, variable, 'text');
+      if (!augment && dropPrevious(metas, ds, variable, 'text')) warnOverwrite('note', variable);
       ts.forEach(function (t) {
         // url/label settes eksplisitt til undefined, symmetrisk med pushLinks'
         // «text: undefined». Formen er en dokumentert kontrakt (deno-testen
@@ -344,6 +367,7 @@
     if (p.length === 2) {
       if (k1 === 'link') { pushLinks(null, v); return; }
       if (k1 === 'title') {
+        if (rejectAugment('title')) return;
         var ti = textOrNull(v, 'title'); if (ti === null) return;
         dropPrevious(metas, ds, null, 'title');
         metas.push({ target: ds, variable: null, kind: 'title', text: ti, line: raw });
@@ -351,6 +375,7 @@
       }
       if (k1 === 'note') { pushNotes(null, v); return; }
       if (k1 === 'labels') {
+        if (rejectAugment('labels')) return;
         if (typeof v !== 'object' || v === null || isArr(v)) {
           errors.push('linje ' + ln + ': «labels» må være en dict — labels={"kolonne": "Etikett"}');
           return;
@@ -363,6 +388,7 @@
         });
         return;
       }
+      if (rejectAugment(k1)) return;
       var fv = textOrNull(v, k1); if (fv === null) return;
       dropPrevious(metas, ds, null, 'field', k1);
       metas.push({ target: ds, variable: null, kind: 'field', field: k1, text: fv, line: raw });
@@ -382,17 +408,18 @@
     }
     if (k2 === 'link') { pushLinks(k1, v); return; }
     if (k2 === 'note') { pushNotes(k1, v); return; }
+    if (rejectAugment('label')) return;
     var lv = textOrNull(v, 'label'); if (lv === null) return;
     dropPrevious(metas, ds, k1, 'label');
     metas.push({ target: ds, variable: k1, kind: 'label', text: lv, line: raw });
   }
 
   function parse(script) {
-    var connects = [], loads = [], metas = [], errors = [];
+    var connects = [], loads = [], metas = [], errors = [], warnings = [];
     var res = global.DirectiveParser.parseScript(script);
     errors = res.errors.slice();
     res.items.forEach(function (it) {
-      if (it.form === 'ns') { collectMeta(it, metas, errors); return; }
+      if (it.form === 'ns') { collectMeta(it, metas, errors, warnings); return; }
       if (it.form !== 'call') return;
       // optionsFromKwargs kjenner BARE connect/read sine argumenter. Kjørt på
       // alle verb rapporterte den «ukjent argument «key»» for ost.create,
@@ -439,7 +466,7 @@
       }
       // create/add/join/use håndteres av parseAssembly/parseUse (T6/T7).
     });
-    return { connects: connects, loads: loads, metas: metas, errors: errors };
+    return { connects: connects, loads: loads, metas: metas, errors: errors, warnings: warnings };
   }
 
   // Ett element på nøyaktig parse().loads[i]-form, bygget DIREKTE. Alternativet

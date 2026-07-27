@@ -7,7 +7,7 @@
     "tilgang": "pxweb",
     "base_url": "https://data.ssb.no/api/pxwebapi/v2/",
     "sok_endepunkt": "https://data.ssb.no/api/pxwebapi/v2/tables?query={q}&lang=no",
-    "cors": false,
+    "cors": true,
     "join_nokler": [
       "kommunenummer",
       "fylkesnummer",

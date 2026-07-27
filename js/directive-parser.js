@@ -186,14 +186,18 @@
     // Den NYE grammatikken prøves først. Motsatt rekkefølge lot
     // gammel-syntaks-vakten svelge gyldige linjer som «read = ost.read("x")».
     try {
-      // Form 1: <navnerom>.<sti> = <literal>
-      var ns = /^([A-Za-z_]\w*)((?:\.[A-Za-z_]\w*)+)[ \t]*=[ \t]*/.exec(body);
+      // Form 1: <navnerom>.<sti> = <literal>  |  <navnerom>.<sti> += <literal>
+      // += (2026-07-27): «=» erstatter, «+=» føyer til — standard Python-
+      // semantikk. Semantikken (hvilke nøkler som godtar +=) eies av
+      // data-directives.js; her bæres bare flagget.
+      var ns = /^([A-Za-z_]\w*)((?:\.[A-Za-z_]\w*)+)[ \t]*(\+?=)[ \t]*/.exec(body);
       if (ns && NS[ns[1]]) {
         var path = ns[2].slice(1).split('.');
+        var aug = ns[3] === '+=';
         var rest = body.slice(ns[0].length);
         var first = parseLiteral(rest, 0);
         var after = skipWs(rest, first.pos);
-        if (after >= rest.length) return { form: 'ns', ns: ns[1], path: path, value: first.value, raw: raw.trim() };
+        if (after >= rest.length) return { form: 'ns', ns: ns[1], path: path, value: first.value, augment: aug, raw: raw.trim() };
         if (rest.charAt(after) !== ',') fail('uventet tekst etter verdi');
         var tup = [first.value];
         while (rest.charAt(after) === ',') {
@@ -204,7 +208,7 @@
           after = skipWs(rest, nx.pos);
         }
         if (after < rest.length) fail('uventet tekst etter verdi');
-        return { form: 'ns', ns: ns[1], path: path, value: tup, raw: raw.trim() };
+        return { form: 'ns', ns: ns[1], path: path, value: tup, augment: aug, raw: raw.trim() };
       }
 
       // Form 2: [<navn> =] <mottaker>.<verb>(<args>)

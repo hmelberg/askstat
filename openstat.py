@@ -123,6 +123,68 @@ def columns_from_jsonstat(ds):
     return cols
 
 
+# ── Typet kanonisk vei (plan 2026-07-27-typet-kanonisk-vei) ─────────────────
+# json-stat2 BÆRER typesystemet: roller (time/metric), kategorirekkefølge
+# (category.index), kode->etikett (category.label) og enheter (category.unit).
+# Før dette parset vi payloaden og kastet alt unntatt koder+verdier — og
+# brukeren måtte selv mappe {"1": "Menn"} for hånd. Kontrakten under deles
+# med js/pxweb.js (typeMetaFromJsonStat) via tests/fixtures/pxweb_dataset.json
+# — endres den ene siden, endres den andre.
+
+def typemeta_from_jsonstat(ds):
+    """json-stat2-dataset -> typekontrakt:
+    {dims: {DimId: {categories: [koder i index-orden], labels: {kode: tekst}}},
+     time: [DimId...], metric: [DimId...], units: {kode: {base, decimals}}}."""
+    role = ds.get("role") or {}
+    dims, units = {}, {}
+    for did in (ds.get("id") or []):
+        cat = ((ds.get("dimension") or {}).get(did) or {}).get("category") or {}
+        dims[did] = {"categories": _category_codes({"category": cat}),
+                     "labels": dict(cat.get("label") or {})}
+        for k, u in (cat.get("unit") or {}).items():
+            units[k] = {"base": u.get("base"), "decimals": u.get("decimals")}
+    return {"dims": dims,
+            "time": list(role.get("time") or []),
+            "metric": list(role.get("metric") or []),
+            "units": units}
+
+
+def _all_intlike(codes):
+    for c in codes:
+        try:
+            int(str(c))
+        except (TypeError, ValueError):
+            return False
+    return bool(codes)
+
+
+def apply_typemeta(df, tm):
+    """Typ en columns_from_jsonstat-ramme etter kontrakten. Regler:
+    - role=time + alle koder heltallsparsbare -> int64 (aritmetikk/regresjon
+      krever tall; Categorical har ingen). Ellers ORDNET Categorical i kildens
+      index-orden — «2024K1» sortert alfabetisk er tilfeldig, kildens orden er
+      fasit.
+    - Øvrige dimensjoner -> uordnet Categorical med kildens kategoriorden
+      (typen REISER med kolonnen gjennom operasjoner — attrs gjør ikke det).
+    - value -> to_numeric (sparse json-stat2 gir None-hull som ellers gjør
+      kolonnen object).
+    - Etiketter/enheter/roller -> df.attrs["ost_typemeta"] (visningslag;
+      verdiene forblir KODER, som er stabile for joins og replikasjon)."""
+    for did, d in (tm.get("dims") or {}).items():
+        if did not in df.columns:
+            continue
+        cats = d.get("categories") or []
+        if did in (tm.get("time") or []) and _all_intlike(cats):
+            df[did] = df[did].astype("int64")
+        else:
+            df[did] = pd.Categorical(df[did], categories=cats,
+                                     ordered=did in (tm.get("time") or []))
+    if "value" in df.columns:
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df.attrs["ost_typemeta"] = tm
+    return df
+
+
 # ── api-kinds (paritet med js/api-kinds.js — endres den ene, endres den
 # andre; kontrakten håndheves av delte fixtures i begge testsuitene).
 # Spec docs/superpowers/specs/2026-07-25-api-kinds-design.md §1.
@@ -498,7 +560,8 @@ class Source:
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
             ds = _json.loads(_fetch_bytes(du).decode("utf-8"))
-            df = pd.DataFrame(columns_from_jsonstat(ds))
+            df = apply_typemeta(pd.DataFrame(columns_from_jsonstat(ds)),
+                                typemeta_from_jsonstat(ds))
             return df[list(columns)] if columns else df
         url = self.url if table is None else self.url.rstrip("/") + "/" + str(table)
         if kind == "parquet":

@@ -1,12 +1,70 @@
 {
   "version": "2.0",
   "class": "dataset",
-  "id": ["Kjonn", "Tid", "ContentsCode"],
-  "size": [2, 2, 1],
+  "id": [
+    "Kjonn",
+    "Tid",
+    "ContentsCode"
+  ],
+  "size": [
+    2,
+    2,
+    1
+  ],
   "dimension": {
-    "Kjonn": { "category": { "index": { "1": 0, "2": 1 } } },
-    "Tid": { "category": { "index": ["2020", "2021"] } },
-    "ContentsCode": { "category": { "index": { "Personer": 0 } } }
+    "Kjonn": {
+      "category": {
+        "index": {
+          "1": 0,
+          "2": 1
+        },
+        "label": {
+          "1": "Menn",
+          "2": "Kvinner"
+        }
+      }
+    },
+    "Tid": {
+      "category": {
+        "index": [
+          "2020",
+          "2021"
+        ],
+        "label": {
+          "2020": "2020",
+          "2021": "2021"
+        }
+      }
+    },
+    "ContentsCode": {
+      "category": {
+        "index": {
+          "Personer": 0
+        },
+        "label": {
+          "Personer": "Skattepliktige med pensjonsgivende inntekt"
+        },
+        "unit": {
+          "Personer": {
+            "base": "personer",
+            "decimals": 0
+          }
+        }
+      }
+    }
   },
-  "value": [10, 11, 20, 21]
+  "value": [
+    10,
+    11,
+    20,
+    21
+  ],
+  "role": {
+    "time": [
+      "Tid"
+    ],
+    "metric": [
+      "ContentsCode"
+    ]
+  }
 }

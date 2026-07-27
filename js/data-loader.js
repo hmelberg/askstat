@@ -313,8 +313,12 @@
         var fetchedPx = await fetchBytes(Object.assign({}, item, { url: PX.dataUrlFor(item.kind, item.url) }));
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
+        // Typet kanonisk vei (plan 2026-07-27): CSV-en mister typesystemet
+        // json-stat2 bærer — typemeta følger med SEPARAT så Pyodide-preamblet
+        // kan gjenreise det (Categorical i kildens orden, tidsregelen, attrs).
         return { alias: item.alias, bytes: new TextEncoder().encode(csvPx),
-                 format: 'csv', table: item.table, kind: 'pxweb' };
+                 format: 'csv', table: item.table, kind: 'pxweb',
+                 typemeta: PX.typeMetaFromJsonStat(dsPx) };
       }
       // API-kinds (spec 2026-07-25-api-kinds-design §1): sdmx = CSV rett fra
       // API-et (Accept-vei m/ format=csvdata-fallback — ECB 406-er på Accept,

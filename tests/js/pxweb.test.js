@@ -158,3 +158,31 @@ test('fetchResolvedItems: pxweb henter json-stat2 fra /data og leverer csv-bytes
   const csv = new TextDecoder().decode(out[0].bytes);
   assert.match(csv, /^Kjonn,Tid,ContentsCode,value\n1,2020,Personer,10\n/);
 });
+
+// ── Typet kanonisk vei (plan 2026-07-27): typemeta-kontrakten er DELT med
+// openstat.py (typemeta_from_jsonstat) via samme fixture — endres den ene
+// siden, endres den andre. Pytest håndhever i tillegg at den injiserte
+// python-kilden (pyApplyTypemetaSource) oppfører seg som openstat.py sin
+// apply_typemeta (tests/test_openstat.py::test_js_apply_source_paritet).
+test('typeMetaFromJsonStat: samme kontrakt som openstat.py', () => {
+  const tm = PX.typeMetaFromJsonStat(FIX);
+  assert.deepEqual(tm.time, ['Tid']);
+  assert.deepEqual(tm.metric, ['ContentsCode']);
+  assert.deepEqual(tm.dims.Kjonn.categories, ['1', '2']);
+  assert.deepEqual(tm.dims.Kjonn.labels, { '1': 'Menn', '2': 'Kvinner' });
+  assert.deepEqual(tm.units, { Personer: { base: 'personer', decimals: 0 } });
+});
+
+test('typeMetaFromJsonStat: degraderer pent uten role/label/unit', () => {
+  const tm = PX.typeMetaFromJsonStat({ id: ['A'], size: [2],
+    dimension: { A: { category: { index: { x: 0, y: 1 } } } }, value: [1, 2] });
+  assert.deepEqual(tm.time, []);
+  assert.deepEqual(tm.units, {});
+  assert.deepEqual(tm.dims.A.categories, ['x', 'y']);
+});
+
+test('pyApplyTypemetaSource: definerer apply-funksjonen med dtype-vern', () => {
+  const src = PX.pyApplyTypemetaSource();
+  ['_ost_apply_typemeta', 'Categorical', 'to_numeric', 'ost_typemeta'].forEach(
+    (tok) => assert.ok(src.includes(tok), tok));
+});

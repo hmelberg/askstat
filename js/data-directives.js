@@ -656,8 +656,17 @@
       if (it.verb === 'add') {
         var ref = it.args[0];
         if (!ref || !ref.__ref) { errors.push('linje ' + it.lineNo + ': add krever en kilde som første argument — add(<kilde>, ["<kolonne>"])'); return; }
-        var cols = [];
-        for (var i = 1; i < it.args.length; i++) cols = cols.concat(names(it.args[i]));
+        // ÉN kolonneparameter, ikke varargs (spec §4.5(a)). Pakken har
+        // signaturen add(source, columns, table=None, how=None), så
+        // «add(p, "income", "edu")» ble der lest som table="edu" — «edu»
+        // forsvant STILLE fra rammen mens editoren tok den med. Samme linje,
+        // to svar; nettopp det kopier-og-lim-pariteten lover at ikke skjer.
+        if (it.args.length > 2) {
+          errors.push('linje ' + it.lineNo + ': add tar én kolonneparameter — samle dem i en liste: ' +
+                      'add(' + ref.__ref + ', ["<kolonne>", "<kolonne>"])');
+          return;
+        }
+        var cols = names(it.args[1]);
         if (!cols.length) { errors.push('linje ' + it.lineNo + ': add krever minst én kolonne'); return; }
         var tbl = it.kwargs.table ? String(it.kwargs.table) : null;
         d.steps.push({ op: 'import', source: noteSource(ref.__ref, tbl), columns: cols, how: how });

@@ -236,7 +236,11 @@ def sdmx_key_path(dims, canonical):
     return ".".join(want.get(i, "") for i in range(len(dims)))
 
 
-_CANONICAL_KEYS = ("years", "countries", "regions", "indicators", "filters")
+# «all» hører med her selv om pakken ikke kan utføre den (se _translate_canonical):
+# uten den falt all=True gjennom som en RÅ spørringsparameter («&all=True»),
+# som kilden ignorerer — brukeren ba om alle verdier og fikk kildens
+# standardutvalg, uten et ord. Spec §0: aldri stille passthrough.
+_CANONICAL_KEYS = ("years", "countries", "regions", "indicators", "filters", "all")
 
 
 def _as_code_list(v):
@@ -262,6 +266,8 @@ def _canonical_from_query(query):
                               "to": (b.strip() or None) if sep else (a.strip() or None)}
         elif k == "filters":
             c["filters"] = {str(fk): str(fv) for fk, fv in dict(v).items()}
+        elif k == "all":
+            c["all"] = bool(v)
         else:
             c[k] = _as_code_list(v)
     return c or None
@@ -272,6 +278,18 @@ def _translate_canonical(kind, rest, c):
     samme feiltekster; -> (rest, params, needs_key, client_years)."""
     params, needs_key, client_years = [], None, None
     y = c.get("years")
+    # Speiler js/data-directives.js translateCanonical: all() er kun definert
+    # for pxweb. Editoren ekspanderer der de uspesifiserte dimensjonene fra
+    # kildens json-stat2-metadata; pakken har ikke det steget, så den sier fra
+    # i stedet for å late som (spec §0 — en hard feil slår stille feil data).
+    if c.get("all"):
+        if kind != "pxweb":
+            raise ValueError("all() støttes foreløpig kun for pxweb-kilder — for andre kilder, "
+                             "angi utvalg eksplisitt")
+        raise ValueError("all=True ekspanderes foreløpig bare i OpenStat-editoren, som leser "
+                         "kildens json-stat2-metadata for å liste dimensjonsverdiene. Angi "
+                         "utvalget eksplisitt her, f.eks. regions(…), indicators(…) eller "
+                         "filters(<variabel>=…)")
     if kind == "worldbank":
         if c.get("regions"):
             raise ValueError("regions() støttes ikke for worldbank — bruk landkoder i countries()")

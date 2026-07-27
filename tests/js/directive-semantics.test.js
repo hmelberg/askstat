@@ -421,3 +421,20 @@ test('makeLoad: monteringskilder resolver likt som tekstveien', () => {
                    DD.resolve({ connects: viaText.connects,
                                 loads: viaText.loads.filter((l) => spec.sources.indexOf(l.alias) >= 0) }, []));
 });
+
+// Pakken har signaturen add(source, columns, table=None, how=None), så
+// «add(p, "income", "edu")» leste «edu» som table= og lot kolonnen forsvinne
+// STILLE — mens parseren tok den med. Samme linje, to svar. Spec §4.5(a):
+// add tar ÉN kolonneparameter.
+test('parseAssembly: add tar én kolonneparameter, ikke varargs', () => {
+  const pre = ['# p = ost.connect("https://x/p.csv")',
+               '# panel = ost.create(key="pid")', ''].join('\n');
+  const bad = DD.parseAssembly(pre + '# panel.add(p, "income", "edu")');
+  assert.match(bad.errors[0], /add tar én kolonneparameter/);
+  assert.deepEqual(bad.spec.datasets.find((d) => d.name === 'panel').steps, []);
+
+  const ok = DD.parseAssembly(pre + '# panel.add(p, ["income", "edu"])');
+  assert.deepEqual(ok.errors, []);
+  assert.deepEqual(ok.spec.datasets.find((d) => d.name === 'panel').steps[0].columns,
+                   ['income', 'edu']);
+});

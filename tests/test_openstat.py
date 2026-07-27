@@ -347,3 +347,20 @@ def test_source_kwarg_er_ikke_avvist():
 def test_ost_use_feiler_hoeylytt():
     with pytest.raises(ValueError, match="editoren"):
         ost.use("df", source="python")
+
+
+def test_all_kwarg_er_kanonisk_ikke_raa_spoerringsparameter():
+    # Uten «all» i _CANONICAL_KEYS falt all=True gjennom som «&all=True» —
+    # kilden ignorerer den, og brukeren som ba om ALLE verdier fikk kildens
+    # standardutvalg uten et ord. Spec §0: aldri stille passthrough.
+    q = {"all": True, "regions": ["0"]}
+    assert ost._canonical_from_query(q) == {"all": True, "regions": ["0"]}
+    assert q == {}, "all/regions skal være konsumert, ikke bli spørringsparametere"
+
+
+def test_all_feiler_hoeylytt_i_pakken():
+    with pytest.raises(ValueError, match="editoren"):
+        ost._translate_canonical("pxweb", "05839", {"all": True})
+    for kind in ("sdmx", "worldbank", "dbnomics", "eurostat"):
+        with pytest.raises(ValueError, match="kun for pxweb"):
+            ost._translate_canonical(kind, "x", {"all": True})

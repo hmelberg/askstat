@@ -99,6 +99,8 @@ urørt — det er en logg, ikke en referanse. Gjeldende syntaks: se siste entry.
   ny needle (`SDMX`) i samme needle-liste — TILLEGG, ingen eldre needle
   endret.
 
+  FIX 2 (samme dag, fra live-feilsøk): presisert at PxWeb-CSV er BREDT format (år som kolonner) — generert analysekode antok tidy og fikk IndexError; tidy-veien er <alias>.read med years=/indicators= (kind=pxweb), med KODER som verdier.
+
 ### Uten websøk: modellkunnskaps-URL-er
 
 Denne kjøringen har IKKE web_search/web_fetch. Registerverktøyene

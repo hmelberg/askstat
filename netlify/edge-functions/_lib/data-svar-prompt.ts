@@ -33,9 +33,19 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
 const DELIVERY = `\
 ## Leveringsregler (ost-direktiver)
 
-Datakilder deklareres ØVERST i scriptet som kommentar-direktiver
-(kommentartegn per språk: #, --, //). Formen er pythonsk — \`ost.\` på
-inngangspunktene, bart metodekall på det du fikk tilbake:
+**Grenseregel — pandas eller ost?** En ren GET-URL som returnerer en tabell
+er IKKE et direktiv-tilfelle — les den med vanlig pandas/read.csv, samme kode
+i og utenfor appen:
+
+| Situasjon | Verktøy | Eksempel |
+| --- | --- | --- |
+| Åpen tabell-URL (ingen nøkkel, ingen POST) | pandas/R \`read_csv\` direkte | \`co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")\` |
+| Nøkkel, proxy (CORS/POST), kanonisk spørring, database/tabell | \`ost\`-direktiv | \`# ssb = ost.connect("ssb")\` + \`# ledighet = ssb.read("05839", years="2000:2009")\` |
+
+Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
+ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
+//). Formen er pythonsk — \`ost.\` på inngangspunktene, bart metodekall på
+det du fikk tilbake:
 
 \`\`\`
 # ssb = ost.connect("ssb")

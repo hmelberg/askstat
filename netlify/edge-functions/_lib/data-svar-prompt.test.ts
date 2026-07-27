@@ -21,6 +21,9 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     "ost.connect", "ost.read", "probe", "aldri", "konfunder", "heterogenitet",
     "join", "Kilderegister", "transkribert", "modellkunnskap", "site:",
     "Søketips", "data.europa.eu",
+    // 2026-07-27 (2): pandas-url-bro — grenseregelen pandas-vs-ost er ny i
+    // DELIVERY; denne needelen er en TILLEGG (ingen eldre needle endret).
+    "pd.read_csv", "Grenseregel",
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

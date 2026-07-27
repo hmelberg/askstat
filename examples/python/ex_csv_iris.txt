@@ -1,8 +1,11 @@
 # label: Load a CSV from GitHub
 # OpenStat — a quick example. Edit it freely, or pick another under "Examples".
-# Two ways to load data: the `# load` directive (below), or plain pandas.
-# iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
-# (equivalent: iris = pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv"))
+# A plain GET URL that returns a table needs no directive — read it with
+# plain pandas, exactly as you would outside the app. `ost.read(...)` exists
+# for sources that need more than a URL (registries, secret_key, canonical
+# queries, POST bodies, databases) — see Help → Data directives.
+import pandas as pd
+iris = pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 
 # A table — mean measurements per species:
 iris.groupby("species").mean(numeric_only=True).round(2)

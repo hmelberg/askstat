@@ -5,6 +5,23 @@ Directives are plain comments at the start of a line, understood by
 can be `#`, `--`, or `//` (whichever the active mode uses) — the parser
 treats them identically.
 
+## §0. When you don't need a directive
+
+A plain GET URL that returns a table needs no directive at all — read it
+with ordinary pandas:
+
+```
+iris = pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
+```
+
+This works in every Python mode (Pyodide, Brython, MicroPython) and is
+unchanged code outside the app too. Reach for `ost` only when something more
+than a URL is needed: registry sources, `secret_key`, the canonical query
+vocabulary (`years=`/`indicators=` — safest against SDMX sources, which
+silently ignore unknown parameters in a raw URL), POST bodies,
+databases/tables, encryption, `use` and mounting. Everything below this
+point is about that `ost` side of the line.
+
 ## Grammar
 
 ```

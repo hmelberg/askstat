@@ -3,6 +3,11 @@ import {
   buildDataSvarSystem, buildToolDefs, coerceDataMode, coerceDepth, depthClientToolCalls,
   progressLabel, questionTurn, repairTurn, TOOL_DEFS, CLIENT_TOOL_DEFS,
 } from "./data-svar-prompt.ts";
+// Den ekte direktivgrammatikken (browser-globals): promptens eksempler skal
+// parse rent i den — «eksempler slår regler», så et eksempel parseren avviser
+// er en prompt-bug (målt 2026-07-28: etterfølgende kommentar på direktivlinje).
+import "../../../js/directive-parser.js";
+import "../../../js/data-directives.js";
 
 Deno.test("coerceDataMode defaults to python", () => {
   assertEquals(coerceDataMode("r"), "r");
@@ -55,6 +60,25 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
   if (!r.includes("ggplot2") || a.includes("ggplot2")) throw new Error("modus-blokker feil");
   const d = buildDataSvarSystem("duckdb", reg);
   if (!d.includes("read_csv_auto")) throw new Error("duckdb-blokk mangler");
+});
+
+Deno.test("promptens egne kodeblokk-eksempler parser rent i den ekte grammatikken", () => {
+  // deno-lint-ignore no-explicit-any
+  const DD = (globalThis as any).DataDirectives;
+  if (!DD) throw new Error("DataDirectives-globalen mangler (importrekkefølge?)");
+  for (const mode of ["python", "r", "duckdb"] as const) {
+    const sys = buildDataSvarSystem(mode, "## Kilderegister (kuratert)\n");
+    const blocks = [...sys.matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map((m) => m[1]);
+    if (mode === "python" && blocks.length < 2) throw new Error("fant ikke eksempelblokkene");
+    for (const b of blocks) {
+      const p = DD.parse(b);
+      const a = DD.parseAssembly(b);
+      const errs = (p.errors as string[]).concat(a.errors as string[]);
+      if (errs.length) {
+        throw new Error(`eksempelblokk i ${mode}-prompten lærer bort ugyldig syntaks: ${JSON.stringify(errs)}\n---\n${b}`);
+      }
+    }
+  }
 });
 
 Deno.test("dybde: deep er default-blokk, fast bytter budsjett-tabell — ærlighet i begge", () => {

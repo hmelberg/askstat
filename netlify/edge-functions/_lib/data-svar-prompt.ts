@@ -116,11 +116,18 @@ tabell → vanlig kode; register → kanonisk \`<alias>.read\`; proxy-formen
 \`/api/hent\` er SISTE utvei:
 
 \`\`\`
-co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")  # åpen GET-tabell, probe viste cors:true → vanlig kode, IKKE direktiv
+co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")  # åpen GET-tabell (probe: cors:true) → vanlig kode, IKKE direktiv
 # ssb = ost.connect("ssb")
-# ledighet = ssb.read("05839", years="2000:2009")   # registerkilde → kanonisk vokabular
-# vax = ost.read("/api/hent?url=<url-enkodet>")     # KUN fordi probe målte cors:false (eller nøkkel/POST)
+# ledighet = ssb.read("05839", years="2000:2009")
+# vax = ost.read("/api/hent?url=<url-enkodet>")
 \`\`\`
+
+Linje 2-3 er registerveien (kanonisk vokabular); linje 4 er proxy-formen —
+KUN ved målt cors:false eller nøkkel/POST. NB: en direktivlinje tåler INGEN
+etterfølgende kommentar etter \`)\` — parseren avviser den (målt feilklasse
+2026-07-28); forklaringer står i prosa eller i koden under, aldri på
+direktivlinja. Alias-navnet skal heller ALDRI være \`ost\` (skygger
+inngangspunktet).
 
 - \`# <alias> = ost.connect("<base-url|register-id>")\` — kobler til en kilde.
 - \`# <navn> = ost.read("<url>")\` eller \`# <navn> = <alias>.read("<sti>")\` —

@@ -170,12 +170,64 @@
     ].join('\n');
   }
 
+  // ── S4: publiserings-sømmen ───────────────────────────────────────────────
+  // Publiserte dokumenter er appens egen index.html med injiserte tags.
+  // I stedet for å skrive om brukerens read_csv-linjer bakes BRO-CACHEN som
+  // tags ved publisering (exportTags), og leses tilbake ved sidelast
+  // (seedFromDocument) — read_csv(url) treffer da cachen i ALLE motorene
+  // (Pyodide via forPyodideSync, brython/mpy via ensureText) uten nett.
+  // b64 hele veien: parquet er binært, og tekst tåler rundturen uansett.
+  // Dynamisk bygde URL-er bakes ikke (hint-prinsippet: publisert side henter
+  // dem live, CORS tillatende).
+  function b64FromBytes(u8) {
+    var s2 = '';
+    for (var i = 0; i < u8.length; i++) s2 += String.fromCharCode(u8[i]);
+    return (typeof btoa !== 'undefined') ? btoa(s2) : Buffer.from(u8).toString('base64');
+  }
+  function bytesFromB64(b64) {
+    if (typeof atob !== 'undefined') {
+      var bin = atob(b64), u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return u8;
+    }
+    return new Uint8Array(Buffer.from(b64, 'base64'));
+  }
+
+  function exportTags(script) {
+    var out = [];
+    scanUrls(script).forEach(function (u) {
+      var c = cache[u];
+      if (c && c.bytes) out.push({ url: u, contentType: c.contentType || '', b64: b64FromBytes(c.bytes) });
+    });
+    return out;
+  }
+
+  function _seedEntries(list) {
+    (list || []).forEach(function (e) {
+      if (!e || typeof e.url !== 'string' || typeof e.b64 !== 'string') return;
+      try { cache[e.url] = { bytes: bytesFromB64(e.b64), contentType: e.contentType || '' }; }
+      catch (err) { /* én råtten tag skal ikke velte resten */ }
+    });
+  }
+
+  function seedFromDocument() {
+    if (typeof document === 'undefined') return;
+    var nodes = document.querySelectorAll('script[type="application/json"][id^="ostbridgedata_"]');
+    for (var i = 0; i < nodes.length; i++) {
+      try { _seedEntries([JSON.parse(nodes[i].textContent)]); } catch (e) { /* som over */ }
+    }
+  }
+
   global.ReadBridge = {
     configure: function (f) { depsFn = f; },
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
     getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
+    exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
     _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },
   };
+  // Publisert side: les bakte tags med én gang modulen laster (DOM-en med
+  // tags ligger FØR denne script-taggen i dokumentet, så den finnes nå).
+  seedFromDocument();
 })(typeof window !== 'undefined' ? window : globalThis);

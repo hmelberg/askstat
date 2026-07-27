@@ -764,6 +764,12 @@ window.M2PY_I18N.en = {
   "OpenAI Responses (med websøk)": "OpenAI Responses (with web search)",
   "Base-URL er alt før endepunktnavnet (typisk t.o.m. /v1). Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server til leverandøren du velger, og forbruk (inkludert eventuelt websøk hos OpenAI) belastes din konto der. Web-modus med OpenAI-typene krever en modell med verktøystøtte. Microdata-AI krever fortsatt Anthropic-nøkkel.": "The base URL is everything before the endpoint name (typically up to /v1). The key is stored only in this browser; requests go via the app's server to the provider you choose, and usage (including any web search at OpenAI) is billed to your account there. Web mode with the OpenAI types requires a model with tool support. The microdata AI still requires an Anthropic key.",
 
+  // ── Dybde for Web-modus (Fast/Deep, 2026-07-28) ──
+  "Dybde (Web-modus)": "Depth (Web mode)",
+  "Grundig (standard)": "Thorough (default)",
+  "Hurtig": "Fast",
+  "Hurtig bruker færre søk og kilder og gir kortere svar; kravene til verifiserte kilder gjelder uansett.": "Fast uses fewer searches and sources and gives shorter answers; the requirements for verified sources still apply.",
+
   // ── Portabel eksport (spec 2026-07-23-portable-export-design) ──
   "Last ned portabelt script": "Download portable script",
   "Kopier portabelt script": "Copy portable script",

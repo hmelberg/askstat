@@ -29,6 +29,15 @@ Kriterier (alle må holde):
    hendelser brukt i identifikasjon er verifisert m/ dato + kilde-URL.
 10. PORTABILITET: cors:true + GET-tabell → pd.read_csv DIREKTE (ikke
     /api/hent-innpakning); proxy kun ved målt CORS-feil eller nøkkelkilde.
+11. FORSKNINGSSYNTESE-SITERINGER (2026-07-28): studier omtalt med
+    funn/tall/årstall skal stå i et search_literature-treff (DOI-URL oppgitt
+    i svaret) eller være web_fetch-lest; ellers merket «fra modellkunnskap —
+    verifiser». Mekanisk sjekk: åpne DOI-URL-ene fra svaret.
+
+Dybde (2026-07-28): settet kjøres i Deep (default). Fast måles med
+Fast/Deep-PAR på samme spørsmål og bedømmes etter «Fast reduserer ambisjon,
+aldri ærlighet»: ærlighetskriteriene (1, 2, 5, 11) gjelder UENDRET i Fast;
+omfangskriterier (flerkilde, heterogenitet, svarlengde) slakkes.
 
 | # | Modus | Spørsmål | Forventet kilde(r) |
 |---|-------|----------|--------------------|
@@ -123,4 +132,14 @@ for en quirks-presisering eller promptregel i en senere runde.
 | 2026-07-28 | 11 | PASS m/ note | HELE den kausale veien: VARIABELPLAN-tabell (roller inkl. avledet behandling + join-nøkkel), DiD-ramme, ærlig støy-forbehold for aggregerte data. NOTE: /api/hent-innpakket last (kriterium 10 ✗) tross SSB cors:true. |
 | 2026-07-28 | 15 | PASS m/ note | Deskriptiv kontroll: lett vei HOLDT (ingen variabelplan-stillas ✓), DST FOLK1A ✅. NOTE: proxy-innpakket (kriterium 10 ✗) tross DST målt cors-åpen (curl-verifisert ACAO *). |
 | 2026-07-28 | 15 (r2) | delvis | Etter regel 6: fortsatt proxy som primær, MEN legger selv til «bytt til pd.read_csv(url) lokalt»-kommentar — halv adopsjon. LÆRDOM: eksempler slår regler — NESTE SPAK er DELIVERY-blokkens egne eksempellinjer (viser fortsatt /api/hent-formen som kanonisk). Tas m/ neste målebatch. |
-| 2026-07-28 | — | UTVIDET | Hans' innspill: (a) individdata finnes åpent — datatype-sjekk (aggregert/individ) inn i datarekognoseringen; (b) metodelisten eksplisitt ikke-uttømmende (+PSM); (c) METODEVERKTØYKASSE per modus (pyodide full / webR god m/ fixest-forbehold / duckdb deskriptiv + foreslå modusbytte). Umålt — inn i neste batch. |
+| 2026-07-28 | — | UTVIDET | Hans' innspill: (a) individdata finnes åpent — datatype-sjekk (aggregert/individ) inn i datarekognoseringen; (b) metodelisten eksplisitt ikke-uttømmende (+PSM); (c) METODEVERKTØYKASSE per modus (pyodide full / webR god m/ fixest-forbehold / duckdb deskriptiv + foreslå modusbytte). Umålt — inn i neste batch.
+| 2026-07-28 | — | RUNDE | DELIVERY-eksempel-kirurgi + search_literature (OpenAlex) + Fast/Deep målt. FELLE målt underveis: (1) første eksempelversjon hadde halekommentar på direktivlinjene — modellen kopierte formen, parseren avviste («uventet tekst etter ')'»); fikset + permanent deno-vakt som parser promptens egne eksempelblokker. (2) netlify dev cacher edge-moduler i prosessens levetid — TS-endringer krever restart før måling (parallell til Chrome-js-cache-fella). |
+| 2026-07-28 | 6 | PASS | Deep: fredgraph UNRATE ✅-probet, proxy KORREKT begrunnet i målt cors:false (probe-sannheten vant over regel 5s «CORS-åpen»-påstand — regelteksten overpromitterer, notert), deskriptiv vei, rent parse, direktivvariabel brukt direkte. |
+| 2026-07-28 | 6 (fast) | PASS | Fast/Deep-PARET: budsjett holdt (1 websøk, 3 klientkall ≤4), samme ✅-kilde og ærlighet som Deep, kortere svar. «Reduserer ambisjon, aldri ærlighet» målt bekreftet på lett spørsmål. |
+| 2026-07-28 | 10 (r2) | PASS | search_literature ADOPTERT umiddelbart: 12 litteratursøk, metodetabell m/ 7 DOI-siteringer — ALLE mekanisk verifisert reelle (doi.org handle-API 200×7), attribusjon stikkprøvet korrekt (Andresen&Havnes 2019, Österbacka&Räsänen 2021, Lalive m.fl. 2013). k10-notatet (lenkeløse siteringer) LUKKET. Kriterium 11 ✓. |
+| 2026-07-28 | 2 | PARTIAL | Pandas-først ADOPTERT for OWID-CSV (pd.read_csv direkte etter cors:true-probe — kirurgiens målatferd ✓, kriterium 10 ✓) + god flerkilde-join m/ radtall. MEN World Bank-JSON (ikke tabellform) løst m/ urllib (regel 4-brudd) i stedet for registerets worldbank-adapter. NYTT MØNSTER: JSON-API → urllib-hullet; eksempelblokka mangler JSON-API-linje. Neste spak. |
+| 2026-07-28 | 4 | PARTIAL (ærlig) | Alle 3 URL-prober FAILET (SSB v2-varianter); modellen fabrikkerte IKKE — kanonisk fallback ssb.read("07459", years, filters) m/ riktig `--`-form, «verifisert i metadata-oppslag» (ikke falskt «probe-verifisert»). Kriterium 1 strengt ikke oppfylt; ærlighet holdt. |
+| 2026-07-28 | 7 | FAIL (krit. 3) | R-RE-FETCH-MØNSTERET TILBAKE: direktiver deklarert, men koden ignorerer direktivvariablene og re-henter via readLines(proxy_url) i fetch_gho()-hjelper (samme klasse som q3/q7 r1 2026-07-03). Ærlighet god (WHS8_111 eksplisitt «antatt, ikke probet»). BIFANGST: analyze.mjs fanget ikke readLines( — regex utvidet. |
+| 2026-07-28 | 14 | FAIL (krit. 3) | SAMME R-klasse som q7: kanoniske direktiver (ssb_raw.read("06913", filters) ✓, SSB-malen stub+UseTexts+latin1 ✓, begge kilder ✅-probet ✓) — men koden re-henter selv (readr::read_csv(proxy_url)) og WB-JSON via fromJSON(url). R-modus ignorerer direktivvariabler: 2/2 i denne batchen. |
+| 2026-07-28 | 12+17 | PASS | Kjørt ÉN gang (identiske inputs — q12 og q17 har samme spørsmålstekst og ingen nøkkel). Fant åpent GitHub-speil (datasciencedojo), ✅-probet cors:true, ren pd.read_csv DIREKTE (kriterium 10 ✓), overlevelsesrate etter kjønn levert, Kaggle-opphav oppgitt. q17-forventningen oppfylt; q12-forventningen («skal si at nøkkel må registreres») er FORELDET — åpne speil finnes, ingen fabrikasjon nødvendig. |
+| 2026-07-28 | — | KONKLUSJON | Batch (fikset prompt, fersk server): 4 PASS (6, 6-fast, 10, 12+17), 2 PARTIAL (2, 4), 2 FAIL (7, 14). MÅLTE EFFEKTER av runden: pandas-først-eksemplet ADOPTERT (q2 OWID, q12+17 direkte read_csv); search_literature adoptert m/ 7/7 reelle DOI-er (q10); Fast/Deep-paret bekrefter designet (q6). TO TVERRGÅENDE mønstre til neste spak: (a) R-MODUS RE-FETCH — 2/2 r-kjøringer ignorerer direktivvariablene (MODE_R mangler eget eksempel; KRAV-teksten står i DELIVERY men eksempler slår regler); (b) JSON-API-HULLET — ikke-tabulær GET-JSON (World Bank) løses m/ urllib/fromJSON i stedet for direktiv/adapter (q2, q14); eksempelblokka mangler JSON-API-linje. q16 gjenstår (manuell OpenAI-leverandørkjøring). | |

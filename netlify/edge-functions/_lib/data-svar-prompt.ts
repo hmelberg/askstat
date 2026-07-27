@@ -8,6 +8,14 @@ export function coerceDataMode(m: unknown): DataMode {
   return m === "r" || m === "duckdb" ? m : "python";
 }
 
+// Dybde: "deep" er default og dagens oppførsel; "fast" senker budsjettet og
+// ambisjonen (se DEPTH_FAST), ALDRI ærlighetskravene.
+export type Depth = "fast" | "deep";
+
+export function coerceDepth(d: unknown): Depth {
+  return d === "fast" ? "fast" : "deep";
+}
+
 const INTRO = `\
 Du er en forskningsassistent som besvarer spørsmål med ÅPNE DATA og kjørbar
 kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
@@ -29,6 +37,38 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
 3. **GENERER** ett komplett, kjørbart script i brukerens modus (se
    Leveringsregler og modus-blokken). Finner du ikke data: si det ærlig,
    vis hva du søkte på, og foreslå omformuleringer. ALDRI fabrikker.`;
+
+// Budsjett-tabellene og runtime-knottene (maxClientToolCalls, max_uses) skal
+// fortelle samme historie — endres én, endres begge (se buildToolDefs og
+// data-svar.ts). Fast reduserer AMBISJON, aldri ÆRLIGHET.
+const DEPTH_FAST = `\
+## Dybde: FAST (hurtig)
+
+Brukeren har valgt hurtig svar. Budsjett og ambisjon:
+
+| Ressurs | Budsjett |
+| --- | --- |
+| Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 4 totalt |
+| web_search | ≤ 2 |
+| web_fetch | ≤ 1 |
+| Kilder | ÉN er nok (to kun ved eksplisitt sammenligning) |
+| Metode | enkleste troverdige; dropp heterogenitet og sekundæranalyser |
+| Svartekst | kort — funn, én figur, forbehold |
+
+Fast reduserer AMBISJON, ALDRI ÆRLIGHET: probe-✅-kravet, fabrikasjonsvernet,
+variabelplan-gaten ved kausale spørsmål og ærlig degradering gjelder UENDRET.
+Rekker du ikke å verifisere innenfor budsjettet: SI det og lever mindre —
+aldri lat som.`;
+
+const DEPTH_DEEP = `\
+## Dybde: DEEP (grundig)
+
+Full arbeidsflyt — alle faser, flerkilde når det styrker svaret. Budsjett:
+inntil 12 klientverktøykall og 5 web_search/web_fetch. Bruk budsjettet på
+VERIFISERING (probe, table_metadata, hendelsessøk, litteratur) — ikke på
+bredde for breddens skyld.`;
+
+const DEPTH: Record<Depth, string> = { fast: DEPTH_FAST, deep: DEPTH_DEEP };
 
 const DELIVERY = `\
 ## Leveringsregler (ost-direktiver)
@@ -71,21 +111,31 @@ EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
 //). Formen er pythonsk — \`ost.\` på inngangspunktene, bart metodekall på
-det du fikk tilbake:
+det du fikk tilbake. MERK stigen i eksempelet — den ER grenseregelen: åpen
+tabell → vanlig kode; register → kanonisk \`<alias>.read\`; proxy-formen
+\`/api/hent\` er SISTE utvei:
 
 \`\`\`
+co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")  # åpen GET-tabell (probe: cors:true) → vanlig kode, IKKE direktiv
 # ssb = ost.connect("ssb")
-# fred = ost.connect("fred")
-# ledighet = ost.read("/api/hent?url=<url-enkodet v2 data-URL, f.eks. .../v2/tables/05839/data?valueCodes[Kjonn]=0&outputFormat=csv>")
-# co2 = ost.read("https://ourworldindata.org/grapher/co2.csv")
+# ledighet = ssb.read("05839", years="2000:2009")
+# vax = ost.read("/api/hent?url=<url-enkodet>")
 \`\`\`
+
+Linje 2-3 er registerveien (kanonisk vokabular); linje 4 er proxy-formen —
+KUN ved målt cors:false eller nøkkel/POST. NB: en direktivlinje tåler INGEN
+etterfølgende kommentar etter \`)\` — parseren avviser den (målt feilklasse
+2026-07-28); forklaringer står i prosa eller i koden under, aldri på
+direktivlinja. Alias-navnet skal heller ALDRI være \`ost\` (skygger
+inngangspunktet).
 
 - \`# <alias> = ost.connect("<base-url|register-id>")\` — kobler til en kilde.
 - \`# <navn> = ost.read("<url>")\` eller \`# <navn> = <alias>.read("<sti>")\` —
   henter ETT uttrekk; \`navn\` blir en hel DataFrame/data.frame/tabell i
   scriptet. Kolonnene er dem probe viste.
-- Kilder uten CORS eller med nøkkel lastes via proxy:
-  \`# <navn> = ost.read("/api/hent?url=<url-enkodet>")\` (aldri ta med nøkler selv).
+- Kilder med MÅLT CORS-feil (probe: cors:false) eller nøkkel lastes via proxy:
+  \`# <navn> = ost.read("/api/hent?url=<url-enkodet>")\` (aldri ta med nøkler
+  selv). En cors:true GET-tabell skal ALDRI proxy-pakkes (regel 6).
 - POST-API-er GET-innpakkes: \`# <navn> = ost.read("/api/hent?url=<endepunkt>&body=<url-enkodet-json>")\`.
 - Flertrinns-API-kall som ikke passer i én read-linje skrives som kode med
   kilde-URL i kommentar.
@@ -171,7 +221,15 @@ const SCIENCE = `\
 - **Heterogenitet.** Ta med ÉN grov, godt befolket oppdeling der det er
   naturlig; foreslå dypere oppdelinger i prosa.
 - **Ærlighet.** Uten troverdig identifikasjon: si klart at resultatet er
-  deskriptivt/assosiasjon, ikke årsak.`;
+  deskriptivt/assosiasjon, ikke årsak.
+- **Forskningssyntese.** Når svaret (helt eller delvis) hviler på
+  forskningslitteraturen i stedet for egne data: bruk \`search_literature\`
+  (OpenAlex) og siter med DOI-URL fra treffene — tittel + år + DOI ved hver
+  studie du omtaler. Siter ALDRI en studie som ikke står i et
+  search_literature-treff eller er lest med web_fetch; en studie du mener
+  finnes men ikke fant, omtales uten tall/årstall-detaljer og merkes
+  «fra modellkunnskap — verifiser». Sitatfraser ("...") i søket gir mest
+  presise treff.`;
 
 const INLINE = `\
 ## Datatilfangst-stigen (data uten endepunkt)
@@ -272,9 +330,10 @@ URL-en.`;
 export function buildDataSvarSystem(
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean },
+  opts?: { memoryUrls?: boolean; depth?: Depth },
 ): string {
-  const blocks = [INTRO, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
+  const depth = opts?.depth ?? "deep";
+  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   return blocks.join("\n\n");
@@ -314,13 +373,37 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
       required: ["url"],
     },
   },
+  {
+    name: "search_literature",
+    description: "Søk forskningslitteratur (OpenAlex, nøkkelfri). Treffene bærer DOI-URL — siter studier FRA treffene, aldri fra hukommelsen. Sitatfraser (\"...\") gir mest presise treff.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "søkeord; bruk \"fraser i anførselstegn\" for presisjon" },
+        from_year: { type: "integer", description: "valgfritt: kun publikasjoner fra og med dette året" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
-export const TOOL_DEFS: unknown[] = [
-  ...CLIENT_TOOL_DEFS,
-  { type: "web_search_20250305", name: "web_search", max_uses: 5 },
-  { type: "web_fetch_20250910", name: "web_fetch", max_uses: 5 },
-];
+// max_uses-tallene speiler budsjett-tabellene i DEPTH_FAST/DEPTH_DEEP.
+export function buildToolDefs(depth: Depth): unknown[] {
+  const uses = depth === "fast" ? { search: 2, fetch: 1 } : { search: 5, fetch: 5 };
+  return [
+    ...CLIENT_TOOL_DEFS,
+    { type: "web_search_20250305", name: "web_search", max_uses: uses.search },
+    { type: "web_fetch_20250910", name: "web_fetch", max_uses: uses.fetch },
+  ];
+}
+
+export const TOOL_DEFS: unknown[] = buildToolDefs("deep");
+
+// Klientverktøy-taket per dybde (håndheves i runAgenticStream via
+// maxClientToolCalls) — samme tall som DEPTH-tabellene lover modellen.
+export function depthClientToolCalls(depth: Depth): number {
+  return depth === "fast" ? 4 : 12;
+}
 
 export function questionTurn(question: string, script?: string): string {
   return [
@@ -349,6 +432,7 @@ export function progressLabel(name: string, input: Record<string, unknown>): str
     case "search_catalog": return `Søker i ${input.source ?? "katalog"}: «${input.query ?? ""}» …`;
     case "table_metadata": return `Henter variabler for ${input.source ?? ""}/${input.table_id ?? ""} …`;
     case "probe": return `Sjekker ${String(input.url ?? "").slice(0, 80)} …`;
+    case "search_literature": return `Søker litteratur: «${String(input.query ?? "").slice(0, 60)}» …`;
     default: return `Kjører ${name} …`;
   }
 }

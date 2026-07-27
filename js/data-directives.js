@@ -505,7 +505,7 @@
           if (tr.params.length) restQuery = restQuery ? restQuery + '&' + tr.params.join('&') : tr.params.join('&');
         }
         if (!restPath) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
-          error: '«' + l.alias + '»: ' + kind + '-kilder krever en ressurssti — «read ' + head + '/<sti> as ' + l.alias + '» (f.eks. ' +
+          error: '«' + l.alias + '»: ' + kind + '-kilder krever en ressurssti — «# ' + l.alias + ' = ' + head + '.read("<sti>")» (f.eks. ' +
             (kind === 'worldbank' ? 'country/NOR/indicator/NY.GDP.MKTP.CD' :
              kind === 'dbnomics' ? 'IMF/WEO:latest/NOR.NGDP_RPCH' :
              kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' : '<tabellid>') + ')' };
@@ -522,7 +522,7 @@
       // en URL-sti (spec 2026-07-06-remote-columnar-sources-design §1).
       if (kind === 'duckdb' || kind === 'sqlite') {
         if (!rest) return { alias: l.alias, url: base, viaProxy: viaProxy, kind: kind,
-          error: '«' + l.alias + '»: duckdb/sqlite-kilder krever en tabell — «load ' + head + '/<tabell> as ' + l.alias + '»' };
+          error: '«' + l.alias + '»: duckdb/sqlite-kilder krever en tabell — «# ' + l.alias + ' = ' + head + '.read("<tabell>")»' };
         return { alias: l.alias, url: base, viaProxy: viaProxy, key: key, exec: exec, kind: kind, cache: cache, table: rest };
       }
       if (rest) {
@@ -835,5 +835,11 @@
     return out;
   }
 
-  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily };
+  // Reeksportert fra DirectiveParser slik at kallsteder som bare har
+  // DataDirectives (index.html, portable-export) slipper å rulle sin egen
+  // verbliste — de listene sluttet å matche stille da grammatikken ble
+  // pythonsk. Én kilde til sannhet: parsetreet.
+  function isDirectiveLine(line) { return global.DirectiveParser.isDirectiveLine(line); }
+
+  global.DataDirectives = { parse: parse, metaByTarget: metaByTarget, resolve: resolve, scrubKeys: scrubKeys, parseAssembly: parseAssembly, translateCanonical: translateCanonical, parseUse: parseUse, parseSegmentUses: parseSegmentUses, runtimeFamily: runtimeFamily, isDirectiveLine: isDirectiveLine };
 })(typeof window !== 'undefined' ? window : globalThis);

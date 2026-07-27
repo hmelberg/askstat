@@ -446,10 +446,16 @@
   // ingen linjer og «# load <a> as <a>» ble stille ignorert av den nye
   // grammatikken, så spec.sources ble aldri hentet — montering i web-modus
   // returnerte tomt uten én feilmelding.
+  // Sjekken går på parsetreet, ikke på en håndrullet regex: en regex kan
+  // drifte fra grammatikken (det var nettopp slik dette filteret døde),
+  // parsetreet kan ikke.
+  function isConnectLine(ln) {
+    var p = global.DirectiveParser.parseLine(ln);
+    return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'connect');
+  }
+
   function keepConnectLines(script) {
-    return String(script == null ? '' : script).split(/\r?\n/).filter(function (ln) {
-      return /^[ \t]*(?:#|--|\/\/)[ \t]*[A-Za-z_]\w*[ \t]*=[ \t]*ost[ \t]*\.[ \t]*connect[ \t]*\(/i.test(ln);
-    }).join('\n');
+    return String(script == null ? '' : script).split(/\r?\n/).filter(isConnectLine).join('\n');
   }
 
   // srcKey er «<alias>» eller «<alias>__<tabell>» (se parseAssembly.noteSource).

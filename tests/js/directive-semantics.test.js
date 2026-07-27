@@ -355,3 +355,27 @@ test('parseAssembly: gyldige argumenter er urørt', () => {
     { op: 'join', from: 'sales', on: ['pid'], how: 'inner' },
   ]);
 });
+
+test('isDirectiveLine: eksportert fra DataDirectives', () => {
+  assert.equal(DD.isDirectiveLine('#meta.bef.note = "t"'), true);
+  assert.equal(DD.isDirectiveLine('# bef = ssb.read("05839")'), true);
+  assert.equal(DD.isDirectiveLine('SELECT 1'), false);
+  assert.equal(DD.isDirectiveLine('#options.view = "output-only"'), false);
+  assert.equal(DD.isDirectiveLine('#%% python'), false);
+});
+
+// Regresjon: verblisten i stripDataDirectiveLines sluttet å matche da
+// grammatikken ble pythonsk, og «#» er ikke kommentar i DuckDB. ALLE
+// direktivlinjer lakk inn i __duck.exec(), ikke bare meta-linjene.
+test('isDirectiveLine: alle direktivformer må ut av SQL, linjetall bevart', () => {
+  const sql = ['#meta.bef.note = "Folkemengde"',
+               '# bef = ssb.read("05839")',
+               '# panel = ost.create(key="pid")',
+               '# panel.add(bef, ["alder"])',
+               '-- en vanlig SQL-kommentar',
+               'SELECT * FROM bef'].join('\n');
+  const stripped = sql.split(/(\r?\n)/)
+    .map((p, i) => (i % 2 === 0 && DD.isDirectiveLine(p)) ? '' : p).join('');
+  assert.equal(stripped, '\n\n\n\n-- en vanlig SQL-kommentar\nSELECT * FROM bef');
+  assert.equal(stripped.split('\n').length, sql.split('\n').length);
+});

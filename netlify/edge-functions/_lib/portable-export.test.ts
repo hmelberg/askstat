@@ -343,3 +343,18 @@ Deno.test("eurostat python: samme _px_frame-helper, eurostat-URL", () => {
     throw new Error("feil emisjon:\n" + out.code);
   }
 });
+
+// Regresjon: ASM_LINE_RE hadde den gamle verblisten og traff ingenting etter
+// omleggingen til pythonsk syntaks. lastAsmIdx ble stående på -1, så
+// monteringsblokken havnet NEDERST — etter koden som bruker datasettet.
+Deno.test("montering: blokken settes inn FØR koden som bruker den", () => {
+  const s = ['# p = ost.connect("https://x.example/personer.csv")',
+             '# panel = ost.create(key="pid")',
+             '# panel.add(p, ["income"])',
+             'print(panel.head())'].join('\n');
+  const out = PE.transpile(s, "python", []);
+  const lines = out.code.split('\n');
+  const asm = lines.findIndex((l: string) => l.startsWith('panel = '));
+  const use = lines.findIndex((l: string) => l.includes('print(panel.head())'));
+  assertEquals(asm >= 0 && use >= 0 && asm < use, true, out.code);
+});

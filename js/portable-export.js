@@ -18,21 +18,28 @@
   // «dt <- data.table::key(dt)» til «data.table::key(***)». Bare linjer som
   // ser ut som direktiv-kommentarer kan bære nøkkelliteraler.
   //
-  // Mønsteret må dekke BEGGE skrivemåtene. Med bare den gamle
-  // (connect|read|load|require) traff det ingenting etter omleggingen, og
-  // «# h = ost.read("…", secret_key="supersecret123")» ble eksportert med
-  // hemmeligheten i klartekst. Den legacy-halen står igjen fordi et malformert
-  // «# load <url> key(<literal>)» (uten «as») aldri parses som direktiv og
-  // ellers ville sluppet gjennom umaskert.
-  var DIRECTIVE_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:(?:[A-Za-z_]\w*[ \t]*=[ \t]*)?[A-Za-z_]\w*[ \t]*\.[ \t]*(?:connect|read|create|use|add|join)\b|(?:connect|read|load|require)\b)/i;
+  // Den nye syntaksen dekkes av DD.isDirectiveLine (parsetreet). Legacy-halen
+  // står IGJEN med vilje og må ikke fjernes: «# load https://x/d.enc.json
+  // key(hemmelig)» (uten «as») er malformert, så ingen grammatikk kjenner den
+  // igjen — isDirectiveLine er false — og linja ville gått umaskert ut i
+  // eksporten. Halen er altså en nøkkellekkasje-vakt, ikke en verbliste.
+  var LEGACY_DIRECTIVE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(?:connect|read|load|require)\b/i;
   var LEGACY_KEY_RE = /\bkey\(\s*(?!ask\s*\))[^)]*\)/gi;
   var MASK_WARNING = 'nøkkelverdier ble maskert i eksporten — bruk secret_key="ask" eller egen nøkkelhåndtering utenfor appen';
 
   function scrubDirectiveLine(line, DD, state) {
-    if (!DIRECTIVE_LINE_RE.test(line)) return line;
+    if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) return line;
     var scrubbed = DD.scrubKeys(line).replace(LEGACY_KEY_RE, 'key(***)');
     if (scrubbed !== line) state.masked = true;
     return scrubbed;
+  }
+
+  // Delt med js/data-loader.js: sjekken går på parsetreet, ikke på en
+  // håndrullet regex — en regex kan drifte fra grammatikken (det var nettopp
+  // slik det gamle «# connect»-filteret døde), parsetreet kan ikke.
+  function isConnectLine(ln) {
+    var p = global.DirectiveParser.parseLine(ln);
+    return !!(p && p.form === 'call' && p.recv === 'ost' && p.verb === 'connect');
   }
 
   // /api/hent?url=<enc>[&body=<enc-json>] → {url, body|null}; ellers null.
@@ -548,7 +555,15 @@
   // Datasett med .load er alt emittert av sine egne load-linjer; kilder som
   // ikke kan gjøres portable (duckdb/sqlite/kryptert/uløselig) gjør at
   // datasettet hoppes over med kommentar + warning i stedet for knekt kode.
-  var ASM_LINE_RE = /^[ \t]*(?:#|--|\/\/)[ \t]*(create(?:[-_]dataset)?|add|import|join)\b/i;
+  // Parsetre-sjekk, ikke verbliste: den gamle listen sluttet å matche da
+  // grammatikken ble pythonsk, lastAsmIdx ble stående på -1 og
+  // monteringsblokken havnet NEDERST — etter koden som bruker datasettet
+  // (NameError i den eksporterte fila, uten én advarsel).
+  function isAssemblyLine(ln) {
+    var p = global.DirectiveParser.parseLine(ln);
+    return !!(p && p.form === 'call' &&
+              ((p.recv === 'ost' && p.verb === 'create') || p.verb === 'add' || p.verb === 'join'));
+  }
 
   function mergeLine(name, rightExpr, keys, how, mode) {
     if (mode === 'python') {
@@ -576,9 +591,7 @@
     // «# connect»-filteret traff ingen linjer og «# load <k> as src_<k>» ble
     // stille ignorert av den nye grammatikken, så resolvedSynth ble tom:
     // eksporten mistet ALLE kildelesingene i en montering — uten feilmelding.
-    var connectLines = String(script).split('\n').filter(function (ln) {
-      return /^[ \t]*(?:#|--|\/\/)[ \t]*[A-Za-z_]\w*[ \t]*=[ \t]*ost[ \t]*\.[ \t]*connect[ \t]*\(/i.test(ln);
-    }).join('\n');
+    var connectLines = String(script).split('\n').filter(isConnectLine).join('\n');
     var synth = srcKeys.map(function (k) {
       var t = tables[k];
       return t ? ('# src_' + k + ' = ' + t.source + '.read("' + t.table + '")')
@@ -650,8 +663,7 @@
       // som direktiver (også malformerte, f.eks. «# load … key(secret)» uten
       // «as») kan likevel bære nøkkelliteraler. Kjør derfor alltid den
       // linje-skopede scrubben — output blir byte-identisk når ingen linje
-      // matcher direktivformen (DIRECTIVE_LINE_RE), så passthrough-testen
-      // holder uendret.
+      // matcher direktivformen, så passthrough-testen holder uendret.
       var st0 = { masked: false };
       var passthrough = String(script).split('\n').map(function (l) {
         return scrubDirectiveLine(l, DD, st0);
@@ -688,7 +700,7 @@
         // passthrough — connect-linjer (også direktiver) linje-skopes
         outLines.push(scrubDirectiveLine(lines[i], DD, maskState));
       }
-      if (ASM_LINE_RE.test(lines[i])) lastAsmIdx = outLines.length;
+      if (isAssemblyLine(lines[i])) lastAsmIdx = outLines.length;
     }
     // Monteringsblokken settes inn rett etter siste monteringsdirektiv-linje.
     var asmBlock = _hasAsm ? emitAssembly(script, mode, registry || [], warnings, needs, DD) : null;

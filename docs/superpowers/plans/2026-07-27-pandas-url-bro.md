@@ -23,7 +23,7 @@
 
 - `js/data-loader.js` — MODIFY: ny eksport `fetchRawUrl` (gjenbruker `fetchLoadTarget`-mekanikken `:73-100`).
 - `js/read-bridge.js` — CREATE: skann + cache + `ensure`/`getCached`/`forPyodideSync` + `pyPatchSource()` (Pyodide-patchens Python-kilde, node-testbar streng).
-- `index.html` — MODIFY: last `read-bridge.js`; injiser Pyodide-patchen i interpreter-preamblet; kall `prefetchScript` ved de tre kjøre-inngangene (`:2716`, `:2791`, `:2856`).
+- `index.html` — MODIFY: last `read-bridge.js`; injiser Pyodide-patchen i interpreter-preamblet; kall `prefetchScript` ved de tre PYODIDE-inngangene. **KORRIGERT ved pre-sjekk 2026-07-27:** `:2716`/`:2791`/`:2856` er brython/mpy/js-innganger — de riktige er `:10374` (hovedkjøring, `effectiveScript`), `:10860` (notatbok-boot, `scriptInput.value`), `:11907` (forklar, `snapshotScript`). Patchen i `getInterpreterCorePython` (`:7470`) dekker alle Pyodide-veier automatisk (både `:10458` setupCode og `:11920` explainInit bygger på den).
 - `js/brython-engine.js` — MODIFY: `beginFetchBridge()` parallelt med `beginDuckBridge()`; replay-løkka flusher begge køene.
 - `brython/pandas_brython.py` — MODIFY: URL-gren i `read_csv` (`:4888`).
 - `js/micropython-engine.js` + `micropython/pandas_mpy.py` — MODIFY: samme mønster (`__mpyFetchSync`, `read_csv` `:5161`).

@@ -89,6 +89,15 @@ urørt — det er en logg, ikke en referanse. Gjeldende syntaks: se siste entry.
   eksisterende needle-listen (`pd.read_csv`, `Grenseregel`) — TILLEGG, ingen
   eldre needle endret eller fjernet. Hele `_lib/`-suiten grønn etter
   endringen.
+  FIX (Task 6-review, samme dag): SDMX-forbeholdet fantes fra før KUN i
+  hjelp.html:471 (til mennesker), ikke der det virker operasjonelt — i selve
+  modell-prompten. DELIVERY fikk derfor én ny setning rett under
+  grenseregel-tabellen, samme ordlyd som hjelp.html: SDMX-kilder (OECD, ECB,
+  Norges Bank) ignorerer ukjente parametere STILLE i en rå URL — bruk `ost`
+  med `years=`/`countries=`/`indicators=` som sikkerhetsskinne mot disse,
+  ALDRI en rå `pd.read_csv`-URL mot SDMX. `data-svar-prompt.test.ts` fikk én
+  ny needle (`SDMX`) i samme needle-liste — TILLEGG, ingen eldre needle
+  endret.
 
 ### Uten websøk: modellkunnskaps-URL-er
 

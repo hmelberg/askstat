@@ -42,6 +42,10 @@ i og utenfor appen:
 | Åpen tabell-URL (ingen nøkkel, ingen POST) | pandas/R \`read_csv\` direkte | \`co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")\` |
 | Nøkkel, proxy (CORS/POST), kanonisk spørring, database/tabell | \`ost\`-direktiv | \`# ssb = ost.connect("ssb")\` + \`# ledighet = ssb.read("05839", years="2000:2009")\` |
 
+SDMX-kilder (OECD, ECB, Norges Bank) ignorerer ukjente parametere STILLE i en
+rå URL — bruk \`ost\` med \`years=\`/\`countries=\`/\`indicators=\` som
+sikkerhetsskinne mot disse kildene, ALDRI en rå \`pd.read_csv\`-URL mot SDMX.
+
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
 //). Formen er pythonsk — \`ost.\` på inngangspunktene, bart metodekall på

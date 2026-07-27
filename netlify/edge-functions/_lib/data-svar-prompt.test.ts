@@ -24,6 +24,9 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     // 2026-07-27 (2): pandas-url-bro — grenseregelen pandas-vs-ost er ny i
     // DELIVERY; denne needelen er en TILLEGG (ingen eldre needle endret).
     "pd.read_csv", "Grenseregel",
+    // Task 6-review: SDMX-forbeholdet manglet operasjonelt i DELIVERY (fantes
+    // KUN i hjelp.html for mennesker) — TILLEGG, ingen eldre needle endret.
+    "SDMX",
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

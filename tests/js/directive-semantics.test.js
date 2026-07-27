@@ -438,3 +438,61 @@ test('parseAssembly: add tar én kolonneparameter, ikke varargs', () => {
   assert.deepEqual(ok.spec.datasets.find((d) => d.name === 'panel').steps[0].columns,
                    ['income', 'edu']);
 });
+
+// += (2026-07-27): «=» erstatter (spec §3.3), «+=» føyer til. Uten += var
+// eneste vei til flere notater én lang listelinje — og direktivlinjer kan
+// ikke brytes, så taket lå på ~2 lenker før linja ble uleselig.
+test('meta: += føyer til i stedet for å overskrive', () => {
+  const r = DD.parse('# meta.iris.note = "A"\n# meta.iris.note += "B"');
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.warnings, []);
+  assert.deepEqual(r.metas.map((m) => m.text), ['A', 'B']);
+});
+
+test('meta: = etter += nullstiller (bevisst erstatning)', () => {
+  const r = DD.parse('# meta.iris.note += "A"\n# meta.iris.note = "C"');
+  assert.deepEqual(r.metas.map((m) => m.text), ['C']);
+});
+
+test('meta: link += utvider lenkelista', () => {
+  const r = DD.parse('# meta.iris.link = {"https://a": "A"}\n# meta.iris.link += {"https://b": "B"}');
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.metas.map((m) => [m.url, m.label]), [['https://a', 'A'], ['https://b', 'B']]);
+});
+
+test('meta: += som første linje er greit (føyer til tomt)', () => {
+  const r = DD.parse('# meta.iris.note += "A"');
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.metas.map((m) => m.text), ['A']);
+});
+
+test('meta: += på variabelnivå virker', () => {
+  const r = DD.parse('# meta.iris.sepal_length.note = "A"\n# meta.iris.sepal_length.note += "B"');
+  assert.deepEqual(r.metas.map((m) => [m.variable, m.text]), [['sepal_length', 'A'], ['sepal_length', 'B']]);
+});
+
+test('meta: += på enkeltverdinøkler gir feil, ikke stillhet', () => {
+  ['# meta.iris.title += "T"', '# meta.iris.kilde += "K"',
+   '# meta.iris.labels += {"k": "K"}', '# meta.iris.sepal_length.label += "L"',
+  ].forEach((line) => {
+    const r = DD.parse(line);
+    assert.deepEqual(r.metas, [], line);
+    assert.match(r.errors[0] || '', /«\+=» støttes bare for note og link/, line);
+  });
+});
+
+// Gjentatt = som faktisk kaster noe er lov (spec §3.3, x=5;x=7-klassen) —
+// men den skal VARSLE, ikke tie: før migreringen AKKUMULERTE gjentatte
+// meta-linjer, så vanen sitter, og tapet er brukerens egen tekst.
+test('meta: gjentatt = på note/link varsler uten å endre resultatet', () => {
+  const r = DD.parse('# meta.iris.note = "A"\n# meta.iris.note = "B"');
+  assert.deepEqual(r.metas.map((m) => m.text), ['B']);
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0], /\+=/);
+});
+
+test('meta: første = varsler ikke, og ulike mål varsler ikke', () => {
+  const r = DD.parse('# meta.iris.note = "A"\n# meta.pen.note = "B"\n# meta.iris.link = "https://a"');
+  assert.deepEqual(r.warnings, []);
+});

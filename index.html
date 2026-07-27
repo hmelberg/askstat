@@ -8285,6 +8285,11 @@ async def _run_duck_sql(_sql, _fresh=True):
         warnHtml += '<div class="meta-info-warn">'
           + escapeHtml(t('⚠ # meta: ukjent mål «{mal}»', { mal: m.target })) + '</div>';
       });
+      // Overskrivings-varsler fra parse() (gjentatt «=» på note/link — før
+      // migreringen akkumulerte de, så vanen sitter): samme aldri-stille-rad.
+      (parsed.warnings || []).forEach(function (w) {
+        warnHtml += '<div class="meta-info-warn">' + escapeHtml('⚠ # meta: ' + w) + '</div>';
+      });
       if (!names.length && !warnHtml) { host.innerHTML = ''; return; }
       // Slanket kildeflate (Task 4, speiler datasettraden): navnelinje med ▸/▾-
       // indikator (klikk → toggle variabellista) + ⓘ (→ metadata-modal). Ingen ⊞

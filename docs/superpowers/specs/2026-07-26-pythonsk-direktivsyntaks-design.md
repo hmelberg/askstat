@@ -201,9 +201,17 @@ Dette gjelder kun brukerens eget lag. Kildens metadata fra `/api/metadata`
 flettes fortsatt separat, og `js/meta-info.js:145-177` beholder regelen om at
 brukertekst rendres først og aldri stille overstyrer kildens.
 
-`+=` (append på liste-nøkler) er **reservert, ikke bygget**. Legges inn hvis
-distribuert deklarasjon viser seg nødvendig — f.eks. hvis `#%% data`-celler
-(§10) gjør det naturlig å spre meta over flere celler.
+`+=` er **bygget** (2026-07-27, rett etter leveringen): `=` erstatter, `+=`
+føyer til — standard Python-semantikk. Gyldig kun for de akkumulerende
+nøklene `note` og `link` (på begge nivåer); på enkeltverdinøkler
+(`title`/`label`/felt) gir `+=` feil, ikke stille konkatenering. Begrunnelsen
+var todelt: metadata oppdages gjerne underveis i analysen (én lang listelinje
+er feil ergonomi for det), og direktivlinjer kan ikke brytes, så listeformen
+hadde et hardt tak allerede ved to lenker. I tillegg VARSLER gjentatt `=` på
+note/link nå i sidepanelets aldri-stille-rad («bruk «+=» for å beholde
+begge») — før migreringen akkumulerte gjentatte linjer, så vanen sitter, og
+tapet er brukerens egen tekst. parse() fikk en egen `warnings`-kanal for
+dette (additiv, ingen konsument brytes).
 
 ---
 

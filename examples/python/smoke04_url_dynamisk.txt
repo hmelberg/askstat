@@ -1,0 +1,7 @@
+# label: Smoke 4 — read_csv med bygd URL
+# URL-en bygges i kode, så prefetch-hintet ser den ikke — sync-fallbacken tar den.
+# Forvent penguins.head() uten feil.
+import pandas as pd
+url = "https://raw.githubusercontent.com/hmelberg/openstat/main/data/" + "penguins.csv"
+penguins = pd.read_csv(url)
+penguins.head()

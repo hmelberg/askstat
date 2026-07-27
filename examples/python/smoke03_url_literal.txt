@@ -1,0 +1,6 @@
+# label: Smoke 3 — pd.read_csv(URL) direkte
+# Vanlig pandas mot en åpen URL — ingen direktiver. Forvent gruppert tabell;
+# Network-fanen viser at CSV-en hentes mens Pyodide booter (prefetch).
+import pandas as pd
+iris = pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
+iris.groupby("species").mean(numeric_only=True).round(2)

@@ -231,6 +231,11 @@
       "file": "duckdb/sql10_py_then_sql.txt",
       "label": "SQL — #py → DuckDB (hybrid)",
       "group": null
+    },
+    {
+      "file": "duckdb/smoke01_meta_sql.txt",
+      "label": "Smoke SQL — #meta-linjer i DuckDB",
+      "group": "Smoke-test"
     }
   ],
   "javascript": [
@@ -452,6 +457,41 @@
       "file": "python/py_widgets_ui.txt",
       "label": "Widgets — ui.slider/dropdown (notebook)",
       "group": null
+    },
+    {
+      "file": "python/smoke01_pxweb_meta.txt",
+      "label": "Smoke 1 — pxweb + meta (ⓘ-modal, sidepanel)",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke02_montering.txt",
+      "label": "Smoke 2 — montering (create + add + join)",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke03_url_literal.txt",
+      "label": "Smoke 3 — pd.read_csv(URL) direkte",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke04_url_dynamisk.txt",
+      "label": "Smoke 4 — read_csv med bygd URL",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke05_http_feil.txt",
+      "label": "Smoke 5 — HTTP-feil skal være HØYLYTT",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke06_cors_fallback.txt",
+      "label": "Smoke 6 — CORS-fallback via proxy (krever netlify dev)",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke07_ssb_direkte.txt",
+      "label": "Smoke 7 — SSB-CSV rett i pandas (uten direktiv)",
+      "group": "Smoke-test"
     }
   ],
   "r": [
@@ -524,6 +564,11 @@
       "file": "r/rex_widgets_ui.txt",
       "label": "Widgets — ui_slider/ui_dropdown (R notebook)",
       "group": null
+    },
+    {
+      "file": "r/smoke01_r_direktiver.txt",
+      "label": "Smoke R — direktiver i R-modus",
+      "group": "Smoke-test"
     }
   ]
 }

@@ -1,0 +1,13 @@
+# label: Smoke 1 — pxweb + meta (ⓘ-modal, sidepanel)
+# Forvent: «Tilkoblede kilder» + «Datasett» i sidepanelet; ⓘ på bef viser
+# tittel, BEGGE notatene, publisher/retrieved-felt og to lenker.
+# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")
+# bef = ssb.read("05839", years="2000:2009", indicators=["Personer"])
+# meta.bef.title = "Folkemengde 2000-2009"
+# meta.bef.note = ["Folkemengde etter alder og kjønn.", "Hentet fra SSB tabell 05839."]
+# meta.bef.publisher = "SSB"
+# meta.bef.retrieved = "2026-07-27"
+# meta.bef.link = {"https://www.ssb.no/befolkning": "Om SSBs befolkningsstatistikk", "https://www.ssb.no/statbank/table/05839": "Tabellen i Statistikkbanken"}
+# meta.bef.alder.label = "Alder i hele år"
+
+bef.head(10)

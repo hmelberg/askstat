@@ -1,0 +1,11 @@
+# label: Smoke R — direktiver i R-modus
+# Forvent: str(iris) + aggregate-tabell; iris i sidepanelet med notat i ⓘ.
+# gh = ost.connect("https://raw.githubusercontent.com/hmelberg/openstat/main/data")
+# iris = gh.read("iris.csv")
+# meta.iris.note = "Fishers iris-datasett, hentet som CSV"
+
+str(iris)
+aggregate(. ~ species, data = iris, FUN = mean)
+
+# iris = ost.use("iris", source="r")
+iris.describe()

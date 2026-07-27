@@ -1,0 +1,5 @@
+# label: Smoke 5 — HTTP-feil skal være HØYLYTT
+# FORVENTET RESULTAT ER EN RØD FEIL: ValueError med «HTTP 404» og hele URL-en.
+# Får du en rar 1-kolonnes tabell i stedet, er det en bug — meld fra.
+import pandas as pd
+pd.read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/finnes-ikke.csv")

@@ -1,0 +1,13 @@
+-- label: Smoke SQL — #meta-linjer i DuckDB
+
+-- folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
+#meta.folk.title = "Person-år (utvalg)"
+#meta.folk.note = "Syntetisk person-år-fil brukt i eksemplene"
+#meta.folk.publisher = "OpenStat-eksempler"
+
+SELECT status,
+       count(*)            AS n,
+       round(avg(income))  AS snitt_inntekt
+FROM folk
+GROUP BY status
+ORDER BY n DESC;

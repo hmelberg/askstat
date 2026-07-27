@@ -1638,6 +1638,18 @@
             JSON.stringify(tagPayload).replace(/</g, '\\u003c') + '<\/script>\n    ';
         }
 
+        // S4 (publiserings-sømmen): bak BRO-CACHEN som tags — publisert side
+        // serverer pd.read_csv(url) fra dem (ReadBridge.seedFromDocument),
+        // uten nett og uten å skrive om én linje brukerkode. Kun literal-URL-er
+        // som faktisk er hentet i denne økten (exportTags = scanUrls ∩ cache).
+        if (window.ReadBridge && window.ReadBridge.exportTags) {
+          var _bridgeTags = window.ReadBridge.exportTags(rawScript);
+          for (var _bt = 0; _bt < _bridgeTags.length; _bt++) {
+            tags += '<script type="application/json" id="ostbridgedata_' + _bt + '">' +
+              JSON.stringify(_bridgeTags[_bt]).replace(/</g, '\\u003c') + '<\/script>\n    ';
+          }
+        }
+
         // Linja ERSTATTES, ikke slettes — linjenummer skal stå.
         // javascript-modus: «ost.use(…, source="duckdb")» krever en levende
         // duckdb-økt som den publiserte sida ikke har — tabellen er alt bakt
@@ -8709,7 +8721,7 @@ if _asm.get('spec'):
 import json
 e = __main__.micro_interpreter
 d = {}
-for name, df in e.datasets.items():
+def _refl(name, df):
     try:
         d[name] = {"columns": [str(c) for c in df.columns], "nrows": len(df), "dtypes": {c: str(t) for c, t in df.dtypes.items()}}
     except Exception:
@@ -8718,6 +8730,18 @@ for name, df in e.datasets.items():
             d[name] = {"columns": [str(c) for c in getattr(df, "columns", [])], "nrows": None, "dtypes": {}}
         except Exception:
             d[name] = {"columns": [], "nrows": None, "dtypes": {}}
+for name, df in e.datasets.items():
+    _refl(name, df)
+# S4 (smoke 3, 2026-07-27): sidepanelet skal REFLEKTERE det som finnes —
+# også rammer lastet med ren pd.read_csv (broen) eller avledet i scriptet,
+# som bare bor i _g. Brython/mpy sveiper alt brukerglobals (_dataset_info,
+# 2026-07-24, «både # load-bundne og AVLEDEDE»); dette er Pyodide-motstykket.
+import pandas as _pd_refl
+for name, _v in list(_g.items()):
+    if not isinstance(name, str) or name.startswith("_") or name in d:
+        continue
+    if isinstance(_v, _pd_refl.DataFrame):
+        _refl(name, _v)
 out = {"datasets": d, "active": e.active_name}
 json.dumps(out)
 `);

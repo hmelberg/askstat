@@ -166,3 +166,44 @@ test('M2 ensureText: hentefeil gir error videre', async () => {
 test('S3b pyPatchSource: idempotens-vakt mot wrapper-stabling', () => {
   assert.ok(RB.pyPatchSource().includes('_ost_url_wrapped'));
 });
+
+// ── S4: tag-baking + seeding (publiserings-sømmen) ──────────────────────────
+
+test('S4 exportTags: scanUrls ∩ cache, b64-rundtur byte-nøyaktig', async () => {
+  RB._reset();
+  const bytes = new Uint8Array([0x6b, 0x6a, 0xf8, 0x6e, 0x6e, 0x00, 0xff]);  // «kjønn» i latin-1 + binærhale
+  RB._setFetcher(async () => ({ bytes, contentType: 'text/csv; charset=iso-8859-1' }));
+  await RB.ensure('https://x/l1.csv');
+  const script = 'df = pd.read_csv("https://x/l1.csv")\nannen = pd.read_csv("https://x/ikke-hentet.csv")';
+  const tags = RB.exportTags(script);
+  assert.equal(tags.length, 1, 'kun cachede URL-er bakes');
+  assert.equal(tags[0].url, 'https://x/l1.csv');
+  assert.equal(tags[0].contentType, 'text/csv; charset=iso-8859-1');
+  const back = Buffer.from(tags[0].b64, 'base64');
+  assert.deepEqual(Array.from(back), Array.from(bytes));
+});
+
+test('S4 exportTags: feil-entries og tomme script gir tom liste', async () => {
+  RB._reset();
+  RB._setFetcher(async () => { throw new Error('HTTP 404 for x'); });
+  await RB.ensure('https://x/borte.csv');
+  assert.deepEqual(RB.exportTags('pd.read_csv("https://x/borte.csv")'), []);
+  assert.deepEqual(RB.exportTags(''), []);
+});
+
+test('S4 _seedEntries: publisert side treffer cachen uten nett', () => {
+  RB._reset();
+  RB._seedEntries([{ url: 'https://x/baked.csv', contentType: 'text/csv; charset=iso-8859-1',
+                     b64: Buffer.from([0x6b, 0xf8]).toString('base64') }]);
+  const c = RB.getCached('https://x/baked.csv');
+  assert.deepEqual(Array.from(c.bytes), [0x6b, 0xf8]);
+  assert.equal(c.contentType, 'text/csv; charset=iso-8859-1');
+  // og ensureText dekoder med den bakte charset-en
+  return RB.ensureText('https://x/baked.csv').then((r) => assert.equal(r.text, 'kø'));
+});
+
+test('S4 _seedEntries: ugyldige entries hoppes over, velter ikke', () => {
+  RB._reset();
+  RB._seedEntries([null, {}, { url: 'https://x/ok.csv', b64: Buffer.from('a,b').toString('base64') }]);
+  assert.ok(RB.getCached('https://x/ok.csv'));
+});

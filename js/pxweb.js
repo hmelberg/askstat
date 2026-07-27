@@ -173,10 +173,66 @@
     return { url: base + '?' + parts.join('&') };
   }
 
+
+  // ── Typet kanonisk vei (plan 2026-07-27) ──────────────────────────────────
+  // json-stat2 bærer typesystemet (roller, kategoriorden, etiketter, enheter)
+  // — CSV-leveransen kastet alt. Kontrakten DELES med openstat.py
+  // (typemeta_from_jsonstat) via tests/fixtures/pxweb_dataset.json.
+  function typeMetaFromJsonStat(ds) {
+    var role = ds.role || {};
+    var dims = {}, units = {};
+    (ds.id || []).forEach(function (did) {
+      var dim = (ds.dimension || {})[did] || {};
+      var cat = dim.category || {};
+      dims[did] = { categories: categoryCodes(dim),
+                    labels: Object.assign({}, cat.label || {}) };
+      var u = cat.unit || {};
+      for (var k in u) units[k] = { base: u[k].base, decimals: u[k].decimals };
+    });
+    return { dims: dims, time: (role.time || []).slice(),
+             metric: (role.metric || []).slice(), units: units };
+  }
+
+  // Python-kilden som typer rammen ETTER pd.read_csv i Pyodide-preamblet.
+  // Bor her (node-testbar streng, samme mønster som ReadBridge.pyPatchSource);
+  // SEMANTIKKEN håndheves mot openstat.py sin apply_typemeta av pytest
+  // (test_js_apply_source_paritet leser denne strengen og kjører den).
+  // NB dtype-vernet: CSV-rundturen gjør «0301» til 301 — preamblet leser
+  // derfor dimensjonskolonner som str FØR denne kjører.
+  function pyApplyTypemetaSource() {
+    return [
+      'def _ost_all_intlike(_codes):',
+      '    if not _codes:',
+      '        return False',
+      '    for _c in _codes:',
+      '        try:',
+      '            int(str(_c))',
+      '        except (TypeError, ValueError):',
+      '            return False',
+      '    return True',
+      'def _ost_apply_typemeta(_df, _tm):',
+      '    for _did, _d in (_tm.get("dims") or {}).items():',
+      '        if _did not in _df.columns:',
+      '            continue',
+      '        _cats = _d.get("categories") or []',
+      '        if _did in (_tm.get("time") or []) and _ost_all_intlike(_cats):',
+      '            _df[_did] = _df[_did].astype("int64")',
+      '        else:',
+      '            _df[_did] = pd.Categorical(_df[_did].astype(str), categories=[str(_c) for _c in _cats],',
+      '                                       ordered=_did in (_tm.get("time") or []))',
+      '    if "value" in _df.columns:',
+      '        _df["value"] = pd.to_numeric(_df["value"], errors="coerce")',
+      '    _df.attrs["ost_typemeta"] = _tm',
+      '    return _df',
+      ''
+    ].join('\n');
+  }
+
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
               eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
-              PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl };
+              PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl,
+              typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

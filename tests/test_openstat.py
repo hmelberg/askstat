@@ -364,3 +364,137 @@ def test_all_feiler_hoeylytt_i_pakken():
     for kind in ("sdmx", "worldbank", "dbnomics", "eurostat"):
         with pytest.raises(ValueError, match="kun for pxweb"):
             ost._translate_canonical(kind, "x", {"all": True})
+
+
+# ── Typet kanonisk vei (plan 2026-07-27): json-stat2 bærer typesystemet —
+# roller (time/metric), kategorirekkefølge (index), etiketter og enheter.
+# Før dette parset vi det og kastet alt unntatt koder+verdier. ──────────────
+
+def test_typemeta_from_jsonstat_ekstraherer_kontrakten():
+    tm = ost.typemeta_from_jsonstat(FIX)
+    assert tm["time"] == ["Tid"]
+    assert tm["metric"] == ["ContentsCode"]
+    assert tm["dims"]["Kjonn"]["categories"] == ["1", "2"]          # index-orden
+    assert tm["dims"]["Kjonn"]["labels"] == {"1": "Menn", "2": "Kvinner"}
+    assert tm["units"] == {"Personer": {"base": "personer", "decimals": 0}}
+
+
+def test_apply_typemeta_dimensjoner_blir_categorical_i_kildens_orden():
+    tm = ost.typemeta_from_jsonstat(FIX)
+    df = pd.DataFrame(ost.columns_from_jsonstat(FIX))
+    out = ost.apply_typemeta(df, tm)
+    assert str(out["Kjonn"].dtype) == "category"
+    assert list(out["Kjonn"].cat.categories) == ["1", "2"]
+    assert not out["Kjonn"].cat.ordered
+    assert str(out["ContentsCode"].dtype) == "category"
+
+
+def test_apply_typemeta_tidsregelen_heltallsaar_blir_int():
+    # role=time + alle koder heltallsparsbare -> int64 (aritmetikk/regresjon/
+    # plotting krever tall; ordinaliteten ivaretas av tallinjen selv).
+    tm = ost.typemeta_from_jsonstat(FIX)
+    df = pd.DataFrame(ost.columns_from_jsonstat(FIX))
+    out = ost.apply_typemeta(df, tm)
+    assert str(out["Tid"].dtype) == "int64"
+    assert out["Tid"].max() == 2021
+
+
+def test_apply_typemeta_tidsregelen_kvartaler_blir_ordnet_categorical():
+    # «2024K1» kan ikke bli tall — DER er ordnet Categorical med kildens
+    # index-rekkefølge nøyaktig riktig (alfabetisk sortering er tilfeldig).
+    fx = json.loads(json.dumps(FIX))
+    fx["dimension"]["Tid"]["category"]["index"] = ["2024K4", "2025K1"]
+    fx["dimension"]["Tid"]["category"]["label"] = {"2024K4": "2024K4", "2025K1": "2025K1"}
+    tm = ost.typemeta_from_jsonstat(fx)
+    df = pd.DataFrame(ost.columns_from_jsonstat(fx))
+    out = ost.apply_typemeta(df, tm)
+    assert str(out["Tid"].dtype) == "category"
+    assert out["Tid"].cat.ordered
+    assert list(out["Tid"].cat.categories) == ["2024K4", "2025K1"]
+
+
+def test_apply_typemeta_value_blir_numerisk_ogsaa_med_hull():
+    # Sparse verdi-objekt gir None-hull; uten koersjon ble kolonnen object.
+    fx = json.loads(json.dumps(FIX))
+    fx["value"] = {"0": 10, "3": 21}
+    tm = ost.typemeta_from_jsonstat(fx)
+    df = pd.DataFrame(ost.columns_from_jsonstat(fx))
+    out = ost.apply_typemeta(df, tm)
+    assert str(out["value"].dtype) == "float64"
+    assert out["value"].isna().sum() == 2
+
+
+def test_apply_typemeta_attrs_baerer_etiketter_og_enheter():
+    tm = ost.typemeta_from_jsonstat(FIX)
+    df = pd.DataFrame(ost.columns_from_jsonstat(FIX))
+    out = ost.apply_typemeta(df, tm)
+    meta = out.attrs["ost_typemeta"]
+    assert meta["dims"]["Kjonn"]["labels"]["1"] == "Menn"
+    assert meta["units"]["Personer"]["decimals"] == 0
+
+
+def test_typemeta_uten_role_og_label_degraderer_pent():
+    fx = {"id": ["A"], "size": [2],
+          "dimension": {"A": {"category": {"index": {"x": 0, "y": 1}}}},
+          "value": [1, 2]}
+    tm = ost.typemeta_from_jsonstat(fx)
+    assert tm["time"] == [] and tm["units"] == {}
+    df = pd.DataFrame(ost.columns_from_jsonstat(fx))
+    out = ost.apply_typemeta(df, tm)
+    assert str(out["A"].dtype) == "category"
+
+
+def test_source_read_pxweb_leverer_typet(monkeypatch):
+    # Hele veien: read() på en pxweb-kilde skal levere typet ramme.
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: json.dumps(FIX).encode())
+    src = ost.connect("https://x.example/tables", kind="pxweb")
+    df = src.read("09999")
+    assert str(df["Kjonn"].dtype) == "category"
+    assert str(df["Tid"].dtype) == "int64"
+    assert df.attrs["ost_typemeta"]["dims"]["Kjonn"]["labels"]["2"] == "Kvinner"
+
+
+def test_js_apply_source_paritet_inkl_nullpadde_koder():
+    """Håndhever at python-kilden i js/pxweb.js (pyApplyTypemetaSource, injisert
+    i Pyodide-preamblet) oppfører seg som openstat.py sin apply_typemeta —
+    OGSÅ gjennom CSV-rundturen appen faktisk gjør, der null-padde koder
+    («0301») ellers ville blitt tall og kategorisering gitt stille NaN."""
+    import io
+    import subprocess
+    import shutil
+
+    if not shutil.which("node"):
+        import pytest as _pt
+        _pt.skip("node ikke tilgjengelig")
+    src = subprocess.run(
+        ["node", "-e", "require('./js/pxweb.js');console.log(globalThis.PxWeb.pyApplyTypemetaSource())"],
+        capture_output=True, text=True, cwd=str(pathlib.Path(__file__).resolve().parents[1]), check=True,
+    ).stdout
+    ns = {"pd": pd}
+    exec(src, ns)
+
+    fx = json.loads(json.dumps(FIX))
+    fx["id"] = ["Region"] + fx["id"]
+    fx["size"] = [1] + fx["size"]
+    fx["dimension"]["Region"] = {"category": {"index": {"0301": 0}, "label": {"0301": "Oslo"}}}
+    fx["value"] = fx["value"]  # 1x2x2x1 = 4 verdier, uendret
+    tm = ost.typemeta_from_jsonstat(fx)
+    cols = ost.columns_from_jsonstat(fx)
+
+    # openstat.py-veien (ingen CSV): direkte
+    ref = ost.apply_typemeta(pd.DataFrame(cols), tm)
+
+    # app-veien: CSV-rundtur + dtype-vern + JS-kildens apply
+    csv_text = ",".join(cols.keys()) + "\n" + "\n".join(
+        ",".join(str(cols[k][i]) for k in cols) for i in range(4))
+    df = pd.read_csv(io.StringIO(csv_text), dtype={str(k): str for k in tm["dims"]})
+    out = ns["_ost_apply_typemeta"](df, tm)
+
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].cat.categories) == ["0301"]
+    assert out["Region"].isna().sum() == 0, "null-padde koder overlevde IKKE rundturen"
+    for col in ref.columns:
+        assert str(out[col].dtype) == str(ref[col].dtype), col
+    assert out["Tid"].tolist() == ref["Tid"].tolist()
+    assert out.attrs["ost_typemeta"]["units"] == ref.attrs["ost_typemeta"]["units"]

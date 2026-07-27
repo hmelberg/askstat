@@ -7476,12 +7476,18 @@ for _wl in json.loads(${JSON.stringify(JSON.stringify(loads))}):
         with open(_wl_path, encoding="utf-8") as _wl_f:
             _g[_wl_alias] = _wl_f.read()
     else:
+        _wl_tm = _wl.get("typemeta")
         if _wl_fmt == "parquet":
             _wl_df = pd.read_parquet(_wl_path)
         elif _wl_fmt == "json":
             _wl_df = pd.read_json(_wl_path)
         else:
-            _wl_df = pd.read_csv(_wl_path)
+            # dtype-vernet (typet kanonisk vei): CSV-rundturen gjør «0301» til
+            # 301, og da matcher ingen kategorier -> stille NaN. Dimensjons-
+            # kolonner leses som str når typemeta finnes.
+            _wl_df = pd.read_csv(_wl_path, dtype={str(_k): str for _k in ((_wl_tm or {}).get("dims") or {})})
+        if _wl_tm:
+            _wl_df = _ost_apply_typemeta(_wl_df, _wl_tm)
         to_microdata(_wl_df, name=_wl_alias, make_active=False)
 `;
     }
@@ -7504,6 +7510,7 @@ import numpy as np
 import pandas as pd
 import builtins
 ` + (window.ReadBridge ? window.ReadBridge.pyPatchSource() : '') + `
+` + (window.PxWeb && window.PxWeb.pyApplyTypemetaSource ? window.PxWeb.pyApplyTypemetaSource() : '') + `
 class DatasetStore:
     """Slankt datasett-register (erstattet MicroInterpreter 2026-07-24, scope B):
     limet bak # load-aliaser, # use på tvers av moduser/celler, to_microdata()
@@ -10426,7 +10433,7 @@ options(width = 200)
           _pyLoads = _rawLoads.map(function (l) {
             var _path = '/home/pyodide/_webdata/' + l.alias + '.' + l.format;
             py.FS.writeFile(_path, l.bytes);
-            return { alias: l.alias, format: l.format, path: _path };
+            return { alias: l.alias, format: l.format, path: _path, typemeta: l.typemeta || null };
           });
         }
         const pageBase = window.location.href.replace(/[^/]+$/, '');
@@ -10489,7 +10496,7 @@ options(width = 200)
             var _afiles = _ra.sources.map(function (l) {
               var _ap = '/home/pyodide/_webasm/' + l.alias + '.' + l.format;
               py.FS.writeFile(_ap, l.bytes);
-              return { alias: l.alias, format: l.format, path: _ap };
+              return { alias: l.alias, format: l.format, path: _ap, typemeta: l.typemeta || null };
             });
             _asmPayload = { spec: { datasets: window.AssemblyDuckdb._topoSort(_asmParsed.spec.datasets || []) },
                             files: _afiles };
@@ -11968,7 +11975,7 @@ async def _m2py_run_segment(_seg_json):
             _forklarPyLoads = _fRawLoads.map(function (l) {
               const _path = '/home/pyodide/_webdata/' + l.alias + '.' + l.format;
               py.FS.writeFile(_path, l.bytes);
-              return { alias: l.alias, format: l.format, path: _path };
+              return { alias: l.alias, format: l.format, path: _path, typemeta: l.typemeta || null };
             });
           } catch (e) { console.warn('forklar # load:', e); }
         }

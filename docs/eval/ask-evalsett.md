@@ -32,3 +32,24 @@ Feilhåndtering (kjøres i tillegg):
 | 1 | beregning ✓ | 18 s | PASS — «Yes, 7919 is a prime number … #1000»; tall i output; proveniens-blokk ok; ingen echo |
 | 2 | beregning ✓ | 32 s | PASS — 298 dager (eksklusiv konvensjon, forbehold om 299 ved inklusiv) |
 | 3 | beregning ✓ | 20 s | PASS — 2 r-er, posisjon 3 og 4 |
+| 4 | data ✓ | ~4,5 min | PASS — 9,4 % av BNP (2023, Verdensbanken SH.XPD.CHEX.GD.ZS) + nabolandssammenligning; 3 reparasjonsrunder reddet en worldbank-direktivfeil; ingen strømfeil i fast-modus |
+| 5 | data ✓ | ~3,5 min | ÆRLIG FEIL — Eurostat une_rt_m hentet ufiltrert (duplikatrader, meningsløse verdier); tolk-ask NEKTET å oppgi tall og sa outputen er ubrukelig. Anti-hallusinasjon virket; se funn F1 |
+| 6 | data ✓ | ~3 min | PASS — SSB 11342: 647 676 (2015) → 728 714 (2026), +12,5 %, MED plott i output-panelet; 1 reparasjonsrunde |
+| 7 | oppslag ✓ | 6 s | PASS — «Accra», korrekt kildebasert-merking; men intet reelt websøk/kildeliste (se funn F2) |
+| 8 | oppslag ✓ | 6 s | PASS — Kafka; samme F2-funn |
+| 9 | språk ✓ | 6 s | PASS — ærlig drøfting med «Not verified»-merking |
+| 10 | språk ✓ | 6 s | PASS — dikt med «Not verified»-merking |
+
+**Funn:**
+- **F1 (semantisk reparasjon mangler):** Når koden kjører feilfritt men dataene er
+  søppel (Q5: ufiltrert Eurostat-uttrekk), utløses ingen reparasjonsrunde —
+  tolk-ask fanger det ærlig, men spørsmålet forblir ubesvart. Mulig forbedring:
+  la tolk-ask signalisere «output ubrukelig» tilbake til en semantisk
+  reparasjonsrunde.
+- **F2 (oppslag uten kilde):** For trivielle fakta svarer modellen fra egen
+  kunnskap uten websøk → korrekt merking, men ingen kildeliste. Mulig
+  forbedring: oppslagsruten bør instruere om kildeverifisering (web_search)
+  også for lette fakta.
+- Auto-kjøring, engelsk UI, proveniens-blokk og echo-av verifisert i alle
+  relevante kjøringer. «Error in input stream» (deep-modus, 2026-07-28)
+  reproduserte IKKE i fast-modus.

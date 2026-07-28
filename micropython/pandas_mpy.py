@@ -2052,11 +2052,26 @@ class Series:
         :param ascending: bool, whether or not sorted values should be ascending
         :param na_position: str, 'first' or 'last'
         :return: Series, sorted
+
+        Kategorisk (dtype='category'): sorterer alltid etter KATEGORIORDEN,
+        ikke etikettalfabetet -- uavhengig av .cat.ordered (ekte pandas-
+        semantikk; ordered styrer bare <, >, osv). En verdi utenfor
+        kategoriene (skal normalt ikke forekomme) regnes som "manglende" her
+        og havner der na_position sier -- men VERDIEN endres aldri (i
+        motsetning til ekte pandas, som ville gjort den om til ekte NaN ved
+        konstruksjon).
         """
-        # remove nans
-        indices = [_ci for _ci, x in enumerate(self.values) if x is nan]
+        cat = self._cat
+        if cat is None:
+            is_missing = lambda x: x is nan
+        else:
+            is_missing = lambda x: x is nan or cat.code_of(x) == -1
+
+        # remove nans (+ ukjente kategoriverdier for kategoriske serier)
+        indices = [_ci for _ci, x in enumerate(self.values) if is_missing(x)]
         nan_index = [self.index[i] for i in indices]
         new_values = self.values
+        nan_values = [new_values[i] for i in indices]   # bevar verdien -- ikke bytt til nan
         new_index = list(self.index)
         for i, idx in enumerate(indices):
             del new_values[idx - i]
@@ -2071,13 +2086,16 @@ class Series:
             # Uten dette blir 'lav','middels','høy' til 'høy','lav','middels'.
             pairs = sorted(zip(new_values, new_index),
                            key=lambda pair: keyfn(pair[0]), reverse=reverse)
-        new_values, new_index = zip(*pairs)
+        if pairs:
+            new_values, new_index = zip(*pairs)
+        else:
+            new_values, new_index = (), ()
 
         if na_position == "last":
-            new_values = list(new_values) + [nan] * len(nan_index)
+            new_values = list(new_values) + nan_values
             new_index = list(new_index) + list(nan_index)
         else:
-            new_values = [nan] * len(nan_index) + list(new_values)
+            new_values = nan_values + list(new_values)
             new_index = list(nan_index) + list(new_index)
 
         # Eksplisitt view: from_data-defaulten _mkslice(None, None) har step=None,
@@ -3997,7 +4015,14 @@ class DataFrame:
         else:
             if axis == 0:
                 it = self.itercols
-                ser = self.loc[:, by]
+                # self[by] (bracket), IKKE self.loc[:, by]: loc/iloc hekter
+                # ikke _cat på serien den returnerer (kun __getitem__ gjør
+                # det), så sort_values ville falt tilbake til rå
+                # etikettsortering for kategoriske kolonner. Målt (mini-
+                # knippet §1) -- df.sort_values(by='kategorisk') ga
+                # alfabetisk rekkefølge selv når df['kategorisk'].sort_-
+                # values() alene fulgte kategoriorden riktig.
+                ser = self[by]
             else:
                 it = self.iterrows
                 ser = self.loc[by, :]
@@ -4013,6 +4038,9 @@ class DataFrame:
             cp = self.class_init(res, columns=cols)
             if axis == 0:
                 cp = cp.transpose()
+                # Rene rad-ombytter endrer aldri dtype: kategori-metadataen
+                # på kildeframen gjelder uendret for det sorterte resultatet.
+                cp._cats = dict(self._cats)
             return self._inherit_meta(cp)
 
     def reset_index(self, drop=False):

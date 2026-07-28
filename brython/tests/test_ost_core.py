@@ -153,10 +153,12 @@ def test_mpy_hook_varianten():
 def test_read_csv_time_kvartalskoder_ordered_i_kildens_orden():
     # Låser valmap/ordered-mekanismen fra fiksrunden: ikke-heltallige
     # tidskoder -> CategoricalDtype i KILDENS orden (2024K1 foran 2023K4 —
-    # alfabetisk/dataorden ville gitt motsatt) med ordered=True. Målt på
-    # _cats-dtypen: mini-pandas' sort_values konsulterer IKKE _cats
-    # (sorterer råverdier — kontrollør-målt), så dtype-metadataen er det
-    # som er levert; sorteringskonsekvensen står i køen.
+    # alfabetisk/dataorden ville gitt motsatt) med ordered=True.
+    # sort_values-asserten (fjernet da denne testen ble skrevet fordi
+    # DataFrame.sort_values den gang konsulterte IKKE _cats — den hentet
+    # sorteringsserien via .loc[:, by], som ikke hekter _cat på, i motsetning
+    # til bracket-aksessoren df[col]) er nå lagt inn igjen: mini-knippet §1
+    # fikset akkurat det.
     tsv = "Tid\x1ftime\x1f2024K1\x1f2023K4"
     ost, _ = _install({CSV_URL: {"text": "Tid,value\n2023K4,1\n2024K1,2\n"},
                        "https://meta.example/js2": META}, tsv=tsv)
@@ -165,3 +167,5 @@ def test_read_csv_time_kvartalskoder_ordered_i_kildens_orden():
     cat = df._cats["Tid"]
     assert list(cat.categories) == ["2024K1", "2023K4"]
     assert cat.ordered
+    s = df.sort_values(by="Tid")
+    assert list(s["Tid"]) == ["2024K1", "2023K4"]

@@ -171,6 +171,22 @@
     return { bytes: r.bytes, error: null };
   }
 
+  // R-factor-runden §2: typemeta for en data-URL, til panelberikelse av
+  // R-rammer (main thread — sveipen er async). Deler bro-cachen: prefetch-
+  // hinten og runtime-hentinger gjenbrukes gratis. null ved ukjent/feil —
+  // panelet viser da bare det rammen selv kan fortelle. Aldri reject.
+  function typemetaForUrl(url) {
+    var px = global.PxWeb;
+    if (!px || !px.metaUrlFor) return Promise.resolve(null);
+    var mu = px.metaUrlFor(url);
+    if (!mu) return Promise.resolve(null);
+    return ensureText(mu).then(function (r) {
+      if (r.error) { console.warn('typemetaForUrl:', url, r.error); return null; }
+      try { return px.typeMetaFromJsonStat(JSON.parse(r.text)); }
+      catch (e) { console.warn('typemetaForUrl:', url, (e && e.message) || e); return null; }
+    });
+  }
+
   // Python-kilden for Pyodide-wrapperne. Ligger HER (ikke inline i
   // index.html) så node-testene kan asserte på den. Kontrakt: URL-argument →
   // bro; alt annet → original uendret (standalone-paritet). HTTP-feil →
@@ -418,7 +434,7 @@
   global.ReadBridge = {
     configure: function (f) { depsFn = f; },
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
-    getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
+    getCached: getCached, forPyodideSync: forPyodideSync, typemetaForUrl: typemetaForUrl, pyPatchSource: pyPatchSource,
     rPatchSource: rPatchSource,
     exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
     insertBytes: insertBytes,

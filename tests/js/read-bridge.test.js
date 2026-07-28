@@ -270,17 +270,26 @@ test('rPatchSource: R-kilden parser som gyldig R (strukturell sjekk)', () => {
   assert.strictEqual(depth, 0);
 });
 
-// ── Task 3: fødselstyping i Pyodide (pyPatchSource) + prefetch-hint ────────
+// ── Task 3, omgjort i eksplisitt-dtypes-kirurgien (2026-07-28, Hans' over-
+// raskelsesprinsipp): fødselstyping -> fødsels-ANNOTERING. pyPatchSource skal
+// ALDRI lenger påvirke dtyper — pd.read_csv i appen skal være byte-lik naken
+// pandas i verdier/dtyper. Det eneste birth-steget som gjenstår er å sette
+// df.attrs["ost_typemeta"] for gjenkjente registerkilder (panelet leser den).
+// Typing flytter til de eksplisitte funksjonene i openstat.py:
+// read_csv(url, convert=True) (default) og convert_dtypes(df, meta=...). ───
 
-test('pyPatchSource: fødselstyping — recognize + dtype=str-vern + best-effort, aldri kast', () => {
+test('pyPatchSource: fødsels-annotering — recognize + typemeta + attrs, ALDRI dtype-påvirkning', () => {
   const src = RB.pyPatchSource();
-  for (const needle of ['recognize_url', '_typemeta_for', '_apply_best_effort',
-                        '"dtype"', 'laster utypet']) {
+  for (const needle of ['recognize_url', '_typemeta_for', 'ost_typemeta', 'fortsetter uten']) {
     assert.ok(src.includes(needle), 'mangler: ' + needle);
   }
+  assert.ok(!src.includes('"dtype"'),
+    'skal IKKE lenger injisere dtype — typing er eksplisitt-only nå (read_csv(convert=True)/convert_dtypes)');
+  assert.ok(!src.includes('_apply_best_effort'),
+    'skal IKKE lenger kalle _apply_best_effort fra fødsel — kun attrs settes');
 });
 
-test('pyPatchSource: KUN read_csv rutes gjennom fødselstypingen, json/parquet uendret', () => {
+test('pyPatchSource: KUN read_csv rutes gjennom fødsels-annoteringen, json/parquet uendret', () => {
   const src = RB.pyPatchSource();
   assert.ok(src.includes('pd.read_csv = _ost_wrap_reader(pd.read_csv, True)'));
   assert.ok(src.includes('pd.read_json = _ost_wrap_reader(pd.read_json, False)'));
@@ -291,26 +300,6 @@ test('pyPatchSource: openstat-import feiler høylytt-fritt (try/except rundt imp
   const src = RB.pyPatchSource();
   assert.ok(src.includes('import openstat as _ost'));
   assert.ok(/try:\s*\n\s*import openstat as _ost\s*\n\s*except Exception as _e:/.test(src));
-});
-
-// ── C1 (slutt-review, KRITISK): parse_dates + injisert dtype=str-vern på
-// SAMME kolonne korrumperer stille (datetime -> epoch-nanosekund-strenger,
-// målt med ekte pandas). _ost_typed_read må ekskludere parse_dates-navngitte
-// kolonner fra vern-dicten — speilet fra openstat.py sin _parse_dates_exclusion.
-test('pyPatchSource: fødselstyping ekskluderer parse_dates-kolonner fra dtype-vernet (C1)', () => {
-  const src = RB.pyPatchSource();
-  assert.ok(src.includes('parse_dates'), 'mangler parse_dates-håndtering');
-  assert.ok(src.includes('_drop_all'), 'mangler konservativ drop-hele-injeksjonen-vakten');
-});
-
-// ── I1: app/pakke-divergens — _ost_typed_read hoppet FØR over vernet ved
-// ENHVER dtype i kwargs (openstat.py fletter en dict-dtype). Speilet inn.
-test('pyPatchSource: dtype-DICT flettes ({**vern, **bruker}) — skalar dtype respekteres urørt (I1)', () => {
-  const src = RB.pyPatchSource();
-  assert.ok(/isinstance\(_kw\["dtype"\],\s*dict\)/.test(src),
-    'mangler isinstance-sjekk for dict-dtype (flettelogikk speilet fra openstat.py)');
-  assert.ok(/\{\*\*_vern,\s*\*\*_kw\["dtype"\]\}/.test(src),
-    'mangler {**vern, **bruker}-flettingen selv');
 });
 
 test('prefetchScript: gjenkjent registerkilde prefetcher metadata-json-stat2 (SAMME spørring) via PxWeb.dataUrlFor', () => {

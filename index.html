@@ -9205,6 +9205,13 @@ json.dumps(out)
     // (2) konfig m/ origin + S5-auth-headere per kjøring (nøkkel lagt inn
     // midt i økten plukkes opp), (3) seed cache-treff som FS-filer +
     // manifest (workeren kan ikke nå main-thread-cachen synkront).
+    // Monoton seed-teller (review-fiks, Minor): R-sidens .ost_bridge$paths-
+    // mapping lever hele økten, så seed-stier kan ALDRI gjenbrukes på tvers
+    // av kjøringer — en løkkeindeks-sti (pre_0 per run) ville latt run 2
+    // overskrive run 1s fil, og en stale mapping servere FEIL bytes stille.
+    // Telleren er modulnivå og resettes aldri; gamle mappinger peker dermed
+    // alltid på sine egne urørte filer.
+    var _rBridgeSeedN = 0;
     async function rBridgePreRun(src) {
       if (!window.ReadBridge) return;
       try {
@@ -9221,7 +9228,7 @@ json.dumps(out)
         for (var _ri = 0; _ri < _rbUrls.length; _ri++) {
           var _rc = await window.ReadBridge.ensure(_rbUrls[_ri]);
           if (_rc && _rc.bytes) {
-            var _rp = '/ost_cache/pre_' + _ri + '.bin';
+            var _rp = '/ost_cache/pre_' + (_rBridgeSeedN++) + '.bin';
             try { await webR.FS.mkdir('/ost_cache'); } catch (e) { /* finnes */ }
             await webR.FS.writeFile(_rp, _rc.bytes);
             await webR.evalRVoid('.ost_bridge_seed(' + JSON.stringify(_rbUrls[_ri]) + ', ' + JSON.stringify(_rp) + ')');

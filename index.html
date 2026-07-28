@@ -107,7 +107,19 @@
   <div class="app-body">
   <div id="askView" class="ask-view-wrap" hidden>
     <aside class="ask-sidebar">
-      <div class="ask-brand">AskStat</div>
+      <div class="ask-side-head">
+        <button type="button" class="ask-side-btn ask-menu-btn" id="askMenuBtn" title="Menu">☰</button>
+        <div class="ask-brand">AskStat</div>
+        <div class="ask-menu" id="askMenu" hidden>
+          <div class="ask-menu-title">Examples</div>
+          <button type="button" data-q="Is 7919 a prime number?">Is 7919 a prime number?</button>
+          <button type="button" data-q="How many days are there between 1 March and 24 December 2026?">Days between two dates</button>
+          <button type="button" data-q="How many r's are there in &quot;spirrevipp&quot;?">Count letters in a word</button>
+          <button type="button" data-q="What share of GDP does Norway spend on health?">Norway's health spending (% of GDP)</button>
+          <button type="button" data-q="How has the population of Oslo changed over the last ten years?">Population growth in Oslo</button>
+          <button type="button" data-q="What is the capital of Ghana?">What is the capital of Ghana?</button>
+        </div>
+      </div>
       <button type="button" class="ask-side-btn" id="askNewBtn">＋ New question</button>
       <button type="button" class="ask-side-btn" id="askSettingsBtn">⚙ API key &amp; settings</button>
     </aside>

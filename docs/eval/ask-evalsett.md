@@ -25,4 +25,10 @@ Feilhåndtering (kjøres i tillegg):
 
 ## Kjøringslogg
 
-(Noter dato, spørsmålsnummer og avvik her.)
+### 2026-07-29 — automatisert kjøring (playwright, BYOK fra .env, fast-dybde, auto-run)
+
+| # | Rute | Tid | Resultat |
+|---|---|---|---|
+| 1 | beregning ✓ | 18 s | PASS — «Yes, 7919 is a prime number … #1000»; tall i output; proveniens-blokk ok; ingen echo |
+| 2 | beregning ✓ | 32 s | PASS — 298 dager (eksklusiv konvensjon, forbehold om 299 ved inklusiv) |
+| 3 | beregning ✓ | 20 s | PASS — 2 r-er, posisjon 3 og 4 |

@@ -22,7 +22,20 @@ html.ask-view #askView[hidden] { display: flex; }   /* boot-JS removes hidden; b
 /* Left sidebar */
 .ask-sidebar { width: 210px; flex: 0 0 210px; border-right: 1px solid var(--border);
   padding: 18px 12px; display: flex; flex-direction: column; gap: 6px; }
-.ask-brand { font-weight: 700; font-size: 18px; padding: 0 10px 10px; }
+.ask-side-head { display: flex; align-items: center; gap: 4px; padding: 0 4px 10px; position: relative; }
+.ask-menu-btn { font-size: 16px; padding: 6px 10px; flex: 0 0 auto; }
+.ask-brand { font-weight: 700; font-size: 18px; }
+
+/* Hamburger-dropdown med eksempelspørsmål (Hans 2026-07-29). */
+.ask-menu { position: absolute; top: 100%; left: 4px; z-index: 50;
+  background: var(--bg-code); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px; min-width: 240px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+.ask-menu[hidden] { display: none; }
+.ask-menu-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--text-muted); padding: 2px 8px 6px; }
+.ask-menu button { display: block; width: 100%; text-align: left; background: none;
+  border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer; color: inherit; font-size: 13px; }
+.ask-menu button:hover { background: rgba(127,127,127,.14); }
 .ask-side-btn { text-align: left; background: none; border: 1px solid transparent;
   border-radius: 8px; padding: 8px 10px; cursor: pointer; color: inherit; font-size: 13px; }
 .ask-side-btn:hover { background: var(--bg-code); }

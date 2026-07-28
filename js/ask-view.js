@@ -147,6 +147,21 @@
     document.getElementById('askSettingsBtn').addEventListener('click', function () {
       if (window.mdOpenAiSettings) window.mdOpenAiSettings();
     });
+    // Hamburger med eksempelspørsmål: klikk fyller feltet (sender ikke — brukeren
+    // ser spørsmålet og trykker Ask selv).
+    var menuBtn = document.getElementById('askMenuBtn');
+    var menu = document.getElementById('askMenu');
+    if (menuBtn && menu) {
+      menuBtn.addEventListener('click', function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; });
+      document.addEventListener('click', function (e) { if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) menu.hidden = true; });
+      menu.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-q]');
+        if (!b) return;
+        input.value = b.dataset.q;
+        menu.hidden = true;
+        input.focus();
+      });
+    }
     document.getElementById('askSwitchCode').addEventListener('click', switchToEditor);
     document.getElementById('askOpenEditorBtn').addEventListener('click', switchToEditor);
     document.getElementById('askCopyBtn').addEventListener('click', function () {

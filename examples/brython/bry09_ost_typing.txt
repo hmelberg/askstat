@@ -1,0 +1,10 @@
+# label: Smoke — import ost (mini-typing)
+# group: Smoke-test
+# ost.read_csv henter via replay-broen (første kjøring kan replay-vente) og
+# typer best-effort fra register-metadata via window.PxWeb (r-factor-runden).
+# Dokumentert mini-begrensning: koder MED ledende nuller (Alder her) er alt
+# blitt tall under parsing og forblir utypet — rene kodekolonner blir
+# category, intlike Tid blir int64.
+import ost
+df = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+df.dtypes

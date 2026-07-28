@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent          # .../examples
 NUM_RE = re.compile(r"^(\d+)_(.+)$")
 LABEL_RE = re.compile(r"^\s*(?:#|--|//)\s*label:\s*(.+?)\s*$")
 EXAMPLE_RE = re.compile(r"^\s*(?:#|--|//)\s*Example:\s*(.+?)\s*$")
+GROUP_RE = re.compile(r"^\s*(?:#|--|//)\s*group:\s*(.+?)\s*$")
 TITLE_RE = re.compile(r"""^\s*#options\.title\s*=\s*["'](.+?)["']\s*$""")
 SKIP_DIRS = {"tests"}
 # Kjente modus-nøkler (safestat + openstat). Ukjente topp-mapper (f.eks. en
@@ -76,12 +77,30 @@ def label_for(path: Path) -> str:
     return pretty(m.group(2) if m else stem)
 
 
+def group_for(path: Path) -> str | None:
+    """`# group:`-linje i fila (samme kommentartegn som label) — vinner
+    over mappe-gruppen. Innført 2026-07-28: Smoke-test-gruppene var
+    HÅNDREDIGERT inn i manifest.json og forsvant ved regenerering —
+    nå bor gruppen i selve eksempelfila, og regenerering er trygt."""
+    try:
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+            if i > 10:
+                break
+            m = GROUP_RE.match(line)
+            if m:
+                return m.group(1)
+    except (OSError, UnicodeDecodeError):
+        pass
+    return None
+
+
 def _scripts_in(folder: Path, root: Path, group: str | None) -> list[dict]:
     out = []
     for p in sorted(folder.iterdir()):
         if p.is_file() and p.suffix == ".txt":
             rel = p.relative_to(root).as_posix()
-            out.append({"file": rel, "label": label_for(p), "group": group})
+            out.append({"file": rel, "label": label_for(p),
+                        "group": group_for(p) or group})
     return out
 
 

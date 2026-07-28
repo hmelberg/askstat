@@ -1,4 +1,5 @@
 # label: Smoke 6 — CORS-fallback via proxy (krever netlify dev)
+# group: Smoke-test
 # Wikipedia sender ikke CORS-headere: hentingen skal falle stille tilbake på
 # /api/hent-proxyen. KREVER netlify dev OG nøkkel i AI-innstillingene (eller
 # innlogging) — proxyen er auth-portet med vilje; uten nøkkel er HTTP 401

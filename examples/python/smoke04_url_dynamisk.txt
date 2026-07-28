@@ -1,4 +1,5 @@
 # label: Smoke 4 — read_csv med bygd URL
+# group: Smoke-test
 # URL-en bygges i kode, så prefetch-hintet ser den ikke — sync-fallbacken tar den.
 # Forvent penguins.head() uten feil.
 import pandas as pd

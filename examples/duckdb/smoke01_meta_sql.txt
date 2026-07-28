@@ -1,4 +1,5 @@
 -- label: Smoke SQL — #meta-linjer i DuckDB
+-- group: Smoke-test
 
 -- folk = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/person_year_sample.csv")
 #meta.folk.title = "Person-år (utvalg)"

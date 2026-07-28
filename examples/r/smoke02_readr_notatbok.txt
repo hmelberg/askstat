@@ -1,0 +1,14 @@
+# label: Smoke R2 — readr i notatbokcelle (§8d)
+# group: Smoke-test
+# §8d-løpet: readr::read_csv(url) skal rute via broen OGSÅ når readr
+# installeres midt i økten (onLoad-hooken i rPatchSource). Kjør cellene
+# med celleknappene. NB: webr::install("readr") tar litt tid første gang.
+#%%
+webr::install("readr")
+#%%
+df <- readr::read_csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
+head(df)
+#%%
+# Forvent: 150 rader, ingen CORS-feil; Network-fanen viser at CSV-en
+# hentes én gang (broen), ikke av readr selv.
+nrow(df)

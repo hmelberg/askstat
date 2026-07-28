@@ -1,0 +1,11 @@
+# label: Smoke 8 — cors:false via proxy m/ nøkkel (FRED)
+# group: Smoke-test
+# FRED er MÅLT ekte cors:false (ingen ACAO selv med Origin-header, 2026-07-28)
+# — direktehenting feiler, og broen faller til /api/hent-proxyen, som er
+# auth-portet med vilje: uten nøkkel/innlogging i AI-innstillingene er
+# HØYLYTT 401 forventet resultat, ikke en bug; med nøkkel skal rammen komme.
+# (Samme mekanikk dekker nå også ost-verbene og metadata-hentingen —
+# runtime-ost-runden 2026-07-28.)
+import pandas as pd
+unrate = pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE")
+unrate.tail()

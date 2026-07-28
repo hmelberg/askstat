@@ -24,7 +24,7 @@ import sys
 import pandas as pd
 
 __all__ = ["connect", "read", "create", "datasets",
-           "data_url", "metadata_url", "eurostat_data_url", "columns_from_jsonstat",
+           "data_url", "metadata_url", "eurostat_data_url", "recognize_url", "columns_from_jsonstat",
            "SDMX_ACCEPT", "sdmx_fallback_url", "worldbank_data_url", "worldbank_page_url",
            "worldbank_meta", "worldbank_columns", "dbnomics_data_url", "dbnomics_columns"]
 
@@ -91,6 +91,43 @@ def eurostat_data_url(url):
         parts.insert(0, "lang=en")
     parts.append("format=JSON")
     return base.rstrip("/") + "?" + "&".join(parts)
+
+
+# ── URL-gjenkjenning (paritet med js/pxweb.js recognizeUrl — endres den ene,
+# endres den andre; delt fixture tests/fixtures/recognize_urls.json) ─────────
+
+_RECOGNIZE_PATTERNS = (
+    ("pxweb", r"^(https?://[^/]+.*?/tables)/([A-Za-z0-9_]+)/data$"),
+    ("eurostat", r"^(https?://ec\.europa\.eu/eurostat/api/dissemination/statistics/1\.0/data)/([A-Za-z0-9_]+)$"),
+)
+
+
+def recognize_url(url):
+    """Data-URL -> {kind, base, table, query} for kilder med kjent metadata
+    (pxweb-familien via /tables/<id>/data-formen, eurostat statistics-api).
+    None for alt annet — aldri gjetting. /api/hent-innpakning pakkes ut én
+    gang før matching."""
+    s = str(url or "")
+    if s.startswith("/api/hent?"):
+        for part in s.split("?", 1)[1].split("&"):
+            if part.startswith("url="):
+                s = _unquote(part[4:])
+                break
+    base, _, query = s.partition("?")
+    # Ingen verts-vakt: /tables/<id>/data-formen ER signaturen (verts-
+    # agnostisk for pxweb-familien); v0-API-et («/table/<id>», entall, uten
+    # /data) matcher aldri mønsteret — fixturens negative case håndhever det.
+    for kind, pat in _RECOGNIZE_PATTERNS:
+        m = _re.match(pat, base)
+        if m:
+            return {"kind": kind, "base": m.group(1), "table": m.group(2), "query": query}
+    return None
+
+
+def _unquote(s):
+    """URL-dekoding som virker i både CPython og Pyodide."""
+    from urllib.parse import unquote
+    return unquote(s)
 
 
 def _category_codes(dim):

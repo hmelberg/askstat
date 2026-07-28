@@ -228,11 +228,39 @@
     ].join('\n');
   }
 
+  // ── URL-gjenkjenning (paritet med openstat.py recognize_url — endres den
+  // ene, endres den andre; delt fixture tests/fixtures/recognize_urls.json) ──
+  var RECOGNIZE_PATTERNS = [
+    ['pxweb', /^(https?:\/\/[^\/]+.*?\/tables)\/([A-Za-z0-9_]+)\/data$/],
+    ['eurostat', /^(https?:\/\/ec\.europa\.eu\/eurostat\/api\/dissemination\/statistics\/1\.0\/data)\/([A-Za-z0-9_]+)$/],
+  ];
+
+  function recognizeUrl(url) {
+    var s = String(url || '');
+    if (s.indexOf('/api/hent?') === 0) {
+      var q = s.split('?')[1] || '';
+      var parts = q.split('&');
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].indexOf('url=') === 0) { s = decodeURIComponent(parts[i].slice(4)); break; }
+      }
+    }
+    var qi = s.indexOf('?');
+    var base = qi >= 0 ? s.slice(0, qi) : s;
+    var query = qi >= 0 ? s.slice(qi + 1) : '';
+    // Ingen verts-vakt — se py-tvillingens kommentar (paritet).
+    for (var p = 0; p < RECOGNIZE_PATTERNS.length; p++) {
+      var m = RECOGNIZE_PATTERNS[p][1].exec(base);
+      if (m) return { kind: RECOGNIZE_PATTERNS[p][0], base: m[1], table: m[2], query: query };
+    }
+    return null;
+  }
+
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
               eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
               PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl,
-              typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource };
+              typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource,
+              recognizeUrl: recognizeUrl };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

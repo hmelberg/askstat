@@ -186,3 +186,10 @@ test('pyApplyTypemetaSource: definerer apply-funksjonen med dtype-vern', () => {
   ['_ost_apply_typemeta', 'Categorical', 'to_numeric', 'ost_typemeta'].forEach(
     (tok) => assert.ok(src.includes(tok), tok));
 });
+
+test('recognizeUrl: delt fixture, paritet med openstat.py', () => {
+  const cases = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'recognize_urls.json'), 'utf8')).cases;
+  for (const c of cases) {
+    assert.deepStrictEqual(PX.recognizeUrl(c.url), c.expect, c.url);
+  }
+});

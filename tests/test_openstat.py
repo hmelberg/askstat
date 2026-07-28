@@ -498,3 +498,9 @@ def test_js_apply_source_paritet_inkl_nullpadde_koder():
         assert str(out[col].dtype) == str(ref[col].dtype), col
     assert out["Tid"].tolist() == ref["Tid"].tolist()
     assert out.attrs["ost_typemeta"]["units"] == ref.attrs["ost_typemeta"]["units"]
+
+
+def test_recognize_url_fixture():
+    cases = json.loads((pathlib.Path(__file__).parent / "fixtures" / "recognize_urls.json").read_text())["cases"]
+    for c in cases:
+        assert ost.recognize_url(c["url"]) == c["expect"], c["url"]

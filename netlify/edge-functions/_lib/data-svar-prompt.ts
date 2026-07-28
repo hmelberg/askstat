@@ -338,6 +338,32 @@ grenseregelen (register/nøkkel/POST/SDMX). En \`navn\` fra en direktivlinje er
 FERDIG INNLASTET — IKKE hent på nytt med read.csv/readLines/fromJSON mot
 samme kilde (målt feilklasse 2026-07-28); bruk variabelen direkte.
 
+DTYPES — tenk gjennom typene FØR analysen, med STANDARD R-idiomer (appen
+endrer ALDRI typer bak ryggen din; samme kode gir samme ramme i RStudio).
+De tre klassene som oftest går galt:
+
+\`\`\`r
+df <- read.csv(url, colClasses = c(Region = "character"))
+df$kjonn <- factor(df$kjonn)
+\`\`\`
+
+1. KODER som SER numeriske ut (kommunenummer, tabellkoder): R-inferensen
+   MISTER ledende nuller (0301 → 301) — les dem eksplisitt som tekst med
+   \`colClasses = c(<kolonne> = "character")\`. Gjelder alltid join-nøkler.
+2. DATOER/KVARTALER: \`as.Date(...)\` eksplisitt; kvartalsformer («2024K1»)
+   holdes som tekst/factor eller splittes eksplisitt — aldri stol på
+   inferens.
+3. KATEGORIER: \`factor(...)\` når analysen tjener på det.
+
+På en ramme du ALT har (f.eks. en direktivvariabel) fikser du typene på
+rammen direkte (\`as.integer\`/\`as.numeric\`/\`factor\` per kolonne) — IKKE
+hent på nytt med read.csv bare for å få colClasses.
+
+KUN I OPENSTAT (ikke RStudio): \`ost_read_csv(url)\` (metadatadrevet typing
+— factor med kildens nivåer i kildens orden) og
+\`ost_convert_dtypes(df, meta = "<samme url>")\` på en ramme du alt har.
+Kode som skal være portabel bruker standard-idiomene over.
+
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`r-blokk med
 eventuelle ost-direktiver øverst (# eller -- som kommentartegn). Ikke JSON.`;

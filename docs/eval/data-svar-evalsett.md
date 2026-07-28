@@ -34,12 +34,15 @@ Kriterier (alle må holde):
     i svaret) eller være web_fetch-lest; ellers merket «fra modellkunnskap —
     verifiser». Mekanisk sjekk: åpne DOI-URL-ene fra svaret.
 12. DTYPE-HÅNDTERING (2026-07-28, overraskelsesprinsippet — appen typer
-    ALDRI implisitt): generert python-kode håndterer typene selv med
+    ALDRI implisitt): generert python/R-kode håndterer typene selv med
     standard-idiomer — kodekolonner/join-nøkler som ser numeriske ut
-    (kommunenr, tabellkoder) leses m/ dtype={...: str}; datoer/kvartaler
-    håndteres eksplisitt (parse_dates/to_datetime, aldri inferens-antakelse);
-    ost.read_csv/convert_dtypes teller som eksplisitt metadata-vei. FAIL når
-    analysen joiner/grupperer på en kodekolonne pandas har talltolket.
+    (kommunenr, tabellkoder) leses m/ dtype={...: str} (python) eller
+    colClasses = c(... = "character") (R); datoer/kvartaler håndteres
+    eksplisitt (parse_dates/to_datetime, as.Date — aldri inferens-antakelse);
+    ost.read_csv/convert_dtypes (python, portabel) og
+    ost_read_csv/ost_convert_dtypes (R, kun i appen) teller som eksplisitt
+    metadata-vei. FAIL når analysen joiner/grupperer på en kodekolonne
+    motoren har talltolket.
 
 Dybde (2026-07-28): settet kjøres i Deep (default). Fast måles med
 Fast/Deep-PAR på samme spørsmål og bedømmes etter «Fast reduserer ambisjon,
@@ -160,3 +163,7 @@ for en quirks-presisering eller promptregel i en senere runde.
 | 2026-07-28 | 2 (dtypes) | PASS | Mønstergyldig: begge OWID-CSV-er m/ pd.read_csv + dtype={"Code": str} på join-nøkkelen. |
 | 2026-07-28 | 1 (dtypes) | PASS | Literal-direktiv m/ eksakt ✅-probet stub+UseTexts-URL, aku brukt direkte, eksplisitt to_numeric/astype(int), ærlig transkribert fallback (nivå 2). adHoc-flagget = harness-falskpositiv (urllib i kommentar). |
 | 2026-07-28 | — | DTYPES-KONKLUSJON | Kriterium 12 adoptert 4/4 (dtype=str på koder/join-nøkler, eksplisitt dato/kvartal-håndtering, astype) — dtypes-prompten VIRKET umiddelbart. Score 3 PASS + 1 DELT (q15s regel 4-brudd er uavhengig av dtype-læren). Funn til neste spak: «simuler direktivet»-forkledningen ved dynamisk byggede URL-er; DST-cors-åpen-fakta bør evt. inn som quirk. |
+| 2026-07-28 | 3 (r-dtypes) | PASS (etter brolinje) | Kjøring 1+2 (før brolinje): kriterium 12-R ADOPTERT (as.integer på join-nøkkelen aar begge sider, as.numeric på verdier) — MEN re-fetch-klassen VÅKNET IGJEN 2/2 (direktiver + read.csv/proxy mot samme kilder). Årsak identifisert: DTYPES-eksempelblokkens read.csv(url, colClasses=…) rett etter IKKE-hent-på-nytt-regelen inviterte kopimønsteret. Brolinje lagt til («på en ramme du ALT har fikser du typene direkte — IKKE hent på nytt bare for colClasses»); kjøring 3 REN: «Direktivvariabelen bolig er ferdig innlastet; bruker den direkte», typet join, 2/2 kilder ✅, null re-fetch. |
+| 2026-07-28 | 7 (r-dtypes) | PASS | Probet cors:true OWID-CSV, direkte read.csv (venstre kolonne i grenseregelen), ingen kodekolonne-feller (Entity/Year) — kriterium 12 ikke-utløst, ingen brudd. |
+| 2026-07-28 | 14 (r-dtypes) | PASS | EKSEMPLARISK igjen: direktivvariabelen norge_raw brukt DIREKTE (historisk FAIL-klasse fortsatt borte), WB via fromJSON mot ✅ cors:true (venstre kolonne), as.integer(aar)/as.integer(date) på BEGGE join-sider — kriterium 12-R levd ut uten å være eksplisitt nevnt i spørsmålet. |
+| 2026-07-28 | — | R-DTYPES-KONKLUSJON | Kriterium 12-R adoptert 3/3 relevante kjøringer; MODE_R-dtypes-seksjonen VIRKET, men første versjon re-vekket re-fetch-klassen via eget eksempel (målt 2/2, fikset m/ brolinje, re-målt REN). Lærdom: et nytt prompt-eksempel kan undergrave en NABOREGEL — mål alltid naboklassene, ikke bare målkriteriet. ost_read_csv app-only-merket; ingen kjøring misbrukte den som RStudio-portabel. |

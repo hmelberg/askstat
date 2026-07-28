@@ -40,8 +40,18 @@ rammer som bærer ost_typemeta:
 
 ## 2. Fødselstyping i appen: obligatorisk, men feilbar
 
+> **REVIDERT 2026-07-28 (kveld, Hans' overraskelsesprinsipp):**
+> fødselstyping → fødsels-annotering; automatisk metadatabruk i
+> dataframe-konstruksjon fjernet — typing kun eksplisitt (ost.read_csv
+> convert=True default / ost.convert_dtypes); panel/attrs-berikelsen består.
+> Seksjonen under beskriver derfor et FORLATT design (fødselsTYPING, ikke
+> bare -annotering) — historikk, ikke gjeldende oppførsel. Se
+> eksplisitt-dtypes-kirurgien (gren `eksplisitt-dtypes`) for det som
+> faktisk kjører nå: js/read-bridge.js sin `_ost_annotate_read` setter KUN
+> `df.attrs["ost_typemeta"]`, aldri dtype/parse_dates/`_apply_best_effort`.
+
 For laster der URL-en gjenkjennes som en registerkilde med kjent metadata
-(pxweb-familien: ssb/scb — eurostat samme vei), gjelder:
+(pxweb-familien: ssb/scb — eurostat samme vei), gjaldt (FØR revisjonen over):
 
 > **Presisert i slutt-reviewen (2026-07-28):** teksten nevnte tidligere
 > også dst/statfin som dekket av «pxweb-familien». Det stemmer ikke —
@@ -143,3 +153,7 @@ funksjonene, DuckDB-typing.
 - Portabilitet/eksplisitthet: samme evne bygges inn i ost/openstat.py som
   egne funksjoner (read_csv/apply_meta/read_table); json-stat2 som
   én-forespørsels-motor under panseret.
+- REVIDERT 2026-07-28 (kveld, Hans' overraskelsesprinsipp): fødselstyping →
+  fødsels-annotering; automatisk metadatabruk i dataframe-konstruksjon
+  fjernet — typing kun eksplisitt (ost.read_csv convert=True default /
+  ost.convert_dtypes); panel/attrs-berikelsen består.

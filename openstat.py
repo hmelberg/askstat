@@ -25,7 +25,7 @@ import pandas as pd
 
 __all__ = ["connect", "read", "create", "datasets",
            "data_url", "metadata_url", "eurostat_data_url", "recognize_url", "columns_from_jsonstat",
-           "read_csv", "apply_meta",
+           "read_csv", "apply_meta", "convert_dtypes",
            "SDMX_ACCEPT", "sdmx_fallback_url", "worldbank_data_url", "worldbank_page_url",
            "worldbank_meta", "worldbank_columns", "dbnomics_data_url", "dbnomics_columns"]
 
@@ -272,7 +272,7 @@ def _apply_best_effort(df, tm):
 
 def apply_meta(df, url_or_table, base=None):
     """Påfør registermetadata på en ramme du alt har lastet. Portabel
-    tvilling av appens fødselstyping — samme regler, eksplisitt. Muterer
+    tvilling av appens fødsels-annotering — samme regler, eksplisitt. Muterer
     rammen in-place og returnerer den (apply_typemeta-presedensen)."""
     rec = recognize_url(url_or_table)
     if rec is None and base:
@@ -281,6 +281,89 @@ def apply_meta(df, url_or_table, base=None):
         raise ValueError("URL-en gjenkjennes ikke som en registerkilde med kjent metadata "
                          "(pxweb/eurostat) — oppgi base= og tabell-id, eller bruk ost.read().")
     return _apply_best_effort(df, _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"]))
+
+
+# ── eksplisitt-dtypes-kirurgien (2026-07-28, Hans' overraskelsesprinsipp):
+# rå pd.read_csv skal ALDRI magisk endre dtyper i appen — typing er nå KUN
+# eksplisitt, enten via read_csv(url, convert=True) (default; presis den
+# gamle fødselstypingen) eller via convert_dtypes() under. ──────────────────
+
+_ISO_DATE_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}([ T].*)?$")
+
+
+def _is_iso_date_str(s):
+    return bool(_ISO_DATE_RE.match(s))
+
+
+def _has_leading_zero_code(s):
+    """0301-mønsteret: heltallsdelen (før et evt. desimalpunktum) starter
+    med "0" og er lengre enn ett tegn — beskytter kommune-/postnummer-
+    lignende koder fra å bli lest som tall (301 mister null-en) uten å
+    blokkere legitime desimaltall som "0.5"."""
+    core = s[1:] if s[:1] in ("+", "-") else s
+    int_part = core.split(".", 1)[0]
+    return len(int_part) > 1 and int_part[0] == "0"
+
+
+def convert_dtypes(df, meta=None):
+    """Eksplisitt dtype-konvertering — erstatningen for automatikken som er
+    fjernet fra appen (pd.read_csv endrer aldri dtyper på egen hånd lenger).
+    Muterer df in-place og returnerer den (apply_typemeta/apply_meta-
+    presedensen).
+
+    - meta som dict (typemeta-kontrakten fra typemeta_from_jsonstat/
+      _typemeta_for, f.eks. df.attrs["ost_typemeta"]) -> samme regler som
+      _apply_best_effort: koder types (Categorical/int64/Int64), etikett-
+      verdier types aldri.
+    - meta som str (URL til en gjenkjent registerkilde) -> samme vei som
+      apply_meta(df, meta): henter metadata for URL-en og typer etter samme
+      regler. HØYLYTT for en URL som ikke gjenkjennes (eksplisitt kall =
+      brukeren mente det).
+    - meta=None (default) -> konservative heuristikker på object-kolonner,
+      hver for seg, KUN når ALLE ikke-NA-verdier i kolonnen matcher (aldri
+      kast ved rare data — kolonnen hoppes bare over):
+        1. ISO-datomønster (YYYY-MM-DD, ev. med klokkeslett) -> pd.to_datetime.
+        2. Fullt numerisk-parsbare UTEN ledende-null-koder (kommunenummer-
+           vernet: "0301" forblir str/object) -> pd.to_numeric.
+        3. Gjenværende object-kolonner (etter 1/2) med ≤50 unike verdier og
+           unike/total ≤ 0.5 -> astype("category")."""
+    if isinstance(meta, dict):
+        return _apply_best_effort(df, meta)
+    if isinstance(meta, str):
+        return apply_meta(df, meta)
+    if meta is not None:
+        raise TypeError("meta må være dict (typemeta), str (URL) eller None (heuristikker)")
+
+    for col in df.columns:
+        s = df[col]
+        if s.dtype != object:
+            continue
+        vals = s.dropna()
+        if vals.empty:
+            continue
+        str_vals = vals.astype(str)
+        converted = False
+
+        if all(_is_iso_date_str(v) for v in str_vals):
+            try:
+                df[col] = pd.to_datetime(s, errors="raise")
+                converted = True
+            except Exception:
+                pass  # rar data — hopp over, aldri kast
+
+        if not converted and not any(_has_leading_zero_code(v) for v in str_vals):
+            try:
+                df[col] = pd.to_numeric(s, errors="raise")
+                converted = True
+            except Exception:
+                pass
+
+        if not converted:
+            n = len(vals)
+            if vals.nunique() <= 50 and (vals.nunique() / n) <= 0.5:
+                df[col] = s.astype("category")
+
+    return df
 
 
 def _parse_dates_exclusion(parse_dates):
@@ -308,11 +391,21 @@ def _parse_dates_exclusion(parse_dates):
     return True, set()  # uklar form (f.eks. dict) -> konservativt: dropp alt
 
 
-def read_csv(url, **kwargs):
+def read_csv(url, convert=True, **kwargs):
     """pd.read_csv med metadata på: gjenkjent register-URL -> CSV-en lastes
-    (brukerens form/params), dim-kolonner får dtype=str-vern VED parse
-    (0301-fella kan ikke repareres etterpå), og rammen typles best-effort.
-    Ukjent URL -> ren pandas-passthrough, uendret semantikk."""
+    (brukerens form/params) og attrs["ost_typemeta"] settes når metadata er
+    tilgjengelig. Ukjent URL -> ren pandas-passthrough, uendret semantikk
+    (uansett convert).
+
+    convert=True (default): dagens fulle oppførsel — dim-kolonner får
+    dtype=str-vern VED parse (0301-fella kan ikke repareres etterpå), og
+    rammen typles best-effort (samme regler som ost.convert_dtypes(df, meta)).
+
+    convert=False (eksplisitt-dtypes-kirurgien 2026-07-28): INGEN dtype-
+    påvirkning i det hele tatt — pd.read_csv(**kwargs) kjøres urørt, byte-lik
+    naken pandas i verdier/dtyper (kodekolonner som "0301" blir da 301 som
+    int64 — DET er poenget: typing er nå kun eksplisitt). Kun attrs settes,
+    når metadata finnes. Bruk ost.convert_dtypes(df) etterpå for typing."""
     rec = recognize_url(url)
     raw = io.BytesIO(_fetch_bytes(str(url)))
     if rec is None:
@@ -323,6 +416,11 @@ def read_csv(url, **kwargs):
     except Exception as e:
         sys.stderr.write("ost.read_csv: metadata utilgjengelig for %s (%s) — laster utypet.\n"
                          % (rec["table"], e))
+    if not convert:
+        df = pd.read_csv(raw, **kwargs)
+        if tm is not None:
+            df.attrs["ost_typemeta"] = tm
+        return df
     if tm is not None:
         # dtype=str-vernet: brukerens egne valg vinner ALLTID, men et delvis
         # dtype-DICT skal ikke stille slå av vernet for dim-kolonner brukeren

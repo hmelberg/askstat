@@ -628,3 +628,99 @@ def test_parse_dates_exclusion_helper():
     assert ost._parse_dates_exclusion([["Tid", "time"], "Region"]) == \
         (False, {"Tid", "time", "Region"})
     assert ost._parse_dates_exclusion({"dato": ["Tid"]}) == (True, set())
+
+
+# ── eksplisitt-dtypes-kirurgien (2026-07-28, Hans' overraskelsesprinsipp):
+# rå pd.read_csv skal ALDRI magisk endre dtyper — read_csv(convert=False) og
+# convert_dtypes() er de nye TDD-flatene. convert=True (default, urørt
+# ovenfor) er presis den gamle fødselstypingen. ─────────────────────────────
+
+def test_read_csv_convert_false_gir_attrs_men_naken_dtype(monkeypatch):
+    # DET er poenget: uten eksplisitt konvertering blir "0301" til int64 301
+    # — samme 0301-fellen som convert=True (default) beskytter mot. attrs
+    # settes likevel (panelet trenger dem uansett).
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023,1\n1103,2024,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv",
+                       convert=False)
+    assert str(out["Region"].dtype) == "int64"
+    assert out["Region"].tolist() == [301, 1103]
+    assert out.attrs["ost_typemeta"] is tm
+
+
+def test_read_csv_convert_false_ukjent_url_ingen_attrs(monkeypatch):
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None: b"a,b\n1,2\n")
+    out = ost.read_csv("https://example.com/x.csv", convert=False)
+    assert list(out.columns) == ["a", "b"] and "ost_typemeta" not in out.attrs
+
+
+def test_convert_dtypes_med_meta_dict_speiler_apply_best_effort():
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", "2024"], "verdi": [1.0, 2.0]})
+    out = ost.convert_dtypes(df, meta=tm)
+    assert out is df, "muterer in-place og returnerer samme ramme"
+    assert str(out["Region"].dtype) == "category"
+    assert str(out["Tid"].dtype) == "int64"
+
+
+def test_convert_dtypes_med_meta_url_gjenbruker_apply_meta(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", "2024"], "verdi": [1.0, 2.0]})
+    out = ost.convert_dtypes(df, meta="https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?x=1")
+    assert str(out["Region"].dtype) == "category"
+    assert out.attrs["ost_typemeta"] is tm
+
+
+def test_convert_dtypes_med_meta_url_ukjent_feiler_hoylytt():
+    with pytest.raises(ValueError, match="gjenkjen"):
+        ost.convert_dtypes(pd.DataFrame(), meta="https://example.com/x.csv")
+
+
+def test_convert_dtypes_heuristikk_dato_kolonne_blir_datetime64():
+    df = pd.DataFrame({"dato": ["2023-01-01", "2024-06-15", None]})
+    out = ost.convert_dtypes(df)
+    assert str(out["dato"].dtype).startswith("datetime64")
+    assert out["dato"].tolist()[:2] == [pd.Timestamp("2023-01-01"), pd.Timestamp("2024-06-15")]
+
+
+def test_convert_dtypes_heuristikk_0301_kolonne_forblir_str():
+    # Kommunenummer-vernet: en kolonne med ledende-null-koder skal IKKE
+    # numerisk-konverteres av heuristikken (0301->301-fella igjen).
+    df = pd.DataFrame({"kommune": ["0301", "1103", "0104"]})
+    out = ost.convert_dtypes(df)
+    assert str(out["kommune"].dtype) == "object"
+    assert list(out["kommune"]) == ["0301", "1103", "0104"]
+
+
+def test_convert_dtypes_heuristikk_numerisk_kolonne_blir_tall():
+    df = pd.DataFrame({"antall": ["1", "2", "3", "4"]})
+    out = ost.convert_dtypes(df)
+    assert pd.api.types.is_numeric_dtype(out["antall"])
+    assert out["antall"].tolist() == [1, 2, 3, 4]
+
+
+def test_convert_dtypes_heuristikk_lavkardinalitet_blir_category():
+    df = pd.DataFrame({"landsdel": ["Øst", "Vest", "Øst", "Sør", "Øst", "Vest", "Øst", "Sør"]})
+    out = ost.convert_dtypes(df)
+    assert str(out["landsdel"].dtype) == "category"
+
+
+def test_convert_dtypes_heuristikk_blandet_soppel_urort():
+    # Ingen ISO-dato, ingen fullt numerisk-parsbar kolonne, og for høy
+    # kardinalitet til category (alle unike) — skal forbli helt urørt.
+    df = pd.DataFrame({"rot": ["7xk2", "abc-2024", "?!", "3.14.15", "siste"]})
+    out = ost.convert_dtypes(df)
+    assert str(out["rot"].dtype) == "object"
+    assert list(out["rot"]) == ["7xk2", "abc-2024", "?!", "3.14.15", "siste"]
+
+
+def test_convert_dtypes_ugyldig_meta_type_feiler():
+    with pytest.raises(TypeError):
+        ost.convert_dtypes(pd.DataFrame(), meta=123)
+
+
+def test_convert_dtypes_i_all():
+    assert "convert_dtypes" in ost.__all__

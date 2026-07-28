@@ -263,3 +263,32 @@ def test_convert_dtypes_annet_gir_fortsatt_valueerror():
     ost, _ = _install({})
     with pytest.raises(ValueError):
         ost.convert_dtypes(object(), meta=123)
+
+
+# ── mini-knippet §3: ost_url-attrs (panel-typemeta, R-arkitekturen gjenbrukt) ──
+
+@pytest.mark.parametrize("convert", [True, False])
+def test_read_csv_ost_url_attrs_gjenkjent_kilde(convert):
+    # R-motstykket: js/read-bridge.js sin rPatchSource setter attr(res,
+    # "ost_url") <- u for enhver bro-hentet ramme. Her: satt UANSETT convert
+    # (proveniens er ikke typing — "byte-lik naken" gjelder kun VERDIENE).
+    ost, _ = _install({CSV_URL: DATA, "https://meta.example/js2": META})
+    df = ost.read_csv(CSV_URL, convert=convert)
+    assert df.attrs.get("ost_url") == CSV_URL
+
+
+def test_read_csv_ost_url_attrs_satt_selv_om_metadata_feiler():
+    # Gjenkjennelse (murl ikke tom) avgjør attrs — selve metadatahentingen
+    # kan feile (som i test_read_csv_metadatafeil_gir_utypet_ikke_kast) uten
+    # at proveniens-annoteringen forsvinner.
+    ost, _ = _install({CSV_URL: DATA})               # meta-URL svarer error
+    df = ost.read_csv(CSV_URL)
+    assert df.attrs.get("ost_url") == CSV_URL
+
+
+@pytest.mark.parametrize("convert", [True, False])
+def test_read_csv_ost_url_attrs_ukjent_kilde_ingen_attr(convert):
+    url = "https://x.example/plain.csv"
+    ost, _ = _install({url: DATA})
+    df = ost.read_csv(url, convert=convert)
+    assert "ost_url" not in df.attrs

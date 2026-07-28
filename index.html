@@ -8685,6 +8685,32 @@ if _asm.get('spec'):
         names.forEach(function (n) { info[n].runtime = runtime; });
         window.lastDatasetInfo = info;
         updateSidebarDatasets(info, badge);
+        // mini-knippet §3 (R-arkitekturen gjenbrukt — jf. typemeta-sveipen i
+        // refreshDatasetSidebarFromR under): panelberikelse for brython/mpy-
+        // rammer med ost_url (ost_core.read_csv-attributtet). Funksjonen
+        // SELV forblir synkron — kallstedene bruker den boolske returen i
+        // if — så dette er et fire-and-forget async-etterslep, ikke en del
+        // av returverdien. typemetaForUrl er aldri-reject (null ved ukjent/
+        // feil), så en feilende berikelse gir bare et uberiket panel + en
+        // console.warn, aldri en ufanget promise-avvisning.
+        (async function () {
+          try {
+            var RB = window.ReadBridge;
+            if (!RB || !RB.typemetaForUrl) return;
+            var enriched = false;
+            for (var i = 0; i < names.length; i++) {
+              var n = names[i];
+              var u = info[n] && info[n].ost_url;
+              if (!u) continue;
+              var tm = await RB.typemetaForUrl(u);
+              if (tm) { info[n].typemeta = tm; enriched = true; }
+            }
+            // window.lastDatasetInfo kan ha blitt erstattet av en NY kjøring
+            // mens vi ventet — mal kun inn hvis vår info-referanse fortsatt
+            // er den aktive (unngår å male et stale panel).
+            if (enriched && window.lastDatasetInfo === info) updateSidebarDatasets(info, badge);
+          } catch (e) { console.warn('sidebar-typemeta-berikelse (' + runtime + '):', e); }
+        })();
         return true;
       } catch (e) { console.warn('sidebar fra motor:', e); return false; }
     }

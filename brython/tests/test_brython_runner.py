@@ -46,6 +46,24 @@ def test_bind_datasets_csv_and_columns():
     out = br._execute_code('str(len(iris)) + "," + str(len(tall))')
     assert '2,3' in out
 
+def test_dataset_info_includes_ost_url_from_attrs():
+    # mini-knippet §3: ost_core.read_csv setter df.attrs['ost_url'] for
+    # gjenkjente kilder — _dataset_info skal videreformidle den til
+    # sidepanelet (index.html refreshDatasetSidebarFromEngineInfo).
+    import pandas_brython as pd
+    df = pd.DataFrame({'a': [1, 2]})
+    df.attrs['ost_url'] = 'https://data.ssb.no/api/v0/no/table/05839'
+    br._shared_vars['medost'] = df
+    info = json.loads(br._dataset_info())
+    assert info['medost']['ost_url'] == 'https://data.ssb.no/api/v0/no/table/05839'
+
+def test_dataset_info_omits_ost_url_when_absent():
+    import pandas_brython as pd
+    df = pd.DataFrame({'a': [1, 2]})
+    br._shared_vars['utenost'] = df
+    info = json.loads(br._dataset_info())
+    assert 'ost_url' not in info['utenost']
+
 def test_indented_last_line_not_evaled_out_of_context():
     # Last physical line is indented (inside the if-block) but is itself a
     # valid expression after .strip() ('y'). Must not be split into

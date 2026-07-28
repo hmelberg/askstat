@@ -29,9 +29,15 @@ convert_dtypes(df, meta=) tar nå i tillegg en py-formet typemeta-dict
 _apply_best_effort. Konverteres lokalt til entries, ingen PxWeb-rundtur.
 meta som URL-streng (uendret) eller None gir samme feil som før.
 
+read_csv(...) setter i tillegg df.attrs["ost_url"] = url for en GJENKJENT
+kilde, UANSETT convert (mini-knippet §3, R-arkitekturen gjenbrukt — se
+attr(res,"ost_url") i js/read-bridge.js sin rPatchSource). Dette er ren
+proveniens (ingen typing), så det gjelder også den nakne convert=False-
+veien. index.html sin refreshDatasetSidebarFromEngineInfo bruker attrs'et
+til å berike sidepanelet med typemeta via ReadBridge.typemetaForUrl.
+
 KJENTE BEGRENSNINGER (mini-pandas):
 - Ingen Int64 -> NaN i intlike tidskolonne forblir utypet (notat).
-- Ingen attrs settes (TSV baerer ikke etiketter; panel-typemeta er kø).
 - ordered + KILDENS kategoriorden settes via CategoricalDtype-internalen
   (_cats) — guardet; paa eldre/avvikende mini-bygg faller den tilbake til
   uordnet category i dataens sorterte orden. Kategoriene faar verdienes
@@ -128,6 +134,23 @@ def _typemeta_entries(url):
     return out, None
 
 
+def _recognized_url(url):
+    """Kun mønstergjenkjenning (px.metaUrlFor) — ALDRI et nettverkskall.
+    Brukes til ost_url-attrs (mini-knippet §3) når convert=False, der
+    _typemeta_entries ikke kjøres i det hele tatt (ingen metadatahenting —
+    "byte-lik naken" gjelder VERDIENE, ikke denne rene proveniens-
+    annoteringen). PxWeb utilgjengelig/uventet unntak -> ukjent (samme
+    forsiktige feilmodus som resten av modulen: ingen attr, aldri kast)."""
+    w = _js_root()
+    px = getattr(w, "PxWeb", None)
+    if px is None:
+        return False
+    try:
+        return bool(str(px.metaUrlFor(str(url)) or ""))
+    except Exception:
+        return False
+
+
 def _apply(df, entries, who):
     # mini-pandas-felle (målt under rød-fasen, se task-5-report.md): DataFrame
     # sin kolonnetildeling df[col] = ... skriver bare de rå verdiene til den
@@ -212,6 +235,18 @@ def read_csv(url, convert=True, **kwargs):
             # else: brukeren ga en SKALAR dtype (f.eks. str) — den dekker
             # allerede alt selv og vinner urørt; intet vern injiseres.
     df = pd.read_csv(url, **kwargs)      # replay-broen håndterer henting
+    # ost_url (mini-knippet §3, R-arkitekturen gjenbrukt: attr(res,"ost_url")
+    # i js/read-bridge.js sin rPatchSource): satt for GJENKJENT kilde UANSETT
+    # convert — panelberikelsen (index.html refreshDatasetSidebarFromEngineInfo)
+    # trenger stien tilbake til kilde-URL-en også for den nakne convert=False-
+    # veien; dette er ren proveniens, ikke typing. convert=True har allerede
+    # avgjort gjenkjenning over via _typemeta_entries (unngår et redundant
+    # metaUrlFor-kall — recognized ⟺ entries ELLER err er satt, se
+    # _typemeta_entries-kontrakten); ellers et eget lett mønstersjekk uten
+    # nettverkskall.
+    _recognized = (entries is not None or err is not None) if convert else _recognized_url(url)
+    if _recognized:
+        df.attrs["ost_url"] = url
     if not convert:
         return df
     if err:

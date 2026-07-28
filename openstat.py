@@ -25,6 +25,7 @@ import pandas as pd
 
 __all__ = ["connect", "read", "create", "datasets",
            "data_url", "metadata_url", "eurostat_data_url", "recognize_url", "columns_from_jsonstat",
+           "read_csv", "apply_meta",
            "SDMX_ACCEPT", "sdmx_fallback_url", "worldbank_data_url", "worldbank_page_url",
            "worldbank_meta", "worldbank_columns", "dbnomics_data_url", "dbnomics_columns"]
 
@@ -220,6 +221,76 @@ def apply_typemeta(df, tm):
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df.attrs["ost_typemeta"] = tm
     return df
+
+
+# ── portable eksplisitte funksjoner (plan 2026-07-27-metadata-runden Task 2):
+# read_csv/apply_meta lar brukeren gjøre henting/parsing selv (egen pandas-
+# kode, egne kwargs) og likevel få samme typing+attrs som app-veien
+# (connect/read). apply_meta er den eksplisitte tvillingen av fødselstyping —
+# HØYLYTT ved ukjent kilde (eksplisitt kall = brukeren mente det); read_csv
+# er en pandas-passthrough som skal FØLES som pandas for ukjente URL-er. ────
+
+def _typemeta_for(kind, base, table, query):
+    """Typekontrakt for en gjenkjent kilde: json-stat2 m/ SAMME spørring
+    (aldri krympet utvalg — top(1)-krymping gir hullete kategorier -> NaN i
+    Categorical). Memoisert via _fetch_bytes."""
+    target = base.rstrip("/") + "/" + table + (("?" + query) if query else "")
+    du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
+    return typemeta_from_jsonstat(_json.loads(_fetch_bytes(du).decode("utf-8")))
+
+
+def _apply_best_effort(df, tm):
+    """Typ kun kolonner hvis verdier er kildens KODER; etikett-verdier
+    (UseTexts) får aldri dtype-endring — men attrs settes alltid (panelet
+    trenger etikettene uansett)."""
+    for did, d in (tm.get("dims") or {}).items():
+        if did not in df.columns:
+            continue
+        cats = [str(c) for c in (d.get("categories") or [])]
+        vals = set(df[did].dropna().astype(str))
+        if not vals or not vals.issubset(set(cats)):
+            continue
+        if did in (tm.get("time") or []) and _all_intlike(cats):
+            df[did] = df[did].astype("int64")
+        else:
+            df[did] = pd.Categorical(df[did].astype(str), categories=cats,
+                                     ordered=did in (tm.get("time") or []))
+    df.attrs["ost_typemeta"] = tm
+    return df
+
+
+def apply_meta(df, url_or_table, base=None):
+    """Påfør registermetadata på en ramme du alt har lastet. Portabel
+    tvilling av appens fødselstyping — samme regler, eksplisitt."""
+    rec = recognize_url(url_or_table)
+    if rec is None and base:
+        rec = {"kind": "pxweb", "base": str(base), "table": str(url_or_table), "query": ""}
+    if rec is None:
+        raise ValueError("URL-en gjenkjennes ikke som en registerkilde med kjent metadata "
+                         "(pxweb/eurostat) — oppgi base= og tabell-id, eller bruk ost.read().")
+    return _apply_best_effort(df, _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"]))
+
+
+def read_csv(url, **kwargs):
+    """pd.read_csv med metadata på: gjenkjent register-URL -> CSV-en lastes
+    (brukerens form/params), dim-kolonner får dtype=str-vern VED parse
+    (0301-fella kan ikke repareres etterpå), og rammen typles best-effort.
+    Ukjent URL -> ren pandas-passthrough, uendret semantikk."""
+    rec = recognize_url(url)
+    raw = io.BytesIO(_fetch_bytes(str(url)))
+    if rec is None:
+        return pd.read_csv(raw, **kwargs)
+    tm = None
+    try:
+        tm = _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"])
+    except Exception as e:
+        sys.stderr.write("ost.read_csv: metadata utilgjengelig for %s (%s) — laster utypet.\n"
+                         % (rec["table"], e))
+    if tm is not None and "dtype" not in kwargs:
+        kwargs = dict(kwargs)
+        kwargs["dtype"] = {d: str for d in (tm.get("dims") or {})}
+    df = pd.read_csv(raw, **kwargs)
+    return _apply_best_effort(df, tm) if tm is not None else df
 
 
 # ── api-kinds (paritet med js/api-kinds.js — endres den ene, endres den

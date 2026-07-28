@@ -504,3 +504,56 @@ def test_recognize_url_fixture():
     cases = json.loads((pathlib.Path(__file__).parent / "fixtures" / "recognize_urls.json").read_text())["cases"]
     for c in cases:
         assert ost.recognize_url(c["url"]) == c["expect"], c["url"]
+
+
+def _mini_jsonstat():
+    return {"id": ["Region", "Tid"], "size": [2, 2],
+            "role": {"time": ["Tid"]},
+            "dimension": {
+                "Region": {"category": {"index": {"0301": 0, "1103": 1},
+                                        "label": {"0301": "Oslo", "1103": "Stavanger"}}},
+                "Tid": {"category": {"index": {"2023": 0, "2024": 1},
+                                     "label": {"2023": "2023", "2024": "2024"}}}},
+            "value": [1, 2, 3, 4]}
+
+
+def test_apply_meta_best_effort_koder_types(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", "2024"], "verdi": [1.0, 2.0]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?x=1")
+    assert str(out["Region"].dtype) == "category"
+    assert str(out["Tid"].dtype) == "int64"          # tidsregelen
+    assert out.attrs["ost_typemeta"]["dims"]["Region"]["labels"]["0301"] == "Oslo"
+    assert str(out["verdi"].dtype) == "float64"       # value røres ikke
+
+
+def test_apply_meta_usetexts_etiketter_typles_ikke(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["Oslo", "Stavanger"], "Tid": ["2023", "2024"]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data")
+    assert str(out["Region"].dtype) == "object"       # etikett-verdier: aldri dtype-endring
+    assert "ost_typemeta" in out.attrs                 # men attrs settes (panel)
+
+
+def test_apply_meta_ukjent_url_feiler_hoylytt():
+    with pytest.raises(ValueError, match="gjenkjen"):
+        ost.apply_meta(pd.DataFrame(), "https://example.com/x.csv")
+
+
+def test_read_csv_passthrough_ukjent(monkeypatch):
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None: b"a,b\n1,2\n")
+    out = ost.read_csv("https://example.com/x.csv")
+    assert list(out.columns) == ["a", "b"] and "ost_typemeta" not in out.attrs
+
+
+def test_read_csv_gjenkjent_dtype_str_vern(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023,1\n1103,2024,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+    # 0301-fella: uten vern hadde pandas gjort Region til int64 (301)
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]

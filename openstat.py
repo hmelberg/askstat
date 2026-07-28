@@ -101,8 +101,12 @@ def eurostat_data_url(url):
 # endres den andre; delt fixture tests/fixtures/recognize_urls.json) ─────────
 
 _RECOGNIZE_PATTERNS = (
-    ("pxweb", r"^(https?://[^/]+.*?/tables)/([A-Za-z0-9_]+)/data$"),
-    ("eurostat", r"^(https?://ec\.europa\.eu/eurostat/api/dissemination/statistics/1\.0/data)/([A-Za-z0-9_]+)$"),
+    # \Z (ikke $): Pythons $ matcher også RETT FØR en trailing newline, mens
+    # JS-tvillingens $ (uten /m) krever bokstavelig slutt på strengen — \Z
+    # gir samme (strengere) oppførsel her, så en URL med trailing "\n" IKKE
+    # gjenkjennes i CPython når den heller ikke gjør det i JS.
+    ("pxweb", r"^(https?://[^/]+.*?/tables)/([A-Za-z0-9_]+)/data\Z"),
+    ("eurostat", r"^(https?://ec\.europa\.eu/eurostat/api/dissemination/statistics/1\.0/data)/([A-Za-z0-9_]+)\Z"),
 )
 
 
@@ -129,7 +133,9 @@ def recognize_url(url):
 
 
 def _unquote(s):
-    """URL-dekoding som virker i både CPython og Pyodide."""
+    """URL-dekoding (stdlib unquote — kaster aldri, ugyldig %-koding beholdes
+    literal). js-tvillingens recognizeUrl bruker decodeURIComponent, som
+    KASTER på samme input — se try/catch der (I2, slutt-reviewen)."""
     from urllib.parse import unquote
     return unquote(s)
 

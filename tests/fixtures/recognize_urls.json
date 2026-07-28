@@ -12,6 +12,10 @@
      "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "07230", "query": "valueCodes[Tid]=*"}},
     {"url": "https://ourworldindata.org/grapher/co2.csv", "expect": null},
     {"url": "https://data.ssb.no/api/v0/no/table/05839", "expect": null},
-    {"url": "ikke en url", "expect": null}
+    {"url": "ikke en url", "expect": null},
+    {"url": "/api/hent?url=%zz%zz", "expect": null},
+    {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data",
+     "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "05839", "query": ""}},
+    {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data\n", "expect": null}
   ]
 }

@@ -246,7 +246,17 @@
       var q = s.split('?')[1] || '';
       var parts = q.split('&');
       for (var i = 0; i < parts.length; i++) {
-        if (parts[i].indexOf('url=') === 0) { s = decodeURIComponent(parts[i].slice(4)); break; }
+        if (parts[i].indexOf('url=') === 0) {
+          // py-paritet: urllib.parse.unquote KASTER ALDRI (ugyldig %-koding
+          // beholdes literal — unquote('%zz') -> '%zz'). decodeURIComponent
+          // kaster URIError på samme input og ville veltet HELE kjøringen
+          // (prefetchScript kaller recognizeUrl per literal-treff). Fallback
+          // til udekodet streng: matcher aldri et gjenkjennelsesmønster,
+          // altså samme observerbare utfall (null) som py-siden.
+          var _raw = parts[i].slice(4);
+          try { s = decodeURIComponent(_raw); } catch (e) { s = _raw; }
+          break;
+        }
       }
     }
     var qi = s.indexOf('?');

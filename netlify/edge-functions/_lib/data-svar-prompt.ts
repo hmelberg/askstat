@@ -355,6 +355,10 @@ df$kjonn <- factor(df$kjonn)
    inferens.
 3. KATEGORIER: \`factor(...)\` når analysen tjener på det.
 
+På en ramme du ALT har (f.eks. en direktivvariabel) fikser du typene på
+rammen direkte (\`as.integer\`/\`as.numeric\`/\`factor\` per kolonne) — IKKE
+hent på nytt med read.csv bare for å få colClasses.
+
 KUN I OPENSTAT (ikke RStudio): \`ost_read_csv(url)\` (metadatadrevet typing
 — factor med kildens nivåer i kildens orden) og
 \`ost_convert_dtypes(df, meta = "<samme url>")\` på en ramme du alt har.

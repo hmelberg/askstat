@@ -9065,13 +9065,13 @@ json.dumps(out)
       var BASE_R = { base: 1, utils: 1, stats: 1, graphics: 1, grDevices: 1,
                      methods: 1, datasets: 1, tools: 1, parallel: 1,
                      compiler: 1, webr: 1,
-                     // basetilbehør + recommended-settet følger med webR —
-                     // install-forsøk er bomskudd (r-url-bro-oppfølging §4)
-                     grid: 1, splines: 1, stats4: 1, tcltk: 1,
-                     MASS: 1, Matrix: 1, boot: 1, class: 1, cluster: 1,
-                     codetools: 1, foreign: 1, KernSmooth: 1, lattice: 1,
-                     mgcv: 1, nlme: 1, nnet: 1, rpart: 1, spatial: 1,
-                     survival: 1 };
+                     // basetilbehør som følger med webR 0.6.0 (empirisk målt
+                     // m/ installed.packages() i slutt-review 2026-07-28).
+                     // NB: recommended-settet (MASS/survival/nlme/Matrix …)
+                     // shipper IKKE med webR (bygget uten recommended) og
+                     // skal ALDRI hit — bar `MASS::` er avhengig av at
+                     // ::-fallbacken auto-installerer dem.
+                     grid: 1, splines: 1, stats4: 1, tcltk: 1 };
       var reNs = /\b([a-zA-Z][a-zA-Z0-9.]*)::/g;
       while ((m = reNs.exec(src)) !== null) {
         if (!seen[m[1]] && !BASE_R[m[1]]) { seen[m[1]] = true; pkgs.push(m[1]); }
@@ -12085,6 +12085,9 @@ async def _m2py_run_segment(_seg_json):
           // proxy-retry feiler ved tom origin. Begge er feiltolerante
           // (egen try/catch + console.warn) — ingen ny feilflate her.
           await rBridgePreRun(block.codeTrim);
+          // Abort under preRuns nettverksventing: trygg retur HER — preRun
+          // muterer kun bro-cache/seed, ingen tilstand som krever postRun.
+          if (forklarGotoBlockIdx !== null || myAbort.aborted) return;
           try {
             if (!webRShelter) webRShelter = await new webR.Shelter();
             const captured = await webRShelter.captureR(block.codeTrim, { withAutoprint: true });

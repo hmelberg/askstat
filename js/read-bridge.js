@@ -286,7 +286,7 @@
       // Kontrolltegn i input knakk den genererte JS-strengen (R-URL-bro-
       // oppfølging §3): \n/\r/\t escapes til gyldig JS-strengliteral-form,
       // øvrige C0-tegn (\x01-\x1f) droppes (ugyldige i URL/sti uansett).
-      // fixed=TRUE overalt — ingen regex-metatolkning av mønster/erstatning.
+      // fixed=TRUE overalt unntatt C0-klassen (som nødvendigvis er regex).
       '.ost_json_str <- function(s) {',
       '  s <- gsub("\\\\", "\\\\\\\\", s, fixed = TRUE)',
       '  s <- gsub("\\"", "\\\\\\"", s, fixed = TRUE)',

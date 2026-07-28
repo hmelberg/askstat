@@ -93,8 +93,9 @@ presedensen).
   - dims → `astype("category")` (finnes i begge mini-pandas)
   - intlike tid → int-typing der mini-pandas støtter det; NaN-i-intlike →
     forbli utypet + notat (ingen Int64 i mini-pandas — aldri gjetting)
-  - datoklasser → `to_datetime` med mpy-forbeholdet guardet høylytt
-    (enkelte bygg mangler strptime)
+  - (meta-veien bruker aldri `to_datetime` — py-tvillingens apply-regler
+    har ingen dato-konvertering; det hører til heuristikk-oppfølgingen i
+    §8, der mpy-strptime-forbeholdet også hører hjemme)
 - `ost.convert_dtypes(df, meta)`: som §3 — krever meta, heuristikk-None er
   oppfølging (samme begrunnelse).
 - Panel-typemeta for mini-rammer er UTENFOR scope (mini-pandas-attrs
@@ -143,6 +144,9 @@ presedensen).
   presedensen): naken read.csv → panel med etiketter/nivåer; ost_read_csv
   → factor med kildens nivåer i kildens orden; ost_convert_dtypes(df,
   meta=url).
+- Hjelpetekstene (hjelp.html + hjelp.en.html) oppdateres: «R har
+  foreløpig ingen tilsvarende funksjon»-forbeholdet erstattes med de nye
+  veiene (inkl. mini-begrensningen for ledende-null-koder).
 
 ## §8 Utenfor scope
 

@@ -18,7 +18,12 @@
     var query = q >= 0 ? s.slice(q + 1) : '';
     var parts = query ? query.split('&').filter(Boolean) : [];
     if (forceJsonStat) {
-      parts = parts.filter(function (p) { return p.split('=')[0].toLowerCase() !== 'outputformat'; });
+      // outputFormatParams (f.eks. UseTexts) er CSV-visningsparametre —
+      // sendt sammen med json-stat2 400-er SSB (maalt i metadata-runden).
+      parts = parts.filter(function (p) {
+        var k = p.split('=')[0].toLowerCase();
+        return k !== 'outputformat' && k !== 'outputformatparams';
+      });
     }
     var hasLang = parts.some(function (p) { return p.split('=')[0].toLowerCase() === 'lang'; });
     if (!hasLang) parts.unshift('lang=no');
@@ -228,11 +233,49 @@
     ].join('\n');
   }
 
+  // ── URL-gjenkjenning (paritet med openstat.py recognize_url — endres den
+  // ene, endres den andre; delt fixture tests/fixtures/recognize_urls.json) ──
+  var RECOGNIZE_PATTERNS = [
+    ['pxweb', /^(https?:\/\/[^\/]+.*?\/tables)\/([A-Za-z0-9_]+)\/data$/],
+    ['eurostat', /^(https?:\/\/ec\.europa\.eu\/eurostat\/api\/dissemination\/statistics\/1\.0\/data)\/([A-Za-z0-9_]+)$/],
+  ];
+
+  function recognizeUrl(url) {
+    var s = String(url || '');
+    if (s.indexOf('/api/hent?') === 0) {
+      var q = s.split('?')[1] || '';
+      var parts = q.split('&');
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].indexOf('url=') === 0) {
+          // py-paritet: urllib.parse.unquote KASTER ALDRI (ugyldig %-koding
+          // beholdes literal — unquote('%zz') -> '%zz'). decodeURIComponent
+          // kaster URIError på samme input og ville veltet HELE kjøringen
+          // (prefetchScript kaller recognizeUrl per literal-treff). Fallback
+          // til udekodet streng: matcher aldri et gjenkjennelsesmønster,
+          // altså samme observerbare utfall (null) som py-siden.
+          var _raw = parts[i].slice(4);
+          try { s = decodeURIComponent(_raw); } catch (e) { s = _raw; }
+          break;
+        }
+      }
+    }
+    var qi = s.indexOf('?');
+    var base = qi >= 0 ? s.slice(0, qi) : s;
+    var query = qi >= 0 ? s.slice(qi + 1) : '';
+    // Ingen verts-vakt — se py-tvillingens kommentar (paritet).
+    for (var p = 0; p < RECOGNIZE_PATTERNS.length; p++) {
+      var m = RECOGNIZE_PATTERNS[p][1].exec(base);
+      if (m) return { kind: RECOGNIZE_PATTERNS[p][0], base: m[1], table: m[2], query: query };
+    }
+    return null;
+  }
+
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
               eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
               PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl,
-              typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource };
+              typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource,
+              recognizeUrl: recognizeUrl };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

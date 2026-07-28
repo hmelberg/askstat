@@ -24,6 +24,16 @@ def test_data_url_bevarer_query_og_overstyrer_outputformat():
         "https://x/tables/05839/data?valueCodes[Tid]=2020,2021&lang=en&outputFormat=json-stat2"
 
 
+def test_data_url_stripper_ogsaa_outputformatparams():
+    # UseTexts-fella (målt SSB-400 i Task 5): outputFormatParams er et
+    # visningsparameter for CSV — sendt sammen med outputFormat=json-stat2
+    # 400-er SSB, og UseTexts-laster mister metadata unødig.
+    out = ost.data_url("https://x/tables/05839?outputFormat=csv&outputFormatParams=UseTexts")
+    assert "outputFormat=csv" not in out
+    assert "outputFormatParams" not in out
+    assert out == "https://x/tables/05839/data?lang=no&outputFormat=json-stat2"
+
+
 def test_metadata_url():
     assert ost.metadata_url("https://x/tables/05839") == "https://x/tables/05839/metadata?lang=no"
     assert ost.metadata_url("https://x/tables/05839?lang=en") == "https://x/tables/05839/metadata?lang=en"
@@ -498,3 +508,123 @@ def test_js_apply_source_paritet_inkl_nullpadde_koder():
         assert str(out[col].dtype) == str(ref[col].dtype), col
     assert out["Tid"].tolist() == ref["Tid"].tolist()
     assert out.attrs["ost_typemeta"]["units"] == ref.attrs["ost_typemeta"]["units"]
+
+
+def test_recognize_url_fixture():
+    cases = json.loads((pathlib.Path(__file__).parent / "fixtures" / "recognize_urls.json").read_text())["cases"]
+    for c in cases:
+        assert ost.recognize_url(c["url"]) == c["expect"], c["url"]
+
+
+def _mini_jsonstat():
+    return {"id": ["Region", "Tid"], "size": [2, 2],
+            "role": {"time": ["Tid"]},
+            "dimension": {
+                "Region": {"category": {"index": {"0301": 0, "1103": 1},
+                                        "label": {"0301": "Oslo", "1103": "Stavanger"}}},
+                "Tid": {"category": {"index": {"2023": 0, "2024": 1},
+                                     "label": {"2023": "2023", "2024": "2024"}}}},
+            "value": [1, 2, 3, 4]}
+
+
+def test_apply_meta_best_effort_koder_types(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", "2024"], "verdi": [1.0, 2.0]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?x=1")
+    assert str(out["Region"].dtype) == "category"
+    assert str(out["Tid"].dtype) == "int64"          # tidsregelen
+    assert out.attrs["ost_typemeta"]["dims"]["Region"]["labels"]["0301"] == "Oslo"
+    assert str(out["verdi"].dtype) == "float64"       # value røres ikke
+
+
+def test_apply_meta_usetexts_etiketter_typles_ikke(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["Oslo", "Stavanger"], "Tid": ["2023", "2024"]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data")
+    assert str(out["Region"].dtype) == "object"       # etikett-verdier: aldri dtype-endring
+    assert "ost_typemeta" in out.attrs                 # men attrs settes (panel)
+
+
+def test_apply_meta_ukjent_url_feiler_hoylytt():
+    with pytest.raises(ValueError, match="gjenkjen"):
+        ost.apply_meta(pd.DataFrame(), "https://example.com/x.csv")
+
+
+def test_read_csv_passthrough_ukjent(monkeypatch):
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None: b"a,b\n1,2\n")
+    out = ost.read_csv("https://example.com/x.csv")
+    assert list(out.columns) == ["a", "b"] and "ost_typemeta" not in out.attrs
+
+
+def test_read_csv_gjenkjent_dtype_str_vern(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023,1\n1103,2024,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+    # 0301-fella: uten vern hadde pandas gjort Region til int64 (301)
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]
+
+
+def test_apply_meta_nan_i_tidskolonne_gir_nullable_int64(monkeypatch):
+    # NaN i intlike tidskolonne: astype("int64") kaster — nullable "Int64"
+    # bevarer BÅDE aritmetikk OG hullet. Uten NaN forblir det "int64".
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", None]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data")
+    assert str(out["Tid"].dtype) == "Int64"
+    assert out["Tid"].tolist()[0] == 2023
+    assert pd.isna(out["Tid"].tolist()[1])
+
+
+def test_read_csv_delvis_dtype_dict_beholder_str_vernet(monkeypatch):
+    # Delvis brukersendt dtype-DICT skal IKKE slå av str-vernet for dim-
+    # kolonner brukeren ikke selv navnga (0301-fella). Brukerens egne vinner.
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023,1\n1103,2024,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv",
+                       dtype={"verdi": "float64"})
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]
+    assert str(out["verdi"].dtype) == "float64"
+
+
+# ── C1 (slutt-review, KRITISK): parse_dates + injisert dtype=str-vern på
+# SAMME kolonne er en kjent pandas-felle — kombinasjonen gir stille
+# datetime -> epoch-nanosekund-STRENGER i stedet for datetime64 (målt med
+# ekte pandas før fiksen: Tid ble "1672531200000000000" som object-dtype).
+# parse_dates-kolonner skal derfor ALDRI havne i vern-dicten. ────────────────
+
+def test_read_csv_parse_dates_ekskluderer_kolonne_fra_dtype_vern(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(
+        ost, "_fetch_bytes",
+        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023-01-01,1\n1103,2024-01-01,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv",
+                       parse_dates=["Tid"])
+    assert str(out["Tid"].dtype).startswith("datetime64"), \
+        "Tid skal parses som datetime64 — ikke tvinges til str (epoch-korrupsjon)"
+    assert out["Tid"].tolist() == [pd.Timestamp("2023-01-01"), pd.Timestamp("2024-01-01")]
+    # 0301-fella skal fortsatt være dekket for kolonnen brukeren IKKE nevnte:
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]
+
+
+def test_parse_dates_exclusion_helper():
+    # Direkte kontrakt-test av hjelperen: liste/nested-liste ekskluderer
+    # navngitte kolonner; True/uklar (dict-)form dropper HELE injeksjonen
+    # konservativt (vi kan ikke si sikkert hvilke kolonner som er berørt).
+    assert ost._parse_dates_exclusion(None) == (False, set())
+    assert ost._parse_dates_exclusion(False) == (False, set())
+    assert ost._parse_dates_exclusion(True) == (True, set())
+    assert ost._parse_dates_exclusion(["Tid"]) == (False, {"Tid"})
+    assert ost._parse_dates_exclusion([["Tid", "time"], "Region"]) == \
+        (False, {"Tid", "time", "Region"})
+    assert ost._parse_dates_exclusion({"dato": ["Tid"]}) == (True, set())

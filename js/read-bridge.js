@@ -85,7 +85,23 @@
   }
 
   function prefetchScript(script) {
-    scanUrls(script).forEach(function (u) { ensure(u); });
+    scanUrls(script).forEach(function (u) {
+      ensure(u);
+      // Metadata-hint (metadata-runden Task 3): gjenkjent registerkilde ->
+      // prefetch json-stat2-formen av SAMME spørring. Fødselstypingen i
+      // Pyodide (_ost_typed_read) henter metadata gjennom openstat.py sin
+      // EGEN transport (_fetch_bytes — ikke ReadBridge-cachen), så denne
+      // hinten varmer ikke en JS-side cache Python leser fra; den varmer
+      // NETTLESERENS HTTP-cache for den eksakte URL-en ved å starte
+      // hentingen tidlig (mens Pyodide fortsatt booter) — så det andre
+      // (synkrone) oppslaget under selve read_csv-kallet ikke koster
+      // ventetid på happy path. Ren hint — bom koster tid, aldri korrekthet.
+      var rec = global.PxWeb && global.PxWeb.recognizeUrl ? global.PxWeb.recognizeUrl(u) : null;
+      if (rec && global.PxWeb.dataUrlFor) {
+        var t = rec.base + '/' + rec.table + (rec.query ? '?' + rec.query : '');
+        ensure(global.PxWeb.dataUrlFor(rec.kind, t));
+      }
+    });
   }
 
   function getCached(url) { return cache[url] || null; }
@@ -149,7 +165,65 @@
       '    if _r.error:',
       '        raise ValueError(str(_r.error))',
       '    return _ost_io.BytesIO(bytes(_r.bytes.to_py()))',
-      'def _ost_wrap_reader(_orig):',
+      'def _ost_typed_read(_orig, _url, _a, _kw):',
+      '    # Fødselstyping (metadata-runden Task 3): gjenkjent register-URL ->',
+      '    # bytes via broen (cache/proxy/auth uendret), dim-kolonner får',
+      '    # dtype=str-vern VED parse, og rammen typles best-effort — ALT via',
+      '    # openstat.py sine egne regler (recognize_url/_typemeta_for/',
+      '    # _apply_best_effort). ALDRI dupliser reglene her. openstat.py',
+      '    # utilgjengelig ELLER metadata utilgjengelig -> ETT konsoll-notat,',
+      '    # utypet last, aldri kast (hint-prinsippet: en bom koster ventetid,',
+      '    # aldri korrekthet).',
+      '    try:',
+      '        import openstat as _ost',
+      '    except Exception as _e:',
+      '        print("fødselstyping: openstat.py utilgjengelig (", _e, ") — laster utypet")',
+      '        return _orig(_ost_url_buf(_url), *_a, **_kw)',
+      '    _rec = _ost.recognize_url(_url)',
+      '    _buf = _ost_url_buf(_url)',
+      '    if _rec is None:',
+      '        return _orig(_buf, *_a, **_kw)',
+      '    _tm = None',
+      '    try:',
+      '        _tm = _ost._typemeta_for(_rec["kind"], _rec["base"], _rec["table"], _rec["query"])',
+      '    except Exception as _e:',
+      '        print("fødselstyping: metadata utilgjengelig for", _rec["table"], "(", _e, ") — laster utypet")',
+      '    if _tm is not None:',
+      '        # dtype=str-vernet: brukerens egne valg vinner ALLTID, men et',
+      '        # delvis dtype-DICT skal ikke stille slå av vernet for dim-',
+      '        # kolonner brukeren ikke selv navnga (0301-fella). Skalar dtype',
+      '        # dekker alt selv og respekteres urørt. parse_dates på en dim-',
+      '        # kolonne skal ALDRI få dtype=str injisert samtidig — kjent',
+      '        # pandas-felle (datetime -> epoch-nanosekund-STRENGER, stille',
+      '        # korrupsjon, C1 i slutt-reviewen); uklar parse_dates-form',
+      '        # (True/dict) dropper HELE injeksjonen konservativt. Flette-',
+      '        # logikken speiler openstat.py sin read_csv/_parse_dates_exclusion.',
+      '        _pd_dates = _kw.get("parse_dates")',
+      '        _drop_all = False',
+      '        _excl = set()',
+      '        if _pd_dates is True:',
+      '            _drop_all = True',
+      '        elif _pd_dates is None or _pd_dates is False:',
+      '            pass',
+      '        elif isinstance(_pd_dates, (list, tuple)):',
+      '            for _item in _pd_dates:',
+      '                if isinstance(_item, (list, tuple)):',
+      '                    _excl.update(str(_x) for _x in _item)',
+      '                else:',
+      '                    _excl.add(str(_item))',
+      '        else:',
+      '            _drop_all = True',
+      '        if not _drop_all:',
+      '            _vern = {_d: str for _d in (_tm.get("dims") or {}) if _d not in _excl}',
+      '            if "dtype" not in _kw:',
+      '                _kw = dict(_kw)',
+      '                _kw["dtype"] = _vern',
+      '            elif isinstance(_kw["dtype"], dict):',
+      '                _kw = dict(_kw)',
+      '                _kw["dtype"] = {**_vern, **_kw["dtype"]}',
+      '    _df = _orig(_buf, *_a, **_kw)',
+      '    return _ost._apply_best_effort(_df, _tm) if _tm is not None else _df',
+      'def _ost_wrap_reader(_orig, _typed):',
       '    # Idempotens-vakt: kjerne-preamblet re-kjøres per kjøring, og uten',
       '    # denne stables wrapperne én per run (målt: _w x4 i en traceback).',
       '    if getattr(_orig, "_ost_url_wrapped", False):',
@@ -159,13 +233,16 @@
       '            return _orig(*a, **kw)',
       '        _fp = a[0]',
       '        if isinstance(_fp, str) and (_fp.startswith("http://") or _fp.startswith("https://") or _fp.startswith("/api/hent?")):',
+      '            if _typed:',
+      '                return _ost_typed_read(_orig, _fp, a[1:], kw)',
       '            return _orig(_ost_url_buf(_fp), *a[1:], **kw)',
       '        return _orig(*a, **kw)',
       '    _w._ost_url_wrapped = True',
       '    return _w',
-      'pd.read_csv = _ost_wrap_reader(pd.read_csv)',
-      'pd.read_json = _ost_wrap_reader(pd.read_json)',
-      'pd.read_parquet = _ost_wrap_reader(pd.read_parquet)',
+      '# KUN read_csv typles ved fødsel — json/parquet bærer allerede dtype (ingen CSV-parsefelle).',
+      'pd.read_csv = _ost_wrap_reader(pd.read_csv, True)',
+      'pd.read_json = _ost_wrap_reader(pd.read_json, False)',
+      'pd.read_parquet = _ost_wrap_reader(pd.read_parquet, False)',
       ''
     ].join('\n');
   }

@@ -48,8 +48,10 @@
   "cases": [
     {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?valueCodes[Tid]=*&outputFormat=csv&stub=Tid",
      "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "05839", "query": "valueCodes[Tid]=*&outputFormat=csv&stub=Tid"}},
-    {"url": "https://api.scb.se/OV0104/v2beta/api/v2/tables/TAB1267/data?outputFormat=csv",
-     "expect": {"kind": "pxweb", "base": "https://api.scb.se/OV0104/v2beta/api/v2/tables", "table": "TAB1267", "query": "outputFormat=csv"}},
+    {"url": "https://api.scb.se/ov0104/v2beta/api/v2/tables/TAB1267/data?outputFormat=csv&lang=sv",
+     "expect": {"kind": "pxweb", "base": "https://api.scb.se/ov0104/v2beta/api/v2/tables", "table": "TAB1267", "query": "outputFormat=csv&lang=sv"}},
+    {"url": "https://api.statbank.dk/v1/data/FOLK1A/CSV?Tid=*", "expect": null},
+    {"url": "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/synt/statfin_synt_pxt_12dy.px", "expect": null},
     {"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_pc_202?format=JSON&geo=NO",
      "expect": {"kind": "eurostat", "base": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data", "table": "nrg_pc_202", "query": "format=JSON&geo=NO"}},
     {"url": "/api/hent?url=https%3A%2F%2Fdata.ssb.no%2Fapi%2Fpxwebapi%2Fv2%2Ftables%2F07230%2Fdata%3FvalueCodes%5BTid%5D%3D*",
@@ -61,7 +63,7 @@
 }
 ```
 
-MERK scb-formen: verifiser mot ekte SCB-URL-form FØR fixturen låses (curl mot api.scb.se — v2beta-stien har vist seg å avvike, jf. eval-funnet «SCB-v2beta avviser stub»). Er formen en annen: rett fixturen og mønsteret, ikke koden rundt.
+Formene er verifisert mot registeret (data/data-sources.json sporrings_url_mal, kontrollør-sjekket 2026-07-28): ssb + scb (lowercase ov0104, v2beta) bruker /tables/{id}/data-formen; dst (statbank v1) og statfin (PXWeb v1) har ANDRE API-former og er BEVISST utenfor gjenkjenningen i denne runden (negative fixtures håndhever det; ført som oppfølging i ledgeren, sammen med spec-ens «familien»-formulering som dermed er smalere i praksis: ssb/scb/eurostat).
 
 - [ ] **Step 2: Skriv feilende tester (begge suiter, samme fixture)**
 

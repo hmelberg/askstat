@@ -4525,10 +4525,22 @@
         var nvars = columns.length;
         var nrows = meta.nrows != null ? meta.nrows : 0;
         var metaLine = '<div class="sidebar-dataset-meta">' + escapeHtml(String(nvars)) + ' variabler · ' + escapeHtml(String(nrows)) + ' observasjoner</div>';
+        // ost_typemeta-berikelse (metadata-runden Task 4, spec §1): når
+        // rammen bærer typemeta (Pyodide-fødselstyping ELLER kanonisk
+        // direktiv-vei — begge setter attrs["ost_typemeta"] via samme
+        // apply-funksjon, se refreshDatasetSidebarFromPy), bruk
+        // SidebarTypemeta.varRow() for «navn — etikett · dtype» + ▸-toggle,
+        // og append en skjult nivåliste rett etter raden. Datasett uten
+        // typemeta beholder dagens rad uendret (ren tilleggsfunksjon).
+        var tm = meta.typemeta;
         var varsHtml = colsOrdered.map(function(v) {
           var dtypeStr = dtypes[v] || '';
           var typeCell = getSidebarTypeCellHtml(v, dtypeStr);
-          return '<div class="sidebar-var-row" data-ds="' + escapeHtml(dsName) + '" data-var="' + escapeHtml(v) + '">' + typeCell + '<span class="sidebar-var-name">' + escapeHtml(v) + '</span></div>';
+          var rowInner = (tm && window.SidebarTypemeta)
+            ? window.SidebarTypemeta.varRow(v, dtypeStr, tm)
+            : '<span class="sidebar-var-name">' + escapeHtml(v) + '</span>';
+          var levelsHtml = (tm && window.SidebarTypemeta) ? window.SidebarTypemeta.levelList(tm, v) : '';
+          return '<div class="sidebar-var-row" data-ds="' + escapeHtml(dsName) + '" data-var="' + escapeHtml(v) + '">' + typeCell + rowInner + '</div>' + levelsHtml;
         }).join('');
         // Badgen (kaller-oppgitt, gjelder hele kallet) utelates for stale
         // rader — (fra <runtime>) under er den PRESISE per-datasett-taggen,
@@ -4597,6 +4609,23 @@
           if (staleRt) { showStaleRunExplanation(dsDiv, ds, staleRt); return; }
           var v = this.getAttribute('data-var');
           showVariableDetail(ds, v);
+        });
+      });
+      // ▸-toggle (ost_typemeta-nivåliste, Task 4): klikk åpner/lukker den
+      // skjulte .sidebar-level-list som ligger som SØSKEN rett etter raden
+      // (samme innsettingsmønster som showStaleRunExplanation). Ingen ny
+      // state — display alene styrer synlighet. stopPropagation hindrer at
+      // raden sin egen klikk-handler (showVariableDetail) fyrer samtidig,
+      // samme mønster som ⊞/ⓘ-knappene under.
+      datasetsEl.querySelectorAll('[data-tm-toggle]').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var row = this.closest('.sidebar-var-row');
+          var levels = row && row.nextElementSibling;
+          if (!levels || !levels.classList.contains('sidebar-level-list')) return;
+          var opening = levels.style.display === 'none' || !levels.style.display;
+          levels.style.display = opening ? 'block' : 'none';
+          this.textContent = opening ? '▾' : '▸';
         });
       });
       // Navneklikk: for et stale datasett samme «kjør scriptet»-forklaring som
@@ -8746,6 +8775,20 @@ def _refl(name, df):
             d[name] = {"columns": [str(c) for c in getattr(df, "columns", [])], "nrows": None, "dtypes": {}}
         except Exception:
             d[name] = {"columns": [], "nrows": None, "dtypes": {}}
+    # ost_typemeta (metadata-runden Task 4, spec §1): panelet leser
+    # info[name].typemeta. Sanert i EGEN try/except med allow_nan=False som
+    # prøvekjøring -- json.dumps sitt DEFAULT (allow_nan=True) ville ellers
+    # stille emittert et bokstavelig NaN-token JS sin JSON.parse ikke
+    # forstår, som ville veltet HELE rundturen (try/except rundt hele evalen
+    # lenger ned nullstiller ALT lastDatasetInfo). None (manglende
+    # decimals/base i units) er trygt -- blir null, overlever uendret.
+    try:
+        _tm = getattr(df, "attrs", {}).get("ost_typemeta")
+        if _tm is not None:
+            json.dumps(_tm, allow_nan=False)
+            d[name]["typemeta"] = _tm
+    except Exception:
+        pass
 for name, df in e.datasets.items():
     _refl(name, df)
 # S4 (smoke 3, 2026-07-27): sidepanelet skal REFLEKTERE det som finnes —
@@ -12294,6 +12337,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/enc-crypto.js"></script>
   <script src="js/data-loader.js"></script>
   <script src="js/read-bridge.js"></script>
+  <script src="js/sidebar-typemeta.js"></script>
   <script src="js/duckdb-views.js"></script>
   <script src="js/assembly-duckdb.js"></script>
   <script src="js/duckdb-native.js"></script>

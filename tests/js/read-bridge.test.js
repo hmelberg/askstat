@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 require('../../js/data-loader.js');
 require('../../js/read-bridge.js');
+const PX = require('../../js/pxweb.js');
 const RB = globalThis.ReadBridge;
 
 test('scanUrls: finner literaler i read_csv/read_json/read_parquet', () => {
@@ -267,4 +268,67 @@ test('rPatchSource: R-kilden parser som gyldig R (strukturell sjekk)', () => {
   let depth = 0;
   for (const ch of src) { if (ch === '{') depth++; if (ch === '}') depth--; assert.ok(depth >= 0); }
   assert.strictEqual(depth, 0);
+});
+
+// ── Task 3: fødselstyping i Pyodide (pyPatchSource) + prefetch-hint ────────
+
+test('pyPatchSource: fødselstyping — recognize + dtype=str-vern + best-effort, aldri kast', () => {
+  const src = RB.pyPatchSource();
+  for (const needle of ['recognize_url', '_typemeta_for', '_apply_best_effort',
+                        '"dtype"', 'laster utypet']) {
+    assert.ok(src.includes(needle), 'mangler: ' + needle);
+  }
+});
+
+test('pyPatchSource: KUN read_csv rutes gjennom fødselstypingen, json/parquet uendret', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(src.includes('pd.read_csv = _ost_wrap_reader(pd.read_csv, True)'));
+  assert.ok(src.includes('pd.read_json = _ost_wrap_reader(pd.read_json, False)'));
+  assert.ok(src.includes('pd.read_parquet = _ost_wrap_reader(pd.read_parquet, False)'));
+});
+
+test('pyPatchSource: openstat-import feiler høylytt-fritt (try/except rundt import, aldri kast)', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(src.includes('import openstat as _ost'));
+  assert.ok(/try:\s*\n\s*import openstat as _ost\s*\n\s*except Exception as _e:/.test(src));
+});
+
+// ── C1 (slutt-review, KRITISK): parse_dates + injisert dtype=str-vern på
+// SAMME kolonne korrumperer stille (datetime -> epoch-nanosekund-strenger,
+// målt med ekte pandas). _ost_typed_read må ekskludere parse_dates-navngitte
+// kolonner fra vern-dicten — speilet fra openstat.py sin _parse_dates_exclusion.
+test('pyPatchSource: fødselstyping ekskluderer parse_dates-kolonner fra dtype-vernet (C1)', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(src.includes('parse_dates'), 'mangler parse_dates-håndtering');
+  assert.ok(src.includes('_drop_all'), 'mangler konservativ drop-hele-injeksjonen-vakten');
+});
+
+// ── I1: app/pakke-divergens — _ost_typed_read hoppet FØR over vernet ved
+// ENHVER dtype i kwargs (openstat.py fletter en dict-dtype). Speilet inn.
+test('pyPatchSource: dtype-DICT flettes ({**vern, **bruker}) — skalar dtype respekteres urørt (I1)', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(/isinstance\(_kw\["dtype"\],\s*dict\)/.test(src),
+    'mangler isinstance-sjekk for dict-dtype (flettelogikk speilet fra openstat.py)');
+  assert.ok(/\{\*\*_vern,\s*\*\*_kw\["dtype"\]\}/.test(src),
+    'mangler {**vern, **bruker}-flettingen selv');
+});
+
+test('prefetchScript: gjenkjent registerkilde prefetcher metadata-json-stat2 (SAMME spørring) via PxWeb.dataUrlFor', () => {
+  RB._reset();
+  const calls = [];
+  RB._setFetcher(async (url) => { calls.push(url); return { bytes: new Uint8Array([1]), contentType: 'text/csv' }; });
+  const u = 'https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?valueCodes[Region]=*';
+  RB.prefetchScript('df = pd.read_csv("' + u + '")');
+  const rec = PX.recognizeUrl(u);
+  const expected = PX.dataUrlFor(rec.kind, rec.base + '/' + rec.table + '?' + rec.query);
+  assert.ok(calls.includes(u), 'CSV-URL-en selv prefetches (uendret oppførsel)');
+  assert.ok(calls.includes(expected), 'metadata-URL-en prefetches som hint: ' + expected);
+});
+
+test('prefetchScript: ugjenkjent URL prefetcher KUN seg selv (ingen gjetting)', () => {
+  RB._reset();
+  const calls = [];
+  RB._setFetcher(async (url) => { calls.push(url); return { bytes: new Uint8Array([1]), contentType: '' }; });
+  RB.prefetchScript('df = pd.read_csv("https://example.org/ikke-et-register.csv")');
+  assert.deepStrictEqual(calls, ['https://example.org/ikke-et-register.csv']);
 });

@@ -24,7 +24,8 @@ import sys
 import pandas as pd
 
 __all__ = ["connect", "read", "create", "datasets",
-           "data_url", "metadata_url", "eurostat_data_url", "columns_from_jsonstat",
+           "data_url", "metadata_url", "eurostat_data_url", "recognize_url", "columns_from_jsonstat",
+           "read_csv", "apply_meta",
            "SDMX_ACCEPT", "sdmx_fallback_url", "worldbank_data_url", "worldbank_page_url",
            "worldbank_meta", "worldbank_columns", "dbnomics_data_url", "dbnomics_columns"]
 
@@ -65,7 +66,10 @@ def _build_url(url, endpoint, force_jsonstat):
     base, _, query = s.partition("?")
     parts = [p for p in query.split("&") if p]
     if force_jsonstat:
-        parts = [p for p in parts if p.split("=")[0].lower() != "outputformat"]
+        # outputFormatParams (f.eks. UseTexts) er CSV-visningsparametre —
+        # sendt sammen med json-stat2 400-er SSB (målt i metadata-runden).
+        parts = [p for p in parts
+                 if p.split("=")[0].lower() not in ("outputformat", "outputformatparams")]
     if not any(p.split("=")[0].lower() == "lang" for p in parts):
         parts.insert(0, "lang=no")
     if force_jsonstat:
@@ -91,6 +95,49 @@ def eurostat_data_url(url):
         parts.insert(0, "lang=en")
     parts.append("format=JSON")
     return base.rstrip("/") + "?" + "&".join(parts)
+
+
+# ── URL-gjenkjenning (paritet med js/pxweb.js recognizeUrl — endres den ene,
+# endres den andre; delt fixture tests/fixtures/recognize_urls.json) ─────────
+
+_RECOGNIZE_PATTERNS = (
+    # \Z (ikke $): Pythons $ matcher også RETT FØR en trailing newline, mens
+    # JS-tvillingens $ (uten /m) krever bokstavelig slutt på strengen — \Z
+    # gir samme (strengere) oppførsel her, så en URL med trailing "\n" IKKE
+    # gjenkjennes i CPython når den heller ikke gjør det i JS.
+    ("pxweb", r"^(https?://[^/]+.*?/tables)/([A-Za-z0-9_]+)/data\Z"),
+    ("eurostat", r"^(https?://ec\.europa\.eu/eurostat/api/dissemination/statistics/1\.0/data)/([A-Za-z0-9_]+)\Z"),
+)
+
+
+def recognize_url(url):
+    """Data-URL -> {kind, base, table, query} for kilder med kjent metadata
+    (pxweb-familien via /tables/<id>/data-formen, eurostat statistics-api).
+    None for alt annet — aldri gjetting. /api/hent-innpakning pakkes ut én
+    gang før matching."""
+    s = str(url or "")
+    if s.startswith("/api/hent?"):
+        for part in s.split("?", 1)[1].split("&"):
+            if part.startswith("url="):
+                s = _unquote(part[4:])
+                break
+    base, _, query = s.partition("?")
+    # Ingen verts-vakt: /tables/<id>/data-formen ER signaturen (verts-
+    # agnostisk for pxweb-familien); v0-API-et («/table/<id>», entall, uten
+    # /data) matcher aldri mønsteret — fixturens negative case håndhever det.
+    for kind, pat in _RECOGNIZE_PATTERNS:
+        m = _re.match(pat, base)
+        if m:
+            return {"kind": kind, "base": m.group(1), "table": m.group(2), "query": query}
+    return None
+
+
+def _unquote(s):
+    """URL-dekoding (stdlib unquote — kaster aldri, ugyldig %-koding beholdes
+    literal). js-tvillingens recognizeUrl bruker decodeURIComponent, som
+    KASTER på samme input — se try/catch der (I2, slutt-reviewen)."""
+    from urllib.parse import unquote
+    return unquote(s)
 
 
 def _category_codes(dim):
@@ -183,6 +230,116 @@ def apply_typemeta(df, tm):
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df.attrs["ost_typemeta"] = tm
     return df
+
+
+# ── portable eksplisitte funksjoner (plan 2026-07-27-metadata-runden Task 2):
+# read_csv/apply_meta lar brukeren gjøre henting/parsing selv (egen pandas-
+# kode, egne kwargs) og likevel få samme typing+attrs som app-veien
+# (connect/read). apply_meta er den eksplisitte tvillingen av fødselstyping —
+# HØYLYTT ved ukjent kilde (eksplisitt kall = brukeren mente det); read_csv
+# er en pandas-passthrough som skal FØLES som pandas for ukjente URL-er. ────
+
+def _typemeta_for(kind, base, table, query):
+    """Typekontrakt for en gjenkjent kilde: json-stat2 m/ SAMME spørring
+    (aldri krympet utvalg — top(1)-krymping gir hullete kategorier -> NaN i
+    Categorical). _fetch_bytes memoiserer selve bytes-hentingen per økt."""
+    target = base.rstrip("/") + "/" + table + (("?" + query) if query else "")
+    du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
+    return typemeta_from_jsonstat(_json.loads(_fetch_bytes(du).decode("utf-8")))
+
+
+def _apply_best_effort(df, tm):
+    """Typ kun kolonner hvis verdier er kildens KODER; etikett-verdier
+    (UseTexts) får aldri dtype-endring — men attrs settes alltid (panelet
+    trenger etikettene uansett)."""
+    for did, d in (tm.get("dims") or {}).items():
+        if did not in df.columns:
+            continue
+        cats = [str(c) for c in (d.get("categories") or [])]
+        vals = set(df[did].dropna().astype(str))
+        if not vals or not vals.issubset(set(cats)):
+            continue
+        if did in (tm.get("time") or []) and _all_intlike(cats):
+            # NaN-hull: astype("int64") kaster — nullable "Int64" bevarer
+            # BÅDE aritmetikk OG hullet. Uten hull: vanlig int64 som før.
+            df[did] = df[did].astype("Int64" if df[did].isna().any() else "int64")
+        else:
+            df[did] = pd.Categorical(df[did].astype(str), categories=cats,
+                                     ordered=did in (tm.get("time") or []))
+    df.attrs["ost_typemeta"] = tm
+    return df
+
+
+def apply_meta(df, url_or_table, base=None):
+    """Påfør registermetadata på en ramme du alt har lastet. Portabel
+    tvilling av appens fødselstyping — samme regler, eksplisitt. Muterer
+    rammen in-place og returnerer den (apply_typemeta-presedensen)."""
+    rec = recognize_url(url_or_table)
+    if rec is None and base:
+        rec = {"kind": "pxweb", "base": str(base), "table": str(url_or_table), "query": ""}
+    if rec is None:
+        raise ValueError("URL-en gjenkjennes ikke som en registerkilde med kjent metadata "
+                         "(pxweb/eurostat) — oppgi base= og tabell-id, eller bruk ost.read().")
+    return _apply_best_effort(df, _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"]))
+
+
+def _parse_dates_exclusion(parse_dates):
+    """Kolonnenavn parse_dates dekker, for å UNNTA dem fra dtype=str-vernet:
+    parse_dates OG en tvunget dtype på SAMME kolonne er en kjent pandas-felle
+    som gir stille korrupsjon (datetime -> epoch-nanosekund-STRENGER, målt
+    med ekte pandas i slutt-reviewen — C1). Returnerer (drop_all, names):
+    drop_all=True betyr at HELE vern-injeksjonen droppes konservativt
+    (parse_dates=True — meningen er indeks-parsing, ingen navngitte
+    kolonner å ekskludere trygt — eller en form vi ikke leser trygt, f.eks.
+    dict-formen). names dekker liste- OG nested-liste-formen (pandas slår
+    sammen f.eks. parse_dates=[["a", "b"]] til én dato-kolonne av a+b)."""
+    if parse_dates is None or parse_dates is False:
+        return False, set()
+    if parse_dates is True:
+        return True, set()
+    if isinstance(parse_dates, (list, tuple)):
+        names = set()
+        for item in parse_dates:
+            if isinstance(item, (list, tuple)):
+                names.update(str(x) for x in item)
+            else:
+                names.add(str(item))
+        return False, names
+    return True, set()  # uklar form (f.eks. dict) -> konservativt: dropp alt
+
+
+def read_csv(url, **kwargs):
+    """pd.read_csv med metadata på: gjenkjent register-URL -> CSV-en lastes
+    (brukerens form/params), dim-kolonner får dtype=str-vern VED parse
+    (0301-fella kan ikke repareres etterpå), og rammen typles best-effort.
+    Ukjent URL -> ren pandas-passthrough, uendret semantikk."""
+    rec = recognize_url(url)
+    raw = io.BytesIO(_fetch_bytes(str(url)))
+    if rec is None:
+        return pd.read_csv(raw, **kwargs)
+    tm = None
+    try:
+        tm = _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"])
+    except Exception as e:
+        sys.stderr.write("ost.read_csv: metadata utilgjengelig for %s (%s) — laster utypet.\n"
+                         % (rec["table"], e))
+    if tm is not None:
+        # dtype=str-vernet: brukerens egne valg vinner ALLTID, men et delvis
+        # dtype-DICT skal ikke stille slå av vernet for dim-kolonner brukeren
+        # ikke selv navnga (da gjenoppstår 0301-fella). Skalar dtype (f.eks.
+        # dtype=str) dekker alt selv og respekteres urørt. parse_dates på en
+        # dim-kolonne skal ALDRI få dtype=str injisert samtidig (C1 —
+        # epoch-nanosekund-korrupsjon); uklar parse_dates-form dropper HELE
+        # injeksjonen konservativt.
+        drop_all, excluded = _parse_dates_exclusion(kwargs.get("parse_dates"))
+        if not drop_all:
+            vern = {d: str for d in (tm.get("dims") or {}) if d not in excluded}
+            if "dtype" not in kwargs:
+                kwargs = dict(kwargs, dtype=vern)
+            elif isinstance(kwargs["dtype"], dict):
+                kwargs = dict(kwargs, dtype={**vern, **kwargs["dtype"]})
+    df = pd.read_csv(raw, **kwargs)
+    return _apply_best_effort(df, tm) if tm is not None else df
 
 
 # ── api-kinds (paritet med js/api-kinds.js — endres den ene, endres den

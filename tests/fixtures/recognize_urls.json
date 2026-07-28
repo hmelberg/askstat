@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?valueCodes[Tid]=*&outputFormat=csv&stub=Tid",
+     "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "05839", "query": "valueCodes[Tid]=*&outputFormat=csv&stub=Tid"}},
+    {"url": "https://api.scb.se/ov0104/v2beta/api/v2/tables/TAB1267/data?outputFormat=csv&lang=sv",
+     "expect": {"kind": "pxweb", "base": "https://api.scb.se/ov0104/v2beta/api/v2/tables", "table": "TAB1267", "query": "outputFormat=csv&lang=sv"}},
+    {"url": "https://api.statbank.dk/v1/data/FOLK1A/CSV?Tid=*", "expect": null},
+    {"url": "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/synt/statfin_synt_pxt_12dy.px", "expect": null},
+    {"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_pc_202?format=JSON&geo=NO",
+     "expect": {"kind": "eurostat", "base": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data", "table": "nrg_pc_202", "query": "format=JSON&geo=NO"}},
+    {"url": "/api/hent?url=https%3A%2F%2Fdata.ssb.no%2Fapi%2Fpxwebapi%2Fv2%2Ftables%2F07230%2Fdata%3FvalueCodes%5BTid%5D%3D*",
+     "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "07230", "query": "valueCodes[Tid]=*"}},
+    {"url": "https://ourworldindata.org/grapher/co2.csv", "expect": null},
+    {"url": "https://data.ssb.no/api/v0/no/table/05839", "expect": null},
+    {"url": "ikke en url", "expect": null},
+    {"url": "/api/hent?url=%zz%zz", "expect": null},
+    {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data",
+     "expect": {"kind": "pxweb", "base": "https://data.ssb.no/api/pxwebapi/v2/tables", "table": "05839", "query": ""}},
+    {"url": "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data\n", "expect": null}
+  ]
+}

@@ -678,6 +678,17 @@
     .sidebar-var-type-id { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
     .sidebar-var-type-id svg { display: block; }
     .sidebar-var-name { flex: 1; min-width: 0; word-break: break-word; font-weight: 700; }
+    /* ost_typemeta-berikelse (Task 4, metadata-runden): dtype/unit-tekst og
+       ▸-toggle ved siden av .sidebar-var-name, nivåliste rendret som SØSKEN
+       rett etter .sidebar-var-row (skjult som standard, display toggles av
+       klikk-handleren — ingen ny state, se updateSidebarDatasets). */
+    .sidebar-var-dtype { flex: 0 0 auto; color: var(--text-muted); font-size: 11px; font-weight: 400; white-space: nowrap; padding-top: 1px; }
+    .sidebar-var-toggle { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; padding: 1px 2px 0; user-select: none; }
+    .sidebar-var-row:hover .sidebar-var-toggle { color: var(--accent); }
+    .sidebar-level-list { display: none; margin: 0 0 4px 34px; padding: 4px 8px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; line-height: 1.5; color: var(--text-muted); }
+    .sidebar-level-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-level-row code { font-family: 'Fira Code', 'Consolas', monospace; color: var(--text); background: none; padding: 0; margin-right: 4px; }
+    .sidebar-level-more { font-style: italic; opacity: 0.8; }
     .sidebar-empty { color: var(--text-muted); font-size: 12px; }
     /* Stale datasett (Task 5, spec 2026-07-25-metadata-ui-datasett-flate-
        design): fra en annen motor enn aktiv editor-modus — grået ut, sortert

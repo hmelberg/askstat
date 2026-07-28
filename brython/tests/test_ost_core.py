@@ -292,3 +292,16 @@ def test_read_csv_ost_url_attrs_ukjent_kilde_ingen_attr(convert):
     ost, _ = _install({url: DATA})
     df = ost.read_csv(url, convert=convert)
     assert "ost_url" not in df.attrs
+
+
+def test_read_csv_px_none_ingen_ost_url_attr():
+    # Task-3-review-funn 1: gjenkjenningsdefinisjonen skal være SAMLET
+    # (_recognized_url for begge convert-veier). Før fiksen utledet
+    # convert=True-veien gjenkjenning fra entries/err — og px=None gir
+    # (None, "PxWeb utilgjengelig"), altså err satt -> attrs feilaktig satt,
+    # mens convert=False-veien (via _recognized_url) korrekt svarte False.
+    # px mangler helt -> ingen attr, samme som convert=False-oppførselen.
+    ost, _ = _install({CSV_URL: DATA})
+    del sys.modules["browser"].window.PxWeb
+    df = ost.read_csv(CSV_URL)
+    assert "ost_url" not in df.attrs

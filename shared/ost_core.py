@@ -111,7 +111,13 @@ def _typemeta_entries(url):
     px = getattr(w, "PxWeb", None)
     if px is None:
         return None, "PxWeb utilgjengelig"
-    murl = str(px.metaUrlFor(str(url)) or "")
+    # try/except-symmetri med _recognized_url (task-3-review-funn 2): et
+    # uventet kast fra metaUrlFor skal bli en metadata-feil (utypet + notat
+    # hos kalleren), aldri velte read_csv/convert_dtypes.
+    try:
+        murl = str(px.metaUrlFor(str(url)) or "")
+    except Exception as e:
+        return None, str(e)
     if not murl:
         return None, None
     try:
@@ -136,11 +142,15 @@ def _typemeta_entries(url):
 
 def _recognized_url(url):
     """Kun mønstergjenkjenning (px.metaUrlFor) — ALDRI et nettverkskall.
-    Brukes til ost_url-attrs (mini-knippet §3) når convert=False, der
-    _typemeta_entries ikke kjøres i det hele tatt (ingen metadatahenting —
-    "byte-lik naken" gjelder VERDIENE, ikke denne rene proveniens-
-    annoteringen). PxWeb utilgjengelig/uventet unntak -> ukjent (samme
-    forsiktige feilmodus som resten av modulen: ingen attr, aldri kast)."""
+    Den ENE gjenkjenningskilden for ost_url-attrs (mini-knippet §3 +
+    task-3-review-funn 1): BEGGE convert-veier i read_csv bruker denne, så
+    px=None/kast gir samme svar (ukjent -> ingen attr) uansett convert — å
+    utlede gjenkjenning fra _typemeta_entries sitt (entries, err)-par ga
+    sprik (err "PxWeb utilgjengelig" er IKKE en gjenkjent kilde). convert=
+    False henter for øvrig aldri metadata ("byte-lik naken" gjelder
+    VERDIENE, ikke denne rene proveniens-annoteringen). PxWeb utilgjengelig/
+    uventet unntak -> ukjent (samme forsiktige feilmodus som resten av
+    modulen: ingen attr, aldri kast)."""
     w = _js_root()
     px = getattr(w, "PxWeb", None)
     if px is None:
@@ -239,13 +249,12 @@ def read_csv(url, convert=True, **kwargs):
     # i js/read-bridge.js sin rPatchSource): satt for GJENKJENT kilde UANSETT
     # convert — panelberikelsen (index.html refreshDatasetSidebarFromEngineInfo)
     # trenger stien tilbake til kilde-URL-en også for den nakne convert=False-
-    # veien; dette er ren proveniens, ikke typing. convert=True har allerede
-    # avgjort gjenkjenning over via _typemeta_entries (unngår et redundant
-    # metaUrlFor-kall — recognized ⟺ entries ELLER err er satt, se
-    # _typemeta_entries-kontrakten); ellers et eget lett mønstersjekk uten
-    # nettverkskall.
-    _recognized = (entries is not None or err is not None) if convert else _recognized_url(url)
-    if _recognized:
+    # veien; dette er ren proveniens, ikke typing. ÉN gjenkjenningskilde for
+    # begge convert-veier (task-3-review-funn 1): entries/err-utledning ga
+    # sprik ved px=None (err satt != gjenkjent kilde). Det ekstra
+    # metaUrlFor-kallet i convert=True-veien er en ren strengfunksjon —
+    # ingen nettverkskall.
+    if _recognized_url(url):
         df.attrs["ost_url"] = url
     if not convert:
         return df

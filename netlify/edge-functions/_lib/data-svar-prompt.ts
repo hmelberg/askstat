@@ -287,6 +287,30 @@ linearmodels kan installeres (PSM, panel-IV). Velg python-modus når analysen
 trenger dette. Direktivrammene er pandas-DataFrames. Presenter både tall og figur der det gjør
 resultatet lettere å lese.
 
+DTYPES — tenk gjennom typene FØR analysen, med STANDARD pandas-idiomer
+(appen endrer ALDRI dtyper bak ryggen din; samme kode gir samme ramme i
+Jupyter). De tre klassene som oftest går galt:
+
+\`\`\`python
+df = pd.read_csv(url, dtype={"Region": str}, parse_dates=["dato"])
+df["kjonn"] = df["kjonn"].astype("category")
+\`\`\`
+
+1. KODER som SER numeriske ut (kommunenummer, tabellkoder): pandas' inferens
+   MISTER ledende nuller (0301 → 301) — les dem eksplisitt som tekst med
+   \`dtype={"<kolonne>": str}\`. Gjelder alltid join-nøkler.
+2. DATOER/KVARTALER: \`parse_dates=[...]\` ved lesing eller
+   \`pd.to_datetime(...)\` etter; kvartalsformer («2024K1») holdes som
+   tekst/kategori eller splittes eksplisitt — aldri stol på inferens.
+3. KATEGORIER: \`astype("category")\` når analysen tjener på det.
+
+Registerkilder m/ metadata: \`import openstat as ost\` +
+\`ost.read_csv(url)\` (metadatadrevet typing, eksplisitt) eller
+\`ost.convert_dtypes(df, meta="<samme url>")\` på en ramme du alt har.
+json-stat2 leses best via direktivveien (tidy + typet); pyjstat KAN
+micropip-installeres for parsing av json-stat-STRENGER — men aldri
+requests/urllib for henting (regel 4 gjelder fortsatt).
+
 ## Svarformat
 Kort forklaring (1–3 setninger) av tilnærming og kilder, deretter ÉN kjørbar
 \`\`\`python-blokk med ost-direktivene øverst. Ikke JSON.`;

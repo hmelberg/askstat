@@ -34,6 +34,16 @@
     return {};
   }
 
+  // x-hent-truncated (R-URL-bro-oppfølging §2): proxyen avkorter ved 50MB
+  // og flagger det — en avkortet CSV er FEIL DATA og skal feile høylytt,
+  // aldri leveres stille (husets aldri-stille-feil-data).
+  function assertNotTruncated(resp, what) {
+    if (resp && resp.headers && typeof resp.headers.get === 'function' &&
+        resp.headers.get('x-hent-truncated')) {
+      throw new Error('avkortet ved proxyens 50MB-grense (x-hent-truncated) for ' + what);
+    }
+  }
+
   // Brukernøkler (spec 2026-07-23): en kilde med auth.user i registeret krever
   // registrert nøkkel (js/keys.js). Nøkkelen sendes KUN som X-Source-Key til
   // /api/hent (som injiserer etter plasseringsregelen, vertsbundet) — den
@@ -77,11 +87,13 @@
     async function viaProxy() {
       var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(item.url), { headers: hdrs() });
       if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + item.alias);
+      assertNotTruncated(pr, item.alias);
       return pr;
     }
     if (item.url.indexOf('/api/hent?') === 0) {
       var r0 = await fetchImpl(item.url, { headers: hdrs() });
       if (!r0.ok) throw new Error('proxy ' + r0.status + ' for ' + item.alias);
+      assertNotTruncated(r0, item.alias);
       return r0;
     }
     // User-auth-kilder skal ALLTID via proxy (serveren injiserer nøkkelen
@@ -129,6 +141,7 @@
         else throw e;
       }
     }
+    assertNotTruncated(resp, url);
     var buf = await resp.arrayBuffer();
     return { bytes: new Uint8Array(buf), contentType: resp.headers.get('content-type') || '' };
   }
@@ -163,6 +176,11 @@
           if (hit) {
             var at = Number(hit.headers.get('x-m2py-fetched-at') || 0);
             if (at && (Date.now() - at) < ttl) {
+              // Cache API-treff er en ekte Response (has headers.get) — samme
+              // høylytte vakt som de andre tre proxy-konsumentene, så en
+              // avkortet oppføring (uansett hvordan den havnet på disk)
+              // aldri leveres stille fra L2-cachen heller.
+              assertNotTruncated(hit, item.url);
               var ab0 = await hit.arrayBuffer();
               return { resp: hit, buf: new Uint8Array(ab0) };
             }

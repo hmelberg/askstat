@@ -2,7 +2,8 @@
 
 Ring 1-ren (ROADMAP 2026-07-25, pakke-diskusjonen): kun stdlib + pandas som
 harde avhengigheter. Samme fil kjører i CPython og i Pyodide/emscripten —
-transporten bytter selv til synkron XHR i browseren (pyodide-http-trikset).
+i appen ruter transporten via ReadBridge (delt cache + proxy-fallback),
+utenfor appen synkron XHR (pyodide-http-trikset), i CPython urllib.
 duckdb brukes KUN hvis den kan importeres (kolonne-pushdown for parquet).
 
     import openstat as ost
@@ -33,22 +34,38 @@ _MEMO = {}
 
 
 def _fetch_bytes(url, headers=None):
-    """Rå bytes fra URL, memoisert per (URL, headere) i økten. Synkron XHR i
-    emscripten (binærtrygg via x-user-defined-charset), urllib ellers."""
+    """Rå bytes fra URL, memoisert per (URL, headere) i økten. I appen ruter
+    emscripten-grenen via ReadBridge («samme bro, to fasader»: delt bytecache
+    og proxy-fallback m/ auth ved CORS, som pd.read_csv-fasaden); standalone
+    Pyodide uten ReadBridge bruker naken synkron XHR (binærtrygg via
+    x-user-defined-charset), CPython urllib."""
     memo_key = (url, tuple(sorted((headers or {}).items())))
     if memo_key in _MEMO:
         return _MEMO[memo_key]
     if sys.platform == "emscripten":
-        from js import XMLHttpRequest
-        req = XMLHttpRequest.new()
-        req.open("GET", url, False)
-        req.overrideMimeType("text/plain; charset=x-user-defined")
-        for hk, hv in (headers or {}).items():
-            req.setRequestHeader(hk, hv)
-        req.send(None)
-        if req.status >= 400:
-            raise RuntimeError("HTTP " + str(req.status) + " for " + url)
-        data = bytes(ord(c) & 0xFF for c in req.responseText)
+        rb = None
+        try:
+            from js import window as _w
+            rb = getattr(_w, "ReadBridge", None)
+        except Exception:
+            rb = None
+        if rb is not None:
+            r = rb.forPyodideSync(url, _json.dumps(headers)) if headers \
+                else rb.forPyodideSync(url)
+            if r.error:
+                raise RuntimeError(str(r.error))
+            data = bytes(r.bytes.to_py())
+        else:
+            from js import XMLHttpRequest
+            req = XMLHttpRequest.new()
+            req.open("GET", url, False)
+            req.overrideMimeType("text/plain; charset=x-user-defined")
+            for hk, hv in (headers or {}).items():
+                req.setRequestHeader(hk, hv)
+            req.send(None)
+            if req.status >= 400:
+                raise RuntimeError("HTTP " + str(req.status) + " for " + url)
+            data = bytes(ord(c) & 0xFF for c in req.responseText)
     else:
         from urllib.request import Request, urlopen
         hdrs = {"User-Agent": "openstat"}

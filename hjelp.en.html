@@ -472,6 +472,10 @@ summarize kjonn</code></pre>
     </div>
 
     <div class="callout tip">
+      <strong>Automatic metadata for registry sources.</strong> When you load a table URL from a known registry source (SSB family, Eurostat) with <code>pd.read_csv</code>, the app automatically fetches the metadata: code columns are protected from number interpretation (<code>0301</code> stays <code>0301</code>), dimensions get category type in the source's order, and the sidebar shows labels, levels and units. If metadata retrieval fails, the data loads normally — without typing, with a note in the console. Outside the app (Jupyter/RStudio) the same script produces untyped frames; if you want the same typing there, use <code>ost.read_csv(url)</code> or <code>ost.apply_meta(df, url)</code> from the openstat package — same rules, explicit.
+    </div>
+
+    <div class="callout tip">
       <strong>The SSB pattern (long format straight from the source):</strong> PxWeb CSV is <em>wide</em> by default (years as columns). For tidy long format in plain pandas — no directives, runs anywhere — four parts belong together:
       <pre><code>url = ("https://data.ssb.no/api/pxwebapi/v2/tables/09855/data"
        "?valueCodes[Kjonn]=1,2&amp;valueCodes[ContentsCode]=Personer"

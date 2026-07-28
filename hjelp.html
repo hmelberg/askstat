@@ -472,6 +472,10 @@ summarize kjonn</code></pre>
     </div>
 
     <div class="callout tip">
+      <strong>Automatisk metadata for registerkilder.</strong> Laster du en tabell-URL fra en kjent registerkilde (SSB-familien, Eurostat) med <code>pd.read_csv</code>, henter appen metadataen automatisk: kodekolonner beskyttes mot talltolkning (<code>0301</code> forblir <code>0301</code>), dimensjoner får kategoritype i kildens orden, og sidepanelet viser etiketter, nivåer og enheter. Feiler metadatahentingen, lastes dataene som vanlig — uten typing, med beskjed i konsollen. Utenfor appen (Jupyter/RStudio) gir samme script utypede rammer; vil du ha samme typing der, bruk <code>ost.read_csv(url)</code> eller <code>ost.apply_meta(df, url)</code> fra openstat-pakken — samme regler, eksplisitt.
+    </div>
+
+    <div class="callout tip">
       <strong>SSB-malen (langformat rett fra kilden):</strong> PxWeb-CSV er som standard <em>bred</em> (år som kolonner). Vil du ha tidy langformat i ren pandas — uten direktiver, kjørbart hvor som helst — hører fire deler sammen:
       <pre><code>url = ("https://data.ssb.no/api/pxwebapi/v2/tables/09855/data"
        "?valueCodes[Kjonn]=1,2&amp;valueCodes[ContentsCode]=Personer"

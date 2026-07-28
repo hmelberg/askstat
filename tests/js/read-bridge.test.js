@@ -401,3 +401,146 @@ test('rPatchSource: wrapperen stempler ost_url-attributt (annotering, aldri typi
   assert.match(src, /attr\(res, "ost_url"\) <- u/);
   assert.match(src, /is\.data\.frame\(res\)/);
 });
+
+// ── R-URL-bro-oppfølging §2/§3: x-hent-truncated håndheves høylytt i ALLE
+// proxy-konsumenter (data-loader.js sine tre + rPatchSource sin egen worker-
+// XHR) + .ost_json_str tåler kontrolltegn (skulle ha knekt den genererte
+// JS-strengen tidligere). Trunkering = FEIL DATA, aldri stille — se
+// data-loader.js sin assertNotTruncated-kommentar. ───────────────────────────
+
+test('fetchRawUrl: x-hent-truncated → høylytt feil, aldri stille avkortet data', async () => {
+  const resp = { ok: true, headers: { get: (h) => h === 'x-hent-truncated' ? '1' : (h === 'content-type' ? 'text/csv' : null) },
+                 arrayBuffer: async () => new ArrayBuffer(8) };
+  await assert.rejects(
+    () => DL.fetchRawUrl('/api/hent?url=x', { fetchImpl: async () => resp }),
+    /50MB-grense/);
+});
+
+test('fetchLoadTarget (proxy-gren, via fetchResolvedItems): x-hent-truncated → høylytt feil', async () => {
+  DL._resetCacheForTests();
+  const resp = { ok: true, headers: { get: (h) => h === 'x-hent-truncated' ? '1' : (h === 'content-type' ? 'text/csv' : null) },
+                 arrayBuffer: async () => new ArrayBuffer(8) };
+  await assert.rejects(
+    () => DL.fetchResolvedItems(
+      [{ alias: 'big', url: 'https://x.example/big.csv', viaProxy: true }],
+      { fetchImpl: async () => resp, registry: [] }),
+    /50MB-grense/);
+});
+
+test('fetchLoadTarget (r0-gren, direkte /api/hent?-URL): x-hent-truncated → høylytt feil', async () => {
+  DL._resetCacheForTests();
+  const resp = { ok: true, headers: { get: (h) => h === 'x-hent-truncated' ? '1' : null },
+                 arrayBuffer: async () => new ArrayBuffer(8) };
+  await assert.rejects(
+    () => DL.fetchResolvedItems(
+      [{ alias: 'big', url: '/api/hent?url=https%3A%2F%2Fx.example%2Fbig.csv' }],
+      { fetchImpl: async () => resp, registry: [] }),
+    /50MB-grense/);
+});
+
+// L2-disk-cache-treffet (Cache API) er dekket av samme try/catch som resten
+// av disk-cache-lesingen (linjen over var allerede der FØR denne oppgaven —
+// enhver feil derfra behandles som «disk-cachen er utilgjengelig», og faller
+// igjennom til et vanlig live-nettkall). assertNotTruncated der «renser»
+// altså en stale truncated oppføring (aldri returnerer den) i stedet for å
+// selv kaste helt ut av fetchResolvedItems — men treffer den STILL avkortede
+// live-kilden etterpå, kaster DEN høylytt via samme vakt i fetchLoadTarget
+// (den andre testen under). Aldri stille i noen av grenene.
+test('fetchResolvedItems: stale L2-cache-treff (x-hent-truncated) renses — faller igjennom til frisk live-henting, aldri de cachede byte-ne', async () => {
+  DL._resetCacheForTests();
+  const fakeHit = {
+    headers: {
+      get: (h) => {
+        if (h === 'x-hent-truncated') return '1';
+        if (h === 'x-m2py-fetched-at') return String(Date.now());
+        return null;
+      },
+    },
+    arrayBuffer: async () => new ArrayBuffer(4),   // skal ALDRI leveres
+  };
+  global.caches = {
+    open: async () => ({ match: async () => fakeHit, delete: async () => {}, put: async () => {} }),
+  };
+  const liveResp = { ok: true, headers: { get: (h) => h === 'content-type' ? 'text/csv' : null },
+                     arrayBuffer: async () => new TextEncoder().encode('a,b\n1,2').buffer };
+  try {
+    const out = await DL.fetchResolvedItems(
+      [{ alias: 'x', url: 'https://x.example/cached.csv', cache: '1h' }],
+      { fetchImpl: async () => liveResp, registry: [] });
+    assert.equal(new TextDecoder().decode(out[0].bytes), 'a,b\n1,2',
+      'live-svaret vant — de 4 stale cache-bytene ble aldri returnert');
+  } finally { delete global.caches; }
+});
+
+test('fetchResolvedItems: stale L2-cache-treff RENSET, men live-kilden er STILL avkortet → høylytt feil (aldri stille i noen av grenene)', async () => {
+  DL._resetCacheForTests();
+  const fakeHit = {
+    headers: { get: (h) => {
+      if (h === 'x-hent-truncated') return '1';
+      if (h === 'x-m2py-fetched-at') return String(Date.now());
+      return null;
+    } },
+    arrayBuffer: async () => new ArrayBuffer(4),
+  };
+  global.caches = { open: async () => ({ match: async () => fakeHit, delete: async () => {}, put: async () => {} }) };
+  const stillTruncatedResp = { ok: true, headers: { get: (h) => h === 'x-hent-truncated' ? '1' : null },
+                                arrayBuffer: async () => new ArrayBuffer(8) };
+  try {
+    // Direkte /api/hent?-URL (r0-grenen) — den grenen ER sjekket (til
+    // forskjell fra r1-direkte mot fremmede verter, som aldri får headeren).
+    await assert.rejects(
+      () => DL.fetchResolvedItems(
+        [{ alias: 'x', url: '/api/hent?url=https%3A%2F%2Fx.example%2Fcached2.csv', cache: '1h' }],
+        { fetchImpl: async () => stillTruncatedResp, registry: [] }),
+      /50MB-grense/);
+  } finally { delete global.caches; }
+});
+
+test('forPyodideSync: truncated-flagg fra XHR → error-retur, ingen cache-skriv', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([1]), truncated: true }));
+  const r = RB.forPyodideSync('/api/hent?url=stor');
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /50MB-grense/);
+  assert.equal(RB.getCached('/api/hent?url=stor'), null);
+});
+
+test('forPyodideSync: truncated-flagg fra PROXY-RETRY-legget (status 0 → proxy) → error, ingen cache-skriv', () => {
+  RB._reset();
+  const seen = [];
+  RB._setXhr((u) => {
+    seen.push(u);
+    return u.indexOf('/api/hent?') === 0
+      ? { status: 200, bytes: new Uint8Array([1]), truncated: true }
+      : { status: 0, bytes: null };
+  });
+  const r = RB.forPyodideSync('https://cors.example/stor.csv');
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /50MB-grense/);
+  assert.equal(RB.getCached('https://cors.example/stor.csv'), null);
+  assert.equal(seen.length, 2, 'direkte forsøk + proxy-retry');
+});
+
+test('forPyodideSync: truncated-flagg med headers-JSON (bypass-legget) → error uendret', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([1]), truncated: true }));
+  const r = RB.forPyodideSync('https://sdmx.example/EXR', '{"Accept":"text/csv"}');
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /50MB-grense/);
+  assert.equal(RB.getCached('https://sdmx.example/EXR'), null);
+});
+
+test('rPatchSource: .ost_fetch-payloaden håndhever x-hent-truncated høylytt (R-URL-bro-oppfølging §2)', () => {
+  const src = RB.rPatchSource();
+  assert.ok(src.includes('x-hent-truncated'), 'mangler x-hent-truncated-sjekk i .ost_fetch-payloaden');
+  assert.ok(src.includes('50MB-grense'), 'mangler høylytt 50MB-melding i JS-payloaden');
+});
+
+test('rPatchSource: .ost_json_str tåler kontrolltegn (\\n/\\r/\\t escapes + C0-stripping, R-URL-bro-oppfølging §3)', () => {
+  const src = RB.rPatchSource();
+  assert.ok(src.includes('  s <- gsub("\\n", "\\\\n", s, fixed = TRUE)'), 'mangler \\n-escaping');
+  assert.ok(src.includes('  s <- gsub("\\r", "\\\\r", s, fixed = TRUE)'), 'mangler \\r-escaping');
+  assert.ok(src.includes('  s <- gsub("\\t", "\\\\t", s, fixed = TRUE)'), 'mangler \\t-escaping');
+  assert.ok(src.includes('[\\x01-\\x1f]'), 'mangler C0-stripping (\\x01-\\x1f droppes)');
+  assert.ok(src.includes('fixed = TRUE'), 'skal bruke fixed=TRUE — ingen regex-metatolkning av mønster/erstatning');
+});

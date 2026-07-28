@@ -117,7 +117,8 @@
     if (xhr.status === 0 || xhr.status >= 400) return { status: xhr.status, bytes: null };
     var t = xhr.responseText, u8 = new Uint8Array(t.length);
     for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;
-    return { status: xhr.status, bytes: u8 };
+    return { status: xhr.status, bytes: u8,
+             truncated: xhr.getResponseHeader('x-hent-truncated') === '1' };
   }
 
   // Test-hook (_setXhr) av samme grunn som _setFetcher: sync-XHR-veien er
@@ -163,6 +164,13 @@
         ? global.DataLoader.proxyHeaders(d.authToken, d.anthropicKey) : {};
       if (hdrs) ph = Object.assign({}, hdrs, ph);
       r = xhr('/api/hent?url=' + encodeURIComponent(url), ph);
+    }
+    // x-hent-truncated (R-URL-bro-oppfølging §2): dekker begge legg
+    // (direkte OG proxy-retry) — en avkortet CSV er feil data og skal
+    // feile høylytt, ALDRI caches (samme aldri-stille-kontrakt som
+    // fetchRawUrl/fetchLoadTarget i data-loader.js).
+    if (r.bytes !== null && r.truncated) {
+      return { bytes: null, error: 'avkortet ved proxyens 50MB-grense (x-hent-truncated) for ' + url };
     }
     if (r.bytes === null) {
       return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url };
@@ -275,8 +283,17 @@
       '  .ost_bridge$headers <- "{}"',
       '  .ost_bridge$n       <- 0L',
       '}',
+      // Kontrolltegn i input knakk den genererte JS-strengen (R-URL-bro-
+      // oppfølging §3): \n/\r/\t escapes til gyldig JS-strengliteral-form,
+      // øvrige C0-tegn (\x01-\x1f) droppes (ugyldige i URL/sti uansett).
+      // fixed=TRUE overalt — ingen regex-metatolkning av mønster/erstatning.
       '.ost_json_str <- function(s) {',
-      '  s <- gsub("\\\\\\\\", "\\\\\\\\\\\\\\\\", s); s <- gsub("\\"", "\\\\\\\\\\"", s)',
+      '  s <- gsub("\\\\", "\\\\\\\\", s, fixed = TRUE)',
+      '  s <- gsub("\\"", "\\\\\\"", s, fixed = TRUE)',
+      '  s <- gsub("\\n", "\\\\n", s, fixed = TRUE)',
+      '  s <- gsub("\\r", "\\\\r", s, fixed = TRUE)',
+      '  s <- gsub("\\t", "\\\\t", s, fixed = TRUE)',
+      '  s <- gsub("[\\x01-\\x1f]", "", s)',
       '  paste0("\\"", s, "\\"")',
       '}',
       '.ost_bridge_config <- function(origin, headers_json) {',
@@ -317,6 +334,7 @@
       '    "    var x = go(", .ost_json_str(abs_url), ", direct);",',
       '    "    if (x.status === 0 && !direct) x = go(", .ost_json_str(proxy_url), ", true);",',
       '    "    if (x.status === 0 || x.status >= 400) return \\"ERR:HTTP \\" + x.status;",',
+      '    "    if (x.getResponseHeader(\\"x-hent-truncated\\")) return \\"ERR:avkortet ved proxyens 50MB-grense (x-hent-truncated)\\";",',
       '    "    var t = x.responseText, u8 = new Uint8Array(t.length);",',
       '    "    for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;",',
       '    "    try { Module.FS.mkdir(\\"/ost_cache\\"); } catch (e) {}",',

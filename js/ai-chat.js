@@ -1480,7 +1480,8 @@
             if (round > 3) return { ok: false, markdown: result.markdown, error: lastError };
             var note = document.createElement('div');
             note.className = 'ai-progress-line';
-            note.textContent = '⚙️ ' + T('Reparasjonsrunde {round} — retter: {err}', { round: round, err: String(lastError).slice(0, 120) });
+            // Engelsk klartekst (askstat er engelsk-først; strengen finnes ikke i i18n-ordboken).
+            note.textContent = '⚙️ Repair round ' + round + ' — fixing: ' + String(lastError).slice(0, 120);
             processNode.appendChild(note);
             result = await runWebAnswer(question, roundNode(), { script: script, error: lastError }, round, signal);
           }

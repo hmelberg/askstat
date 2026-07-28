@@ -35,19 +35,26 @@ test('parseAskRoute: ugyldig rute og søppel faller tilbake til data', () => {
   assert.strictEqual(askView.parseAskRoute('').tolkning, '');
 });
 
-test('buildAskProvenance: python-kommentarer med alle felt', () => {
+test('buildAskProvenance: python — engelske etiketter, echo-av-direktiv, alle felt', () => {
   const s = askView.buildAskProvenance(
-    { question: 'Hvor mye bruker Norge på helse?', tolkning: 'helseutgifter i % av BNP, 2024', rute: 'data' },
+    { question: 'Does Norway spend more on health?', tolkning: 'health spending as % of GDP, 2024', rute: 'data' },
     'python');
   assert.ok(s.startsWith('# ══ ask ══'));
-  assert.ok(s.includes('# Spørsmål: Hvor mye bruker Norge på helse?'));
-  assert.ok(s.includes('# Tolkning: helseutgifter i % av BNP, 2024'));
-  assert.ok(s.includes('# Rute: data'));
+  assert.ok(s.includes('# Question: Does Norway spend more on health?'));
+  assert.ok(s.includes('# Interpretation: health spending as % of GDP, 2024'));
+  assert.ok(s.includes('# Route: data'));
+  assert.ok(s.includes('#options.show_commands=False'));
   assert.ok(s.endsWith('\n\n'));
 });
 
-test('buildAskProvenance: duckdb bruker -- og flerlinjespørsmål brekkes til én linje', () => {
+test('buildAskProvenance: r får også echo-av-direktivet', () => {
+  const s = askView.buildAskProvenance({ question: 'q', tolkning: 't', rute: 'data' }, 'r');
+  assert.ok(s.includes('#options.show_commands=False'));
+});
+
+test('buildAskProvenance: duckdb bruker --, ikke echo-direktiv, flerlinje flates ut', () => {
   const s = askView.buildAskProvenance({ question: 'a\nb', tolkning: 't', rute: 'data' }, 'duckdb');
   assert.ok(s.startsWith('-- ══ ask ══'));
-  assert.ok(s.includes('-- Spørsmål: a b'));
+  assert.ok(s.includes('-- Question: a b'));
+  assert.ok(!s.includes('show_commands'));
 });

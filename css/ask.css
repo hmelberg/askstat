@@ -1,39 +1,65 @@
-/* Ask-visningen (default i askstat; ?view=editor gir full visning) —
-   spec docs/superpowers/specs/2026-07-28-ask-modus-design.md.
-   Alt nøkles på html.ask-view så editor-visningen er 100 % uberørt. */
+/* Ask view (default in askstat; ?view=editor gives the full editor) —
+   spec docs/superpowers/specs/2026-07-28-ask-modus-design.md (+ Hans'
+   feedback 2026-07-29: hidden topbar, left sidebar, Ask/Code switch).
+   Everything is keyed on html.ask-view so the editor view is untouched. */
 
+html.ask-view header.topbar,
 html.ask-view #modeGuiBar,
 html.ask-view .panel-left,
 html.ask-view #resizer,
 html.ask-view footer.bottombar,
 html.ask-view #sidebarOpenTab,
 html.ask-view #welcomeBackdrop { display: none !important; }
-/* (welcome-modalen forklarer editoren — irrelevant og forvirrende i ask.) */
+/* (Topbar and welcome modal explain the editor — hidden in ask.) */
 
-/* Output-panelet (plott/tabeller fra kjøringen) vises først etter en kjøring. */
+/* The output panel (plots/tables from the run) appears after a run. */
 html.ask-view:not(.ask-has-run) .panel-right { display: none; }
 html.ask-view .container.layout-columns { flex: 0 1 auto; min-height: 0; }
 
-html.ask-view #askView[hidden] { display: block; }   /* boot-JS fjerner hidden; denne er belt-and-suspenders */
-.ask-view-wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 8px; width: 100%; }
-.ask-title { font-size: 26px; margin: 0 0 4px; }
+html.ask-view #askView[hidden] { display: flex; }   /* boot-JS removes hidden; belt-and-suspenders */
+.ask-view-wrap { display: flex; align-items: stretch; width: 100%; min-height: 72vh; }
+
+/* Left sidebar */
+.ask-sidebar { width: 210px; flex: 0 0 210px; border-right: 1px solid var(--border);
+  padding: 18px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ask-brand { font-weight: 700; font-size: 18px; padding: 0 10px 10px; }
+.ask-side-btn { text-align: left; background: none; border: 1px solid transparent;
+  border-radius: 8px; padding: 8px 10px; cursor: pointer; color: inherit; font-size: 13px; }
+.ask-side-btn:hover { background: var(--bg-code); }
+@media (max-width: 720px) { .ask-sidebar { display: none; } }
+
+/* Main column */
+.ask-main { flex: 1; padding: 16px 32px 8px; min-width: 0; }
+.ask-main > * { max-width: 760px; }
+.ask-switchbar { display: flex; justify-content: flex-end; margin-bottom: 6px; max-width: 760px; }
+.ask-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.ask-switch-btn { border: none; background: none; padding: 5px 14px; font-size: 12px;
+  cursor: pointer; color: inherit; }
+.ask-switch-btn.active { background: var(--accent); color: #fff; }
+
+.ask-title { font-size: 26px; margin: 6px 0 4px; }
 .ask-sub { color: var(--text-muted); margin-bottom: 16px; }
 .ask-input-row { display: flex; gap: 8px; align-items: flex-end; }
 .ask-input { flex: 1; resize: vertical; min-height: 44px; font-size: 16px;
   background: var(--bg-code); color: inherit; border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; }
-.ask-settings-btn { margin-top: 8px; opacity: .75; font-size: 12px; }
 
-/* Prosess-seksjonen: vis fremdriftslinjer, kilder og reparasjonsnotiser fra
-   runWebAnswer — men SKJUL den rå markdown-boblen (svaret kommer fra tolk-ask;
-   detaljene nås via «Åpne i Python-modus», spec §4). */
-.ask-process { margin-top: 18px; font-size: 13px; color: var(--text-muted); }
+/* Quick switch back to Ask, injected into the editor view's topbar. */
+.topbar-ask-switch { font-size: 12px; margin-left: 6px; }
+
+/* The process track (progress lines, repair notes) streams inside the answer
+   card while working (askStatus) and is archived into the Details fold
+   (askProcess) when the answer lands. The raw markdown bubble from
+   runWebAnswer stays hidden — the answer comes from tolk-ask; details are one
+   click away. */
+.ask-process { font-size: 13px; color: var(--text-muted); }
 .ask-process .ai-bubble { display: none; }
 .ask-process .ai-progress-line { padding: 1px 0; }
 .ask-process .ai-sources { margin-top: 6px; }
 .ask-confirm { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 
-.ask-answer-card { margin-top: 18px; padding: 16px 18px; border: 1px solid var(--border);
+/* Answer card, directly under the question input */
+.ask-answer-card { margin-top: 14px; padding: 16px 18px; border: 1px solid var(--border);
   border-radius: 10px; background: var(--bg-code); }
 .ask-answer-card[hidden] { display: none; }
 .ask-answer h2 { font-size: 16px; margin: 12px 0 6px; }
@@ -42,3 +68,7 @@ html.ask-view #askView[hidden] { display: block; }   /* boot-JS fjerner hidden; 
   border-radius: 999px; padding: 2px 10px; margin-bottom: 10px; color: var(--text-muted); }
 .ask-badge.ask-badge-warn { border-color: var(--accent); color: var(--accent); }
 .ask-answer-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+.ask-details { margin-top: 12px; font-size: 13px; color: var(--text-muted); max-width: 760px; }
+.ask-details[hidden] { display: none; }
+.ask-details summary { cursor: pointer; }

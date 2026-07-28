@@ -17,14 +17,9 @@
       var stored = localStorage.getItem(LANG_KEY);
       if (SUPPORTED.indexOf(stored) !== -1) return stored;
     } catch (e) {}
-    var langs = (navigator.languages && navigator.languages.length)
-      ? navigator.languages : [navigator.language || ''];
-    for (var i = 0; i < langs.length; i++) {
-      var p = String(langs[i]).toLowerCase().split('-')[0];
-      if (p === 'no' || p === 'nb' || p === 'nn') return 'no';
-      if (SUPPORTED.indexOf(p) !== -1) return p;
-    }
-    return 'en'; // ukjent nettleserspråk → engelsk
+    // askstat er engelsk-først (Hans 2026-07-29): nettleserspråket styrer ikke
+    // defaulten — norsk kan fortsatt velges i innstillingene (lagres og vinner).
+    return 'en';
   }
 
   var LANG = detectInitialLang();

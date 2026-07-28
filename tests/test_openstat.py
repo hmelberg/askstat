@@ -724,3 +724,105 @@ def test_convert_dtypes_ugyldig_meta_type_feiler():
 
 def test_convert_dtypes_i_all():
     assert "convert_dtypes" in ost.__all__
+
+
+# ── runtime-ost: _fetch_bytes via ReadBridge i emscripten ────────────────────
+# Fake js-modul + sys.platform-monkeypatch: emscripten-grenen er ren Python
+# (sene js-imports), så den kan testes i CPython uten Pyodide.
+
+class _FakeJsBytes:
+    def __init__(self, data):
+        self._d = data
+
+    def to_py(self):
+        return bytearray(self._d)
+
+
+class _FakeJsResult:
+    def __init__(self, data=None, error=None):
+        self.bytes = _FakeJsBytes(data) if data is not None else None
+        self.error = error
+
+
+def _install_fake_js(monkeypatch, bridge=None, xhr=None):
+    import types
+    js = types.ModuleType("js")
+    win = types.SimpleNamespace()
+    if bridge is not None:
+        win.ReadBridge = bridge
+    js.window = win
+    if xhr is not None:
+        js.XMLHttpRequest = xhr
+    monkeypatch.setitem(sys.modules, "js", js)
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    ost._MEMO.clear()
+
+
+def test_fetch_bytes_emscripten_bro_treff_og_memo(monkeypatch):
+    seen = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None):
+            seen.append((url, headers_json))
+            return _FakeJsResult(data=b"a,b\n1,2\n")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    assert ost._fetch_bytes("https://bro.example/t1.csv") == b"a,b\n1,2\n"
+    assert seen == [("https://bro.example/t1.csv", None)]
+    # _MEMO-semantikken er uendret: andre kall når aldri broen.
+    assert ost._fetch_bytes("https://bro.example/t1.csv") == b"a,b\n1,2\n"
+    assert len(seen) == 1
+
+
+def test_fetch_bytes_emscripten_bro_feil_er_runtimeerror(monkeypatch):
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None):
+            return _FakeJsResult(error="HTTP 404 for " + url)
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    with pytest.raises(RuntimeError, match="HTTP 404 for https://bro.example/borte.csv"):
+        ost._fetch_bytes("https://bro.example/borte.csv")
+
+
+def test_fetch_bytes_emscripten_headers_som_json(monkeypatch):
+    seen = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None):
+            seen.append(headers_json)
+            return _FakeJsResult(data=b"x")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    ost._fetch_bytes("https://bro.example/sdmx", headers={"Accept": "text/csv"})
+    assert json.loads(seen[0]) == {"Accept": "text/csv"}
+
+
+def test_fetch_bytes_emscripten_uten_bro_faller_til_xhr(monkeypatch):
+    # Standalone Pyodide (JupyterLite o.l.): window finnes, ReadBridge gjør
+    # ikke — dagens nakne XHR-vei skal kjøre uendret.
+    class _Req:
+        status = 200
+        responseText = "ab"
+
+        def open(self, *a):
+            pass
+
+        def overrideMimeType(self, *a):
+            pass
+
+        def setRequestHeader(self, *a):
+            pass
+
+        def send(self, *a):
+            pass
+
+    class _XHR:
+        @staticmethod
+        def new():
+            return _Req()
+
+    _install_fake_js(monkeypatch, bridge=None, xhr=_XHR)
+    assert ost._fetch_bytes("https://uten-bro.example/f.csv") == b"ab"

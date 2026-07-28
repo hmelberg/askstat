@@ -321,3 +321,49 @@ test('prefetchScript: ugjenkjent URL prefetcher KUN seg selv (ingen gjetting)', 
   RB.prefetchScript('df = pd.read_csv("https://example.org/ikke-et-register.csv")');
   assert.deepStrictEqual(calls, ['https://example.org/ikke-et-register.csv']);
 });
+
+// ── Task 1 (runtime-ost): forPyodideSync med valgfri headers-JSON ───────────
+
+test('runtime-ost forPyodideSync: headers bypasser cachen (les OG skriv)', () => {
+  RB._reset();
+  const calls = [];
+  RB._setXhr((u, headers) => { calls.push([u, headers || null]); return { status: 200, bytes: new Uint8Array([9]) }; });
+  // Seedet headerløs oppføring skal IGNORERES av headers-kallet …
+  RB.insertBytes('https://sdmx.example/EXR', new Uint8Array([1]), 'text/csv');
+  const r = RB.forPyodideSync('https://sdmx.example/EXR', '{"Accept":"application/vnd.sdmx.data+csv"}');
+  assert.equal(r.error, null);
+  assert.deepEqual(Array.from(r.bytes), [9]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].Accept, 'application/vnd.sdmx.data+csv');
+  // … og suksessen skal IKKE ha overskrevet den headerløse oppføringen.
+  assert.deepEqual(Array.from(RB.getCached('https://sdmx.example/EXR').bytes), [1]);
+});
+
+test('runtime-ost forPyodideSync: proxylegg fletter auth- og custom-headere', () => {
+  RB._reset();
+  RB.configure(() => ({ anthropicKey: 'K3' }));
+  const seen = [];
+  RB._setXhr((u, headers) => {
+    seen.push([u, headers || {}]);
+    return u.indexOf('/api/hent?') === 0 ? { status: 200, bytes: new Uint8Array([2]) } : { status: 0, bytes: null };
+  });
+  const r = RB.forPyodideSync('https://cors.sdmx/EXR', '{"Accept":"text/csv"}');
+  RB.configure(null);
+  assert.equal(r.error, null);
+  assert.equal(seen[0][1].Accept, 'text/csv');            // direktelegget bærer headerne
+  assert.equal(seen[1][1]['X-Anthropic-Key'], 'K3');      // proxylegget: auth …
+  assert.equal(seen[1][1].Accept, 'text/csv');            // … OG custom flettet inn
+  assert.equal(RB.getCached('https://cors.sdmx/EXR'), null); // headers → aldri cache-skriv
+});
+
+test('runtime-ost forPyodideSync: tomme headere ≡ headerløst, ugyldig JSON er høylytt-i-retur', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([5]) }));
+  const r1 = RB.forPyodideSync('https://x/h.csv', '{}');
+  assert.equal(r1.error, null);
+  // '{}' ≡ dagens kall: suksessen CACHES som før.
+  assert.deepEqual(Array.from(RB.getCached('https://x/h.csv').bytes), [5]);
+  const r2 = RB.forPyodideSync('https://x/h2.csv', 'ikke json');
+  assert.equal(r2.bytes, null);
+  assert.match(r2.error, /headers-JSON/);
+});

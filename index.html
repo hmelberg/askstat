@@ -9002,6 +9002,18 @@ json.dumps(out)
       while ((m = re.exec(src)) !== null) {
         if (!seen[m[1]]) { seen[m[1]] = true; pkgs.push(m[1]); }
       }
+      // 2026-07-28: AI-generert R bruker pkg:: uten library — extractRPackages
+      // så bare library/require, så bart `jsonlite::fromJSON(url)` (målt i
+      // q2/q14) feilet med «there is no package called 'jsonlite'» i fersk økt.
+      // Fang bart `pkg::` òg; ekskluder pakker som alltid finnes/aldri skal
+      // installeres.
+      var BASE_R = { base: 1, utils: 1, stats: 1, graphics: 1, grDevices: 1,
+                     methods: 1, datasets: 1, tools: 1, parallel: 1,
+                     compiler: 1, webr: 1 };
+      var reNs = /\b([a-zA-Z][a-zA-Z0-9.]*)::/g;
+      while ((m = reNs.exec(src)) !== null) {
+        if (!seen[m[1]] && !BASE_R[m[1]]) { seen[m[1]] = true; pkgs.push(m[1]); }
+      }
       return pkgs;
     }
 

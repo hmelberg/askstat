@@ -5,7 +5,7 @@
 # operasjon i shimmen og i ekte pandas og sammenlikner normaliserte
 # resultater. Kjøres under CPython (ekte pandas kreves):
 #   python3 brython/tests/test_pandas_parity_diff.py
-import sys, os, math, time
+import sys, os, math, time, io
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.dirname(__file__))
 import pandas as rpd
@@ -407,6 +407,23 @@ def test_explode():
     b = bpd.Series([[1, 2], [3], []]).explode()
     r = rpd.Series([[1, 2], [3], []]).explode()
     assert _norm_series(b) == _norm_series(r)
+
+
+# ── mini-knippet §2: dtype-kwarg i read_csv (0301-vernet) ──────────────────
+# PARITETSTEST mot ekte pandas (verifisert manuelt før denne testen ble
+# skrevet: dtype={col: str} bevarer "0301"; tomme celler blir likevel NaN
+# UAVHENGIG av dtype — pandas' NA-deteksjon er separat fra dtype-valget).
+
+def test_read_csv_dtype_dict_preserves_leading_zero_parity():
+    def op(pd, d):
+        return pd.read_csv(io.StringIO("kommune,v\n0301,1\n0302,2\n"), dtype={'kommune': str})
+    assert_same(op, label='read_csv(dtype={col: str}) bevarer 0301')
+
+
+def test_read_csv_dtype_str_marker_empty_cell_becomes_nan_parity():
+    def op(pd, d):
+        return pd.read_csv(io.StringIO("kommune,v\n0301,1\n,2\n"), dtype={'kommune': str})
+    assert_same(op, label='read_csv(dtype={col: str}) — tomt felt blir NaN uansett dtype')
 
 
 

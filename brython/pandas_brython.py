@@ -4922,10 +4922,42 @@ class _PendingFetch(BaseException):
     __brython_pending__ = True
 
 
-def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
+def _dtype_str_predicate(dtype, fname='read_csv'):
+    """Valider dtype=-kwarget (mini-knippet §2, 0301-vernet): dict
+    {kolonne: str|"str"|"object"} -> tekstform (ingen tallinferens) for de
+    NEVNTE kolonnene; skalar str/"str" -> tekstform for ALLE kolonner. Annet
+    (ukjent dict-verdi, ukjent skalar, deriblant skalar "object" - kun
+    dict-formen støtter den markøren, spec §2 er eksplisitt om dette) ->
+    HØYLYTT ValueError, aldri stille ignorering. Returnerer et
+    kolonnenavn -> bool-prediktat (alltid False når dtype=None)."""
+    def _is_str_marker(v):
+        return v is str or v == 'str' or v == 'object'
+
+    if dtype is None:
+        return lambda name: False
+    if isinstance(dtype, dict):
+        for col, v in dtype.items():
+            if not _is_str_marker(v):
+                raise ValueError(
+                    fname + ': dtype-verdien ' + repr(v) + ' (kolonne ' +
+                    repr(col) + ') støttes ikke i mini-pandas — bruk str, '
+                    '"str" eller "object"')
+        cols = set(dtype.keys())
+        return lambda name: name in cols
+    if dtype is str or dtype == 'str':
+        return lambda name: True
+    raise ValueError(
+        fname + ': dtype-verdien ' + repr(dtype) + ' støttes ikke i '
+        'mini-pandas — bruk str, "str" eller en dict {kolonne: str}')
+
+
+def read_csv(filepath, sep=",", header=0, names=None, index_col=None, dtype=None):
     """
     Reads CSV data into a dataframe from a file path or StringIO object.
+    dtype=None (default): kolonnevis tallinferens som før (0301 -> 301).
+    dtype={'kol': str} eller dtype=str/"str": se _dtype_str_predicate.
     """
+    _dtype_is_str = _dtype_str_predicate(dtype)
     # Unconditional, local import: the module-level `try: import csv except:
     # print("no csv")` above (and the identical one near the top of this
     # file) silently swallowed a real ImportError under Brython, leaving
@@ -5036,9 +5068,22 @@ def read_csv(filepath, sep=",", header=0, names=None, index_col=None):
     if data and data[0]:
         ncols = len(data[0])
         for c in range(ncols):
+            col_name = columns[c] if c < len(columns) else None
             raw = [row[c] for row in data if len(row) > ncols - 1]
             nonempty = [v for v in raw if v != '']
             if not nonempty:
+                continue
+            if _dtype_is_str(col_name):
+                # Brukerens dtype-kwarg (dict eller skalar str/"str"):
+                # behold tekstformen — ingen int/float-inferens for denne
+                # kolonnen (0301-vernet). NaN-deteksjonen er likevel
+                # UAVHENGIG av dtype (py-paritet, verifisert mot ekte
+                # pandas): tomme celler blir fortsatt nan-sentinelen, ikke
+                # en tom streng.
+                if any(v == '' for v in raw):
+                    for row in data:
+                        if len(row) > ncols - 1 and row[c] == '':
+                            row[c] = nan
                 continue
             converted = None
             for conv in (int, float):

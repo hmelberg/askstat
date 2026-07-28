@@ -8,12 +8,30 @@ kun kolonner hvis verdier (str-form) er kildens KODER typles; time+intlike
 -> int64; ellers category. Verdier endres ALDRI; metadata-feil -> utypet +
 notat, aldri kast.
 
+read_csv(convert=True) (mini-knippet §2, py-tvilling-mønsteret i
+openstat.py read_csv): typemeta hentes FØR pd.read_csv (rekkefølgeflipp —
+CSV-parsingen skjer ETTER metadatakallet nå, motsatt av tidligere), slik at
+ALLE gjenkjente kolonner (også tidskolonnen — py-tvillingens vern dekker
+tm["dims"] i sin helhet, som INKLUDERER tidsdimensjonen; den skilles kun ut
+via den separate "time"-lista) kan få dtype=str-VERN rett ved parse —
+0301-koder mister ellers den ledende nullen for godt før typingen rekker
+frem. Tidskolonnen types likevel til int64 som før (_apply gjør det
+eksplisitt uansett underliggende parse-form). Brukerens egen dtype-kwarg
+vinner ALLTID: en dict flettes med brukerens nøkler først (vernet fyller
+bare inn kolonner brukeren ikke selv nevnte), en skalar dtype (f.eks.
+dtype=str) dekker allerede alt selv og gis videre urørt — ingen vern
+injiseres da. convert=False fetcher ikke metadata i det hele tatt og
+forblir byte-lik naken (py-paritet).
+
+convert_dtypes(df, meta=) tar nå i tillegg en py-formet typemeta-dict
+(mini-knippet §4): {"dims": {did: {"categories": [...]}}, "time": [...]}
+— samme kontrakt som openstat.py sin typemeta_from_jsonstat/
+_apply_best_effort. Konverteres lokalt til entries, ingen PxWeb-rundtur.
+meta som URL-streng (uendret) eller None gir samme feil som før.
+
 KJENTE BEGRENSNINGER (mini-pandas):
-- read_csv har ingen dtype-kwarg -> 0301-vernet-ved-parse finnes ikke her;
-  ledende-null-koder blir tall ved parse og best-effort hopper dem over.
 - Ingen Int64 -> NaN i intlike tidskolonne forblir utypet (notat).
 - Ingen attrs settes (TSV baerer ikke etiketter; panel-typemeta er kø).
-- convert_dtypes tar KUN register-URL som meta (dict-formen er kø).
 - ordered + KILDENS kategoriorden settes via CategoricalDtype-internalen
   (_cats) — guardet; paa eldre/avvikende mini-bygg faller den tilbake til
   uordnet category i dataens sorterte orden. Kategoriene faar verdienes
@@ -174,10 +192,28 @@ def _apply(df, entries, who):
 
 
 def read_csv(url, convert=True, **kwargs):
+    # rekkefølgeflipp (mini-knippet §2, docstring over): metadata FØR parse,
+    # kun når convert (ellers ingen metadatahenting i det hele tatt — samme
+    # kontrakt som før, testet av test_read_csv_convert_false_er_naken).
+    entries, err = _typemeta_entries(url) if convert else (None, None)
+    if entries:
+        # ALLE gjenkjente kolonner (dims OG time — py-tvillingens tm["dims"]
+        # dekker begge, se docstring), ikke bare ikke-tid-dimensjonene:
+        # tidskolonnen types likevel til int64 nedenfor uansett parse-form.
+        guard_cols = [e["did"] for e in entries]
+        if guard_cols:
+            user_dtype = kwargs.get("dtype")
+            if "dtype" not in kwargs:
+                kwargs = dict(kwargs, dtype={d: str for d in guard_cols})
+            elif isinstance(user_dtype, dict):
+                vern = {d: str for d in guard_cols}
+                vern.update(user_dtype)      # brukerens dict-nøkler vinner
+                kwargs = dict(kwargs, dtype=vern)
+            # else: brukeren ga en SKALAR dtype (f.eks. str) — den dekker
+            # allerede alt selv og vinner urørt; intet vern injiseres.
     df = pd.read_csv(url, **kwargs)      # replay-broen håndterer henting
     if not convert:
         return df
-    entries, err = _typemeta_entries(url)
     if err:
         print("ost.read_csv: metadata utilgjengelig for " + str(url) +
               " (" + err + ") - fortsetter utypet")
@@ -187,10 +223,27 @@ def read_csv(url, convert=True, **kwargs):
     return _apply(df, entries, "ost.read_csv")
 
 
+def _entries_from_meta_dict(meta):
+    """py-formet typemeta-dict (mini-knippet §4, openstat.py
+    typemeta_from_jsonstat-kontrakten) -> samme entries-form som
+    _typemeta_entries: [{did, time, codes}]. Lokal konvertering, ingen
+    PxWeb-rundtur — did'er som ikke er med i "dims" ignoreres (samme regel
+    som openstat.py _apply_best_effort: den itererer KUN tm["dims"])."""
+    time_set = set(meta.get("time") or [])
+    out = []
+    for did, d in (meta.get("dims") or {}).items():
+        cats = [str(c) for c in ((d or {}).get("categories") or [])]
+        out.append({"did": did, "time": did in time_set, "codes": cats})
+    return out
+
+
 def convert_dtypes(df, meta=None):
+    if isinstance(meta, dict):
+        return _apply(df, _entries_from_meta_dict(meta), "ost.convert_dtypes")
     if meta is None or not isinstance(meta, str):
         raise ValueError("ost.convert_dtypes i mini-motorene krever meta= "
-                         "(register-URL) - heuristikk/dict-form er ikke stottet her")
+                         "(register-URL eller typemeta-dict) - heuristikk "
+                         "(meta=None) er ikke stottet her")
     entries, err = _typemeta_entries(meta)
     if err or entries is None:
         raise ValueError("kunne ikke hente metadata for " + str(meta) +

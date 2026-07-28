@@ -33,6 +33,13 @@ Kriterier (alle må holde):
     funn/tall/årstall skal stå i et search_literature-treff (DOI-URL oppgitt
     i svaret) eller være web_fetch-lest; ellers merket «fra modellkunnskap —
     verifiser». Mekanisk sjekk: åpne DOI-URL-ene fra svaret.
+12. DTYPE-HÅNDTERING (2026-07-28, overraskelsesprinsippet — appen typer
+    ALDRI implisitt): generert python-kode håndterer typene selv med
+    standard-idiomer — kodekolonner/join-nøkler som ser numeriske ut
+    (kommunenr, tabellkoder) leses m/ dtype={...: str}; datoer/kvartaler
+    håndteres eksplisitt (parse_dates/to_datetime, aldri inferens-antakelse);
+    ost.read_csv/convert_dtypes teller som eksplisitt metadata-vei. FAIL når
+    analysen joiner/grupperer på en kodekolonne pandas har talltolket.
 
 Dybde (2026-07-28): settet kjøres i Deep (default). Fast måles med
 Fast/Deep-PAR på samme spørsmål og bedømmes etter «Fast reduserer ambisjon,

@@ -53,6 +53,14 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     "SISTE utvei",
     // 2026-07-28: forskningssyntese m/ mekanisk verifiserbare siteringer:
     "search_literature", "OpenAlex", "DOI",
+    // 2026-07-28 (kveld): dtypes-prompten — ETT standard-idiom, ikke meny
+    // (overraskelsesprinsippet: appen typer aldri implisitt; koden må selv):
+    'dtype={"Region": str}',
+    "ledende nuller",
+    "to_datetime",
+    'astype("category")',
+    "convert_dtypes",
+    "pyjstat",
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

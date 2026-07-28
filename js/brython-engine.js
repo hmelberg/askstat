@@ -40,7 +40,14 @@
     // er byttet mot en lat _px(), og plotly lastes i stedet av token-treffet
     // '.plot' under. Det sparer 144 KB nedlasting+kompilering på hver
     // pandas-økt uten plotting. Spec: docs/superpowers/specs/2026-07-26-pandas-parity-design.md
-    pandas_brython:         { aliases: [], deps: [], js: [] },
+    //
+    // alias 'pandas' (r-factor §4-funn): interne moduler har hittil brukt
+    // det kanoniske navnet direkte (`import pandas_brython as _pd`), men
+    // shared/ost_core.py er dialektfri og skriver `import pandas as pd` —
+    // uten dette aliaset ville modulregistreringen feilt med
+    // ModuleNotFoundError ved `import ost` i motoren. Rent tillegg: endrer
+    // ikke canonical-navnet, bare gjør 'pandas' til enda en gyldig import.
+    pandas_brython:         { aliases: ['pandas'], deps: [], js: [] },
     plotly_express_brython: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     // aliasrekkefølgen er bindende: 'matplotlib' (plain) må registreres før
     // den dottede 'matplotlib.pyplot' (trenger forelderen i sys.modules)
@@ -80,6 +87,10 @@
     // python-runtimene; path-feltet overstyrer katalogkonvensjonen.
     ui_core:                { aliases: [], deps: [], js: [],
                               path: 'shared/ui_core.py' },
+    // r-factor-runden §4: mini-ost — delt kilde (ui_core-presedensen).
+    // Typemeta via window.PxWeb (strengflaten) — ingen logikk-tvilling.
+    ost_core:               { aliases: ['openstat', 'ost'], deps: ['pandas_brython'], js: [],
+                              path: 'shared/ost_core.py' },
     // altair (spec 2026-07-23): delt dialektfri kjerne i shared/ — samme
     // path-overstyring som ui_core. Vega-stakken lastes lazy ved
     // `import altair`; rekkefølgen er bindende (vega -> vega-lite ->

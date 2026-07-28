@@ -18,7 +18,11 @@
   var LIB_REGISTRY = {
     // pandas har IKKE plotly som deps lenger (2026-07-26): modulnivå-importen
     // er byttet mot en lat _px(), og plotly lastes av token-treffet '.plot' under.
-    pandas_mpy:         { aliases: [], deps: [], js: [] },
+    //
+    // alias 'pandas' (r-factor §4-funn, se brython-registerets pandas_brython-
+    // oppføring for begrunnelsen): shared/ost_core.py skriver `import pandas
+    // as pd` dialektfritt — uten aliaset ville `import ost` feilet i motoren.
+    pandas_mpy:         { aliases: ['pandas'], deps: [], js: [] },
     plotly_express_mpy: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     duckdb_mpy:         { aliases: ['duckdb'], deps: ['pandas_mpy'], js: [] },
     // ui_mpy.py/ui.py (W2): filnavnet skiller seg fra det offentlige
@@ -37,6 +41,9 @@
     // python-runtimene; path-feltet overstyrer katalogkonvensjonen.
     ui_core:            { aliases: [], deps: [], js: [],
                           path: 'shared/ui_core.py' },
+    // r-factor-runden §4: mini-ost — delt kilde, se brython-oppføringen.
+    ost_core:           { aliases: ['openstat', 'ost'], deps: ['pandas_mpy'], js: [],
+                          path: 'shared/ost_core.py' },
     // altair (spec 2026-07-23): delt dialektfri kjerne i shared/ — samme
     // path-overstyring som ui_core. Vega-stakken lastes lazy ved
     // `import altair`; rekkefølgen er bindende (vega -> vega-lite ->

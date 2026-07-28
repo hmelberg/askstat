@@ -207,3 +207,38 @@ test('S4 _seedEntries: ugyldige entries hoppes over, velter ikke', () => {
   RB._seedEntries([null, {}, { url: 'https://x/ok.csv', b64: Buffer.from('a,b').toString('base64') }]);
   assert.ok(RB.getCached('https://x/ok.csv'));
 });
+
+// ── Task 1: R-URL-broen ───────────────────────────────────────────────────────
+
+test('scanUrls fanger R-formene read.csv/read.csv2/fromJSON', () => {
+  RB._reset();
+  const script = [
+    'df <- read.csv("https://a.example/x.csv")',
+    'df2 <- utils::read.csv2("/api/hent?url=y")',
+    'j <- jsonlite::fromJSON("https://api.worldbank.org/v2/x?format=json")',
+    'r <- readr::read_csv("https://b.example/z.csv")',
+    'lokal <- read.csv("/tmp/lokal.csv")',           // IKKE med (filsti)
+    'prosa <- les.csv("https://c.example/nei.csv")', // IKKE med (ukjent navn)
+  ].join('\n');
+  assert.deepStrictEqual(RB.scanUrls(script), [
+    'https://a.example/x.csv', '/api/hent?url=y',
+    'https://api.worldbank.org/v2/x?format=json', 'https://b.example/z.csv',
+  ]);
+});
+
+test('insertBytes legger i cache og exportTags baker den', () => {
+  RB._reset();
+  const bytes = new Uint8Array([104, 101, 105]); // "hei"
+  RB.insertBytes('https://a.example/x.csv', bytes, 'text/csv');
+  const c = RB.getCached('https://a.example/x.csv');
+  assert.strictEqual(c.contentType, 'text/csv');
+  assert.deepStrictEqual(Array.from(c.bytes), [104, 101, 105]);
+  const tags = RB.exportTags('df <- read.csv("https://a.example/x.csv")');
+  assert.strictEqual(tags.length, 1);
+  assert.strictEqual(tags[0].url, 'https://a.example/x.csv');
+});
+
+test('insertBytes avviser rått søppel stille-fritt', () => {
+  RB._reset();
+  assert.throws(() => RB.insertBytes('https://a.example/x', 'ikke-bytes', ''), /Uint8Array/);
+});

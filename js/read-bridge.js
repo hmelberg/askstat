@@ -27,10 +27,10 @@
   function defaultFetcher(url) { return global.DataLoader.fetchRawUrl(url, currentDeps()); }
   var fetcher = defaultFetcher;
 
-  // Rene string-literaler i de tre leserne. BEVISST enkel: variabler,
-  // f-strenger og sammensatte uttrykk dekkes av sync-fallbackene i stedet —
-  // hint-prinsippet sier at skannen aldri skal måtte ha rett.
-  var SCAN_RE = /\bread_(?:csv|json|parquet)\(\s*(['"])((?:https?:\/\/|\/api\/hent\?)[^'"\n]+)\1/g;
+  // Rene string-literaler i leserne — python/duckdb-formene (read_csv m.fl.)
+  // OG R-formene (read.csv/read.csv2/fromJSON; readr::read_csv dekkes av
+  // read_csv). BEVISST enkel: variabler og uttrykk dekkes av runtime-veiene.
+  var SCAN_RE = /\b(?:read_(?:csv|json|parquet)|read\.csv2?|fromJSON)\(\s*(['"])((?:https?:\/\/|\/api\/hent\?)[^'"\n]+)\1/g;
 
   function scanUrls(script) {
     var out = [], seen = Object.create(null), m;
@@ -202,6 +202,13 @@
     return out;
   }
 
+  // Post-run-import fra webR-FS (R-URL-broen): runtime-hentede bytes inn i
+  // cachen så exportTags baker dem ved publisering (S4b) uten ny henting.
+  function insertBytes(url, bytes, contentType) {
+    if (!(bytes instanceof Uint8Array)) throw new Error('insertBytes krever Uint8Array');
+    cache[url] = { bytes: bytes, contentType: contentType || '' };
+  }
+
   function _seedEntries(list) {
     (list || []).forEach(function (e) {
       if (!e || typeof e.url !== 'string' || typeof e.b64 !== 'string') return;
@@ -223,6 +230,7 @@
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
     getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
     exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
+    insertBytes: insertBytes,
     _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },

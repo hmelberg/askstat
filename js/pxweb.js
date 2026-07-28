@@ -198,6 +198,58 @@
              metric: (role.metric || []).slice(), units: units };
   }
 
+  // R-factor-runden §5: strengflaten R-workeren og mini-motorene konsumerer.
+  // Strenger krysser alle broene (webr::eval_js, Brython/mpy-interop)
+  // trivielt — objektformen gjør ikke det. Én kilde: gjenbruker recognize/
+  // dataUrlFor/typeMetaFromJsonStat, aldri egen logikk.
+  function metaUrlFor(url) {
+    var rec = recognizeUrl(url);
+    if (!rec) return '';
+    var t = rec.base + '/' + rec.table + (rec.query ? '?' + rec.query : '');
+    return dataUrlFor(rec.kind, t);
+  }
+
+  // Linjeprotokoll: «did \x1f time|dim \x1f code1 \x1f …» per dimensjon.
+  // ERR:-prefiks i stedet for kast — kallerne er synkron R/python som skal
+  // falle til utypet + notat, aldri velte. Separator-tegn i navn/koder er
+  // teoretisk (register-koder), men stille korrupsjon er verre enn ERR.
+  // Linjeorden = `order` (ds.id, kildens fasit) — for..in over dims ville
+  // reordnet heltallslignende dim-id-er numerisk (ES2015-regelen, samme
+  // felle som sidebar-typemeta i metadata-runden).
+  function typemetaTsv(tm, order) {
+    var lines = [];
+    var dims = (tm && tm.dims) || {};
+    var time = (tm && tm.time) || [];
+    var dids;
+    if (order && order.length) {
+      dids = [];
+      for (var i = 0; i < order.length; i++) {
+        if (dims[order[i]]) dids.push(order[i]);
+      }
+    } else {
+      dids = Object.keys(dims);
+    }
+    for (var d = 0; d < dids.length; d++) {
+      var did = dids[d];
+      var cats = (dims[did].categories || []).map(String);
+      var all = [did].concat(cats).join('');
+      if (all.indexOf('\x1f') !== -1 || all.indexOf('\n') !== -1) return 'ERR:separator-tegn i dimensjonsnavn/kode';
+      lines.push([did, time.indexOf(did) !== -1 ? 'time' : 'dim'].concat(cats).join('\x1f'));
+    }
+    return lines.join('\n');
+  }
+
+  function typemetaTsvFromText(jsonText) {
+    try {
+      var ds = JSON.parse(jsonText);
+      return typemetaTsv(typeMetaFromJsonStat(ds), ds.id || []);
+    } catch (e) {
+      // Saner kontrolltegn — V8s JSON.parse-meldinger siterer input og kan
+      // bære \x1f/\n som ville korrumpert linjeprotokollen hos mottaker.
+      return 'ERR:' + String((e && e.message) || e).replace(/[\x00-\x1f]/g, ' ').slice(0, 200);
+    }
+  }
+
   // Python-kilden som typer rammen ETTER pd.read_csv i Pyodide-preamblet.
   // Bor her (node-testbar streng, samme mønster som ReadBridge.pyPatchSource);
   // SEMANTIKKEN håndheves mot openstat.py sin apply_typemeta av pytest
@@ -275,6 +327,7 @@
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
               PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl,
               typeMetaFromJsonStat: typeMetaFromJsonStat, pyApplyTypemetaSource: pyApplyTypemetaSource,
+              metaUrlFor: metaUrlFor, typemetaTsvFromText: typemetaTsvFromText,
               recognizeUrl: recognizeUrl };
   global.PxWeb = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

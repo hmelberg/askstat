@@ -200,3 +200,44 @@ test('recognizeUrl: delt fixture, paritet med openstat.py', () => {
     assert.deepStrictEqual(PX.recognizeUrl(c.url), c.expect, c.url);
   }
 });
+
+// ── Strengflaten for R/mini-konsum (plan 2026-07-28) ──────────────────────────
+test('metaUrlFor: gjenkjent -> json-stat2-form med samme spørring, ukjent -> tom', () => {
+  assert.equal(
+    PX.metaUrlFor('https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?valueCodes[Tid]=*&outputFormat=csv'),
+    PX.dataUrlFor('pxweb', 'https://data.ssb.no/api/pxwebapi/v2/tables/05839?valueCodes[Tid]=*&outputFormat=csv'));
+  assert.equal(PX.metaUrlFor('https://ourworldindata.org/grapher/co2.csv'), '');
+  assert.equal(PX.metaUrlFor('ikke en url'), '');
+});
+
+test('typemetaTsvFromText: fixture -> linjer m/ klasse og koder i kildens orden', () => {
+  const text = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'pxweb_dataset.json'), 'utf8');
+  const tsv = PX.typemetaTsvFromText(text);
+  const tm = PX.typeMetaFromJsonStat(JSON.parse(text));
+  const lines = tsv.split('\n');
+  assert.equal(lines.length, Object.keys(tm.dims).length);
+  for (const line of lines) {
+    const p = line.split('\x1f');
+    const did = p[0];
+    assert.ok(tm.dims[did], did);
+    assert.equal(p[1], tm.time.indexOf(did) !== -1 ? 'time' : 'dim');
+    assert.deepEqual(p.slice(2), tm.dims[did].categories.map(String));
+  }
+});
+
+test('typemetaTsvFromText: heltallslignende dim-id-er beholder kildens orden (ds.id)', () => {
+  const ds = { id: ['9', '2'], role: {}, dimension: {
+    '9': { category: { index: { a: 0 }, label: {} } },
+    '2': { category: { index: { b: 0 }, label: {} } } } };
+  const lines = PX.typemetaTsvFromText(JSON.stringify(ds)).split('\n');
+  assert.equal(lines[0].split('\x1f')[0], '9');
+  assert.equal(lines[1].split('\x1f')[0], '2');
+});
+
+test('typemetaTsvFromText: søppel og separator-koder gir ERR, aldri kast', () => {
+  assert.match(PX.typemetaTsvFromText('ikke json'), /^ERR:/);
+  const evil_obj = { id: ['a'], role: {}, dimension: { a: { category: { index: {}, label: {} } } } };
+  evil_obj.dimension.a.category.index['x\x1fy'] = 0;
+  const evil = JSON.stringify(evil_obj);
+  assert.match(PX.typemetaTsvFromText(evil), /^ERR:/);
+});

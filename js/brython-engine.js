@@ -40,6 +40,10 @@
     // er byttet mot en lat _px(), og plotly lastes i stedet av token-treffet
     // '.plot' under. Det sparer 144 KB nedlasting+kompilering på hver
     // pandas-økt uten plotting. Spec: docs/superpowers/specs/2026-07-26-pandas-parity-design.md
+    // NB (task-5-review): IKKE gi denne et 'pandas'-alias — bar `import
+    // pandas` i mini-modus skal fortsatt gi høylytt ModuleNotFoundError
+    // (scanImports' loud-not-silent-regel). shared/ost_core.py løser sin
+    // dialektfrie import selv med en fallback-kjede (se filens import).
     pandas_brython:         { aliases: [], deps: [], js: [] },
     plotly_express_brython: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     // aliasrekkefølgen er bindende: 'matplotlib' (plain) må registreres før
@@ -80,6 +84,10 @@
     // python-runtimene; path-feltet overstyrer katalogkonvensjonen.
     ui_core:                { aliases: [], deps: [], js: [],
                               path: 'shared/ui_core.py' },
+    // r-factor-runden §4: mini-ost — delt kilde (ui_core-presedensen).
+    // Typemeta via window.PxWeb (strengflaten) — ingen logikk-tvilling.
+    ost_core:               { aliases: ['openstat', 'ost'], deps: ['pandas_brython'], js: [],
+                              path: 'shared/ost_core.py' },
     // altair (spec 2026-07-23): delt dialektfri kjerne i shared/ — samme
     // path-overstyring som ui_core. Vega-stakken lastes lazy ved
     // `import altair`; rekkefølgen er bindende (vega -> vega-lite ->

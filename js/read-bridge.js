@@ -171,6 +171,26 @@
     return { bytes: r.bytes, error: null };
   }
 
+  // R-factor-runden §2: typemeta for en data-URL, til panelberikelse av
+  // R-rammer (main thread — sveipen er async). Deler bro-cachen: prefetch-
+  // hinten og runtime-hentinger gjenbrukes gratis. null ved ukjent/feil —
+  // panelet viser da bare det rammen selv kan fortelle. Aldri reject.
+  function typemetaForUrl(url) {
+    var px = global.PxWeb;
+    if (!px || !px.metaUrlFor) return Promise.resolve(null);
+    // Aldri-reject-kontrakten gjelder også SYNKRONE kast: et uventet unntak
+    // fra metaUrlFor skal bli null + warn, ikke smelle ut av panelet.
+    var mu;
+    try { mu = px.metaUrlFor(url); }
+    catch (e) { console.warn('typemetaForUrl:', url, (e && e.message) || e); return Promise.resolve(null); }
+    if (!mu) return Promise.resolve(null);
+    return ensureText(mu).then(function (r) {
+      if (r.error) { console.warn('typemetaForUrl:', url, r.error); return null; }
+      try { return px.typeMetaFromJsonStat(JSON.parse(r.text)); }
+      catch (e) { console.warn('typemetaForUrl:', url, (e && e.message) || e); return null; }
+    });
+  }
+
   // Python-kilden for Pyodide-wrapperne. Ligger HER (ikke inline i
   // index.html) så node-testene kan asserte på den. Kontrakt: URL-argument →
   // bro; alt annet → original uendret (standalone-paritet). HTTP-feil →
@@ -320,8 +340,14 @@
       '    a <- list(...); nm <- names(a); if (is.null(nm)) nm <- rep("", length(a))',
       '    idx <- match(argname, nm)',
       '    if (is.na(idx) && length(a) && nm[1] == "") idx <- 1L',
-      '    if (!is.na(idx) && .ost_is_bridge_url(a[[idx]])) a[[idx]] <- .ost_fetch(a[[idx]])',
-      '    do.call(orig, a)',
+      '    u <- NULL',
+      '    if (!is.na(idx) && .ost_is_bridge_url(a[[idx]])) { u <- a[[idx]]; a[[idx]] <- .ost_fetch(u) }',
+      '    res <- do.call(orig, a)',
+      '    # R-factor §1: proveniens for panelberikelsen — KUN et attributt,',
+      '    # verdiene er byte-like (overraskelsesprinsippet). Gjenkjenning',
+      '    # (registerkilde eller ei) avgjøres JS-side i sveipen.',
+      '    if (!is.null(u) && is.data.frame(res)) attr(res, "ost_url") <- u',
+      '    res',
       '  }',
       '  attr(w, ".ost_wrapped") <- TRUE',
       '  w',
@@ -418,7 +444,7 @@
   global.ReadBridge = {
     configure: function (f) { depsFn = f; },
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
-    getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
+    getCached: getCached, forPyodideSync: forPyodideSync, typemetaForUrl: typemetaForUrl, pyPatchSource: pyPatchSource,
     rPatchSource: rPatchSource,
     exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
     insertBytes: insertBytes,

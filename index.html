@@ -8736,7 +8736,9 @@ if _asm.get('spec'):
           '      switch(k, numeric = "float64", integer = "int64", character = "object",\n' +
           '             logical = "bool", factor = "category", Date = "object", k)\n' +
           '    }, character(1))\n' +
-          '    list(columns = as.character(names(v)), dtypes = dt, nrows = nrow(v))\n' +
+          '    ou <- attr(v, "ost_url")\n' +
+          '    list(columns = as.character(names(v)), dtypes = dt, nrows = nrow(v),\n' +
+          '         ost_url = if (is.null(ou)) "" else as.character(ou))\n' +
           '  })\n' +
           '  names(info) <- keep\n' +
           '  info\n' +
@@ -8748,9 +8750,19 @@ if _asm.get('spec'):
           (v.names || []).forEach(function (k, j) { m[k] = v.values[j]; });
           var dtypes = {};
           ((m.dtypes && m.dtypes.names) || []).forEach(function (c, j) { dtypes[c] = m.dtypes.values[j]; });
+          var ou = (m.ost_url && m.ost_url.values && m.ost_url.values[0]) || '';
           info[dsName] = { columns: (m.columns && m.columns.values) || [], dtypes: dtypes,
-                           nrows: (m.nrows && m.nrows.values && m.nrows.values[0]) || 0, runtime: 'r' };
+                           nrows: (m.nrows && m.nrows.values && m.nrows.values[0]) || 0, runtime: 'r',
+                           ost_url: ou };
         });
+        // R-factor §2: panelberikelse — typemeta hentes main-thread via
+        // bro-cachen (typemetaForUrl er aldri-reject; null = uberiket).
+        for (var dsName2 in info) {
+          if (info[dsName2].ost_url && window.ReadBridge && window.ReadBridge.typemetaForUrl) {
+            var _tm = await window.ReadBridge.typemetaForUrl(info[dsName2].ost_url);
+            if (_tm) info[dsName2].typemeta = _tm;
+          }
+        }
         window.lastDatasetInfo = info;
         updateSidebarDatasets(info, 'R');
       } catch (e) {
@@ -10225,6 +10237,7 @@ ost_code = ${JSON.stringify(openstatCode)}
 spec_ost = importlib.util.spec_from_loader("openstat", loader=None)
 sys.modules["openstat"] = importlib.util.module_from_spec(spec_ost)
 exec(compile(ost_code, "openstat.py", "exec"), sys.modules["openstat"].__dict__)
+sys.modules["ost"] = sys.modules["openstat"]
 `);
         } catch (e) { console.warn('openstat register:', e); }
       }
@@ -10281,6 +10294,22 @@ library <- function(pkg, ...) {
         // node-testene ser den — pyPatchSource-presedensen.
         if (window.ReadBridge && window.ReadBridge.rPatchSource) {
           await webR.evalRVoid(window.ReadBridge.rPatchSource());
+        }
+        // r-factor §5: pxweb.js inn i worker-scope (globalThis.PxWeb) +
+        // ost_read_csv/ost_convert_dtypes. Kildene bor i js/pxweb.js og
+        // js/ost-r.js; feiler lastingen degraderes ost_read_csv til utypet
+        // (aldri-kast-regelen) og naken vei er upåvirket.
+        if (window.OstR && window.OstR.rSource) {
+          try {
+            const pxResp = await fetch('js/pxweb.js?v=' + (window.M2PY_VERSION || '1')).catch(function () { return { ok: false }; });
+            if (pxResp && pxResp.ok) {
+              await webR.FS.writeFile('/ost_pxweb.js', new TextEncoder().encode(await pxResp.text()));
+              const pxOk = await webR.evalRString(
+                'as.character(webr::eval_js(\'(function(){ try { var t = new TextDecoder("utf-8").decode(Module.FS.readFile("/ost_pxweb.js")); (0,eval)(t); return typeof globalThis.PxWeb !== "undefined" ? "OK" : "ERR:PxWeb mangler"; } catch (e) { return "ERR:" + String(e).slice(0,200); } })()\'))');
+              if (pxOk !== 'OK') console.warn('ost-r: pxweb i worker:', pxOk);
+            }
+            await webR.evalRVoid(window.OstR.rSource());
+          } catch (e) { console.warn('ost-r:', e); }
         }
         // m2py R-runtime helpers:
         //  - .m2py_split_statements: deler R-kildekode i top-level statements
@@ -12337,6 +12366,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/enc-crypto.js"></script>
   <script src="js/data-loader.js"></script>
   <script src="js/read-bridge.js"></script>
+  <script src="js/ost-r.js"></script>
   <script src="js/sidebar-typemeta.js"></script>
   <script src="js/duckdb-views.js"></script>
   <script src="js/assembly-duckdb.js"></script>

@@ -293,6 +293,26 @@ test('pyPatchSource: openstat-import feiler høylytt-fritt (try/except rundt imp
   assert.ok(/try:\s*\n\s*import openstat as _ost\s*\n\s*except Exception as _e:/.test(src));
 });
 
+// ── C1 (slutt-review, KRITISK): parse_dates + injisert dtype=str-vern på
+// SAMME kolonne korrumperer stille (datetime -> epoch-nanosekund-strenger,
+// målt med ekte pandas). _ost_typed_read må ekskludere parse_dates-navngitte
+// kolonner fra vern-dicten — speilet fra openstat.py sin _parse_dates_exclusion.
+test('pyPatchSource: fødselstyping ekskluderer parse_dates-kolonner fra dtype-vernet (C1)', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(src.includes('parse_dates'), 'mangler parse_dates-håndtering');
+  assert.ok(src.includes('_drop_all'), 'mangler konservativ drop-hele-injeksjonen-vakten');
+});
+
+// ── I1: app/pakke-divergens — _ost_typed_read hoppet FØR over vernet ved
+// ENHVER dtype i kwargs (openstat.py fletter en dict-dtype). Speilet inn.
+test('pyPatchSource: dtype-DICT flettes ({**vern, **bruker}) — skalar dtype respekteres urørt (I1)', () => {
+  const src = RB.pyPatchSource();
+  assert.ok(/isinstance\(_kw\["dtype"\],\s*dict\)/.test(src),
+    'mangler isinstance-sjekk for dict-dtype (flettelogikk speilet fra openstat.py)');
+  assert.ok(/\{\*\*_vern,\s*\*\*_kw\["dtype"\]\}/.test(src),
+    'mangler {**vern, **bruker}-flettingen selv');
+});
+
 test('prefetchScript: gjenkjent registerkilde prefetcher metadata-json-stat2 (SAMME spørring) via PxWeb.dataUrlFor', () => {
   RB._reset();
   const calls = [];

@@ -277,6 +277,31 @@ def apply_meta(df, url_or_table, base=None):
     return _apply_best_effort(df, _typemeta_for(rec["kind"], rec["base"], rec["table"], rec["query"]))
 
 
+def _parse_dates_exclusion(parse_dates):
+    """Kolonnenavn parse_dates dekker, for å UNNTA dem fra dtype=str-vernet:
+    parse_dates OG en tvunget dtype på SAMME kolonne er en kjent pandas-felle
+    som gir stille korrupsjon (datetime -> epoch-nanosekund-STRENGER, målt
+    med ekte pandas i slutt-reviewen — C1). Returnerer (drop_all, names):
+    drop_all=True betyr at HELE vern-injeksjonen droppes konservativt
+    (parse_dates=True — meningen er indeks-parsing, ingen navngitte
+    kolonner å ekskludere trygt — eller en form vi ikke leser trygt, f.eks.
+    dict-formen). names dekker liste- OG nested-liste-formen (pandas slår
+    sammen f.eks. parse_dates=[["a", "b"]] til én dato-kolonne av a+b)."""
+    if parse_dates is None or parse_dates is False:
+        return False, set()
+    if parse_dates is True:
+        return True, set()
+    if isinstance(parse_dates, (list, tuple)):
+        names = set()
+        for item in parse_dates:
+            if isinstance(item, (list, tuple)):
+                names.update(str(x) for x in item)
+            else:
+                names.add(str(item))
+        return False, names
+    return True, set()  # uklar form (f.eks. dict) -> konservativt: dropp alt
+
+
 def read_csv(url, **kwargs):
     """pd.read_csv med metadata på: gjenkjent register-URL -> CSV-en lastes
     (brukerens form/params), dim-kolonner får dtype=str-vern VED parse
@@ -296,12 +321,17 @@ def read_csv(url, **kwargs):
         # dtype=str-vernet: brukerens egne valg vinner ALLTID, men et delvis
         # dtype-DICT skal ikke stille slå av vernet for dim-kolonner brukeren
         # ikke selv navnga (da gjenoppstår 0301-fella). Skalar dtype (f.eks.
-        # dtype=str) dekker alt selv og respekteres urørt.
-        vern = {d: str for d in (tm.get("dims") or {})}
-        if "dtype" not in kwargs:
-            kwargs = dict(kwargs, dtype=vern)
-        elif isinstance(kwargs["dtype"], dict):
-            kwargs = dict(kwargs, dtype={**vern, **kwargs["dtype"]})
+        # dtype=str) dekker alt selv og respekteres urørt. parse_dates på en
+        # dim-kolonne skal ALDRI få dtype=str injisert samtidig (C1 —
+        # epoch-nanosekund-korrupsjon); uklar parse_dates-form dropper HELE
+        # injeksjonen konservativt.
+        drop_all, excluded = _parse_dates_exclusion(kwargs.get("parse_dates"))
+        if not drop_all:
+            vern = {d: str for d in (tm.get("dims") or {}) if d not in excluded}
+            if "dtype" not in kwargs:
+                kwargs = dict(kwargs, dtype=vern)
+            elif isinstance(kwargs["dtype"], dict):
+                kwargs = dict(kwargs, dtype={**vern, **kwargs["dtype"]})
     df = pd.read_csv(raw, **kwargs)
     return _apply_best_effort(df, tm) if tm is not None else df
 

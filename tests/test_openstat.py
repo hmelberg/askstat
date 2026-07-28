@@ -593,3 +593,38 @@ def test_read_csv_delvis_dtype_dict_beholder_str_vernet(monkeypatch):
     assert str(out["Region"].dtype) == "category"
     assert list(out["Region"].astype(str)) == ["0301", "1103"]
     assert str(out["verdi"].dtype) == "float64"
+
+
+# ── C1 (slutt-review, KRITISK): parse_dates + injisert dtype=str-vern på
+# SAMME kolonne er en kjent pandas-felle — kombinasjonen gir stille
+# datetime -> epoch-nanosekund-STRENGER i stedet for datetime64 (målt med
+# ekte pandas før fiksen: Tid ble "1672531200000000000" som object-dtype).
+# parse_dates-kolonner skal derfor ALDRI havne i vern-dicten. ────────────────
+
+def test_read_csv_parse_dates_ekskluderer_kolonne_fra_dtype_vern(monkeypatch):
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(
+        ost, "_fetch_bytes",
+        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023-01-01,1\n1103,2024-01-01,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv",
+                       parse_dates=["Tid"])
+    assert str(out["Tid"].dtype).startswith("datetime64"), \
+        "Tid skal parses som datetime64 — ikke tvinges til str (epoch-korrupsjon)"
+    assert out["Tid"].tolist() == [pd.Timestamp("2023-01-01"), pd.Timestamp("2024-01-01")]
+    # 0301-fella skal fortsatt være dekket for kolonnen brukeren IKKE nevnte:
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]
+
+
+def test_parse_dates_exclusion_helper():
+    # Direkte kontrakt-test av hjelperen: liste/nested-liste ekskluderer
+    # navngitte kolonner; True/uklar (dict-)form dropper HELE injeksjonen
+    # konservativt (vi kan ikke si sikkert hvilke kolonner som er berørt).
+    assert ost._parse_dates_exclusion(None) == (False, set())
+    assert ost._parse_dates_exclusion(False) == (False, set())
+    assert ost._parse_dates_exclusion(True) == (True, set())
+    assert ost._parse_dates_exclusion(["Tid"]) == (False, {"Tid"})
+    assert ost._parse_dates_exclusion([["Tid", "time"], "Region"]) == \
+        (False, {"Tid", "time", "Region"})
+    assert ost._parse_dates_exclusion({"dato": ["Tid"]}) == (True, set())

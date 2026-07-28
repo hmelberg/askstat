@@ -178,7 +178,11 @@
   function typemetaForUrl(url) {
     var px = global.PxWeb;
     if (!px || !px.metaUrlFor) return Promise.resolve(null);
-    var mu = px.metaUrlFor(url);
+    // Aldri-reject-kontrakten gjelder også SYNKRONE kast: et uventet unntak
+    // fra metaUrlFor skal bli null + warn, ikke smelle ut av panelet.
+    var mu;
+    try { mu = px.metaUrlFor(url); }
+    catch (e) { console.warn('typemetaForUrl:', url, (e && e.message) || e); return Promise.resolve(null); }
     if (!mu) return Promise.resolve(null);
     return ensureText(mu).then(function (r) {
       if (r.error) { console.warn('typemetaForUrl:', url, r.error); return null; }

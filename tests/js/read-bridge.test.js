@@ -373,9 +373,15 @@ test('runtime-ost forPyodideSync: tomme headere ≡ headerløst, ugyldig JSON er
 test('typemetaForUrl: gjenkjent URL -> tm via bro-cachen; ukjent -> null', async () => {
   RB._reset();
   const fixture = require('fs').readFileSync(require('path').join(__dirname, '..', 'fixtures', 'pxweb_dataset.json'), 'utf8');
-  RB._setFetcher(async () => ({ bytes: Buffer.from(fixture), contentType: 'application/json; charset=utf-8' }));
-  const tm = await RB.typemetaForUrl('https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv');
+  const calls = [];
+  RB._setFetcher(async (url) => { calls.push(url); return { bytes: Buffer.from(fixture), contentType: 'application/json; charset=utf-8' }; });
+  const dataUrl = 'https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv';
+  const tm = await RB.typemetaForUrl(dataUrl);
   assert.deepEqual(tm, PX.typeMetaFromJsonStat(JSON.parse(fixture)));
+  // Beviset for RUTINGEN: det er METADATA-URL-en (metaUrlFor-utdata) som
+  // hentes — ikke data-URL-en selv (prefetchScript-testens calls-mønster).
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0], PX.metaUrlFor(dataUrl));
   assert.equal(await RB.typemetaForUrl('https://ourworldindata.org/grapher/co2.csv'), null);
 });
 

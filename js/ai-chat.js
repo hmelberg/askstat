@@ -1459,8 +1459,12 @@
             processNode.appendChild(d);
             return d;
           }
+          // opts.initialRepair ({script, error}): start løkka som en
+          // reparasjonsrunde — brukes av ask-visningens semantiske reparasjon
+          // (F1: koden kjørte feilfritt, men outputen besvarte ikke spørsmålet).
           var round = 0, lastError = null, script = null, confirmed = false;
-          var result = await runWebAnswer(question, roundNode(), null, 0, signal);
+          var result = await runWebAnswer(question, roundNode(),
+            opts.initialRepair || null, opts.initialRepair ? 1 : 0, signal);
           while (true) {
             script = extractWebScriptBlock(result.markdown, mode);
             if (!script) return { ok: false, markdown: result.markdown, error: null };   // prosa-svar

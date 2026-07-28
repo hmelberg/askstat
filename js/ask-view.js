@@ -45,6 +45,15 @@
     return lines.join('\n') + '\n\n';
   }
 
+  // tolk-ask kan flagge semantisk ubrukelig output med en UNUSABLE_OUTPUT:-
+  // markørlinje (F1, evallogg 2026-07-29). Skiller markøren fra visningsteksten.
+  function parseTolkAnswer(text) {
+    var m = /^\s*UNUSABLE_OUTPUT:\s*(.+)$/m.exec(text || '');
+    if (!m) return { unusable: false, reason: '', clean: text || '' };
+    var clean = (text || '').replace(/^\s*UNUSABLE_OUTPUT:.*$/m, '').trim();
+    return { unusable: true, reason: m[1].trim(), clean: clean };
+  }
+
   /* ── DOM wiring (browser only; bails in the node test stub) ─────── */
   function sseAccumulate(resp, onText, signal) {
     // Minimal SSE-leser for tolk-/ruter-endepunktene ({type:'text'|'error'}).
@@ -285,9 +294,16 @@
 
         // 3) Data-svar-løkka (beregning/data/oppslag). Instrukser legges
         //    KLIENT-SIDE i spørsmålsteksten — data-svar-promptene røres ikke.
-        var instr = route.rute === 'beregning'
-          ? '[Instruction: Pure computation — no external data sources needed. Write one complete script that computes the answer, with comments explaining your choices.]'
-          : '[Instruction: Comment your choices in the code — why this source/table, this scope, this computation.]';
+        var instr;
+        if (route.rute === 'beregning') {
+          instr = '[Instruction: Pure computation — no external data sources needed. Write one complete script that computes the answer, with comments explaining your choices.]';
+        } else if (route.rute === 'oppslag') {
+          // F2 (evallogg 2026-07-29): trivielle fakta ble besvart fra hukommelsen
+          // uten kilde — krev reelt søk + kilde-URL i svaret.
+          instr = '[Instruction: Lookup question — verify the answer with the web search tool and cite at least one authoritative source URL in the answer, even for well-known facts. Never answer purely from memory. Write code only if a computation is genuinely needed.]';
+        } else {
+          instr = '[Instruction: Comment your choices in the code — why this source/table, this scope, this computation.]';
+        }
         var fullQuestion = question +
           (route.tolkning ? '\n\nOperational interpretation (from the router): ' + route.tolkning : '') +
           '\n\n' + instr;
@@ -296,45 +312,70 @@
         // Output-panelet må være SYNLIG før kjøringen starter — plotly i et
         // display:none-element får null-bredde (spec-ens verifiseringspunkt).
         document.documentElement.classList.add('ask-has-run');
-        var res = await window.mdAskRun(fullQuestion, {
-          processNode: statusBox, signal: ctrl.signal, scriptPrefix: prefix, confirm: confirmChoice(),
-        });
 
-        if (res.error === 'avbrutt') { progressLine('Stopped.'); archiveStatus(); return; }
-        if (!res.ok && res.error === null) {
-          // Prosa-svar uten kode (typisk oppslag/web eller ærlig «fant ikke»).
-          showAnswer(res.markdown, '⚠ Source-based answer (web search) — not verified with code', true);
+        // Kjør → tolk. Flagger tolk-ask outputen som ubrukelig
+        // (UNUSABLE_OUTPUT), gis ÉN semantisk reparasjonsrunde (F1) før det
+        // ærlige svaret vises.
+        var semanticTries = 0;
+        var initialRepair = null;
+        while (true) {
+          var res = await window.mdAskRun(fullQuestion, {
+            processNode: statusBox, signal: ctrl.signal, scriptPrefix: prefix,
+            confirm: confirmChoice(), initialRepair: initialRepair,
+          });
+
+          if (res.error === 'avbrutt') { progressLine('Stopped.'); archiveStatus(); return; }
+          if (!res.ok && res.error === null) {
+            // Prosa-svar uten kode (typisk oppslag/web eller ærlig «fant ikke»).
+            showAnswer(res.markdown, '⚠ Source-based answer (web search) — not verified with code', true);
+            return;
+          }
+          if (!res.ok) {
+            showAnswer('Could not compute this (3 repair rounds failed). Last error:' +
+              '\n\n```\n' + String(res.error).slice(0, 800) + '\n```\n\n' +
+              'The code is in the code view — use “View code” to inspect and adjust, then try asking again.',
+              '⚠ Computation failed', true);
+            return;
+          }
+
+          // 4) Kjøringen lyktes → tolk-ask komponerer svaret fra output.
+          progressLine('Summarizing the result …');
+          var outEl = document.getElementById('outputArea');
+          var outText = (outEl ? (outEl.innerText || '') : '').trim().slice(0, 30000);
+          var si = document.getElementById('scriptInput');
+          var script = ((si && si.value) || '').slice(0, 30000);
+          var tolkResp = await fetch('/api/tolk-ask', {
+            method: 'POST',
+            headers: window.mdAiAuthHeaders(),
+            signal: ctrl.signal,
+            body: JSON.stringify({
+              question: question,
+              interpretation: route.tolkning,
+              script: script,
+              output: outText,
+              ui_lang: uiLang,
+              provider: window.mdAiProviderConfig() || undefined,
+            }),
+          });
+          if (!tolkResp.ok || !tolkResp.body) throw new Error('HTTP ' + tolkResp.status + ' ' + (await tolkResp.text()));
+          var finalMd = await sseAccumulate(tolkResp, function (acc) { renderMd(answerBox, parseTolkAnswer(acc).clean); }, ctrl.signal);
+          var parsed = parseTolkAnswer(finalMd);
+          if (parsed.unusable && semanticTries < 1) {
+            semanticTries++;
+            progressLine('The output did not answer the question — refining the data query …');
+            answerBox.innerHTML = '';
+            initialRepair = { script: script,
+              error: 'SEMANTIC ERROR — the script ran without errors, but its OUTPUT does not answer the question: ' +
+                parsed.reason + ' Fix the data selection/filtering so the OUTPUT actually answers the question.' };
+            continue;
+          }
+          if (parsed.unusable) {
+            showAnswer(parsed.clean, '⚠ The computed output did not answer the question', true);
+          } else {
+            showAnswer(parsed.clean, null, false);
+          }
           return;
         }
-        if (!res.ok) {
-          showAnswer('Could not compute this (3 repair rounds failed). Last error:' +
-            '\n\n```\n' + String(res.error).slice(0, 800) + '\n```\n\n' +
-            'The code is in the code view — use “View code” to inspect and adjust, then try asking again.',
-            '⚠ Computation failed', true);
-          return;
-        }
-
-        // 4) Kjøringen lyktes → tolk-ask komponerer svaret fra output.
-        progressLine('Summarizing the result …');
-        var outEl = document.getElementById('outputArea');
-        var outText = (outEl ? (outEl.innerText || '') : '').trim().slice(0, 30000);
-        var si = document.getElementById('scriptInput');
-        var tolkResp = await fetch('/api/tolk-ask', {
-          method: 'POST',
-          headers: window.mdAiAuthHeaders(),
-          signal: ctrl.signal,
-          body: JSON.stringify({
-            question: question,
-            interpretation: route.tolkning,
-            script: ((si && si.value) || '').slice(0, 30000),
-            output: outText,
-            ui_lang: uiLang,
-            provider: window.mdAiProviderConfig() || undefined,
-          }),
-        });
-        if (!tolkResp.ok || !tolkResp.body) throw new Error('HTTP ' + tolkResp.status + ' ' + (await tolkResp.text()));
-        var finalMd = await sseAccumulate(tolkResp, function (acc) { renderMd(answerBox, acc); }, ctrl.signal);
-        showAnswer(finalMd, null, false);
       } catch (e) {
         if (e && e.name === 'AbortError') { progressLine('Stopped.'); archiveStatus(); }
         else showAnswer('✗ ' + ((e && e.message) ? e.message : String(e)) +
@@ -364,6 +405,7 @@
     module.exports = {
       parseAskRoute: parseAskRoute,
       buildAskProvenance: buildAskProvenance,
+      parseTolkAnswer: parseTolkAnswer,
     };
   }
 })();

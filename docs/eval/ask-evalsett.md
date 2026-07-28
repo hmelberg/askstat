@@ -53,3 +53,21 @@ Feilhåndtering (kjøres i tillegg):
 - Auto-kjøring, engelsk UI, proveniens-blokk og echo-av verifisert i alle
   relevante kjøringer. «Error in input stream» (deep-modus, 2026-07-28)
   reproduserte IKKE i fast-modus.
+
+### 2026-07-29 (senere) — F1/F2 fikset og verifisert live
+
+- **F1 LØST:** tolk-ask flagger ubrukelig output med `UNUSABLE_OUTPUT:`-markør
+  → ask-visningen kjører ÉN semantisk reparasjonsrunde (`mdAskRun` med
+  `initialRepair`). Verifisert på Q5: første uttrekk flagget → reparasjon →
+  korrekt SA/ILO-filtrert Eurostat-svar (Island 14,0 %, Norge 6,0 %, juni 2026).
+- **F2 LØST:** oppslagsruten krever nå reelt websøk + kilde-URL. Verifisert på
+  Q7: «Accra» med Britannica-lenke i svaret (10 s).
+- **F3 FUNNET+LØST (rotårsak for strømfeilene):** `web_fetch` manglet
+  `max_content_tokens` — et ufiltrert Eurostat-JSON ga «prompt is too long:
+  4 718 995 tokens» (Anthropic 400) og forklarer trolig også «Error in input
+  stream» i deep-modus 2026-07-28. Tak satt: 15k (fast) / 30k (deep).
+  **Kandidat for cherry-pick til openstat.**
+- **Worldbank-prompten forbedret:** read-formen med ressurssti
+  (`country/<ISO3>/indicator/<ID>`) står nå eksplisitt i JSON-API-avsnittet —
+  Q4 kostet tre reparasjonsrunder på å lære den av resolver-feilmeldingen.
+  Også kandidat for cherry-pick.

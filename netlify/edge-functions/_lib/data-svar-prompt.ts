@@ -101,7 +101,11 @@ df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltit
 Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
 JSON-API-er (ikke tabellform, f.eks. World Bank ?format=json): bruk
-registerets adapter (\`# wb = ost.connect("worldbank")\`) eller les JSON-en
+registerets adapter — worldbank-read tar en RESSURSSTI:
+\`# helse = worldbank.read("country/NOR;SWE/indicator/SH.XPD.CHEX.GD.ZS")\`
+(sti = country/<ISO3-koder adskilt med ; eller all>/indicator/<indikator-ID>;
+\`years=\` filtrerer. Bare \`ost.connect("worldbank")\` uten read-sti FEILER —
+målt 2026-07-29: kostet tre reparasjonsrunder). Eller les JSON-en
 DIREKTE (\`jsonlite::fromJSON\` i R; i Python: parse \`json.loads\` av en
 probe-verifisert cors:true-GET via broens \`pd.read_json\` når formen er flat)
 — ALDRI urllib/requests-kode (målt feilklasse 2026-07-28, «JSON-API-hullet»).
@@ -465,12 +469,19 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
 ];
 
 // max_uses-tallene speiler budsjett-tabellene i DEPTH_FAST/DEPTH_DEEP.
+// max_content_tokens: uten tak la web_fetch HELE dokumentet inn i samtalen —
+// målt 2026-07-29: et ufiltrert Eurostat-JSON ga «prompt is too long:
+// 4 718 995 tokens» (Anthropic 400) og drepte kjøringen. Taket trunkerer
+// dokumentsider trygt og kveler datasett-dumper (data skal uansett hentes av
+// SCRIPTET, ikke av web_fetch).
 export function buildToolDefs(depth: Depth): unknown[] {
-  const uses = depth === "fast" ? { search: 2, fetch: 1 } : { search: 5, fetch: 5 };
+  const uses = depth === "fast"
+    ? { search: 2, fetch: 1, fetchTokens: 15_000 }
+    : { search: 5, fetch: 5, fetchTokens: 30_000 };
   return [
     ...CLIENT_TOOL_DEFS,
     { type: "web_search_20250305", name: "web_search", max_uses: uses.search },
-    { type: "web_fetch_20250910", name: "web_fetch", max_uses: uses.fetch },
+    { type: "web_fetch_20250910", name: "web_fetch", max_uses: uses.fetch, max_content_tokens: uses.fetchTokens },
   ];
 }
 

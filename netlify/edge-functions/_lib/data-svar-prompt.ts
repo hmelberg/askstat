@@ -113,6 +113,12 @@ EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
 4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv \`pd.read_csv(url, ...)\` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
+7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-
+   grammatikken tar dem ALDRI (literal-only) — skriv VANLIG KODE med
+   \`pd.read_csv(url)\`/\`read.csv(url)\` direkte (broen håndterer også
+   dynamiske URL-er); ved målt cors:false pakkes URL-en i \`/api/hent?url=\`
+   I KODEN. ALDRI urllib/requests (regel 4 gjelder), og ALDRI «simuler
+   innlasting»-kode — koden skal HENTE, ikke late som.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
@@ -160,7 +166,8 @@ inngangspunktet).
   literaler: \`years="2000:2009"\`, \`countries=["NOR","SWE"]\`,
   \`filters={"na_item": "B1GQ"}\`, \`kind="pxweb"\`. Gammel syntaks
   (\`# read <url> as <navn>\`, \`key(ask)\`, \`# require\`) finnes ikke lenger og
-  gir feilmelding.
+  gir feilmelding. Trenger du en DYNAMISK bygget URL: det er vanlig kode (regel 7), aldri en
+  direktivlinje.
 - KRAV: merk en kilde «probe-verifisert» BARE når probe faktisk returnerte
   ok=true for NØYAKTIG den URL-en scriptet bruker (ikke en annen/bredere
   URL, og aldri når probe feilet eller ikke ble kjørt for den). Fant du

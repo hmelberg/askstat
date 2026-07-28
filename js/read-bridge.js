@@ -126,29 +126,46 @@
   var xhrImpl = null;
   function xhr(url, headers) { return (xhrImpl || syncXhr)(url, headers); }
 
-  function forPyodideSync(url) {
-    var c = cache[url];
+  function forPyodideSync(url, headersJson) {
+    // Runtime-ost (plan 2026-07-28): valgfri headers-JSON fra openstat.py
+    // (_fetch_bytes, SDMX-Accept). JSON-streng, ikke objekt — en Python-dict
+    // blir PyProxy på JS-siden og for..in enumererer den ikke. Ikke-tomme
+    // headere BYPASSER cachen (les OG skriv): den er URL-nøklet, og en
+    // Accept-header endrer svaret (SDMX: csv vs xml) — delt oppføring ville
+    // vært stille feil data. Ugyldig JSON returneres som error (aldri kast —
+    // kalleren er synkron Python).
+    var hdrs = null;
+    if (headersJson) {
+      try { hdrs = JSON.parse(headersJson); }
+      catch (e) { return { bytes: null, error: 'ugyldig headers-JSON for ' + url + ': ' + e.message }; }
+      if (!hdrs || Object.keys(hdrs).length === 0) hdrs = null;
+    }
+    var c = hdrs ? null : cache[url];
     if (c && !c.error) return { bytes: c.bytes, error: null };
     // En cachet FEIL behandles som miss: sync-veien får prøve selv.
     var canXhr = xhrImpl || typeof XMLHttpRequest !== 'undefined';
     if (!canXhr) {
       return { bytes: null, error: (c && c.error) || ('ingen cache-oppføring og ingen XHR for ' + url) };
     }
-    var r = xhr(url);
+    var r = xhr(url, hdrs || undefined);
     // Proxy KUN ved status 0 (CORS/nettverk) — samme konvensjon som
     // fetchRawUrl/fetchLoadTarget. En ekte 404 er like ekte via proxyen,
     // og «HTTP 404» er en klarere melding enn «proxy 404».
     if (r.bytes === null && r.status === 0 && url.indexOf('/api/hent?') !== 0) {
       // S5: samme auth-headere som direktiv-veien — proxyen er auth-portet.
+      // Custom-headere flettes inn (hent-core videresender accept oppstrøms,
+      // api-kinds-spec §4.4 — andre custom-headere dør i proxyen, dokumentert
+      // i runtime-ost-spec §1).
       var d = currentDeps() || {};
       var ph = (global.DataLoader && global.DataLoader.proxyHeaders)
         ? global.DataLoader.proxyHeaders(d.authToken, d.anthropicKey) : {};
+      if (hdrs) ph = Object.assign({}, ph, hdrs);
       r = xhr('/api/hent?url=' + encodeURIComponent(url), ph);
     }
     if (r.bytes === null) {
       return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url };
     }
-    cache[url] = { bytes: r.bytes, contentType: '' };
+    if (!hdrs) cache[url] = { bytes: r.bytes, contentType: '' };
     return { bytes: r.bytes, error: null };
   }
 

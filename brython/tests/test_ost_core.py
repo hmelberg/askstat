@@ -148,3 +148,20 @@ def test_mpy_hook_varianten():
     df = ost_core.read_csv(CSV_URL)
     assert str(df["Region"].dtype) == "category"
     del sys.modules["js"]
+
+
+def test_read_csv_time_kvartalskoder_ordered_i_kildens_orden():
+    # Låser valmap/ordered-mekanismen fra fiksrunden: ikke-heltallige
+    # tidskoder -> CategoricalDtype i KILDENS orden (2024K1 foran 2023K4 —
+    # alfabetisk/dataorden ville gitt motsatt) med ordered=True. Målt på
+    # _cats-dtypen: mini-pandas' sort_values konsulterer IKKE _cats
+    # (sorterer råverdier — kontrollør-målt), så dtype-metadataen er det
+    # som er levert; sorteringskonsekvensen står i køen.
+    tsv = "Tid\x1ftime\x1f2024K1\x1f2023K4"
+    ost, _ = _install({CSV_URL: {"text": "Tid,value\n2023K4,1\n2024K1,2\n"},
+                       "https://meta.example/js2": META}, tsv=tsv)
+    df = ost.read_csv(CSV_URL)
+    assert str(df["Tid"].dtype) == "category"
+    cat = df._cats["Tid"]
+    assert list(cat.categories) == ["2024K1", "2023K4"]
+    assert cat.ordered

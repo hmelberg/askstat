@@ -213,11 +213,24 @@
   // ERR:-prefiks i stedet for kast — kallerne er synkron R/python som skal
   // falle til utypet + notat, aldri velte. Separator-tegn i navn/koder er
   // teoretisk (register-koder), men stille korrupsjon er verre enn ERR.
-  function typemetaTsv(tm) {
+  // Linjeorden = `order` (ds.id, kildens fasit) — for..in over dims ville
+  // reordnet heltallslignende dim-id-er numerisk (ES2015-regelen, samme
+  // felle som sidebar-typemeta i metadata-runden).
+  function typemetaTsv(tm, order) {
     var lines = [];
     var dims = (tm && tm.dims) || {};
     var time = (tm && tm.time) || [];
-    for (var did in dims) {
+    var dids;
+    if (order && order.length) {
+      dids = [];
+      for (var i = 0; i < order.length; i++) {
+        if (dims[order[i]]) dids.push(order[i]);
+      }
+    } else {
+      dids = Object.keys(dims);
+    }
+    for (var d = 0; d < dids.length; d++) {
+      var did = dids[d];
       var cats = (dims[did].categories || []).map(String);
       var all = [did].concat(cats).join('');
       if (all.indexOf('\x1f') !== -1 || all.indexOf('\n') !== -1) return 'ERR:separator-tegn i dimensjonsnavn/kode';
@@ -227,8 +240,14 @@
   }
 
   function typemetaTsvFromText(jsonText) {
-    try { return typemetaTsv(typeMetaFromJsonStat(JSON.parse(jsonText))); }
-    catch (e) { return 'ERR:' + String((e && e.message) || e).slice(0, 200); }
+    try {
+      var ds = JSON.parse(jsonText);
+      return typemetaTsv(typeMetaFromJsonStat(ds), ds.id || []);
+    } catch (e) {
+      // Saner kontrolltegn — V8s JSON.parse-meldinger siterer input og kan
+      // bære \x1f/\n som ville korrumpert linjeprotokollen hos mottaker.
+      return 'ERR:' + String((e && e.message) || e).replace(/[\x00-\x1f]/g, ' ').slice(0, 200);
+    }
   }
 
   // Python-kilden som typer rammen ETTER pd.read_csv i Pyodide-preamblet.

@@ -225,6 +225,15 @@ test('typemetaTsvFromText: fixture -> linjer m/ klasse og koder i kildens orden'
   }
 });
 
+test('typemetaTsvFromText: heltallslignende dim-id-er beholder kildens orden (ds.id)', () => {
+  const ds = { id: ['9', '2'], role: {}, dimension: {
+    '9': { category: { index: { a: 0 }, label: {} } },
+    '2': { category: { index: { b: 0 }, label: {} } } } };
+  const lines = PX.typemetaTsvFromText(JSON.stringify(ds)).split('\n');
+  assert.equal(lines[0].split('\x1f')[0], '9');
+  assert.equal(lines[1].split('\x1f')[0], '2');
+});
+
 test('typemetaTsvFromText: søppel og separator-koder gir ERR, aldri kast', () => {
   assert.match(PX.typemetaTsvFromText('ikke json'), /^ERR:/);
   const evil_obj = { id: ['a'], role: {}, dimension: { a: { category: { index: {}, label: {} } } } };

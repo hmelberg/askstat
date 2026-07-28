@@ -24,6 +24,16 @@ def test_data_url_bevarer_query_og_overstyrer_outputformat():
         "https://x/tables/05839/data?valueCodes[Tid]=2020,2021&lang=en&outputFormat=json-stat2"
 
 
+def test_data_url_stripper_ogsaa_outputformatparams():
+    # UseTexts-fella (målt SSB-400 i Task 5): outputFormatParams er et
+    # visningsparameter for CSV — sendt sammen med outputFormat=json-stat2
+    # 400-er SSB, og UseTexts-laster mister metadata unødig.
+    out = ost.data_url("https://x/tables/05839?outputFormat=csv&outputFormatParams=UseTexts")
+    assert "outputFormat=csv" not in out
+    assert "outputFormatParams" not in out
+    assert out == "https://x/tables/05839/data?lang=no&outputFormat=json-stat2"
+
+
 def test_metadata_url():
     assert ost.metadata_url("https://x/tables/05839") == "https://x/tables/05839/metadata?lang=no"
     assert ost.metadata_url("https://x/tables/05839?lang=en") == "https://x/tables/05839/metadata?lang=en"

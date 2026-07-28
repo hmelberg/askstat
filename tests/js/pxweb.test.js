@@ -18,6 +18,13 @@ test('dataUrl: brukerens query bevares, lang overstyrbar, outputFormat overstyre
     'https://x/tables/05839/data?valueCodes[Tid]=2020,2021&lang=en&outputFormat=json-stat2');
 });
 
+test('dataUrl: outputFormatParams strippes ogsaa (UseTexts-fella, maalt SSB-400)', () => {
+  const out = PX.dataUrl('https://x/tables/05839?outputFormat=csv&outputFormatParams=UseTexts');
+  assert.ok(!out.includes('outputFormat=csv'));
+  assert.ok(!out.includes('outputFormatParams'));
+  assert.equal(out, 'https://x/tables/05839/data?lang=no&outputFormat=json-stat2');
+});
+
 test('metadataUrl: /metadata + lang=no default, query bevares', () => {
   assert.equal(PX.metadataUrl('https://x/tables/05839'), 'https://x/tables/05839/metadata?lang=no');
   assert.equal(PX.metadataUrl('https://x/tables/05839?lang=en'), 'https://x/tables/05839/metadata?lang=en');

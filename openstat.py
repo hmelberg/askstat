@@ -66,7 +66,10 @@ def _build_url(url, endpoint, force_jsonstat):
     base, _, query = s.partition("?")
     parts = [p for p in query.split("&") if p]
     if force_jsonstat:
-        parts = [p for p in parts if p.split("=")[0].lower() != "outputformat"]
+        # outputFormatParams (f.eks. UseTexts) er CSV-visningsparametre —
+        # sendt sammen med json-stat2 400-er SSB (målt i metadata-runden).
+        parts = [p for p in parts
+                 if p.split("=")[0].lower() not in ("outputformat", "outputformatparams")]
     if not any(p.split("=")[0].lower() == "lang" for p in parts):
         parts.insert(0, "lang=no")
     if force_jsonstat:

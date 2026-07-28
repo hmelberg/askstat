@@ -18,7 +18,12 @@
     var query = q >= 0 ? s.slice(q + 1) : '';
     var parts = query ? query.split('&').filter(Boolean) : [];
     if (forceJsonStat) {
-      parts = parts.filter(function (p) { return p.split('=')[0].toLowerCase() !== 'outputformat'; });
+      // outputFormatParams (f.eks. UseTexts) er CSV-visningsparametre —
+      // sendt sammen med json-stat2 400-er SSB (maalt i metadata-runden).
+      parts = parts.filter(function (p) {
+        var k = p.split('=')[0].toLowerCase();
+        return k !== 'outputformat' && k !== 'outputformatparams';
+      });
     }
     var hasLang = parts.some(function (p) { return p.split('=')[0].toLowerCase() === 'lang'; });
     if (!hasLang) parts.unshift('lang=no');

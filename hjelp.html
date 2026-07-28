@@ -472,7 +472,7 @@ summarize kjonn</code></pre>
     </div>
 
     <div class="callout tip">
-      <strong>Automatisk metadata for registerkilder.</strong> Laster du en tabell-URL fra en kjent registerkilde (SSB-familien, Eurostat) med <code>pd.read_csv</code>, henter appen metadataen automatisk: kodekolonner beskyttes mot talltolkning (<code>0301</code> forblir <code>0301</code>), dimensjoner får kategoritype i kildens orden, og sidepanelet viser etiketter, nivåer og enheter. Feiler metadatahentingen, lastes dataene som vanlig — uten typing, med beskjed i konsollen. Utenfor appen (Jupyter/RStudio) gir samme script utypede rammer; vil du ha samme typing der, bruk <code>ost.read_csv(url)</code> eller <code>ost.apply_meta(df, url)</code> fra openstat-pakken — samme regler, eksplisitt.
+      <strong>Automatisk metadata for registerkilder.</strong> Laster du en tabell-URL fra en kjent registerkilde (SSB-familien, Eurostat) med <code>pd.read_csv</code>, henter appen metadataen automatisk: kodekolonner beskyttes mot talltolkning (<code>0301</code> forblir <code>0301</code>), dimensjoner får kategoritype i kildens orden, og sidepanelet viser etiketter, nivåer og enheter. Feiler metadatahentingen, lastes dataene som vanlig — uten typing, med beskjed i konsollen. Utenfor appen gir samme script utypede rammer. I Python-miljøer (f.eks. Jupyter) kan du få samme typing eksplisitt med <code>ost.read_csv(url)</code> eller <code>ost.apply_meta(df, url)</code> fra openstat-pakken — samme regler som appen. R har foreløpig ingen tilsvarende funksjon.
     </div>
 
     <div class="callout tip">

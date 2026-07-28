@@ -472,7 +472,7 @@ summarize kjonn</code></pre>
     </div>
 
     <div class="callout tip">
-      <strong>Automatic metadata for registry sources.</strong> When you load a table URL from a known registry source (SSB family, Eurostat) with <code>pd.read_csv</code>, the app automatically fetches the metadata: code columns are protected from number interpretation (<code>0301</code> stays <code>0301</code>), dimensions get category type in the source's order, and the sidebar shows labels, levels and units. If metadata retrieval fails, the data loads normally — without typing, with a note in the console. Outside the app (Jupyter/RStudio) the same script produces untyped frames; if you want the same typing there, use <code>ost.read_csv(url)</code> or <code>ost.apply_meta(df, url)</code> from the openstat package — same rules, explicit.
+      <strong>Automatic metadata for registry sources.</strong> When you load a table URL from a known registry source (SSB family, Eurostat) with <code>pd.read_csv</code>, the app automatically fetches the metadata: code columns are protected from number interpretation (<code>0301</code> stays <code>0301</code>), dimensions get category type in the source's order, and the sidebar shows labels, levels and units. If metadata retrieval fails, the data loads normally — without typing, with a note in the console. Outside the app the same script produces untyped frames. In Python environments (e.g. Jupyter) you can get the same typing explicitly with <code>ost.read_csv(url)</code> or <code>ost.apply_meta(df, url)</code> from the openstat package — same rules as the app. R has no equivalent function yet.
     </div>
 
     <div class="callout tip">

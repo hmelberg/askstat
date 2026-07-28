@@ -393,3 +393,11 @@ test('typemetaForUrl: hentefeil og søppel-JSON -> null, aldri reject', async ()
   RB._setFetcher(async () => ({ bytes: Buffer.from('ikke json'), contentType: 'text/plain' }));
   assert.equal(await RB.typemetaForUrl('https://data.ssb.no/api/pxwebapi/v2/tables/05839/data'), null);
 });
+
+// ── Task 3: R-annotering (attr) + panelsveip-berikelse ─────────────────────
+
+test('rPatchSource: wrapperen stempler ost_url-attributt (annotering, aldri typing)', () => {
+  const src = RB.rPatchSource();
+  assert.match(src, /attr\(res, "ost_url"\) <- u/);
+  assert.match(src, /is\.data\.frame\(res\)/);
+});

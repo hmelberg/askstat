@@ -8736,7 +8736,9 @@ if _asm.get('spec'):
           '      switch(k, numeric = "float64", integer = "int64", character = "object",\n' +
           '             logical = "bool", factor = "category", Date = "object", k)\n' +
           '    }, character(1))\n' +
-          '    list(columns = as.character(names(v)), dtypes = dt, nrows = nrow(v))\n' +
+          '    ou <- attr(v, "ost_url")\n' +
+          '    list(columns = as.character(names(v)), dtypes = dt, nrows = nrow(v),\n' +
+          '         ost_url = if (is.null(ou)) "" else as.character(ou))\n' +
           '  })\n' +
           '  names(info) <- keep\n' +
           '  info\n' +
@@ -8748,9 +8750,19 @@ if _asm.get('spec'):
           (v.names || []).forEach(function (k, j) { m[k] = v.values[j]; });
           var dtypes = {};
           ((m.dtypes && m.dtypes.names) || []).forEach(function (c, j) { dtypes[c] = m.dtypes.values[j]; });
+          var ou = (m.ost_url && m.ost_url.values && m.ost_url.values[0]) || '';
           info[dsName] = { columns: (m.columns && m.columns.values) || [], dtypes: dtypes,
-                           nrows: (m.nrows && m.nrows.values && m.nrows.values[0]) || 0, runtime: 'r' };
+                           nrows: (m.nrows && m.nrows.values && m.nrows.values[0]) || 0, runtime: 'r',
+                           ost_url: ou };
         });
+        // R-factor §2: panelberikelse — typemeta hentes main-thread via
+        // bro-cachen (typemetaForUrl er aldri-reject; null = uberiket).
+        for (var dsName2 in info) {
+          if (info[dsName2].ost_url && window.ReadBridge && window.ReadBridge.typemetaForUrl) {
+            var _tm = await window.ReadBridge.typemetaForUrl(info[dsName2].ost_url);
+            if (_tm) info[dsName2].typemeta = _tm;
+          }
+        }
         window.lastDatasetInfo = info;
         updateSidebarDatasets(info, 'R');
       } catch (e) {

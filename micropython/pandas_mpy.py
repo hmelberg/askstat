@@ -5198,9 +5198,9 @@ class _PendingFetch(BaseException):
 def _dtype_str_predicate(dtype, fname='read_csv'):
     """Valider dtype=-kwarget (mini-knippet §2, 0301-vernet): dict
     {kolonne: str|"str"|"object"} -> tekstform (ingen tallinferens) for de
-    NEVNTE kolonnene; skalar str/"str" -> tekstform for ALLE kolonner. Annet
-    (ukjent dict-verdi, ukjent skalar, deriblant skalar "object" - kun
-    dict-formen støtter den markøren, spec §2 er eksplisitt om dette) ->
+    NEVNTE kolonnene; skalar str/"str"/"object" -> tekstform for ALLE
+    kolonner (pandas-paritet, task-2-review: ekte pandas behandler skalar
+    "object" identisk med str). Annet (ukjent dict-verdi, ukjent skalar) ->
     HØYLYTT ValueError, aldri stille ignorering. Returnerer et
     kolonnenavn -> bool-prediktat (alltid False når dtype=None)."""
     def _is_str_marker(v):
@@ -5217,11 +5217,11 @@ def _dtype_str_predicate(dtype, fname='read_csv'):
                     '"str" eller "object"')
         cols = set(dtype.keys())
         return lambda name: name in cols
-    if dtype is str or dtype == 'str':
+    if _is_str_marker(dtype):
         return lambda name: True
     raise ValueError(
         fname + ': dtype-verdien ' + repr(dtype) + ' støttes ikke i '
-        'mini-pandas — bruk str, "str" eller en dict {kolonne: str}')
+        'mini-pandas — bruk str, "str", "object" eller en dict {kolonne: str}')
 
 
 def read_csv(filepath, sep=",", header=0, names=None, index_col=None, dtype=None):

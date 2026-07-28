@@ -3,7 +3,10 @@
 # ost.read_csv henter via replay-broen (første kjøring kan replay-vente) og
 # typer best-effort fra register-metadata via window.PxWeb (r-factor-runden).
 # Dim-kolonner (Alder her) får dtype=str-vern VED parse (mini-knippet §2):
-# ledende nuller overlever nå — Alder blir category, intlike Tid blir int64.
+# forvent Alder som category med ledende nuller bevart. Denne CSV-en er
+# BRED — Tid ligger i Personer-2009-*-kolonnenavnene, ikke som egen
+# kolonne; i stub-form med Tid som egen kolonne blir intlike tidskoder
+# int64.
 import ost
 df = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
 df.dtypes

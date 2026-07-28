@@ -86,9 +86,12 @@ def test_read_csv_dtype_dict_str_marker_variants():
 
 
 def test_read_csv_dtype_scalar_all_columns_text():
-    df = pd.read_csv(io.StringIO("a,b\n1,0301\n2,0302\n"), dtype=str)
-    assert list(df['a']) == ['1', '2'], 'skalar dtype=str skrur av inferens for ALLE kolonner'
-    assert list(df['b']) == ['0301', '0302']
+    # Alle tre skalar-markørene er likeverdige (pandas-paritet, task-2-
+    # review: ekte pandas behandler skalar "object" identisk med str).
+    for marker in (str, 'str', 'object'):
+        df = pd.read_csv(io.StringIO("a,b\n1,0301\n2,0302\n"), dtype=marker)
+        assert list(df['a']) == ['1', '2'], (marker, 'skalar dtype skrur av inferens for ALLE kolonner')
+        assert list(df['b']) == ['0301', '0302'], marker
 
 
 def test_read_csv_dtype_str_marker_empty_cell_becomes_nan():
@@ -116,14 +119,13 @@ def test_read_csv_dtype_unknown_scalar_raises():
         assert 'støttes ikke i mini-pandas' in str(e), str(e)
 
 
-def test_read_csv_dtype_scalar_object_string_not_supported():
-    # Spec (mini-knippet §2) er eksplisitt: skalar-formen støtter kun
-    # str/"str" — "object" er kun gyldig som DICT-verdi, ikke som skalar.
-    try:
-        pd.read_csv(io.StringIO("a,v\n1,2\n"), dtype='object')
-        raise AssertionError('skulle kastet ValueError')
-    except ValueError as e:
-        assert 'støttes ikke i mini-pandas' in str(e), str(e)
+def test_read_csv_dtype_scalar_object_string_accepted():
+    # Snudd i task-2-review (opprinnelig avvist etter spec-ordlyden):
+    # pandas-PARITET vinner — ekte pandas behandler skalar dtype="object"
+    # identisk med dtype=str, så mini gjør det samme.
+    df = pd.read_csv(io.StringIO("a,b\n1,0301\n"), dtype='object')
+    assert list(df['a']) == ['1']
+    assert list(df['b']) == ['0301']
 
 
 if __name__ == '__main__':

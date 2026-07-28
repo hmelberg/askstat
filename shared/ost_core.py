@@ -223,17 +223,17 @@ def read_csv(url, convert=True, **kwargs):
         # ALLE gjenkjente kolonner (dims OG time — py-tvillingens tm["dims"]
         # dekker begge, se docstring), ikke bare ikke-tid-dimensjonene:
         # tidskolonnen types likevel til int64 nedenfor uansett parse-form.
+        # (guard_cols er alltid ikke-tom her — 1:1 med entries.)
         guard_cols = [e["did"] for e in entries]
-        if guard_cols:
-            user_dtype = kwargs.get("dtype")
-            if "dtype" not in kwargs:
-                kwargs = dict(kwargs, dtype={d: str for d in guard_cols})
-            elif isinstance(user_dtype, dict):
-                vern = {d: str for d in guard_cols}
-                vern.update(user_dtype)      # brukerens dict-nøkler vinner
-                kwargs = dict(kwargs, dtype=vern)
-            # else: brukeren ga en SKALAR dtype (f.eks. str) — den dekker
-            # allerede alt selv og vinner urørt; intet vern injiseres.
+        user_dtype = kwargs.get("dtype")
+        if "dtype" not in kwargs:
+            kwargs = dict(kwargs, dtype={d: str for d in guard_cols})
+        elif isinstance(user_dtype, dict):
+            vern = {d: str for d in guard_cols}
+            vern.update(user_dtype)          # brukerens dict-nøkler vinner
+            kwargs = dict(kwargs, dtype=vern)
+        # else: brukeren ga en SKALAR dtype (f.eks. str) — den dekker
+        # allerede alt selv og vinner urørt; intet vern injiseres.
     df = pd.read_csv(url, **kwargs)      # replay-broen håndterer henting
     # ost_url (mini-knippet §3, R-arkitekturen gjenbrukt: attr(res,"ost_url")
     # i js/read-bridge.js sin rPatchSource): satt for GJENKJENT kilde UANSETT

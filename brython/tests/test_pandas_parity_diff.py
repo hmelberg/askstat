@@ -5,7 +5,7 @@
 # operasjon i shimmen og i ekte pandas og sammenlikner normaliserte
 # resultater. Kjøres under CPython (ekte pandas kreves):
 #   python3 brython/tests/test_pandas_parity_diff.py
-import sys, os, math, time
+import sys, os, math, time, io
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.dirname(__file__))
 import pandas as rpd
@@ -234,6 +234,58 @@ def test_categorical_value_counts_and_groupby_order():
         [str(i) for i in rdf.groupby('grp', observed=True)['v'].sum().index]
 
 
+# ── mini-knippet §1: DataFrame.sort_values følger kategoriorden ────────────
+# Series.sort_values konsulterte allerede _cat (se test_cut_labels_sort_in_-
+# label_order over). Bugen satt i DataFrame-stien: enkelt-kolonne-grenen
+# hentet serien via self.loc[:, by], som -- i motsetning til bracket-
+# aksessoren df[col] -- ikke hekter _cat på den returnerte serien, så
+# sort_values falt tilbake til rå etikett-sortering. Målt direkte mot
+# ost_core-scenarioet (test_ost_core.py) og med et minimalt repro her.
+
+def test_dataframe_sort_values_follows_category_order():
+    x = [1, 5, 15, 3, 12]
+    bins = [0, 2, 10, 20]
+    labs = ['lav', 'middels', 'høy']   # kildeorden, IKKE alfabetisk
+
+    def op(pd, d):
+        cat = pd.cut(pd.Series(x), bins, labels=labs)
+        df = pd.DataFrame({'grp': cat, 'v': x})
+        return df.sort_values('grp')
+
+    assert_same(op, label='DataFrame.sort_values(by=kategorisk kolonne)')
+
+
+def test_dataframe_sort_values_follows_category_order_descending():
+    x = [1, 5, 15, 3, 12]
+    bins = [0, 2, 10, 20]
+    labs = ['lav', 'middels', 'høy']
+
+    def op(pd, d):
+        cat = pd.cut(pd.Series(x), bins, labels=labs)
+        df = pd.DataFrame({'grp': cat, 'v': x})
+        return df.sort_values('grp', ascending=False)
+
+    assert_same(op, label='DataFrame.sort_values(by=kategorisk kolonne, ascending=False)')
+
+
+def test_series_sort_values_unknown_category_value_sorts_last():
+    # Verdi utenfor kategoriene (skal normalt ikke forekomme) sorteres SIST,
+    # som NaN -- respekterer na_position -- men verdien selv endres ALDRI
+    # (mini-avvik fra ekte pandas, som konverterer den til ekte NaN ved
+    # konstruksjon; se spec §1). Ikke en paritetstest av den grunn.
+    s = bpd.Series(['b', 'a', 'c', 'ukjent'])
+    s._cat = bpd.CategoricalDtype(['a', 'b', 'c'], False)
+
+    asc = s.sort_values()
+    assert list(asc.values) == ['a', 'b', 'c', 'ukjent'], list(asc.values)
+
+    desc = s.sort_values(ascending=False)
+    assert list(desc.values) == ['c', 'b', 'a', 'ukjent'], list(desc.values)
+
+    first = s.sort_values(na_position='first')
+    assert list(first.values) == ['ukjent', 'a', 'b', 'c'], list(first.values)
+
+
 # ── P1-2: datoer ───────────────────────────────────────────────────────────
 
 DATES = ['2020-03-15', '2021-11-02', '2024-02-29', '2020-01-01']
@@ -355,6 +407,23 @@ def test_explode():
     b = bpd.Series([[1, 2], [3], []]).explode()
     r = rpd.Series([[1, 2], [3], []]).explode()
     assert _norm_series(b) == _norm_series(r)
+
+
+# ── mini-knippet §2: dtype-kwarg i read_csv (0301-vernet) ──────────────────
+# PARITETSTEST mot ekte pandas (verifisert manuelt før denne testen ble
+# skrevet: dtype={col: str} bevarer "0301"; tomme celler blir likevel NaN
+# UAVHENGIG av dtype — pandas' NA-deteksjon er separat fra dtype-valget).
+
+def test_read_csv_dtype_dict_preserves_leading_zero_parity():
+    def op(pd, d):
+        return pd.read_csv(io.StringIO("kommune,v\n0301,1\n0302,2\n"), dtype={'kommune': str})
+    assert_same(op, label='read_csv(dtype={col: str}) bevarer 0301')
+
+
+def test_read_csv_dtype_str_marker_empty_cell_becomes_nan_parity():
+    def op(pd, d):
+        return pd.read_csv(io.StringIO("kommune,v\n0301,1\n,2\n"), dtype={'kommune': str})
+    assert_same(op, label='read_csv(dtype={col: str}) — tomt felt blir NaN uansett dtype')
 
 
 

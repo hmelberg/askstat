@@ -88,6 +88,26 @@ def test_bind_datasets_columns(capsys):
         sys.modules.pop('pandas_mpy', None)
 
 
+def test_dataset_info_includes_ost_url_from_attrs():
+    # mini-knippet §3: ost_core.read_csv setter df.attrs['ost_url'] for
+    # gjenkjente kilder — _dataset_info skal videreformidle den til
+    # sidepanelet (index.html refreshDatasetSidebarFromEngineInfo).
+    import pandas_mpy as pd
+    df = pd.DataFrame({'a': [1, 2]})
+    df.attrs['ost_url'] = 'https://data.ssb.no/api/v0/no/table/05839'
+    mr._shared_vars['medost'] = df
+    info = json.loads(mr._dataset_info())
+    assert info['medost']['ost_url'] == 'https://data.ssb.no/api/v0/no/table/05839'
+
+
+def test_dataset_info_omits_ost_url_when_absent():
+    import pandas_mpy as pd
+    df = pd.DataFrame({'a': [1, 2]})
+    mr._shared_vars['utenost'] = df
+    info = json.loads(mr._dataset_info())
+    assert 'ost_url' not in info['utenost']
+
+
 def test_pending_signal(capsys):
     run(capsys, 'class _P(BaseException):\n'
                 '    __brython_pending__ = True\n'

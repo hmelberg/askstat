@@ -451,8 +451,19 @@ def _dataset_info():
                         _dt[str(_c)] = str(_v[_c].dtype)
                 except Exception:
                     _dt = {}
-                out[_k] = {'columns': [str(_c) for _c in _v.columns],
-                           'dtypes': _dt, 'nrows': len(_v)}
+                _entry = {'columns': [str(_c) for _c in _v.columns],
+                          'dtypes': _dt, 'nrows': len(_v)}
+                # ost_url (mini-knippet §3, R-arkitekturen gjenbrukt): satt av
+                # ost_core.read_csv for gjenkjente kilder (attrs["ost_url"]),
+                # uansett convert. Panelet (index.html
+                # refreshDatasetSidebarFromEngineInfo) bruker den til å hente
+                # typemeta via ReadBridge.typemetaForUrl. Utelatt (ikke tom
+                # streng) når fraværende — # load-bundne/avledede rammer uten
+                # kjent URL skal se ut som i dag.
+                _ou = _v.attrs.get('ost_url') if hasattr(_v, 'attrs') else None
+                if _ou:
+                    _entry['ost_url'] = _ou
+                out[_k] = _entry
             except Exception:
                 pass
         return json.dumps(out)

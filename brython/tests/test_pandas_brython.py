@@ -64,6 +64,70 @@ def test_float_display_formatting():
     assert list(df['v'])[0] == 5.005999999999999
 
 
+# ── mini-knippet §2: dtype-kwarg i read_csv (0301-vernet) ──────────────────
+
+def test_read_csv_dtype_none_default_unchanged():
+    # Dagens (dokumenterte) begrensning uten dtype-kwarg: ledende null blir
+    # tall ved parse. Baseline som viser HVORFOR dtype-kwarget trengs.
+    df = pd.read_csv(io.StringIO("kommune,v\n0301,1\n"))
+    assert list(df['kommune']) == [301]
+
+
+def test_read_csv_dtype_dict_preserves_leading_zero():
+    df = pd.read_csv(io.StringIO("kommune,v\n0301,1\n0302,2\n"), dtype={'kommune': str})
+    assert list(df['kommune']) == ['0301', '0302'], 'ledende null bevart for navngitt kolonne'
+    assert list(df['v']) == [1, 2], 'ikke-nevnte kolonner typeinferes som før'
+
+
+def test_read_csv_dtype_dict_str_marker_variants():
+    for marker in (str, 'str', 'object'):
+        df = pd.read_csv(io.StringIO("kommune,v\n0301,1\n"), dtype={'kommune': marker})
+        assert list(df['kommune']) == ['0301'], marker
+
+
+def test_read_csv_dtype_scalar_all_columns_text():
+    # Alle tre skalar-markørene er likeverdige (pandas-paritet, task-2-
+    # review: ekte pandas behandler skalar "object" identisk med str).
+    for marker in (str, 'str', 'object'):
+        df = pd.read_csv(io.StringIO("a,b\n1,0301\n2,0302\n"), dtype=marker)
+        assert list(df['a']) == ['1', '2'], (marker, 'skalar dtype skrur av inferens for ALLE kolonner')
+        assert list(df['b']) == ['0301', '0302'], marker
+
+
+def test_read_csv_dtype_str_marker_empty_cell_becomes_nan():
+    # NaN-deteksjon er UAVHENGIG av dtype=str (py-paritet — se
+    # test_pandas_parity_diff.py: ekte pandas gjør det samme).
+    df = pd.read_csv(io.StringIO("kommune,v\n0301,1\n,2\n"), dtype={'kommune': str})
+    vals = list(df['kommune'])
+    assert vals[0] == '0301'
+    assert vals[1] is pd.nan
+
+
+def test_read_csv_dtype_unknown_dict_value_raises():
+    try:
+        pd.read_csv(io.StringIO("a,v\n1,2\n"), dtype={'a': int})
+        raise AssertionError('skulle kastet ValueError')
+    except ValueError as e:
+        assert 'a' in str(e) and 'støttes ikke i mini-pandas' in str(e), str(e)
+
+
+def test_read_csv_dtype_unknown_scalar_raises():
+    try:
+        pd.read_csv(io.StringIO("a,v\n1,2\n"), dtype=int)
+        raise AssertionError('skulle kastet ValueError')
+    except ValueError as e:
+        assert 'støttes ikke i mini-pandas' in str(e), str(e)
+
+
+def test_read_csv_dtype_scalar_object_string_accepted():
+    # Snudd i task-2-review (opprinnelig avvist etter spec-ordlyden):
+    # pandas-PARITET vinner — ekte pandas behandler skalar dtype="object"
+    # identisk med dtype=str, så mini gjør det samme.
+    df = pd.read_csv(io.StringIO("a,b\n1,0301\n"), dtype='object')
+    assert list(df['a']) == ['1']
+    assert list(df['b']) == ['0301']
+
+
 if __name__ == '__main__':
     for name, fn in sorted(globals().items()):
         if name.startswith('test_'):

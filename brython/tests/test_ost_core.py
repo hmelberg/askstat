@@ -77,7 +77,12 @@ def test_read_csv_convert_typer_dims_og_time():
     df = ost.read_csv(CSV_URL)
     assert str(df["Region"].dtype) == "category"
     assert list(df["Tid"]) == [2023, 2024]
-    assert calls == [CSV_URL, "https://meta.example/js2"]
+    # rekkefølgeflipp (mini-knippet §2, R-tvilling-mønsteret): typemeta hentes
+    # FØR CSV-en parses, slik at dims kan få dtype=str-vern VED parse
+    # (0301-vernet er umulig etterpå — tallet har alt mistet den ledende
+    # nullen). Metadata-kallet kommer derfor FØR CSV-kallet nå, motsatt av
+    # den gamle rekkefølgen.
+    assert calls == ["https://meta.example/js2", CSV_URL]
 
 
 def test_read_csv_convert_false_er_naken():
@@ -153,10 +158,12 @@ def test_mpy_hook_varianten():
 def test_read_csv_time_kvartalskoder_ordered_i_kildens_orden():
     # Låser valmap/ordered-mekanismen fra fiksrunden: ikke-heltallige
     # tidskoder -> CategoricalDtype i KILDENS orden (2024K1 foran 2023K4 —
-    # alfabetisk/dataorden ville gitt motsatt) med ordered=True. Målt på
-    # _cats-dtypen: mini-pandas' sort_values konsulterer IKKE _cats
-    # (sorterer råverdier — kontrollør-målt), så dtype-metadataen er det
-    # som er levert; sorteringskonsekvensen står i køen.
+    # alfabetisk/dataorden ville gitt motsatt) med ordered=True.
+    # sort_values-asserten (fjernet da denne testen ble skrevet fordi
+    # DataFrame.sort_values den gang konsulterte IKKE _cats — den hentet
+    # sorteringsserien via .loc[:, by], som ikke hekter _cat på, i motsetning
+    # til bracket-aksessoren df[col]) er nå lagt inn igjen: mini-knippet §1
+    # fikset akkurat det.
     tsv = "Tid\x1ftime\x1f2024K1\x1f2023K4"
     ost, _ = _install({CSV_URL: {"text": "Tid,value\n2023K4,1\n2024K1,2\n"},
                        "https://meta.example/js2": META}, tsv=tsv)
@@ -165,3 +172,136 @@ def test_read_csv_time_kvartalskoder_ordered_i_kildens_orden():
     cat = df._cats["Tid"]
     assert list(cat.categories) == ["2024K1", "2023K4"]
     assert cat.ordered
+    s = df.sort_values(by="Tid")
+    assert list(s["Tid"]) == ["2024K1", "2023K4"]
+
+
+# ── mini-knippet §2: dtype-vern ved parse (0301) + bruker-dtype vinner ─────
+
+def test_read_csv_0301_vern_ved_parse():
+    # Uten vernet ville "0301" blitt tallet 301 under CSV-parsingen, og
+    # best-effort-sjekken (301 ∉ {"0301","0302"}) ville hoppet Kommune over
+    # — akkurat den nå-lukkede begrensningen (docstring-noten er fjernet).
+    tsv = "Kommune\x1fdim\x1f0301\x1f0302"
+    ost, _ = _install({CSV_URL: {"text": "Kommune,value\n0301,1\n0302,2\n"},
+                       "https://meta.example/js2": META}, tsv=tsv)
+    df = ost.read_csv(CSV_URL)
+    assert str(df["Kommune"].dtype) == "category"
+    assert list(df["Kommune"]) == ["0301", "0302"]
+
+
+def test_read_csv_bruker_skalar_dtype_ingen_vern():
+    # "skalar bruker-dtype -> intet vern": spy på pd.read_csv for å se
+    # NØYAKTIG hva som sendes videre — en skalar dtype dekker alt selv og
+    # skal IKKE bli om til et vern-dict.
+    ost, _ = _install({CSV_URL: DATA, "https://meta.example/js2": META})
+    captured = {}
+    orig = ost.pd.read_csv
+
+    def spy(url, **kwargs):
+        captured.update(kwargs)
+        return orig(url, **kwargs)
+    ost.pd.read_csv = spy
+    try:
+        ost.read_csv(CSV_URL, dtype=str)
+    finally:
+        ost.pd.read_csv = orig
+    assert captured.get("dtype") is str, captured
+
+
+def test_read_csv_bruker_dict_dtype_vinner_vern_fyller_resten():
+    # Tre gjenkjente kolonner (Region, Kommune, Tid — inkl. tidsdimensjonen:
+    # py-tvillingens vern dekker tm["dims"] i sin helhet, se ost_core-
+    # docstringen). Brukeren nevner bare Kommune (med en annen gyldig
+    # markør enn vernets str) -> vernet fyller likevel inn Region OG Tid
+    # (ikke nevnt av brukeren), mens Kommune bruker BRUKERENS verdi. Tid
+    # types uansett til int64 til slutt (_apply), så str-vern der endrer
+    # ikke sluttresultatet.
+    tsv = ("Region\x1fdim\x1f11\x1f31\n"
+           "Kommune\x1fdim\x1f0301\x1f0302\n"
+           "Tid\x1ftime\x1f2023\x1f2024")
+    ost, _ = _install({CSV_URL: {"text": "Region,Kommune,Tid,value\n11,0301,2023,1\n"},
+                       "https://meta.example/js2": META}, tsv=tsv)
+    captured = {}
+    orig = ost.pd.read_csv
+
+    def spy(url, **kwargs):
+        captured.update(kwargs)
+        return orig(url, **kwargs)
+    ost.pd.read_csv = spy
+    try:
+        df = ost.read_csv(CSV_URL, dtype={"Kommune": "object"})
+    finally:
+        ost.pd.read_csv = orig
+    assert captured.get("dtype") == {"Region": str, "Kommune": "object", "Tid": str}, captured
+    assert list(df["Tid"]) == [2023]          # str-vern på Tid -> likevel int64 til slutt
+
+
+# ── mini-knippet §4: dict-meta i convert_dtypes ────────────────────────────
+
+def test_convert_dtypes_dict_meta_ingen_pxweb_rundtur():
+    ost, calls = _install({})
+    df = ost.pd.DataFrame({"Region": ["11", "31"], "Tid": [2023, 2024]})
+    meta = {"dims": {"Region": {"categories": ["11", "31"]},
+                     "Tid": {"categories": ["2023", "2024"]}},
+            "time": ["Tid"]}
+    out = ost.convert_dtypes(df, meta=meta)
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Tid"]) == [2023, 2024]
+    assert calls == []          # ingen PxWeb-rundtur for dict-meta
+
+
+def test_convert_dtypes_url_form_uendret():
+    ost, calls = _install({"https://meta.example/js2": META})
+    df = ost.pd.DataFrame({"Region": ["11", "31"], "value": [1, 2]})
+    out = ost.convert_dtypes(df, meta=CSV_URL)
+    assert str(out["Region"].dtype) == "category"
+    assert calls == ["https://meta.example/js2"]
+
+
+def test_convert_dtypes_annet_gir_fortsatt_valueerror():
+    ost, _ = _install({})
+    with pytest.raises(ValueError):
+        ost.convert_dtypes(object(), meta=123)
+
+
+# ── mini-knippet §3: ost_url-attrs (panel-typemeta, R-arkitekturen gjenbrukt) ──
+
+@pytest.mark.parametrize("convert", [True, False])
+def test_read_csv_ost_url_attrs_gjenkjent_kilde(convert):
+    # R-motstykket: js/read-bridge.js sin rPatchSource setter attr(res,
+    # "ost_url") <- u for enhver bro-hentet ramme. Her: satt UANSETT convert
+    # (proveniens er ikke typing — "byte-lik naken" gjelder kun VERDIENE).
+    ost, _ = _install({CSV_URL: DATA, "https://meta.example/js2": META})
+    df = ost.read_csv(CSV_URL, convert=convert)
+    assert df.attrs.get("ost_url") == CSV_URL
+
+
+def test_read_csv_ost_url_attrs_satt_selv_om_metadata_feiler():
+    # Gjenkjennelse (murl ikke tom) avgjør attrs — selve metadatahentingen
+    # kan feile (som i test_read_csv_metadatafeil_gir_utypet_ikke_kast) uten
+    # at proveniens-annoteringen forsvinner.
+    ost, _ = _install({CSV_URL: DATA})               # meta-URL svarer error
+    df = ost.read_csv(CSV_URL)
+    assert df.attrs.get("ost_url") == CSV_URL
+
+
+@pytest.mark.parametrize("convert", [True, False])
+def test_read_csv_ost_url_attrs_ukjent_kilde_ingen_attr(convert):
+    url = "https://x.example/plain.csv"
+    ost, _ = _install({url: DATA})
+    df = ost.read_csv(url, convert=convert)
+    assert "ost_url" not in df.attrs
+
+
+def test_read_csv_px_none_ingen_ost_url_attr():
+    # Task-3-review-funn 1: gjenkjenningsdefinisjonen skal være SAMLET
+    # (_recognized_url for begge convert-veier). Før fiksen utledet
+    # convert=True-veien gjenkjenning fra entries/err — og px=None gir
+    # (None, "PxWeb utilgjengelig"), altså err satt -> attrs feilaktig satt,
+    # mens convert=False-veien (via _recognized_url) korrekt svarte False.
+    # px mangler helt -> ingen attr, samme som convert=False-oppførselen.
+    ost, _ = _install({CSV_URL: DATA})
+    del sys.modules["browser"].window.PxWeb
+    df = ost.read_csv(CSV_URL)
+    assert "ost_url" not in df.attrs

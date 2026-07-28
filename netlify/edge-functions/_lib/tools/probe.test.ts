@@ -45,3 +45,50 @@ Deno.test("probe: non-public URL and HTTP errors reported, not thrown", async ()
   assertEquals(e404.ok, false);
   assertEquals(e404.status, 404);
 });
+
+Deno.test("probe sends Origin header in fetch request", async () => {
+  let capturedOrigin: string | null = null;
+  const fake = ((_url: string | URL | Request, init?: RequestInit) => {
+    capturedOrigin = init?.headers instanceof Headers
+      ? init.headers.get("origin")
+      : (init?.headers as Record<string, string>)?.["Origin"] ?? null;
+    return Promise.resolve(new Response("[]", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+  }) as typeof fetch;
+
+  await probeUrl("https://x.example/data", { fetchImpl: fake });
+  assertEquals(capturedOrigin, "https://openstat.app");
+});
+
+Deno.test("probe accepts ACAO that echoes sent origin as CORS:true", async () => {
+  const csv = "x;y\n1;2\n";
+  const fake = ((_i: string | URL | Request) =>
+    Promise.resolve(new Response(csv, {
+      status: 200,
+      headers: {
+        "content-type": "text/csv",
+        "access-control-allow-origin": "https://openstat.app",
+      },
+    }))) as typeof fetch;
+
+  const r = await probeUrl("https://x.example/data.csv", { fetchImpl: fake });
+  assertEquals(r.cors, true);
+});
+
+Deno.test("probe ACAO * still counts as CORS:true", async () => {
+  const csv = "x;y\n1;2\n";
+  const r = await probeUrl("https://x.example/data.csv", {
+    fetchImpl: fakeFetch(csv, { "content-type": "text/csv", "access-control-allow-origin": "*" }),
+  });
+  assertEquals(r.cors, true);
+});
+
+Deno.test("probe no ACAO still counts as CORS:false", async () => {
+  const csv = "x;y\n1;2\n";
+  const r = await probeUrl("https://x.example/data.csv", {
+    fetchImpl: fakeFetch(csv, { "content-type": "text/csv" }),
+  });
+  assertEquals(r.cors, false);
+});

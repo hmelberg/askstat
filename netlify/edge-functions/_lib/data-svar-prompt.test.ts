@@ -61,6 +61,8 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     'astype("category")',
     "convert_dtypes",
     "pyjstat",
+    // Task 1: eval-regel 7 (dynamisk bygde URL-er)
+    "dynamisk bygde URL-er", "simuler",
   ]) {
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }

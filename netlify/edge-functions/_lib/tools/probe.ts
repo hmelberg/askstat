@@ -15,6 +15,7 @@ export interface ProbeResult {
 
 const MAX_PROBE_BYTES = 256 * 1024;
 const PROBE_TIMEOUT_MS = 10_000;
+const PROBE_ORIGIN = "https://openstat.app";
 
 export async function probeUrl(
   url: string,
@@ -32,13 +33,17 @@ export async function probeUrl(
     res = await fetchGuarded(url, {
       maxBytes: MAX_PROBE_BYTES,
       timeoutMs: PROBE_TIMEOUT_MS,
+      // DST-klassen av kilder sender ACAO kun når forespørselen har Origin-header.
+      // Uten denne sender vi ingen Origin, så betinget-ACAO-kilder rapporterer falsk cors:false.
+      headers: { Origin: PROBE_ORIGIN },
       fetchImpl: deps.fetchImpl,
     });
   } catch (e) {
     return { ...empty, note: `probe feilet: ${String(e).slice(0, 200)}` };
   }
   const contentType = res.headers.get("content-type") ?? "";
-  const cors = res.headers.get("access-control-allow-origin") === "*";
+  const acao = res.headers.get("access-control-allow-origin");
+  const cors = acao === "*" || acao === PROBE_ORIGIN;
   if (res.status < 200 || res.status >= 300) {
     return { ...empty, status: res.status, contentType, cors, note: `HTTP ${res.status}` };
   }

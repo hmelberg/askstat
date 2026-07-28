@@ -9002,6 +9002,18 @@ json.dumps(out)
       while ((m = re.exec(src)) !== null) {
         if (!seen[m[1]]) { seen[m[1]] = true; pkgs.push(m[1]); }
       }
+      // 2026-07-28: AI-generert R bruker pkg:: uten library — extractRPackages
+      // så bare library/require, så bart `jsonlite::fromJSON(url)` (målt i
+      // q2/q14) feilet med «there is no package called 'jsonlite'» i fersk økt.
+      // Fang bart `pkg::` òg; ekskluder pakker som alltid finnes/aldri skal
+      // installeres.
+      var BASE_R = { base: 1, utils: 1, stats: 1, graphics: 1, grDevices: 1,
+                     methods: 1, datasets: 1, tools: 1, parallel: 1,
+                     compiler: 1, webr: 1 };
+      var reNs = /\b([a-zA-Z][a-zA-Z0-9.]*)::/g;
+      while ((m = reNs.exec(src)) !== null) {
+        if (!seen[m[1]] && !BASE_R[m[1]]) { seen[m[1]] = true; pkgs.push(m[1]); }
+      }
       return pkgs;
     }
 
@@ -9197,6 +9209,60 @@ json.dumps(out)
       }
     }
 
+    // R-URL-broen (plan 2026-07-28-r-url-bro): delt av ALLE R-inngangene
+    // (runHybridR + runNotebookRCell) — origin/headers MÅ settes per kjøring
+    // uansett inngang, ellers bygger .ost_fetch en rot-relativ proxy-URL som
+    // workerens XHR nekter («Invalid URL», målt i Task 3-verifiseringen).
+    // (1) hint-prefetch (literal-skann; bom koster tid, aldri korrekthet),
+    // (2) konfig m/ origin + S5-auth-headere per kjøring (nøkkel lagt inn
+    // midt i økten plukkes opp), (3) seed cache-treff som FS-filer +
+    // manifest (workeren kan ikke nå main-thread-cachen synkront).
+    // Monoton seed-teller (review-fiks, Minor): R-sidens .ost_bridge$paths-
+    // mapping lever hele økten, så seed-stier kan ALDRI gjenbrukes på tvers
+    // av kjøringer — en løkkeindeks-sti (pre_0 per run) ville latt run 2
+    // overskrive run 1s fil, og en stale mapping servere FEIL bytes stille.
+    // Telleren er modulnivå og resettes aldri; gamle mappinger peker dermed
+    // alltid på sine egne urørte filer.
+    var _rBridgeSeedN = 0;
+    async function rBridgePreRun(src) {
+      if (!window.ReadBridge) return;
+      try {
+        window.ReadBridge.prefetchScript(src);
+        // Samme deps-idiom som ReadBridge.forPyodideSync (S5): kroken
+        // window.__readBridgeDeps (index.html:~2122) gir { anthropicKey };
+        // proxyHeaders(authToken, anthropicKey) er auth-portets form.
+        var _rbDeps = (typeof window.__readBridgeDeps === 'function') ? (window.__readBridgeDeps() || {}) : {};
+        var _rbHeaders = (window.DataLoader && window.DataLoader.proxyHeaders)
+          ? window.DataLoader.proxyHeaders(_rbDeps.authToken, _rbDeps.anthropicKey) : {};
+        await webR.evalRVoid('.ost_bridge_config(' + JSON.stringify(location.origin) + ', ' +
+          JSON.stringify(JSON.stringify(_rbHeaders)) + ')');
+        var _rbUrls = window.ReadBridge.scanUrls(src);
+        for (var _ri = 0; _ri < _rbUrls.length; _ri++) {
+          var _rc = await window.ReadBridge.ensure(_rbUrls[_ri]);
+          if (_rc && _rc.bytes) {
+            var _rp = '/ost_cache/pre_' + (_rBridgeSeedN++) + '.bin';
+            try { await webR.FS.mkdir('/ost_cache'); } catch (e) { /* finnes */ }
+            await webR.FS.writeFile(_rp, _rc.bytes);
+            await webR.evalRVoid('.ost_bridge_seed(' + JSON.stringify(_rbUrls[_ri]) + ', ' + JSON.stringify(_rp) + ')');
+          }
+        }
+      } catch (e) { console.warn('R-URL-broen (pre-run):', e); }
+    }
+
+    // R-URL-broen: runtime-hentede filer -> ReadBridge-cachen, så
+    // publiserings-bakingen (S4b, exportTags) dekker dem uten ny henting.
+    async function rBridgePostRun() {
+      if (!window.ReadBridge || !webRReady) return;
+      try {
+        var _fj = await webR.evalRString('.ost_bridge_fetched_json()');
+        var _fl = JSON.parse(_fj || '[]');
+        for (var _fi = 0; _fi < _fl.length; _fi++) {
+          var _fb = await webR.FS.readFile(_fl[_fi].path);
+          window.ReadBridge.insertBytes(_fl[_fi].url, _fb, _fl[_fi].contentType || '');
+        }
+      } catch (e) { console.warn('R-URL-broen (post-run):', e); }
+    }
+
     async function runHybridR(src, py, runOpts) {
       runOpts = runOpts || {};
       var showCommands = runOpts.showCommands !== false; // default true
@@ -9232,6 +9298,9 @@ json.dumps(out)
         }
         setStatus(leftStatus, t('Klar (R).'));
       }
+
+      // R-URL-broen: prefetch/config/seed — delt funksjon, se rBridgePreRun.
+      await rBridgePreRun(src);
 
       if (!webRShelter) webRShelter = await new webR.Shelter();
 
@@ -9664,6 +9733,9 @@ json.dumps(out)
       // vokser WebR-minnet monotont for hver kjøring i økten.
       if (webRShelter) { try { await webRShelter.purge(); } catch (e) {} }
       await refreshDatasetSidebarFromR();
+      // R-URL-broen: runtime-hentede filer -> ReadBridge-cachen (delt
+      // funksjon, se rBridgePostRun — publiserings-bakingen S4b/exportTags).
+      await rBridgePostRun();
       setStatus(rightStatus, '');
       setRunButtonsUi('idle');
       scriptRunInProgress = false;
@@ -10161,6 +10233,12 @@ library <- function(pkg, ...) {
   base::library(pkg_name, character.only = TRUE, ...)
 }
 `);
+        // R-URL-broen (plan 2026-07-28-r-url-bro): patch read.csv-klassen én
+        // gang ved boot. Kilden bor i js/read-bridge.js (rPatchSource) så
+        // node-testene ser den — pyPatchSource-presedensen.
+        if (window.ReadBridge && window.ReadBridge.rPatchSource) {
+          await webR.evalRVoid(window.ReadBridge.rPatchSource());
+        }
         // m2py R-runtime helpers:
         //  - .m2py_split_statements: deler R-kildekode i top-level statements
         //    (basert pa srcref fra R-parseren) sa vi kan vise kode rett over
@@ -10829,6 +10907,10 @@ async def _m2py_run_segment(_seg_json):
           }
           setStatus(leftStatus, t('Klar (R).'));
         }
+        // R-URL-broen: samme prefetch/config/seed som runHybridR (delt
+        // funksjon) — uten config her ville .ost_fetch bygget en rot-relativ
+        // proxy-URL med tom origin (SyntaxError i workerens XHR).
+        await rBridgePreRun(cellText);
         if (!webRShelter) webRShelter = await new webR.Shelter();
 
         // (1) sikre webr/ui.R er sourced (lazy, memoisert) FØR cellen kjører.
@@ -10880,6 +10962,9 @@ async def _m2py_run_segment(_seg_json):
         }
 
         await refreshDatasetSidebarFromR();
+        // R-URL-broen: runtime-hentede filer -> ReadBridge-cachen (delt
+        // funksjon med runHybridR, se rBridgePostRun).
+        await rBridgePostRun();
         return { rparts: outputParts };
       } catch (e) {
         return { error: 'R-feil: ' + ((e && e.message) || String(e)) };

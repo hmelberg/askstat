@@ -57,7 +57,12 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }
   const r = buildDataSvarSystem("r", reg);
+  for (const n of ["read.csv(", "fromJSON", "IKKE hent på nytt"]) {
+    if (!r.includes(n)) throw new Error("MODE_R mangler: " + n);
+  }
   if (!r.includes("ggplot2") || a.includes("ggplot2")) throw new Error("modus-blokker feil");
+  const a2 = buildDataSvarSystem("python", reg);
+  if (!a2.includes("JSON-API")) throw new Error("DELIVERY mangler JSON-API-linjen");
   const d = buildDataSvarSystem("duckdb", reg);
   if (!d.includes("read_csv_auto")) throw new Error("duckdb-blokk mangler");
 });

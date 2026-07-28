@@ -27,10 +27,10 @@
   function defaultFetcher(url) { return global.DataLoader.fetchRawUrl(url, currentDeps()); }
   var fetcher = defaultFetcher;
 
-  // Rene string-literaler i de tre leserne. BEVISST enkel: variabler,
-  // f-strenger og sammensatte uttrykk dekkes av sync-fallbackene i stedet —
-  // hint-prinsippet sier at skannen aldri skal måtte ha rett.
-  var SCAN_RE = /\bread_(?:csv|json|parquet)\(\s*(['"])((?:https?:\/\/|\/api\/hent\?)[^'"\n]+)\1/g;
+  // Rene string-literaler i leserne — python/duckdb-formene (read_csv m.fl.)
+  // OG R-formene (read.csv/read.csv2/fromJSON; readr::read_csv dekkes av
+  // read_csv). BEVISST enkel: variabler og uttrykk dekkes av runtime-veiene.
+  var SCAN_RE = /\b(?:read_(?:csv|json|parquet)|read\.csv2?|fromJSON)\(\s*(['"])((?:https?:\/\/|\/api\/hent\?)[^'"\n]+)\1/g;
 
   function scanUrls(script) {
     var out = [], seen = Object.create(null), m;
@@ -170,6 +170,128 @@
     ].join('\n');
   }
 
+  // R-kilden for webR-patchene (plan 2026-07-28-r-url-bro). Ligger HER så
+  // node-testene kan asserte på den (pyPatchSource-presedensen). Kjøres én
+  // gang ved webR-boot (evalRVoid) — all idempotens håndteres R-side.
+  // Mekanikken er fase 0-verifisert: eval_js kjører worker-lokalt på
+  // PostMessage-kanalen, workerens origin = sidens origin, Module.FS er
+  // tilgjengelig fra eval_js, og utils krever unlockBinding (assignInNamespace
+  // nekter på låst base-binding).
+  function rPatchSource() {
+    return [
+      'if (!exists(".ost_bridge", envir = globalenv(), inherits = FALSE)) {',
+      '  .ost_bridge <- new.env(parent = emptyenv())',
+      '  .ost_bridge$paths   <- new.env(parent = emptyenv())',
+      '  .ost_bridge$fetched <- new.env(parent = emptyenv())',
+      '  .ost_bridge$origin  <- ""',
+      '  .ost_bridge$headers <- "{}"',
+      '  .ost_bridge$n       <- 0L',
+      '}',
+      '.ost_json_str <- function(s) {',
+      '  s <- gsub("\\\\\\\\", "\\\\\\\\\\\\\\\\", s); s <- gsub("\\"", "\\\\\\\\\\"", s)',
+      '  paste0("\\"", s, "\\"")',
+      '}',
+      '.ost_bridge_config <- function(origin, headers_json) {',
+      '  .ost_bridge$origin <- origin; .ost_bridge$headers <- headers_json; invisible(NULL)',
+      '}',
+      '.ost_bridge_seed <- function(url, path) { assign(url, path, envir = .ost_bridge$paths); invisible(NULL) }',
+      '.ost_bridge_fetched_json <- function() {',
+      '  us <- ls(.ost_bridge$fetched)',
+      '  if (!length(us)) return("[]")',
+      '  es <- vapply(us, function(u) { e <- get(u, envir = .ost_bridge$fetched)',
+      '    paste0("{\\"url\\":", .ost_json_str(u), ",\\"path\\":", .ost_json_str(e$path),',
+      '           ",\\"contentType\\":", .ost_json_str(e$ct), "}") }, character(1))',
+      '  paste0("[", paste(es, collapse = ","), "]")',
+      '}',
+      '.ost_is_bridge_url <- function(x) is.character(x) && length(x) == 1L && !is.na(x) &&',
+      '  grepl("^(https?://|/api/hent\\\\?)", x)',
+      // Henteren: manifest-treff -> lokal sti; ellers worker-XHR (direkte, så
+      // proxy-retry ved status 0) -> bytes til FS -> sti. Høylytt ved feil.
+      '.ost_fetch <- function(url) {',
+      '  hit <- mget(url, envir = .ost_bridge$paths, ifnotfound = list(NULL))[[1]]',
+      '  if (!is.null(hit)) return(hit)',
+      '  .ost_bridge$n <- .ost_bridge$n + 1L',
+      '  path <- paste0("/ost_cache/rt_", .ost_bridge$n, ".bin")',
+      '  abs_url <- if (startsWith(url, "/api/hent?")) paste0(.ost_bridge$origin, url) else url',
+      '  proxy_url <- paste0(.ost_bridge$origin, "/api/hent?url=", utils::URLencode(url, reserved = TRUE))',
+      '  js <- paste0(',
+      '    "(function(){",',
+      '    "  function go(u, withHeaders){",',
+      '    "    var x = new XMLHttpRequest();",',
+      '    "    x.open(\\"GET\\", u, false);",',
+      '    "    x.overrideMimeType(\\"text/plain; charset=x-user-defined\\");",',
+      '    "    if (withHeaders) { var H = ", .ost_bridge$headers, "; for (var k in H) x.setRequestHeader(k, H[k]); }",',
+      '    "    try { x.send(null); } catch (e) { return { status: 0 }; }",',
+      '    "    return x;",',
+      '    "  }",',
+      '    "  try {",',
+      '    "    var direct = ", if (startsWith(url, "/api/hent?")) "true" else "false", ";",',
+      '    "    var x = go(", .ost_json_str(abs_url), ", direct);",',
+      '    "    if (x.status === 0 && !direct) x = go(", .ost_json_str(proxy_url), ", true);",',
+      '    "    if (x.status === 0 || x.status >= 400) return \\"ERR:HTTP \\" + x.status;",',
+      '    "    var t = x.responseText, u8 = new Uint8Array(t.length);",',
+      '    "    for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;",',
+      '    "    try { Module.FS.mkdir(\\"/ost_cache\\"); } catch (e) {}",',
+      '    "    Module.FS.writeFile(", .ost_json_str(path), ", u8);",',
+      '    "    return \\"OK:\\" + (x.getResponseHeader(\\"Content-Type\\") || \\"\\");",',
+      '    "  } catch (e) { return \\"ERR:\\" + String(e).slice(0, 200); }",',
+      '    "})()")',
+      '  res <- as.character(webr::eval_js(js))',
+      '  if (!startsWith(res, "OK:")) {',
+      '    code <- sub("^ERR:", "", res)',
+      '    stop("kunne ikke hente ", url, " (", if (nzchar(code)) code else "ukjent feil",',
+      '         "). CORS-stengte kilder krever /api/hent-proxy og n\\u00f8kkel/innlogging i AI-innstillingene.")',
+      '  }',
+      '  assign(url, list(path = path, ct = sub("^OK:", "", res)), envir = .ost_bridge$fetched)',
+      '  path',
+      '}',
+      // Wrapper: posisjonelt ELLER navngitt fil-argument (M1-pariteten).
+      '.ost_wrap_reader <- function(orig, argname) {',
+      '  if (isTRUE(attr(orig, ".ost_wrapped"))) return(orig)',
+      '  w <- function(...) {',
+      '    a <- list(...); nm <- names(a); if (is.null(nm)) nm <- rep("", length(a))',
+      '    idx <- match(argname, nm)',
+      '    if (is.na(idx) && length(a) && nm[1] == "") idx <- 1L',
+      '    if (!is.na(idx) && .ost_is_bridge_url(a[[idx]])) a[[idx]] <- .ost_fetch(a[[idx]])',
+      '    do.call(orig, a)',
+      '  }',
+      '  attr(w, ".ost_wrapped") <- TRUE',
+      '  w',
+      '}',
+      // utils er base: assignInNamespace NEKTER (låst binding) — unlockBinding
+      // på BÅDE namespacet og package-env (verifisert i fase 0-spiken).
+      '.ost_patch_binding <- function(env, name, argname) {',
+      '  if (!exists(name, envir = env, inherits = FALSE)) return(invisible(NULL))',
+      '  cur <- get(name, envir = env)',
+      '  patched <- .ost_wrap_reader(cur, argname)',
+      '  if (identical(patched, cur)) return(invisible(NULL))',
+      '  if (bindingIsLocked(name, env)) { unlockBinding(name, env); on.exit(lockBinding(name, env), add = TRUE) }',
+      '  assign(name, patched, envir = env)',
+      '  invisible(NULL)',
+      '}',
+      '.ost_patch_pkg <- function(pkg, funs, argname) {',
+      '  if (!requireNamespace(pkg, quietly = TRUE)) return(invisible(NULL))',
+      '  for (f in funs) {',
+      '    .ost_patch_binding(asNamespace(pkg), f, argname)',
+      '    pe <- paste0("package:", pkg)',
+      '    if (pe %in% search()) .ost_patch_binding(as.environment(pe), f, argname)',
+      '  }',
+      '  invisible(NULL)',
+      '}',
+      '.ost_install_bridge <- function() {',
+      '  .ost_patch_pkg("utils", c("read.csv", "read.csv2"), "file")',
+      '  .ost_patch_pkg("jsonlite", "fromJSON", "txt")',
+      '  .ost_patch_pkg("readr", c("read_csv", "read_csv2"), "file")',
+      // Sen-lastede pakker (webr::install midt i økten): onLoad-krok.
+      '  setHook(packageEvent("jsonlite", "onLoad"), function(...) .ost_patch_pkg("jsonlite", "fromJSON", "txt"))',
+      '  setHook(packageEvent("readr", "onLoad"), function(...) .ost_patch_pkg("readr", c("read_csv", "read_csv2"), "file"))',
+      '  invisible(NULL)',
+      '}',
+      '.ost_install_bridge()',
+      ''
+    ].join('\n');
+  }
+
   // ── S4: publiserings-sømmen ───────────────────────────────────────────────
   // Publiserte dokumenter er appens egen index.html med injiserte tags.
   // I stedet for å skrive om brukerens read_csv-linjer bakes BRO-CACHEN som
@@ -202,6 +324,13 @@
     return out;
   }
 
+  // Post-run-import fra webR-FS (R-URL-broen): runtime-hentede bytes inn i
+  // cachen så exportTags baker dem ved publisering (S4b) uten ny henting.
+  function insertBytes(url, bytes, contentType) {
+    if (!(bytes instanceof Uint8Array)) throw new Error('insertBytes krever Uint8Array');
+    cache[url] = { bytes: bytes, contentType: contentType || '' };
+  }
+
   function _seedEntries(list) {
     (list || []).forEach(function (e) {
       if (!e || typeof e.url !== 'string' || typeof e.b64 !== 'string') return;
@@ -222,7 +351,9 @@
     configure: function (f) { depsFn = f; },
     scanUrls: scanUrls, prefetchScript: prefetchScript, ensure: ensure, ensureText: ensureText,
     getCached: getCached, forPyodideSync: forPyodideSync, pyPatchSource: pyPatchSource,
+    rPatchSource: rPatchSource,
     exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
+    insertBytes: insertBytes,
     _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },

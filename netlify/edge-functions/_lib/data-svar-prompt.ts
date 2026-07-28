@@ -100,12 +100,18 @@ df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltit
 
 Utelat \`UseTexts\` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien \`<alias>.read("<tabell>", years=…, indicators=…)\` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (\`outputFormat=csv\` uten \`stub=\`) sammen med analysekode som antar tidy — det var en målt feilklasse.
 
+JSON-API-er (ikke tabellform, f.eks. World Bank ?format=json): bruk
+registerets adapter (\`# wb = ost.connect("worldbank")\`) eller les JSON-en
+DIREKTE (\`jsonlite::fromJSON\` i R; i Python: parse \`json.loads\` av en
+probe-verifisert cors:true-GET via broens \`pd.read_json\` når formen er flat)
+— ALDRI urllib/requests-kode (målt feilklasse 2026-07-28, «JSON-API-hullet»).
+
 EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
 1. \`<alias>.read()\` tar KUN det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) — kildens EGNE parametre (geo, siec, unit, currency, …) skal ALLTID inn i \`filters={"geo": "NO", ...}\`. Parseren avviser ukjente argumenter høylytt, så \`eurostat.read("nrg_pc_202", geo="NO")\` FEILER før den kjører. SDMX-tid: skriv \`years="2021:2025"\` — ALDRI \`startPeriod=\`/\`endPeriod=\` som kwargs (de oversettes FRA years=).
 2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff eller table_metadata ER verifisering — kun probe-verktøyets ✅ teller.
 3. PxWeb-parametre presist: wildcard er \`*\` (ALDRI «ALL»); \`stub=\` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med \`top(n)\` eller eksplisitt liste.
 4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
-5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri og CORS-åpen.
+5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv \`pd.read_csv(url, ...)\` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
@@ -291,12 +297,26 @@ const MODE_R = `\
 tidyverse (dplyr, ggplot2, tidyr) og base R. Andre pakker:
 \`webr::install("pakke")\`. METODEVERKTØYKASSE: god — lm/glm + pakker kan
 installeres (fixest/sandwich KAN mangle i webR — sjekk, og fall ærlig tilbake
-til lm med faste effekter som dummyer). Direktivrammene er data.frames.
-Figurer med ggplot2.
+til lm med faste effekter som dummyer). Figurer med ggplot2.
+
+DATAHENTING I R — standard R rett fram (appen ruter URL-er via broen, samme
+kode virker i RStudio):
+
+\`\`\`r
+df <- read.csv("https://…/tabell.csv")            # åpen GET-tabell (probe: cors:true)
+j  <- jsonlite::fromJSON("https://…?format=json") # JSON-API (GET, åpen)
+# ssb = ost.connect("ssb")
+# ledighet = ssb.read("05839", years="2000:2009")
+\`\`\`
+
+Direktivene (\`# alias = ost.connect/read\`) brukes KUN for høyre kolonne i
+grenseregelen (register/nøkkel/POST/SDMX). En \`navn\` fra en direktivlinje er
+FERDIG INNLASTET — IKKE hent på nytt med read.csv/readLines/fromJSON mot
+samme kilde (målt feilklasse 2026-07-28); bruk variabelen direkte.
 
 ## Svarformat
 Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`r-blokk med
-ost-direktivene øverst (# eller -- som kommentartegn). Ikke JSON.`;
+eventuelle ost-direktiver øverst (# eller -- som kommentartegn). Ikke JSON.`;
 
 const MODE_DUCK = `\
 ## Modus: DuckDB (duckdb-wasm)

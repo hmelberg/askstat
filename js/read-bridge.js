@@ -87,15 +87,14 @@
   function prefetchScript(script) {
     scanUrls(script).forEach(function (u) {
       ensure(u);
-      // Metadata-hint (metadata-runden Task 3): gjenkjent registerkilde ->
-      // prefetch json-stat2-formen av SAMME spørring. Fødsels-annoteringen i
-      // Pyodide (_ost_annotate_read) henter metadata gjennom openstat.py sin
-      // EGEN transport (_fetch_bytes — ikke ReadBridge-cachen), så denne
-      // hinten varmer ikke en JS-side cache Python leser fra; den varmer
-      // NETTLESERENS HTTP-cache for den eksakte URL-en ved å starte
-      // hentingen tidlig (mens Pyodide fortsatt booter) — så det andre
-      // (synkrone) oppslaget under selve read_csv-kallet ikke koster
-      // ventetid på happy path. Ren hint — bom koster tid, aldri korrekthet.
+      // Metadata-hint (metadata-runden Task 3; premisset snudd i runtime-
+      // ost-runden): gjenkjent registerkilde -> prefetch json-stat2-formen
+      // av SAMME spørring. Fødsels-annoteringen i Pyodide (_ost_annotate_read
+      // -> openstat._typemeta_for -> _fetch_bytes) ruter nå via
+      // forPyodideSync, så hinten varmer NETTOPP den cachen Python leser —
+      // treff = null ventetid under read_csv-kallet. Ren hint fortsatt: en
+      // bom (f.eks. avvik mellom dataUrlFor og py-tvillingens data_url)
+      // koster ventetid, aldri korrekthet — sync-veien henter selv.
       var rec = global.PxWeb && global.PxWeb.recognizeUrl ? global.PxWeb.recognizeUrl(u) : null;
       if (rec && global.PxWeb.dataUrlFor) {
         var t = rec.base + '/' + rec.table + (rec.query ? '?' + rec.query : '');

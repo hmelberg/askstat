@@ -1,3 +1,10 @@
+# Faste dev-porter så askstat og openstat kan kjøre `netlify dev` samtidig på
+# samme maskin (openstat bruker standardportene 8888/3999).
+[dev]
+  port = 8899
+  staticServerPort = 3998
+  autoLaunch = false
+
 # The Python translator runner lives only at /py2m/. The old duplicate under
 # /r2m/ was deleted (it shipped a stale copy of the whole py2m package); keep the
 # URL working for any external bookmark.

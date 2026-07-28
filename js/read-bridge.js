@@ -137,7 +137,9 @@
     if (headersJson) {
       try { hdrs = JSON.parse(headersJson); }
       catch (e) { return { bytes: null, error: 'ugyldig headers-JSON for ' + url + ': ' + e.message }; }
-      if (!hdrs || Object.keys(hdrs).length === 0) hdrs = null;
+      // Shape-vakt (slutt-review): '"hello"'/[1] er gyldig JSON men ikke
+      // headere — for..in over dem gir nonsens-headernavn i syncXhr.
+      if (!hdrs || typeof hdrs !== 'object' || Array.isArray(hdrs) || Object.keys(hdrs).length === 0) hdrs = null;
     }
     var c = hdrs ? null : cache[url];
     if (c && !c.error) return { bytes: c.bytes, error: null };
@@ -154,11 +156,12 @@
       // S5: samme auth-headere som direktiv-veien — proxyen er auth-portet.
       // Custom-headere flettes inn (hent-core videresender accept oppstrøms,
       // api-kinds-spec §4.4 — andre custom-headere dør i proxyen, dokumentert
-      // i runtime-ost-spec §1).
+      // i runtime-ost-spec §1). Auth VINNER kollisjoner (slutt-review): en
+      // caller-«Authorization» skal aldri stille slå ut nøkkelen mot porten.
       var d = currentDeps() || {};
       var ph = (global.DataLoader && global.DataLoader.proxyHeaders)
         ? global.DataLoader.proxyHeaders(d.authToken, d.anthropicKey) : {};
-      if (hdrs) ph = Object.assign({}, ph, hdrs);
+      if (hdrs) ph = Object.assign({}, hdrs, ph);
       r = xhr('/api/hent?url=' + encodeURIComponent(url), ph);
     }
     if (r.bytes === null) {

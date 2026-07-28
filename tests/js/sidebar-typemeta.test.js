@@ -70,3 +70,66 @@ test('levelList: data-tm-levels bærer (escapet) kolonnenavn for toggle-kobling'
   const html = SidebarTypemeta.levelList(tm, 'Region');
   assert.ok(html.includes('data-tm-levels="Region"'));
 });
+
+// Fiks (spec-avvik målt live 2026-07-28): Object.keys(labels) reordrer
+// heltallslignende strengnøkler («1103» foran «0301») — kildens orden bor i
+// categories-ARRAYEN, som er hele poenget med den i kontrakten.
+test('levelList: kildens orden fra categories-arrayen, ikke Object.keys(labels)', () => {
+  const t = { dims: { Region: {
+    categories: ['0301', '1103'],
+    // labels satt inn i MOTSATT rekkefølge — og «1103» er en heltallslignende
+    // nøkkel JS uansett ville reordret foran «0301» i Object.keys.
+    labels: { '1103': 'Halden', '0301': 'Oslo' }
+  } } };
+  const html = SidebarTypemeta.levelList(t, 'Region');
+  const posOslo = html.indexOf('<code>0301</code> Oslo');
+  const posHalden = html.indexOf('<code>1103</code> Halden');
+  assert.ok(posOslo >= 0 && posHalden >= 0);
+  assert.ok(posOslo < posHalden, '0301 Oslo skal vises FØR 1103 Halden');
+});
+
+test('levelList: kode i categories uten label vises som kode alene; fallback til labels-nøkler når categories mangler', () => {
+  const t = { dims: { X: { categories: ['a', 'b'], labels: { a: 'Alfa' } } } };
+  const html = SidebarTypemeta.levelList(t, 'X');
+  assert.ok(html.includes('<code>a</code> Alfa'));
+  assert.ok(html.includes('<code>b</code>'));
+  // Uten categories: Object.keys(labels)-fallbacken (dagens vei) beholdes.
+  const noCats = { dims: { Y: { labels: { k1: 'En', k2: 'To' } } } };
+  const html2 = SidebarTypemeta.levelList(noCats, 'Y');
+  assert.ok(html2.includes('<code>k1</code> En'));
+  assert.ok(html2.includes('<code>k2</code> To'));
+});
+
+test('levelList: «+N flere» regnes over categories-lengden når categories finnes', () => {
+  const codes = Array.from({length: 25}, (_, i) => 'c' + String(i).padStart(2, '0'));
+  const labels = Object.fromEntries(codes.map((c) => [c, 'L' + c]));
+  const t = { dims: { X: { categories: codes, labels: labels } } };
+  const html = SidebarTypemeta.levelList(t, 'X');
+  assert.ok(html.includes('+5 flere'));
+  assert.ok(html.includes('<code>c00</code> Lc00'));
+  assert.ok(!html.includes('<code>c20</code>'));  // kuttes ved 20
+});
+
+// Fiks (spec-avvik målt live 2026-07-28): tm.units er keyet på metric-KODE
+// («Personer»), kolonnen heter bokstavelig «value» — direkte oppslag treffer
+// aldri mot ekte registerdata. Regel uten gjetting: value-kolonnen får unit
+// KUN når units har nøyaktig ÉN oppføring; flertydig → ingenting.
+test('varRow: value-kolonnen får unit ved NØYAKTIG ÉN units-oppføring (metric-kode-nøkkel)', () => {
+  const t = { dims: {}, units: { Personer: { base: 'antall' } }, time: [], metric: [] };
+  const html = SidebarTypemeta.varRow('value', 'int64', t);
+  assert.ok(html.includes('· antall'));
+});
+
+test('varRow: value-kolonnen får INGEN unit når units er flertydig (flere oppføringer)', () => {
+  const t = { dims: {}, units: { Personer: { base: 'antall' }, Prosent: { base: 'prosent' } }, time: [], metric: [] };
+  const html = SidebarTypemeta.varRow('value', 'int64', t);
+  assert.ok(!html.includes('antall'));
+  assert.ok(!html.includes('prosent'));
+});
+
+test('varRow: direkte units-nøkkel for kolonnenavnet vinner fortsatt (dagens vei beholdt)', () => {
+  const t = { dims: {}, units: { verdi: { base: 'kroner' }, Personer: { base: 'antall' } }, time: [], metric: [] };
+  const html = SidebarTypemeta.varRow('verdi', 'float64', t);
+  assert.ok(html.includes('· kroner'));
+  assert.ok(!html.includes('antall'));
+});

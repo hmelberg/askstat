@@ -91,3 +91,11 @@
 [[edge_functions]]
   function = "metadata"
   path = "/api/metadata"
+
+[[edge_functions]]
+  function = "ask-ruter"
+  path = "/api/ask-ruter"
+
+[[edge_functions]]
+  function = "tolk-ask"
+  path = "/api/tolk-ask"

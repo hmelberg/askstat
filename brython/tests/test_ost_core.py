@@ -110,9 +110,19 @@ def test_read_csv_ukjent_url_ren_passthrough():
 
 def test_convert_dtypes_krever_meta():
     ost, _ = _install({})
-    import pytest
     with pytest.raises(ValueError, match="krever meta="):
         ost.convert_dtypes(object())
+
+
+def test_read_csv_nan_hull_i_dim_blir_likevel_category():
+    # py-dropna-paritet (openstat.py:276): NaN teller ALDRI som en verdi
+    # utenfor kodene. Tomt CSV-felt i en tallkolonne blir mini-pandas sin
+    # nan-sentinel — de øvrige verdiene (11 ⊆ {11, 31}) skal fortsatt gi
+    # category, ikke stille passthrough via "verdier utenfor kodene"-grenen.
+    ost, _ = _install({CSV_URL: {"text": "Region,Tid,value\n11,2023,1\n,2024,2\n"},
+                       "https://meta.example/js2": META})
+    df = ost.read_csv(CSV_URL)
+    assert str(df["Region"].dtype) == "category"
 
 
 def test_pending_propagerer():

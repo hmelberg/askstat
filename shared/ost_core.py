@@ -14,8 +14,26 @@ KJENTE BEGRENSNINGER (mini-pandas):
 - Ingen Int64 -> NaN i intlike tidskolonne forblir utypet (notat).
 - Ingen attrs settes (TSV baerer ikke etiketter; panel-typemeta er kø).
 - convert_dtypes tar KUN register-URL som meta (dict-formen er kø).
+- ordered + KILDENS kategoriorden settes via CategoricalDtype-internalen
+  (_cats) — guardet; paa eldre/avvikende mini-bygg faller den tilbake til
+  uordnet category i dataens sorterte orden. Kategoriene faar verdienes
+  parse-form (tall forblir tall) — py-tvillingen str-konverterer verdiene;
+  medlemskaps-semantikken (vals ⊆ codes paa str-form) er identisk uansett.
+- typing returnerer en NY ramme (DataFrame.astype kopierer alltid i
+  mini-pandas) — bruk returverdien; py-tvillingen muterer in-place.
 """
-import pandas as pd
+# Dialektfri pandas-import med fallback-kjede (_js_root-presedensen — task-5-
+# review): mini-motorene har IKKE noe 'pandas'-alias i LIB_REGISTRY (bar
+# `import pandas` i brukerkode skal fortsatt gi høylytt ModuleNotFoundError).
+# I motoren er tvillingen registrert under kanonisk navn FØR ost_core lastes
+# (deps-listene i ost_core-oppføringene sikrer rekkefølgen).
+try:
+    import pandas as pd            # CPython-testene stubber denne
+except ImportError:
+    try:
+        import pandas_brython as pd    # Brython-motoren (kanonisk navn)
+    except ImportError:
+        import pandas_mpy as pd        # MicroPython-motoren
 
 
 class _PendingFetch(BaseException):
@@ -97,11 +115,13 @@ def _apply(df, entries, who):
     # sin kolonnetildeling df[col] = ... skriver bare de rå verdiene til den
     # flate data-listen — den oppdaterer ALDRI DataFrame._cats, så en
     # 'category'-dtype forsvinner stille ved neste oppslag av kolonnen. Den
-    # STØTTEDE ruten som faktisk setter _cats[col] er DataFrame.astype(dict)
-    # (se pandas_brython.py/pandas_mpy.py DataFrame.astype); Series.astype
-    # ('category') endrer ikke dataene, bare metadata, så verdiene er
-    # identiske før/etter — mekanikk-tilpasning, ikke semantikkendring.
-    cat_cols = {}
+    # STØTTEDE ruten som faktisk setter/rydder _cats[col] er
+    # DataFrame.astype(dict) (pandas_brython.py/pandas_mpy.py) — den brukes
+    # derfor for BEGGE grener: int64-grenen via astype-dicten rydder også en
+    # ev. stale category-dtype fra en tidligere convert_dtypes-runde
+    # (astype-implementasjonens `del cp._cats[col]`-gren). Series.astype
+    # ('category') endrer ikke dataene, bare metadata — mekanikk-tilpasning,
+    # ikke semantikkendring.
     for e in entries:
         did = e["did"]
         if did not in df.columns:
@@ -129,11 +149,27 @@ def _apply(df, entries, who):
                 print(who + ": NaN i tidskolonnen " + did +
                       " - forblir utypet (ingen Int64 i mini-pandas)")
                 continue
-            df[did] = col.astype("int64")
+            df = df.astype({did: "int64"})
         else:
-            cat_cols[did] = "category"
-    if cat_cols:
-        df = df.astype(cat_cols)
+            df = df.astype({did: "category"})
+            # ordered-/kildeorden-paritet (task-5-review): py-tvillingen gir
+            # ordered Categorical i KILDENS kategoriorden; mini-astype gir
+            # uordnet i dataens sorterte orden. Overstyr dtype-internalen
+            # guardet. Kategoriene legges i VERDIENES parse-form via valmap
+            # (målt: rene str-kategorier på en tallparset kolonne gir
+            # code_of == -1 for alt — sorteringsnøkkelen dør). vals ⊆ codes
+            # (str-form) er alt bevist over, så hver sett verdi har sin kode;
+            # usette koder beholder str-formen (kan ikke forekomme i dataene,
+            # posisjonen i kildeordenen bevares uansett).
+            try:
+                valmap = {}
+                for v in col:
+                    if not (v is None or pd.isna(v)):
+                        valmap[str(v)] = v
+                cat_list = [valmap.get(str(c), str(c)) for c in cats]
+                df._cats[did] = pd.CategoricalDtype(cat_list, e["time"])
+            except Exception:
+                pass  # eldre/avvikende mini-bygg: uordnet + docstring-begrensningen
     return df
 
 

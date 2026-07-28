@@ -18,11 +18,9 @@
   var LIB_REGISTRY = {
     // pandas har IKKE plotly som deps lenger (2026-07-26): modulnivå-importen
     // er byttet mot en lat _px(), og plotly lastes av token-treffet '.plot' under.
-    //
-    // alias 'pandas' (r-factor §4-funn, se brython-registerets pandas_brython-
-    // oppføring for begrunnelsen): shared/ost_core.py skriver `import pandas
-    // as pd` dialektfritt — uten aliaset ville `import ost` feilet i motoren.
-    pandas_mpy:         { aliases: ['pandas'], deps: [], js: [] },
+    // NB (task-5-review): IKKE gi denne et 'pandas'-alias — se brython-
+    // registerets pandas_brython-oppføring; ost_core har egen fallback-kjede.
+    pandas_mpy:         { aliases: [], deps: [], js: [] },
     plotly_express_mpy: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     duckdb_mpy:         { aliases: ['duckdb'], deps: ['pandas_mpy'], js: [] },
     // ui_mpy.py/ui.py (W2): filnavnet skiller seg fra det offentlige

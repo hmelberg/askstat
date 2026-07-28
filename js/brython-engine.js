@@ -40,14 +40,11 @@
     // er byttet mot en lat _px(), og plotly lastes i stedet av token-treffet
     // '.plot' under. Det sparer 144 KB nedlasting+kompilering på hver
     // pandas-økt uten plotting. Spec: docs/superpowers/specs/2026-07-26-pandas-parity-design.md
-    //
-    // alias 'pandas' (r-factor §4-funn): interne moduler har hittil brukt
-    // det kanoniske navnet direkte (`import pandas_brython as _pd`), men
-    // shared/ost_core.py er dialektfri og skriver `import pandas as pd` —
-    // uten dette aliaset ville modulregistreringen feilt med
-    // ModuleNotFoundError ved `import ost` i motoren. Rent tillegg: endrer
-    // ikke canonical-navnet, bare gjør 'pandas' til enda en gyldig import.
-    pandas_brython:         { aliases: ['pandas'], deps: [], js: [] },
+    // NB (task-5-review): IKKE gi denne et 'pandas'-alias — bar `import
+    // pandas` i mini-modus skal fortsatt gi høylytt ModuleNotFoundError
+    // (scanImports' loud-not-silent-regel). shared/ost_core.py løser sin
+    // dialektfrie import selv med en fallback-kjede (se filens import).
+    pandas_brython:         { aliases: [], deps: [], js: [] },
     plotly_express_brython: { aliases: [], deps: [], js: [], tokens: ['.plot'] },
     // aliasrekkefølgen er bindende: 'matplotlib' (plain) må registreres før
     // den dottede 'matplotlib.pyplot' (trenger forelderen i sys.modules)

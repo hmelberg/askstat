@@ -57,9 +57,11 @@ For laster der URL-en gjenkjennes som en registerkilde med kjent metadata
   Kjøringen feiler aldri på metadata, og vi setter aldri usikre etiketter
   (ingen gjetting).
 - Motoromfang i denne runden: fødselstyping i **Pyodide** (apply-mekanikken
-  finnes: PxWeb.pyApplyTypemetaSource). R og mini-motorene får
-  PANELBERIKELSE (metadata hentes og vises), ikke frame-typing — R-factor
-  og mini-motor-typing står i køen som før. DuckDB utsettes.
+  finnes: PxWeb.pyApplyTypemetaSource). R- og mini-motor-rammer får verken
+  typing eller panelberikelse ennå — panelberikelse krever URL→ramme-navn-
+  kobling som ikke finnes (R-sveipen leser globalenv uten opphavs-URL);
+  ført som oppfølging sammen med R-factor og mini-motor-typing (justert ved
+  planskriving 2026-07-28). DuckDB utsettes.
 - Kjent, akseptert divergens: samme script gir typet ramme i appen og
   utypet i naken Jupyter. Divergensen er i korrekthetens favør
   (padding-fella), dokumenteres i hjelpen, og NØYTRALISERES av seksjon 3

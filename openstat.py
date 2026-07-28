@@ -233,7 +233,7 @@ def apply_typemeta(df, tm):
 def _typemeta_for(kind, base, table, query):
     """Typekontrakt for en gjenkjent kilde: json-stat2 m/ SAMME spørring
     (aldri krympet utvalg — top(1)-krymping gir hullete kategorier -> NaN i
-    Categorical). Memoisert via _fetch_bytes."""
+    Categorical). _fetch_bytes memoiserer selve bytes-hentingen per økt."""
     target = base.rstrip("/") + "/" + table + (("?" + query) if query else "")
     du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
     return typemeta_from_jsonstat(_json.loads(_fetch_bytes(du).decode("utf-8")))
@@ -251,7 +251,9 @@ def _apply_best_effort(df, tm):
         if not vals or not vals.issubset(set(cats)):
             continue
         if did in (tm.get("time") or []) and _all_intlike(cats):
-            df[did] = df[did].astype("int64")
+            # NaN-hull: astype("int64") kaster — nullable "Int64" bevarer
+            # BÅDE aritmetikk OG hullet. Uten hull: vanlig int64 som før.
+            df[did] = df[did].astype("Int64" if df[did].isna().any() else "int64")
         else:
             df[did] = pd.Categorical(df[did].astype(str), categories=cats,
                                      ordered=did in (tm.get("time") or []))
@@ -261,7 +263,8 @@ def _apply_best_effort(df, tm):
 
 def apply_meta(df, url_or_table, base=None):
     """Påfør registermetadata på en ramme du alt har lastet. Portabel
-    tvilling av appens fødselstyping — samme regler, eksplisitt."""
+    tvilling av appens fødselstyping — samme regler, eksplisitt. Muterer
+    rammen in-place og returnerer den (apply_typemeta-presedensen)."""
     rec = recognize_url(url_or_table)
     if rec is None and base:
         rec = {"kind": "pxweb", "base": str(base), "table": str(url_or_table), "query": ""}
@@ -286,9 +289,16 @@ def read_csv(url, **kwargs):
     except Exception as e:
         sys.stderr.write("ost.read_csv: metadata utilgjengelig for %s (%s) — laster utypet.\n"
                          % (rec["table"], e))
-    if tm is not None and "dtype" not in kwargs:
-        kwargs = dict(kwargs)
-        kwargs["dtype"] = {d: str for d in (tm.get("dims") or {})}
+    if tm is not None:
+        # dtype=str-vernet: brukerens egne valg vinner ALLTID, men et delvis
+        # dtype-DICT skal ikke stille slå av vernet for dim-kolonner brukeren
+        # ikke selv navnga (da gjenoppstår 0301-fella). Skalar dtype (f.eks.
+        # dtype=str) dekker alt selv og respekteres urørt.
+        vern = {d: str for d in (tm.get("dims") or {})}
+        if "dtype" not in kwargs:
+            kwargs = dict(kwargs, dtype=vern)
+        elif isinstance(kwargs["dtype"], dict):
+            kwargs = dict(kwargs, dtype={**vern, **kwargs["dtype"]})
     df = pd.read_csv(raw, **kwargs)
     return _apply_best_effort(df, tm) if tm is not None else df
 

@@ -557,3 +557,29 @@ def test_read_csv_gjenkjent_dtype_str_vern(monkeypatch):
     # 0301-fella: uten vern hadde pandas gjort Region til int64 (301)
     assert str(out["Region"].dtype) == "category"
     assert list(out["Region"].astype(str)) == ["0301", "1103"]
+
+
+def test_apply_meta_nan_i_tidskolonne_gir_nullable_int64(monkeypatch):
+    # NaN i intlike tidskolonne: astype("int64") kaster — nullable "Int64"
+    # bevarer BÅDE aritmetikk OG hullet. Uten NaN forblir det "int64".
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    df = pd.DataFrame({"Region": ["0301", "1103"], "Tid": ["2023", None]})
+    out = ost.apply_meta(df, "https://data.ssb.no/api/pxwebapi/v2/tables/05839/data")
+    assert str(out["Tid"].dtype) == "Int64"
+    assert out["Tid"].tolist()[0] == 2023
+    assert pd.isna(out["Tid"].tolist()[1])
+
+
+def test_read_csv_delvis_dtype_dict_beholder_str_vernet(monkeypatch):
+    # Delvis brukersendt dtype-DICT skal IKKE slå av str-vernet for dim-
+    # kolonner brukeren ikke selv navnga (0301-fella). Brukerens egne vinner.
+    tm = ost.typemeta_from_jsonstat(_mini_jsonstat())
+    monkeypatch.setattr(ost, "_typemeta_for", lambda *a: tm)
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None: b"Region,Tid,verdi\n0301,2023,1\n1103,2024,2\n")
+    out = ost.read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv",
+                       dtype={"verdi": "float64"})
+    assert str(out["Region"].dtype) == "category"
+    assert list(out["Region"].astype(str)) == ["0301", "1103"]
+    assert str(out["verdi"].dtype) == "float64"

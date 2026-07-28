@@ -14,6 +14,10 @@ __pycache__/
 # Local working notes (not tracked)
 Notater og mulige issues.md
 
+# Lokale hemmeligheter (API-nøkler til lokal testing — ALDRI commit)
+.env
+.env.*
+
 # Editor / IDE
 .claude/
 .vscode/

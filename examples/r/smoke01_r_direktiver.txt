@@ -1,4 +1,5 @@
 # label: Smoke R — direktiver i R-modus
+# group: Smoke-test
 # Forvent: str(iris) + aggregate-tabell; iris i sidepanelet med notat i ⓘ.
 # gh = ost.connect("https://raw.githubusercontent.com/hmelberg/openstat/main/data")
 # iris = gh.read("iris.csv")
@@ -7,5 +8,6 @@
 str(iris)
 aggregate(. ~ species, data = iris, FUN = mean)
 
-# iris = ost.use("iris", source="r")
-iris.describe()
+# (Kryssmodus-henting testes MOTSATT vei: bytt til python-modus og skriv
+# `# iris = ost.use("iris", source="r")` der — #py-blokker støttes ikke i
+# R-modus, og en use-fra-r-linje HER gir korrekt høylytt direktivfeil.)

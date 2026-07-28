@@ -1,0 +1,10 @@
+# label: Smoke R4 — panelberikelse + ost_read_csv
+# group: Smoke-test
+# (a) Naken read.csv: verdier/typer som naken R — men datasettpanelet til
+# høyre skal vise etiketter, ▸-nivåliste og enheter for df (ost_url-attr →
+# typemeta, r-factor-runden). (b) ost_read_csv (KUN i appen — ingen
+# R-pakke): dim-kolonner blir factor med kildens nivåer i kildens orden,
+# ledende nuller bevart (colClasses-vernet); se str(tdf).
+df <- read.csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+tdf <- ost_read_csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+str(tdf)

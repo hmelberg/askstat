@@ -1,4 +1,5 @@
 # label: Smoke 1 — pxweb + meta (ⓘ-modal, sidepanel)
+# group: Smoke-test
 # Forvent: «Tilkoblede kilder» + «Datasett» i sidepanelet; ⓘ på bef viser
 # tittel, BEGGE notatene, publisher/retrieved-felt og to lenker.
 # ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")

@@ -46,6 +46,11 @@
       "group": null
     },
     {
+      "file": "brython/bry09_ost_typing.txt",
+      "label": "Smoke — import ost (mini-typing)",
+      "group": "Smoke-test"
+    },
+    {
       "file": "brython/bry10_dashboard_iris.txt",
       "label": "Dashboard — iris (interactive)",
       "group": null
@@ -183,6 +188,11 @@
   ],
   "duckdb": [
     {
+      "file": "duckdb/smoke01_meta_sql.txt",
+      "label": "Smoke SQL — #meta-linjer i DuckDB",
+      "group": "Smoke-test"
+    },
+    {
       "file": "duckdb/sql01_select_basics.txt",
       "label": "SQL — basic SELECT",
       "group": null
@@ -231,11 +241,6 @@
       "file": "duckdb/sql10_py_then_sql.txt",
       "label": "SQL — #py → DuckDB (hybrid)",
       "group": null
-    },
-    {
-      "file": "duckdb/smoke01_meta_sql.txt",
-      "label": "Smoke SQL — #meta-linjer i DuckDB",
-      "group": "Smoke-test"
     }
   ],
   "javascript": [
@@ -325,6 +330,11 @@
       "file": "micropython/11_choropleth.txt",
       "label": "plotly — choropleth (land + norske kommuner)",
       "group": null
+    },
+    {
+      "file": "micropython/12_ost_typing.txt",
+      "label": "Smoke — import ost (mini-typing)",
+      "group": "Smoke-test"
     }
   ],
   "python": [
@@ -492,6 +502,11 @@
       "file": "python/smoke07_ssb_direkte.txt",
       "label": "Smoke 7 — SSB-CSV rett i pandas (uten direktiv)",
       "group": "Smoke-test"
+    },
+    {
+      "file": "python/smoke08_proxy_nokkel.txt",
+      "label": "Smoke 8 — cors:false via proxy m/ nøkkel (FRED)",
+      "group": "Smoke-test"
     }
   ],
   "r": [
@@ -568,6 +583,21 @@
     {
       "file": "r/smoke01_r_direktiver.txt",
       "label": "Smoke R — direktiver i R-modus",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "r/smoke02_readr_notatbok.txt",
+      "label": "Smoke R2 — readr i notatbokcelle (§8d)",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "r/smoke03_forklar_url.txt",
+      "label": "Smoke R3 — Forklar med URL-henting",
+      "group": "Smoke-test"
+    },
+    {
+      "file": "r/smoke04_panel_typemeta.txt",
+      "label": "Smoke R4 — panelberikelse + ost_read_csv",
       "group": "Smoke-test"
     }
   ]

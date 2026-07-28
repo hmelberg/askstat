@@ -1,4 +1,5 @@
 # label: Smoke 7 — SSB-CSV rett i pandas (uten direktiv)
+# group: Smoke-test
 # SSB-malen: stub= gir LANGFORMAT ved kilden, UseTexts gir etiketter, og
 # encoding="latin-1" er obligatorisk (SSB serverer iso-8859-1).
 # Forvent: tidy tabell (kjønn/statistikkvariabel/år/verdi) med Menn/Kvinner

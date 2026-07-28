@@ -1,4 +1,5 @@
 # label: Smoke 2 — montering (create + add + join)
+# group: Smoke-test
 # Forvent: panel med kommune_navn/fylke_nr/befolkning/fylke_navn; ⊞ åpner
 # datatabellen. Prøv også portabel eksport: monteringsblokken skal stå FØR panel.head.
 # kom = ost.connect("https://raw.githubusercontent.com/hmelberg/openstat/main/static_data/kommune.parquet")

@@ -101,3 +101,15 @@ def test_label_line_beats_example_marker(tmp_path):
     p = tmp_path / "01_x.txt"
     p.write_text("// Example: Fra Example\n# label: Fra label\n", encoding="utf-8")
     assert gm.label_for(p) == "Fra label"
+
+
+def test_group_from_group_line(tmp_path):
+    p = tmp_path / "01_foo.txt"
+    p.write_text("# label: X\n# group: Smoke-test\nkode\n", encoding="utf-8")
+    assert gm.group_for(p) == "Smoke-test"
+    q = tmp_path / "02_bar.txt"
+    q.write_text("-- label: Y\n-- group: Smoke-test\nSELECT 1\n", encoding="utf-8")
+    assert gm.group_for(q) == "Smoke-test"
+    r = tmp_path / "03_baz.txt"
+    r.write_text("# label: Z\nkode\n", encoding="utf-8")
+    assert gm.group_for(r) is None

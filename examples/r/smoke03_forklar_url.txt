@@ -1,0 +1,13 @@
+# label: Smoke R3 — Forklar med URL-henting
+# group: Smoke-test
+# Kjør denne med FORKLAR-knappen (ikke Kjør): kommentarblokkene leses opp,
+# og R-koden henter via broen — Forklar fikk bro-kallene 2026-07-28 (tredje
+# R-inngang). Proxy-veien testes ved å bytte til en målt cors:false-URL og
+# ha nøkkel/innlogging i AI-innstillingene.
+
+# Vi henter SSB-tabell 05839 direkte som CSV og ser på de første radene.
+df <- read.csv("https://data.ssb.no/api/pxwebapi/v2/tables/05839/data?outputFormat=csv")
+head(df)
+
+# Antall rader viser at hele uttrekket kom gjennom broen.
+nrow(df)

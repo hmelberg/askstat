@@ -34,12 +34,15 @@ Kriterier (alle må holde):
     i svaret) eller være web_fetch-lest; ellers merket «fra modellkunnskap —
     verifiser». Mekanisk sjekk: åpne DOI-URL-ene fra svaret.
 12. DTYPE-HÅNDTERING (2026-07-28, overraskelsesprinsippet — appen typer
-    ALDRI implisitt): generert python-kode håndterer typene selv med
+    ALDRI implisitt): generert python/R-kode håndterer typene selv med
     standard-idiomer — kodekolonner/join-nøkler som ser numeriske ut
-    (kommunenr, tabellkoder) leses m/ dtype={...: str}; datoer/kvartaler
-    håndteres eksplisitt (parse_dates/to_datetime, aldri inferens-antakelse);
-    ost.read_csv/convert_dtypes teller som eksplisitt metadata-vei. FAIL når
-    analysen joiner/grupperer på en kodekolonne pandas har talltolket.
+    (kommunenr, tabellkoder) leses m/ dtype={...: str} (python) eller
+    colClasses = c(... = "character") (R); datoer/kvartaler håndteres
+    eksplisitt (parse_dates/to_datetime, as.Date — aldri inferens-antakelse);
+    ost.read_csv/convert_dtypes (python, portabel) og
+    ost_read_csv/ost_convert_dtypes (R, kun i appen) teller som eksplisitt
+    metadata-vei. FAIL når analysen joiner/grupperer på en kodekolonne
+    motoren har talltolket.
 
 Dybde (2026-07-28): settet kjøres i Deep (default). Fast måles med
 Fast/Deep-PAR på samme spørsmål og bedømmes etter «Fast reduserer ambisjon,

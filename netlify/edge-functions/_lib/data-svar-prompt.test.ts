@@ -65,7 +65,9 @@ Deno.test("system prompt: byte-stable, mode-specific, carries core rules", () =>
     if (!a.toLowerCase().includes(needle.toLowerCase())) throw new Error("mangler: " + needle);
   }
   const r = buildDataSvarSystem("r", reg);
-  for (const n of ["read.csv(", "fromJSON", "IKKE hent på nytt"]) {
+  for (const n of ["read.csv(", "fromJSON", "IKKE hent på nytt",
+    // r-prompt-dtypes-runden: standard-idiom + app-only-merket ost-vei
+    "colClasses", "ledende nuller", "factor(", "ost_read_csv", "KUN I OPENSTAT"]) {
     if (!r.includes(n)) throw new Error("MODE_R mangler: " + n);
   }
   if (!r.includes("ggplot2") || a.includes("ggplot2")) throw new Error("modus-blokker feil");

@@ -1433,6 +1433,58 @@
               if (dom.aiInput) dom.aiInput.focus();
             });
         };
+
+        // ── Ask-visningen (js/ask-view.js) ─────────────────────────────
+        // Små, stabile seams så ask-visningen slipper å duplisere BYOK-,
+        // provider- og innstillingslogikken i denne modulen.
+        window.mdAiHasKey = function () {
+          return !!state.anthropicKey || customProviderReady();
+        };
+        window.mdOpenAiSettings = openSettings;
+        window.mdAiAuthHeaders = providerAuthHeaders;
+        window.mdAiProviderConfig = providerConfig;
+
+        // Hele data-svar-løkka for ask-visningen: som webAnswerWithRepair,
+        // men rendret inn i medbrakte noder (ikke AI-sidepanelet), med
+        // medbrakt S2-bekreftelse og proveniens-prefix på scriptet. Hver
+        // runde får sin egen child-node i processNode (runWebAnswer wiper
+        // noden den får — se thinkingNode.innerHTML='' der).
+        window.mdAskRun = async function (question, opts) {
+          var processNode = opts.processNode;
+          var signal = opts.signal;
+          var mode = (typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python';
+          function roundNode() {
+            var d = document.createElement('div');
+            d.className = 'ask-round';
+            processNode.appendChild(d);
+            return d;
+          }
+          var round = 0, lastError = null, script = null, confirmed = false;
+          var result = await runWebAnswer(question, roundNode(), null, 0, signal);
+          while (true) {
+            script = extractWebScriptBlock(result.markdown, mode);
+            if (!script) return { ok: false, markdown: result.markdown, error: null };   // prosa-svar
+            insertScriptIntoEditor((opts.scriptPrefix || '') + script);
+            if (!confirmed) {
+              var okToRun = getAutorunPref() ? true : await opts.confirm();
+              if (!okToRun) return { ok: false, markdown: result.markdown, error: 'avbrutt' };
+              confirmed = true;
+            }
+            try {
+              lastError = await runScriptAndCaptureError(signal);
+              if (signal && signal.aborted) return { ok: false, markdown: result.markdown, error: 'avbrutt' };
+              if (!lastError) return { ok: true, markdown: result.markdown, error: null };
+            } catch (e) { lastError = (e && e.message) ? e.message : String(e); }
+            if (signal && signal.aborted) return { ok: false, markdown: result.markdown, error: 'avbrutt' };
+            round++;
+            if (round > 3) return { ok: false, markdown: result.markdown, error: lastError };
+            var note = document.createElement('div');
+            note.className = 'ai-progress-line';
+            note.textContent = '⚙️ ' + T('Reparasjonsrunde {round} — retter: {err}', { round: round, err: String(lastError).slice(0, 120) });
+            processNode.appendChild(note);
+            result = await runWebAnswer(question, roundNode(), { script: script, error: lastError }, round, signal);
+          }
+        };
       }
 
       if (document.readyState === 'loading') {

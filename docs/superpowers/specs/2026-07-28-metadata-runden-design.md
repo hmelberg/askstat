@@ -41,7 +41,17 @@ rammer som bærer ost_typemeta:
 ## 2. Fødselstyping i appen: obligatorisk, men feilbar
 
 For laster der URL-en gjenkjennes som en registerkilde med kjent metadata
-(pxweb-familien: ssb/scb/dst/statfin — eurostat samme vei), gjelder:
+(pxweb-familien: ssb/scb — eurostat samme vei), gjelder:
+
+> **Presisert i slutt-reviewen (2026-07-28):** teksten nevnte tidligere
+> også dst/statfin som dekket av «pxweb-familien». Det stemmer ikke —
+> `recognize_url`/`recognizeUrl` gjenkjenner KUN URL-formen
+> `<base>/tables/<id>/data` (registerdrevet mønster, ingen verts-vakt), og
+> verken danske `api.statbank.dk/.../CSV` eller finske
+> `statfin.stat.fi/PXWeb/api/v1/.../….px` matcher den formen — begge er
+> `null`-case i den delte fixturen `tests/fixtures/recognize_urls.json`
+> (låst allerede i plan a1bebe2). Teksten er smalet til det som faktisk
+> er plan-/fixture-dekket: ssb + scb (pxweb-formen) og eurostat.
 
 - **Obligatorisk = alltid forsøkt automatisk.** Tabell-id ekstraheres fra
   URL-en (registerdrevet mønster, aldri hardkodede vertsnavn utenfor
@@ -83,6 +93,14 @@ funksjoner med samme apply-regler som appen:
   INLINE) og bygger tidy, typet ramme direkte. Egen liten json-stat2-
   konverter (~60–100 linjer) — INGEN pyjstat-avhengighet (avvist 2026-07-27;
   `pd.read_json` klarer ikke json-stat2, probet samme dato).
+
+  > **Levering, presisert i slutt-reviewen (2026-07-28):** `read_table` ble
+  > ALDRI levert som eget navn i denne runden — funksjonaliteten (én-
+  > forespørsels-henting av en registerkilde, typet direkte) finnes
+  > allerede som `ost.read(source, table, **query)` fra api-kinds-runden
+  > (`8593115` og tidligere; se `Source.read` i `openstat.py`). Ingen ny
+  > funksjon ble skrevet for dette — planen over var en intensjon som
+  > viste seg overflødig, ikke en uteglemt leveranse.
 - Appens metadata-henting og pakkens skal dele parser-regler; json-stat2-
   konverteren skrives så den også kan lese /metadata-endepunktets form der
   det er samme skjema. Fixture-paritet håndhever at app-typing og

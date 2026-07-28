@@ -3,11 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenStat — script runner</title>
+  <title>AskStat — spør med data</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="preload" as="script" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js">
   <link rel="stylesheet" href="app.css?v=2026-07-25a">
+  <link rel="stylesheet" href="css/ask.css?v=2026-07-28a">
+  <script>
+    // Ask er DEFAULT-visningen i askstat; ?view=editor gir full editor-visning.
+    // Klassen settes FØR body rendres så editor-chrome aldri blinker frem.
+    // Resten av oppkoblingen: js/ask-view.js.
+    if (new URLSearchParams(location.search).get('view') !== 'editor') {
+      document.documentElement.classList.add('ask-view');
+    }
+  </script>
 </head>
 <body data-theme="light">
   <header class="topbar">
@@ -96,6 +105,26 @@
   </header>
   <div id="modeGuiBar" class="mode-gui-bar" style="display:none"></div>
   <div class="app-body">
+  <div id="askView" class="ask-view-wrap" hidden>
+    <div class="ask-hero">
+      <h1 class="ask-title" data-i18n>Spør med data</h1>
+      <div class="ask-sub" data-i18n>Svaret beregnes med kode og åpne data — du kan se og endre alt etterpå.</div>
+      <div class="ask-input-row">
+        <textarea id="askInput" class="ask-input" rows="2" data-i18n-placeholder placeholder="Hva vil du undersøke?"></textarea>
+        <button type="button" class="btn btn-primary" id="askSendBtn" data-i18n>Spør</button>
+        <button type="button" class="btn" id="askAbortBtn" style="display:none" data-i18n>Avbryt</button>
+      </div>
+      <button type="button" class="ai-modal-btn ask-settings-btn" id="askSettingsBtn" data-i18n>⚙ API-nøkkel og innstillinger</button>
+    </div>
+    <div id="askProcess" class="ask-process"></div>
+    <div id="askAnswerCard" class="ask-answer-card" hidden>
+      <div id="askAnswer" class="ask-answer"></div>
+      <div class="ask-answer-actions">
+        <button type="button" class="ai-response-insert-btn" id="askOpenEditorBtn" data-i18n data-i18n-title title="Bytt til vanlig visning: se, endre og kjøre koden og se hele outputen">Åpne i Python-modus</button>
+        <button type="button" class="ai-codeblock-btn" id="askNewBtn" data-i18n>Nytt spørsmål</button>
+      </div>
+    </div>
+  </div>
   <div class="container layout-columns">
     <div class="panel panel-left">
       <div class="toolbar">
@@ -12411,6 +12440,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/assembly-duckdb.js"></script>
   <script src="js/duckdb-native.js"></script>
   <script src="js/ai-chat.js"></script>
+  <script src="js/ask-view.js"></script>
   <script src="js/portable-export.js"></script>
   <script src="js/github-storage.js"></script>
 

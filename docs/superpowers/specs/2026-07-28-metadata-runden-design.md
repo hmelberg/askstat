@@ -31,9 +31,10 @@ rammer som bærer ost_typemeta:
   deretter «+N flere» (ren DOM, ingen ny avhengighet, ingen scroll-felle).
 - Verdikolonnen viser unit når den finnes (f.eks. «verdi — personer · float
   · antall»).
-- Kilde for panelet er JS-sidens typemeta (den bor i JS før injeksjon), så
-  visningen virker for alle motorer panelet kjenner; attrs-lesing fra
-  Pyodide i post-run-sveipen brukes der den finnes.
+- Kilde for panelet er attrs["ost_typemeta"] lest fra Pyodide i post-run-
+  sveipen (justert ved implementasjon 2026-07-28: ingen JS-side per-datasett-
+  lagring av typemeta fantes, så py-attrs er eneste kilde denne runden — R/
+  mini-motorer følger med URL→ramme-koblingen, jf. §2-nedskaleringen).
 - js/meta-info.js røres IKKE — brukersatt metadata (#meta-direktivene) er en
   annen flate med egne regler.
 

@@ -242,3 +242,29 @@ test('insertBytes avviser rått søppel stille-fritt', () => {
   RB._reset();
   assert.throws(() => RB.insertBytes('https://a.example/x', 'ikke-bytes', ''), /Uint8Array/);
 });
+
+// ── Task 2: rPatchSource — R-kilden til broen ──────────────────────────────
+
+test('rPatchSource: bærer kontraktens byggesteiner', () => {
+  const src = RB.rPatchSource();
+  for (const needle of [
+    '.ost_bridge_config', '.ost_bridge_seed', '.ost_bridge_fetched_json',
+    'unlockBinding', 'lockBinding', '.ost_patch_pkg("utils"', 'package:',
+    'webr::eval_js', 'x-user-defined',           // binærtrygg sync-XHR (husets trikset)
+    '/api/hent?url=',                            // proxy-retry-formen
+    'setRequestHeader',                          // S5: auth-headere på proxyen
+    'packageEvent("jsonlite"', 'packageEvent("readr"',
+    '.ost_wrapped',                              // idempotens-vakt
+    'HTTP ',                                     // høylytt feil m/ status
+  ]) assert.ok(src.includes(needle), 'mangler: ' + needle);
+  // Aldri stille: ingen tom catch rundt selve hentingen
+  assert.ok(!/tryCatch\([^)]*error\s*=\s*function\(e\)\s*NULL/.test(src), 'stille sluking');
+});
+
+test('rPatchSource: R-kilden parser som gyldig R (strukturell sjekk)', () => {
+  const src = RB.rPatchSource();
+  // Balanserte klammer — fanger transkripsjonsfeil uten R-runtime i CI.
+  let depth = 0;
+  for (const ch of src) { if (ch === '{') depth++; if (ch === '}') depth--; assert.ok(depth >= 0); }
+  assert.strictEqual(depth, 0);
+});

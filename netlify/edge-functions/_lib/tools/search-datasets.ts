@@ -45,7 +45,7 @@ function viaSearchCatalog(
     const hits = await searchCatalog(sourceId, query, {
       registry: deps.registry, origin: deps.origin, fetchImpl: deps.fetchImpl,
     });
-    return hits.slice(0, MAX_PER_CATALOG + 2).map((h) => ({
+    return hits.slice(0, MAX_PER_CATALOG).map((h) => ({
       source: h.source, id: h.id, title: h.title,
       time: h.period || undefined, access: "open" as const,
       url: h.url || undefined, how_to_read: howToRead(h.id),
@@ -75,10 +75,13 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
   return Promise.race([
     p,
-    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
-  ]);
+    new Promise<never>((_, rej) => {
+      timer = setTimeout(() => rej(new Error("timeout")), ms);
+    }),
+  ]).finally(() => clearTimeout(timer)) as Promise<T>;
 }
 
 export async function searchDatasets(

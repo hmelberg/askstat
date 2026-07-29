@@ -19,6 +19,22 @@ Deno.test("dataeuropaSearch: engelsk tittel foretrekkes, distribusjon → open +
   assertEquals(hits[0].geo, "Italy");
 });
 
+Deno.test("dataeuropaSearch: begge URL-er til stede → download_url foretrekkes (access_url er ofte en portalside, ikke en fil)", async () => {
+  const hits = await dataeuropaSearch("health", respWith([{
+    id: "abc-124",
+    title: { en: "Health spending" },
+    description: { en: "Yearly spending." },
+    country: { label: "Italy" },
+    distributions: [{
+      format: { id: "CSV" },
+      access_url: ["https://x.it/dataset-page"],
+      download_url: ["https://x.it/d.csv"],
+    }],
+  }]));
+  assertEquals(hits[0].access, "open");
+  assertEquals(hits[0].url, "https://x.it/d.csv");
+});
+
 Deno.test("dataeuropaSearch: uten distribusjon → landing-page mot datasettsiden", async () => {
   const hits = await dataeuropaSearch("health", respWith([{
     id: "xyz-9", title: { fr: "Santé" }, description: {},

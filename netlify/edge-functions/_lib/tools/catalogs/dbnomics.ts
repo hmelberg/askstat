@@ -48,9 +48,18 @@ export async function dbnomicsMetadata(
 ): Promise<Record<string, unknown>> {
   const [provider, ...rest] = ref.split("/");
   const dataset = rest.join("/");
-  if (!provider || !dataset) throw new Error(`dbnomics-referanse skal være PROVIDER/DATASETT, fikk: ${ref}`);
+  const providerTrim = (provider ?? "").trim();
+  const datasetTrim = dataset.trim();
+  // encodeURIComponent lar "." og ".." passere uendret — avvis eksplisitt for
+  // å hindre en modell-styrt ref fra å bygge en path-traversal-URL.
+  if (
+    !providerTrim || !datasetTrim ||
+    providerTrim.includes("..") || datasetTrim.includes("..")
+  ) {
+    throw new Error(`dbnomics-referanse skal være PROVIDER/DATASETT, fikk: ${ref}`);
+  }
   const resp = await fetchImpl(
-    `https://api.db.nomics.world/v22/datasets/${encodeURIComponent(provider)}/${encodeURIComponent(dataset)}`,
+    `https://api.db.nomics.world/v22/datasets/${encodeURIComponent(providerTrim)}/${encodeURIComponent(datasetTrim)}`,
   );
   if (!resp.ok) throw new Error(`dbnomics metadata ${resp.status} for ${ref}`);
   const json = await resp.json();

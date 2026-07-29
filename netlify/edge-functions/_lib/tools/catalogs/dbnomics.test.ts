@@ -67,6 +67,14 @@ Deno.test("dbnomicsMetadata: normaliserer datasets-endepunktets observerte form"
   assert(String(m.lesing).includes('dbnomics.read("OECD/DSD_EAG_LSO_EA@DF_LSO_NEAC_ALL'));
 });
 
+Deno.test("dbnomicsMetadata: avviser '..' i provider/datasett uten å kalle fetch", async () => {
+  const f = (() => {
+    throw new Error("fetch skal ikke kalles");
+  }) as unknown as typeof fetch;
+  await assertRejects(() => dbnomicsMetadata("../x", f));
+  await assertRejects(() => dbnomicsMetadata("OECD/..", f));
+});
+
 Deno.test("dbnomicsMetadata: tomt docs-treff kaster norsk feilmelding", async () => {
   const f = (() =>
     Promise.resolve(

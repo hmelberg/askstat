@@ -71,7 +71,7 @@ Felt uten data utelates (aldri gjettes). Resultatobjektet:
 |---|---|---|---|
 | stats | ssb | live (finnes) | pxwebSearch gjenbrukes |
 | stats | worldbank | STATISK (ny) | `data/worldbank-catalog.json` — indikatorliste (~24k, trimmet til id/navn/enhet/kildenote), høstet fra `api.worldbank.org/v2/indicator?format=json` |
-| stats | eurostat | STATISK (ny) | `data/eurostat-catalog.json` — offisiell TOC (`ec.europa.eu/eurostat/api/dissemination/catalogue/toc/txt`), ~7k tabeller m/ tittel+kode+periode |
+| stats | eurostat | STATISK (ny) | `data/eurostat-catalog.json` — offisiell TOC (`ec.europa.eu/eurostat/api/dissemination/catalogue/toc/txt`), ~7k tabeller m/ tittel+kode+periode (implementert: kun type dataset — 6 735 rader, avledede table-views droppet for 1 MB-taket; titler ≤140 tegn) |
 | stats | dbnomics | live (ny) | `api.db.nomics.world/v22/search?q=…` — datasett på tvers av 80+ leverandører (IMF, BIS, ILO, …) |
 | stats | oecd | live (finnes) | sdmxSearch gjenbrukes |
 | stats | apd | statisk (finnes) | apdSearch gjenbrukes |

@@ -489,12 +489,13 @@ const MEMORY_URLS = `\
 Denne kjøringen har IKKE web_search/web_fetch. Katalogverktøyene
 (search_datasets → table_metadata → probe; search_catalog for å grave i én
 katalog) er primærveien (se Datasøk-blokken over). For behov utenfor
-registeret KAN du foreslå konkrete data-URL-er fra egen kunnskap (f.eks. hos
-kildene i Datasøk-blokken over) — men HVER slik URL MÅ verifiseres med probe
-før den brukes i scriptet. Feiler proben: prøv en annen kandidat, eller si
-ærlig at kilden ikke ble funnet. ALDRI lever en uprobet URL, og ALDRI merk noe
-«probe-verifisert» uten at probe faktisk returnerte ok=true for akkurat den
-URL-en.`;
+registeret KAN du foreslå konkrete data-URL-er fra egen kunnskap —
+data.europa.eu og Google Dataset Search (datasetsearch.research.google.com)
+er gode startpunkter når katalogene ikke dekker temaet — men HVER slik URL MÅ
+verifiseres med probe før den brukes i scriptet. Feiler proben: prøv en annen
+kandidat, eller si ærlig at kilden ikke ble funnet. ALDRI lever en uprobet
+URL, og ALDRI merk noe «probe-verifisert» uten at probe faktisk returnerte
+ok=true for akkurat den URL-en.`;
 
 export function buildSvarSystem(
   route: AskRoute,

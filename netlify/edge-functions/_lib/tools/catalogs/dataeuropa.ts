@@ -20,9 +20,12 @@ export async function dataeuropaSearch(
   const rows = (json?.result?.results ?? []) as Record<string, unknown>[];
   return rows.map((r) => {
     const dists = (r.distributions as Record<string, unknown>[] | undefined) ?? [];
+    // download_url peker på selve filen; access_url er ofte en DCAT-portalside
+    // (HTML), ikke en fil — prøv download_url først for å unngå å merke en
+    // landingsside "open" med en pd.read_csv-hint mot HTML.
     const firstUrl = dists.map((d) =>
-      (Array.isArray(d.access_url) ? d.access_url[0] : d.access_url) ??
-      (Array.isArray(d.download_url) ? d.download_url[0] : d.download_url)
+      (Array.isArray(d.download_url) ? d.download_url[0] : d.download_url) ??
+      (Array.isArray(d.access_url) ? d.access_url[0] : d.access_url)
     ).find((u) => typeof u === "string" && u) as string | undefined;
     const country = (r.country as Record<string, unknown> | undefined)?.label;
     return {

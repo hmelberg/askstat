@@ -486,8 +486,9 @@ const MODE: Record<DataMode, string> = { python: MODE_PY, r: MODE_R, duckdb: MOD
 const MEMORY_URLS = `\
 ## Uten websøk: modellkunnskaps-URL-er
 
-Denne kjøringen har IKKE web_search/web_fetch. Registerverktøyene
-(search_catalog → table_metadata → probe) er primærveien. For behov utenfor
+Denne kjøringen har IKKE web_search/web_fetch. Katalogverktøyene
+(search_datasets → table_metadata → probe; search_catalog for å grave i én
+katalog) er primærveien (se Datasøk-blokken over). For behov utenfor
 registeret KAN du foreslå konkrete data-URL-er fra egen kunnskap (f.eks. hos
 kildene i Datasøk-blokken over) — men HVER slik URL MÅ verifiseres med probe
 før den brukes i scriptet. Feiler proben: prøv en annen kandidat, eller si

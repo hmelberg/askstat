@@ -71,3 +71,17 @@ Feilhåndtering (kjøres i tillegg):
   (`country/<ISO3>/indicator/<ID>`) står nå eksplisitt i JSON-API-avsnittet —
   Q4 kostet tre reparasjonsrunder på å lære den av resolver-feilmeldingen.
   Også kandidat for cherry-pick.
+
+### 2026-07-29 (kveld) — UI-runde 2 verifisert live (commit 762f1b1)
+
+- Output-panelet er HELT ute av ask (off-screen m/ekte bredde for plotly);
+  kodevisningen viser det urørt. Verifisert begge veier, inkl. bytte-stien.
+- Q4 på nytt: worldbank-prompteksemplet virket — modellen probet riktig
+  ressurssti direkte (ingen direktivfeil); svar med figur under
+  «More information» (9,4 %, 4. plass i Norden, under nordisk snitt 9,9 %).
+- Sidebar-viser-fiksen verifisert: ⊞ på `df` gir Tabulator-tabell, ingen
+  KeyError. (openstat har samme bug — med i patchen.)
+- Ny CSS-felle målt og fikset: `.ask-view-wrap{display:flex}` slo `[hidden]`
+  og ga 0px output-panel i editor-visningen etter bytte.
+- Patchen til openstat regenerert med alle TRE motorfiksene; `git apply
+  --check` grønn mot openstats nåværende tre.

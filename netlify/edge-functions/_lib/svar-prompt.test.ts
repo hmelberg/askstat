@@ -86,3 +86,10 @@ Deno.test("questionTurn: med og uten script-kontekst", () => {
 Deno.test("progressLabel: run_code har egen etikett", () => {
   assert(progressLabel("run_code", {}).includes("Kjører scriptet"));
 });
+
+Deno.test("buildRouteToolDefs: data-ruten har search_datasets; beregning/oppslag har ikke", () => {
+  const names = (defs: unknown[]) => (defs as { name?: string }[]).map((d) => d.name);
+  assert(names(buildRouteToolDefs("data", "standard")).includes("search_datasets"));
+  assert(!names(buildRouteToolDefs("beregning", "standard")).includes("search_datasets"));
+  assert(!names(buildRouteToolDefs("oppslag", "standard")).includes("search_datasets"));
+});

@@ -6,12 +6,13 @@ import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { loadRegistry, renderRegistryBlock } from "./_lib/registry.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
+import { coerceScope, searchDatasets } from "./_lib/tools/search-datasets.ts";
 import { probeUrl } from "./_lib/tools/probe.ts";
 import { injectBeforeDone } from "./_lib/sse-util.ts";
 import {
-  buildRouteToolDefs, buildSvarSystem, CLIENT_TOOL_DEFS, coerceDataMode,
+  buildRouteToolDefs, buildSvarSystem, coerceDataMode,
   coerceDepth, coerceRoute, depthClientToolCalls, depthRunCodeCalls,
-  progressLabel, questionTurn, RUN_CODE_TOOL,
+  progressLabel, questionTurn,
 } from "./_lib/svar-prompt.ts";
 import { searchLiterature } from "./_lib/tools/search-literature.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
@@ -156,6 +157,11 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
+    if (name === "search_datasets" && registry) {
+      return JSON.stringify(await searchDatasets(
+        String(input.query ?? ""), coerceScope(input.scope), { registry, origin },
+      ));
+    }
     if (name === "search_catalog" && registry) {
       return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin }));
     }
@@ -195,12 +201,12 @@ export default async (request: Request): Promise<Response> => {
   if (provider && provider.type === "openai-compat") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiCompatTurn(provider),
-      tools: route === "data" ? [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL] : buildRouteToolDefs(route, depth, { hostedWeb: false }),
+      tools: buildRouteToolDefs(route, depth, { hostedWeb: false }),
     });
   } else if (provider && provider.type === "openai-responses") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiResponsesTurn(provider),
-      tools: route === "data" ? [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL] : buildRouteToolDefs(route, depth, { hostedWeb: false }),
+      tools: buildRouteToolDefs(route, depth, { hostedWeb: false }),
     });
   } else {
     inner = runAgenticStream({

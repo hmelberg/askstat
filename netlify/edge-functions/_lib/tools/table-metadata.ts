@@ -2,6 +2,8 @@
 // can build a MINIMAL query URL (spec: build datasets from variables).
 import { findSource, SDMX_STRUCTURE_ACCEPT, SDMX_XML_SOURCES, type DataSource } from "../registry.ts";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
+import { worldbankMetadata } from "./catalogs/worldbank.ts";
+import { dbnomicsMetadata } from "./catalogs/dbnomics.ts";
 
 export interface TableVariable {
   code: string;
@@ -17,6 +19,12 @@ export interface TableMeta {
   title: string;
   variables: TableVariable[];
   queryUrlTemplate?: string;
+  // worldbank/dbnomics-adapterne (Task 5) returnerer en frittstående
+  // Record<string, unknown> — ikke det variabel/kode-formede TableMeta-skjemaet
+  // (de har ingen dimensjons-katalog å hente). Indekssignaturen gjør TableMeta
+  // strukturelt kompatibel med Record<string, unknown> UTEN å svekke typingen
+  // av de faste feltene over for de registerbaserte adapterne.
+  [key: string]: unknown;
 }
 
 const MAX_VALUES = 40;
@@ -37,6 +45,10 @@ export async function tableMetadata(
         case "fhi": return fhiMetadata(src, tableId, f);
         case "dst": return dstMetadata(src, tableId, f);
         case "statfin": return statfinMetadata(src, tableId, f);
+        // worldbank/dbnomics har et annet metadata-skjema (ingen
+        // dimensjonsliste) — TableMetas indekssignatur gjør castet trygt.
+        case "worldbank": return worldbankMetadata(tableId, f) as unknown as Promise<TableMeta>;
+        case "dbnomics": return dbnomicsMetadata(tableId, f) as unknown as Promise<TableMeta>;
         default:
           throw new Error(
             `table_metadata støtter ikke '${sourceId}' ennå — bruk probe på data-URL-en for å se kolonner`,

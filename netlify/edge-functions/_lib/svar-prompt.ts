@@ -541,6 +541,20 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
   },
 ];
 
+export const SEARCH_DATASETS_TOOL = {
+  name: "search_datasets",
+  description:
+    "Meta-søk etter datasett på tvers av kuraterte kataloger. scope='stats' (default): SSB, Verdensbanken, Eurostat, DBnomics (IMF/BIS/ILO m.fl.), OECD, apd. scope='research': DataCite (forskningsdata/DOI), data.europa.eu. scope='all': begge. Returnerer normaliserte treff med how_to_read-hint per treff, og failed-liste over kataloger som ikke svarte.",
+  input_schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "søkeord (engelsk gir flest treff i internasjonale kataloger)" },
+      scope: { type: "string", enum: ["stats", "research", "all"] },
+    },
+    required: ["query"],
+  },
+};
+
 export const RUN_CODE_TOOL = {
   name: "run_code",
   description:
@@ -571,7 +585,7 @@ export function buildRouteToolDefs(
     : [];
   if (route === "beregning") return [RUN_CODE_TOOL];
   if (route === "oppslag") return [RUN_CODE_TOOL, ...web];
-  return [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL, ...web];
+  return [SEARCH_DATASETS_TOOL, ...CLIENT_TOOL_DEFS, RUN_CODE_TOOL, ...web];
 }
 
 // Klientverktøy-taket per dybde (håndheves i runAgenticStream via
@@ -595,6 +609,7 @@ export function questionTurn(question: string, script?: string): string {
 export function progressLabel(name: string, input: Record<string, unknown>): string {
   switch (name) {
     case "run_code": return "▶ Kjører scriptet …";
+    case "search_datasets": return `Søker kataloger (${input.scope ?? "stats"}): «${String(input.query ?? "").slice(0, 60)}» …`;
     case "search_catalog": return `Søker i ${input.source ?? "katalog"}: «${input.query ?? ""}» …`;
     case "table_metadata": return `Henter variabler for ${input.source ?? ""}/${input.table_id ?? ""} …`;
     case "probe": return `Sjekker ${String(input.url ?? "").slice(0, 80)} …`;

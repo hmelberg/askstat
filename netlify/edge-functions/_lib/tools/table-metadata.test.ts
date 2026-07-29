@@ -186,3 +186,33 @@ Deno.test("ecb metadata: kodeliste koblet via Ref.id (ingen URN-parsing), tidsdi
   assertEquals(time.values, []);
   assertEquals(calls[0], "https://data-api.ecb.europa.eu/service/dataflow/ECB/EXR/latest?references=all");
 });
+
+// --- worldbank/dbnomics adapters (Task 5, delegerer til catalogs/*.ts) ---
+
+Deno.test("tableMetadata: kind worldbank delegerer til worldbankMetadata", async () => {
+  const f = (() => Promise.resolve(new Response(JSON.stringify([
+    { page: 1 },
+    [{ id: "SP.POP.TOTL", name: "Population, total", source: { value: "WDI" }, sourceNote: "…" }],
+  ]), { status: 200 }))) as unknown as typeof fetch;
+  const reg = parseRegistry([{ id: "worldbank", navn: "Verdensbanken", utgiver: "WB",
+    tillit: "etablert", tilgang: "rest", kind: "worldbank",
+    base_url: "https://api.worldbank.org/v2/", cors: true }]);
+  const m = await tableMetadata("worldbank", "SP.POP.TOTL", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
+  assertEquals(m.navn, "Population, total");
+});
+
+Deno.test("tableMetadata: kind dbnomics delegerer til dbnomicsMetadata", async () => {
+  const f = (() => Promise.resolve(new Response(JSON.stringify({
+    datasets: { docs: [{
+      code: "CPI", name: "Consumer Price Index", provider_code: "IMF",
+      dimensions_codes_order: ["freq"],
+      dimensions_labels: { freq: "Frequency" },
+      dimensions_values_labels: { freq: { M: "Monthly", A: "Annual" } },
+    }] },
+  }), { status: 200 }))) as unknown as typeof fetch;
+  const reg = parseRegistry([{ id: "dbnomics", navn: "DBnomics", utgiver: "Cepremap",
+    tillit: "etablert", tilgang: "rest", kind: "dbnomics",
+    base_url: "https://api.db.nomics.world/v22/series/", cors: true }]);
+  const m = await tableMetadata("dbnomics", "IMF/CPI", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
+  assertEquals(m.navn, "Consumer Price Index");
+});

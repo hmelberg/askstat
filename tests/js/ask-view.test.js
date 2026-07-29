@@ -59,21 +59,8 @@ test('buildAskProvenance: duckdb bruker --, ikke echo-direktiv, flerlinje flates
   assert.ok(!s.includes('show_commands'));
 });
 
-test('parseTolkAnswer: uten markør → uendret tekst', () => {
-  const r = askView.parseTolkAnswer('## Svar\nAlt vel.');
-  assert.strictEqual(r.unusable, false);
-  assert.strictEqual(r.clean, '## Svar\nAlt vel.');
-});
-
-test('parseTolkAnswer: markør på første linje → unusable + reason + renset tekst', () => {
-  const r = askView.parseTolkAnswer('UNUSABLE_OUTPUT: The rows are duplicated and unfiltered.\n## Svar\nKan ikke besvares.');
-  assert.strictEqual(r.unusable, true);
-  assert.strictEqual(r.reason, 'The rows are duplicated and unfiltered.');
-  assert.ok(r.clean.startsWith('## Svar'));
-  assert.ok(!r.clean.includes('UNUSABLE_OUTPUT'));
-});
-
-test('parseTolkAnswer: tom/null tekst', () => {
-  assert.strictEqual(askView.parseTolkAnswer('').unusable, false);
-  assert.strictEqual(askView.parseTolkAnswer(null).clean, '');
+test('coerceAskDepth: kun deep er deep', () => {
+  assert.equal(askView.coerceAskDepth('deep'), 'deep');
+  assert.equal(askView.coerceAskDepth('fast'), 'standard');
+  assert.equal(askView.coerceAskDepth(null), 'standard');
 });

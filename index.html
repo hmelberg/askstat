@@ -134,12 +134,20 @@
       <div class="ask-sub">Answers are computed with code and open data — you can inspect and edit everything.</div>
       <div class="ask-input-row">
         <textarea id="askInput" class="ask-input" rows="2" placeholder="What do you want to find out?"></textarea>
-        <button type="button" class="btn btn-primary" id="askSendBtn">Ask</button>
+        <div class="ask-send-wrap">
+          <button type="button" class="btn btn-primary" id="askSendBtn">Ask</button>
+          <button type="button" class="btn btn-primary ask-caret-btn" id="askDepthBtn" aria-label="Choose answer depth"><span class="chevron">▾</span></button>
+          <div class="mode-dropdown-menu ask-depth-menu" id="askDepthMenu" hidden>
+            <button type="button" data-depth="standard">Standard — quick, few sources</button>
+            <button type="button" data-depth="deep">Deep — more sources and patience</button>
+          </div>
+        </div>
         <button type="button" class="btn" id="askAbortBtn" style="display:none">Stop</button>
       </div>
       <div id="askAnswerCard" class="ask-answer-card" hidden>
         <div id="askStatus" class="ask-process"></div>
         <div id="askAnswer" class="ask-answer"></div>
+        <div id="askLiveOutput" class="ask-live-output" hidden></div>
         <div class="ask-answer-actions">
           <button type="button" class="ai-response-insert-btn" id="askCopyBtn">Copy answer</button>
           <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code</button>
@@ -286,15 +294,6 @@
           <input type="password" id="aiCfgLlmKey" autocomplete="off" style="margin-top:4px;">
           <div class="ai-modal-help" data-i18n>Base-URL er alt før endepunktnavnet (typisk t.o.m. /v1). Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server til leverandøren du velger, og forbruk (inkludert eventuelt websøk hos OpenAI) belastes din konto der. Web-modus med OpenAI-typene krever en modell med verktøystøtte.</div>
         </div>
-      </div>
-
-      <div style="margin-bottom:18px;">
-        <label for="aiCfgDepth" data-i18n>Dybde (Web-modus)</label>
-        <select id="aiCfgDepth">
-          <option value="deep" data-i18n>Grundig (standard)</option>
-          <option value="fast" data-i18n>Hurtig</option>
-        </select>
-        <div class="ai-modal-help" data-i18n>Hurtig bruker færre søk og kilder og gir kortere svar; kravene til verifiserte kilder gjelder uansett.</div>
       </div>
 
       <div class="ai-modal-actions" style="margin-top:14px;">

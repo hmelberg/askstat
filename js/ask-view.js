@@ -45,13 +45,38 @@
     return lines.join('\n') + '\n\n';
   }
 
-  // tolk-ask kan flagge semantisk ubrukelig output med en UNUSABLE_OUTPUT:-
-  // markørlinje (F1, evallogg 2026-07-29). Skiller markøren fra visningsteksten.
-  function parseTolkAnswer(text) {
-    var m = /^\s*UNUSABLE_OUTPUT:\s*(.+)$/m.exec(text || '');
-    if (!m) return { unusable: false, reason: '', clean: text || '' };
-    var clean = (text || '').replace(/^\s*UNUSABLE_OUTPUT:.*$/m, '').trim();
-    return { unusable: true, reason: m[1].trim(), clean: clean };
+  // Dybde for /api/svar: 'standard' er default; velges på split-knappen.
+  function coerceAskDepth(v) { return v === 'deep' ? 'deep' : 'standard'; }
+
+  /* Levende output i svarkortet (spec §Output): selve #outputArea-noden
+     FLYTTES inn i kortet etter vellykket kjøring (ikke klones) — interaktiv
+     plotly og widgets/#@param-re-kjøringer virker der den står. Flyttes
+     tilbake ved nytt spørsmål eller bytte til kodevisningen. */
+  var outputHome = null;
+  function mountLiveOutput() {
+    var out = document.getElementById('outputArea');
+    var host = document.getElementById('askLiveOutput');
+    if (!out || !host || out.dataset.askMounted === '1') return;
+    outputHome = { parent: out.parentNode, next: out.nextSibling };
+    out.dataset.askMounted = '1';
+    host.hidden = false;
+    host.appendChild(out);
+    window.dispatchEvent(new Event('resize'));
+    if (window.Plotly && window.Plotly.Plots) {
+      out.querySelectorAll('.js-plotly-plot').forEach(function (p) {
+        try { window.Plotly.Plots.resize(p); } catch (_) { /* plotly borte */ }
+      });
+    }
+  }
+  function unmountLiveOutput() {
+    var out = document.getElementById('outputArea');
+    var host = document.getElementById('askLiveOutput');
+    if (!out || out.dataset.askMounted !== '1' || !outputHome) return;
+    delete out.dataset.askMounted;
+    if (host) host.hidden = true;
+    outputHome.parent.insertBefore(out, outputHome.next);
+    outputHome = null;
+    window.dispatchEvent(new Event('resize'));
   }
 
   /* ── DOM wiring (browser only; bails in the node test stub) ─────── */
@@ -85,6 +110,7 @@
   }
 
   function switchToEditor() {
+    unmountLiveOutput();
     document.documentElement.classList.remove('ask-view');
     var view = document.getElementById('askView');
     if (view) view.hidden = true;
@@ -138,11 +164,6 @@
     var running = false;
     var lastAnswerMd = '';
 
-    // Kortere agentiske løp som standard (Hans 2026-07-29 etter
-    // «Error in input stream» på hop 7 i deep-modus). Kan endres i
-    // AI-innstillingene (Dybde).
-    try { if (!localStorage.getItem('md_ai_depth')) localStorage.setItem('md_ai_depth', 'fast'); } catch (e) {}
-
     // Ask krever en data-svar-kompatibel modus (fence-språk + MODE-prompt).
     // Bare identifier m/typeof-guard, ikke window.-oppslag (let/const-globaler).
     function currentAskMode() {
@@ -171,6 +192,33 @@
         input.focus();
       });
     }
+
+    var LS_ASK_DEPTH = 'md_ask_depth';
+    function askDepth() {
+      try { return coerceAskDepth(localStorage.getItem(LS_ASK_DEPTH)); } catch (e) { return 'standard'; }
+    }
+    var depthBtn = document.getElementById('askDepthBtn');
+    var depthMenu = document.getElementById('askDepthMenu');
+    function syncDepthUi() {
+      var d = askDepth();
+      sendBtn.textContent = d === 'deep' ? 'Ask (deep)' : 'Ask';
+      depthMenu.querySelectorAll('button[data-depth]').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.depth === d);
+      });
+    }
+    depthBtn.addEventListener('click', function (e) { e.stopPropagation(); depthMenu.hidden = !depthMenu.hidden; });
+    document.addEventListener('click', function (e) {
+      if (!depthMenu.hidden && !depthMenu.contains(e.target) && e.target !== depthBtn) depthMenu.hidden = true;
+    });
+    depthMenu.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-depth]');
+      if (!b) return;
+      try { localStorage.setItem(LS_ASK_DEPTH, b.dataset.depth); } catch (_) {}
+      depthMenu.hidden = true;
+      syncDepthUi();
+    });
+    syncDepthUi();
+
     document.getElementById('askSwitchCode').addEventListener('click', switchToEditor);
     document.getElementById('askOpenEditorBtn').addEventListener('click', switchToEditor);
     document.getElementById('askCopyBtn').addEventListener('click', function () {
@@ -179,6 +227,7 @@
       navigator.clipboard.writeText(text).catch(function () {});
     });
     document.getElementById('askNewBtn').addEventListener('click', function () {
+      unmountLiveOutput();
       answerCard.hidden = true;
       statusBox.innerHTML = '';
       answerBox.innerHTML = '';
@@ -193,6 +242,23 @@
     function renderMd(node, text) {
       if (md) { try { node.innerHTML = md.render(text || ''); return; } catch (_) {} }
       node.textContent = text || '';
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function renderSources(list) {
+      if (!list || !list.length) return;
+      var div = document.createElement('div');
+      div.className = 'ai-sources';
+      div.innerHTML = '<b>Sources:</b> ' + list.map(function (s) {
+        return (s.ok ? '✅ ' : '⚠️ ') +
+          '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' +
+          esc(s.url.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>' +
+          (s.viaProxy ? ' (via proxy)' : '');
+      }).join(' · ');
+      answerBox.appendChild(div);
     }
     function progressLine(text) {
       var d = document.createElement('div');
@@ -218,56 +284,6 @@
         b.textContent = badgeText;
         answerBox.insertBefore(b, answerBox.firstChild);
       }
-      // Kildelisten fra runWebAnswer flyttes fra prosess-sporet inn i svaret.
-      var src = processBox.querySelector('.ai-sources');
-      if (src) answerBox.appendChild(src);
-    }
-    // Kloner figurer/tabeller fra kjøringens output inn i svarkortet under
-    // «More information» (Hans 2026-07-29): matplotlib-img klones,
-    // plotly SNAPSHOTTES til PNG (originalen forblir interaktiv i
-    // kodevisningen), tabeller klones scrollbare (maks 3). Legges FØR
-    // kildelisten når den finnes.
-    async function appendRunVisuals(targetBox) {
-      var out = document.getElementById('outputArea');
-      if (!out) return;
-      var frag = document.createDocumentFragment();
-      var added = 0;
-      out.querySelectorAll('img').forEach(function (im) {
-        if (!im.src) return;
-        var c = im.cloneNode(false);
-        c.className = 'ask-figure';
-        frag.appendChild(c); added++;
-      });
-      var plotlys = out.querySelectorAll('.js-plotly-plot');
-      for (var i = 0; i < plotlys.length; i++) {
-        try {
-          var url = await window.Plotly.toImage(plotlys[i], { format: 'png', scale: 2 });
-          var pim = document.createElement('img');
-          pim.src = url;
-          pim.className = 'ask-figure';
-          frag.appendChild(pim); added++;
-        } catch (e) { /* plotly utilgjengelig/feilet — hopp over figuren */ }
-      }
-      var tables = out.querySelectorAll('table');
-      for (var ti = 0; ti < tables.length && ti < 3; ti++) {
-        var wrap = document.createElement('div');
-        wrap.className = 'ask-table-wrap';
-        wrap.appendChild(tables[ti].cloneNode(true));
-        frag.appendChild(wrap); added++;
-      }
-      if (!added) return;
-      var anchor = targetBox.querySelector('.ai-sources');
-      // tolk-ask kan selv ha skrevet en «More information»-seksjon — da legges
-      // figurene under den; ellers får de sin egen overskrift.
-      var hasHeading = Array.prototype.some.call(targetBox.querySelectorAll('h2'), function (h) {
-        return /more information|mer informasjon/i.test(h.textContent);
-      });
-      if (!hasHeading) {
-        var h = document.createElement('h2');
-        h.textContent = 'More information';
-        targetBox.insertBefore(h, anchor);
-      }
-      targetBox.insertBefore(frag, anchor);
     }
     // S2-porten er PÅ KUN ved eksplisitt opt-in (localStorage.md_ask_confirm='1')
     // — ask auto-kjører som standard (Hans 2026-07-29). Injeksjonsrisikoen fra
@@ -306,7 +322,8 @@
       running = true;
       sendBtn.disabled = true;
       abortBtn.style.display = '';
-      answerCard.hidden = false;   // svaret bygges rett under spørsmålet
+      unmountLiveOutput();
+      answerCard.hidden = false;
       statusBox.innerHTML = '';
       answerBox.innerHTML = '';
       processBox.innerHTML = '';
@@ -318,7 +335,7 @@
       abortBtn.addEventListener('click', onAbort);
       var uiLang = (window.M2PY_LANG === 'en') ? 'en' : 'no';
       try {
-        // 1) Ruter
+        // 1) Ruter (uendret): rute + operasjonell tolkning.
         progressLine('Interpreting the question …');
         var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
         try {
@@ -332,94 +349,78 @@
         } catch (e) { if (e && e.name === 'AbortError') throw e; /* ruterfeil → data-ruten */ }
         progressLine('Route: ' + route.rute + '. Interpretation: ' + (route.tolkning || '—'));
 
-        // 2) Språk-ruten: direkte svar med merking, ingen kode.
+        // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).
         if (route.rute === 'språk') {
           showAnswer(route.svar || 'This question could not be formalized, and the router gave no direct answer.',
             '⚠ Not verified with code or data — plain model answer', true);
           return;
         }
 
-        // 3) Data-svar-løkka (beregning/data/oppslag). Instrukser legges
-        //    KLIENT-SIDE i spørsmålsteksten — data-svar-promptene røres ikke.
-        var instr;
-        if (route.rute === 'beregning') {
-          instr = '[Instruction: Pure computation — no external data sources needed. Write one complete script that computes the answer, with comments explaining your choices.]';
-        } else if (route.rute === 'oppslag') {
-          // F2 (evallogg 2026-07-29): trivielle fakta ble besvart fra hukommelsen
-          // uten kilde — krev reelt søk + kilde-URL i svaret.
-          instr = '[Instruction: Lookup question — verify the answer with the web search tool and cite at least one authoritative source URL in the answer, even for well-known facts. Never answer purely from memory. Write code only if a computation is genuinely needed.]';
-        } else {
-          instr = '[Instruction: Comment your choices in the code — why this source/table, this scope, this computation.]';
-        }
+        // 3) Ett agentisk løp: /api/svar med run_code som klientverktøy.
         var fullQuestion = question +
-          (route.tolkning ? '\n\nOperational interpretation (from the router): ' + route.tolkning : '') +
-          '\n\n' + instr;
+          (route.tolkning ? '\n\nOperational interpretation (from the router): ' + route.tolkning : '');
         var prefix = buildAskProvenance({ question: question, tolkning: route.tolkning, rute: route.rute },
           currentAskMode());
+        var confirm = confirmChoice();
+        var confirmed = false;
+        var lastRunOk = false;
+        var res = await window.mdSvarRun({
+          question: fullQuestion,
+          route: route.rute,
+          depth: askDepth(),
+          mode: currentAskMode(),
+          signal: ctrl.signal,
+          handlers: {
+            onProgress: function (ev) {
+              var last = statusBox.lastElementChild;
+              if (ev.replace && last && last.dataset && last.dataset.replace === '1') {
+                last.textContent = '⏳ ' + ev.text;
+                return;
+              }
+              var line = document.createElement('div');
+              line.className = 'ai-progress-line';
+              if (ev.replace) line.dataset.replace = '1';
+              line.textContent = '⏳ ' + ev.text;
+              statusBox.appendChild(line);
+            },
+            onDelta: function (full) { renderMd(answerBox, full); },
+            onTurnDiscard: function (full) {
+              if (!full || !full.trim()) return;
+              var d = document.createElement('div');
+              d.className = 'ai-progress-line';
+              d.textContent = '📝 ' + full.trim().slice(0, 200);
+              statusBox.appendChild(d);
+            },
+            onRunCode: async function (script) {
+              if (!confirmed) {
+                var ok = await confirm();
+                if (!ok) {
+                  ctrl.abort();
+                  throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+                }
+                confirmed = true;
+              }
+              progressLine('Running the code …');
+              var r = await window.mdAskExecuteScript(prefix + script, ctrl.signal);
+              lastRunOk = r.ok;
+              return r.result;
+            },
+          },
+        });
 
-        // Kjør → tolk. Flagger tolk-ask outputen som ubrukelig
-        // (UNUSABLE_OUTPUT), gis ÉN semantisk reparasjonsrunde (F1) før det
-        // ærlige svaret vises.
-        var semanticTries = 0;
-        var initialRepair = null;
-        while (true) {
-          var res = await window.mdAskRun(fullQuestion, {
-            processNode: statusBox, signal: ctrl.signal, scriptPrefix: prefix,
-            confirm: confirmChoice(), initialRepair: initialRepair,
-          });
-
-          if (res.error === 'avbrutt') { progressLine('Stopped.'); archiveStatus(); return; }
-          if (!res.ok && res.error === null) {
-            // Prosa-svar uten kode (typisk oppslag/web eller ærlig «fant ikke»).
-            showAnswer(res.markdown, '⚠ Source-based answer (web search) — not verified with code', true);
-            return;
-          }
-          if (!res.ok) {
-            showAnswer('Could not compute this (3 repair rounds failed). Last error:' +
-              '\n\n```\n' + String(res.error).slice(0, 800) + '\n```\n\n' +
-              'The code is in the code view — use “View code” to inspect and adjust, then try asking again.',
-              '⚠ Computation failed', true);
-            return;
-          }
-
-          // 4) Kjøringen lyktes → tolk-ask komponerer svaret fra output.
-          progressLine('Summarizing the result …');
-          var outEl = document.getElementById('outputArea');
-          var outText = (outEl ? (outEl.innerText || '') : '').trim().slice(0, 30000);
-          var si = document.getElementById('scriptInput');
-          var script = ((si && si.value) || '').slice(0, 30000);
-          var tolkResp = await fetch('/api/tolk-ask', {
-            method: 'POST',
-            headers: window.mdAiAuthHeaders(),
-            signal: ctrl.signal,
-            body: JSON.stringify({
-              question: question,
-              interpretation: route.tolkning,
-              script: script,
-              output: outText,
-              ui_lang: uiLang,
-              provider: window.mdAiProviderConfig() || undefined,
-            }),
-          });
-          if (!tolkResp.ok || !tolkResp.body) throw new Error('HTTP ' + tolkResp.status + ' ' + (await tolkResp.text()));
-          var finalMd = await sseAccumulate(tolkResp, function (acc) { renderMd(answerBox, parseTolkAnswer(acc).clean); }, ctrl.signal);
-          var parsed = parseTolkAnswer(finalMd);
-          if (parsed.unusable && semanticTries < 1) {
-            semanticTries++;
-            progressLine('The output did not answer the question — refining the data query …');
-            answerBox.innerHTML = '';
-            initialRepair = { script: script,
-              error: 'SEMANTIC ERROR — the script ran without errors, but its OUTPUT does not answer the question: ' +
-                parsed.reason + ' Fix the data selection/filtering so the OUTPUT actually answers the question.' };
-            continue;
-          }
-          if (parsed.unusable) {
-            showAnswer(parsed.clean, '⚠ The computed output did not answer the question', true);
-          } else {
-            showAnswer(parsed.clean, null, false);
-            await appendRunVisuals(answerBox);
-          }
-          return;
+        // 4) Sluttsvaret er allerede strømmet inn — arkiver prosess-sporet,
+        //    vis kilder, og monter levende output ved vellykket kjøring.
+        if (lastRunOk) {
+          showAnswer(res.markdown, null, false);
+          renderSources(res.sources);
+          mountLiveOutput();
+        } else {
+          showAnswer(res.markdown,
+            res.sources && res.sources.length
+              ? '⚠ Source-based answer — the code did not run successfully'
+              : null,
+            true);
+          renderSources(res.sources);
         }
       } catch (e) {
         if (e && e.name === 'AbortError') { progressLine('Stopped.'); archiveStatus(); }
@@ -450,7 +451,7 @@
     module.exports = {
       parseAskRoute: parseAskRoute,
       buildAskProvenance: buildAskProvenance,
-      parseTolkAnswer: parseTolkAnswer,
+      coerceAskDepth: coerceAskDepth,
     };
   }
 })();

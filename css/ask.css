@@ -12,18 +12,13 @@ html.ask-view #sidebarOpenTab,
 html.ask-view #welcomeBackdrop { display: none !important; }
 /* (Topbar and welcome modal explain the editor — hidden in ask.) */
 
-/* Editor-/output-panelene vises ALDRI i ask (Hans 2026-07-29) — men de ligger
-   usynlig off-screen med ekte bredde, slik at plotly rendrer med riktig layout
-   (display:none gir null-bredde). Figurer/tabeller KLONES inn i svarkortet;
-   kodevisningen (?view=editor) beholder originalene urørt. */
+/* Editor-/output-panelene ligger usynlig off-screen med ekte bredde MENS
+   kjøringen pågår (plotly trenger ekte bredde). Etter vellykket kjøring
+   FLYTTES #outputArea inn i svarkortet (levende — widgets og interaktiv
+   plotly virker); den flyttes hjem ved nytt spørsmål / bytte til kode. */
 html.ask-view .container.layout-columns {
   position: fixed; left: -12000px; top: 0; width: 900px; height: 640px;
   overflow: hidden; }
-
-/* Klonede figurer/tabeller i svarkortets «More information»-seksjon */
-.ask-figure { max-width: 100%; border-radius: 6px; margin: 6px 0; display: block; }
-.ask-table-wrap { max-height: 300px; overflow: auto; margin: 8px 0;
-  border: 1px solid var(--border); border-radius: 6px; }
 
 html.ask-view #askView[hidden] { display: flex; }   /* boot-JS removes hidden; belt-and-suspenders */
 /* [hidden] må VINNE over .ask-view-wrap{display:flex} i editor-visningen —
@@ -101,3 +96,15 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-details { margin-top: 12px; font-size: 13px; color: var(--text-muted); max-width: 760px; }
 .ask-details[hidden] { display: none; }
 .ask-details summary { cursor: pointer; }
+
+/* Split-knappen Ask ▾ (gjenbruker .mode-dropdown-menu for menyen) */
+.ask-send-wrap { position: relative; display: flex; }
+.ask-send-wrap #askSendBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; white-space: nowrap; }
+.ask-caret-btn { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 1px; padding: 6px 8px; }
+.ask-depth-menu { position: absolute; right: 0; bottom: 100%; margin-bottom: 6px; min-width: 240px; }
+.ask-depth-menu[hidden] { display: none; }
+
+/* Levende output i svarkortet */
+.ask-live-output { margin-top: 12px; }
+.ask-live-output[hidden] { display: none; }
+.ask-live-output #outputArea { max-height: 560px; overflow: auto; }

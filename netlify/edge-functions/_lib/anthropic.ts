@@ -542,6 +542,14 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
       const turnsPerCall = opts.turnsPerCall ?? 1;
       const clientToolNames = new Set(opts.clientTools ?? []);
       const maxRunCode = opts.maxRunCode ?? 2;
+      // A pause_turn segment's text is scratch work just like a tool_use
+      // segment's — but turnHadText is scoped per for-iteration, so text
+      // streamed before a pause_turn would otherwise be forgotten by the time
+      // the continued segment (often tool_use with no new text of its own) is
+      // handled, silently skipping the turn_discard that should drop it from
+      // the client's answer buffer. carryHadText remembers it across
+      // pause_turn continuations within this run.
+      let carryHadText = false;
 
       try {
         // Resume etter run_code: flett klientens kjøreresultat inn som
@@ -613,6 +621,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
 
           if (turn.stopReason === "pause_turn") {
             state.messages.push({ role: "assistant", content });
+            carryHadText = carryHadText || turnHadText;
             continue;
           }
           const toolUses = content.filter(
@@ -621,7 +630,8 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
           );
           if (turn.stopReason === "tool_use" && toolUses.length) {
             state.messages.push({ role: "assistant", content });
-            if (turnHadText) emit({ type: "turn_discard" });
+            if (turnHadText || carryHadText) emit({ type: "turn_discard" });
+            carryHadText = false;
             const results: { tool_use_id: string; content: string }[] = [];
             let clientCall: { id: string; input: Record<string, unknown> } | null = null;
             for (const tu of toolUses) {
@@ -666,6 +676,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
             continue;
           }
           // Final answer — its deltas were already forwarded live above.
+          carryHadText = false;
           emit({ type: "done", ...state.usage });
           controller.close();
           return;

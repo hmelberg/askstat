@@ -406,6 +406,44 @@ Deno.test("runAgenticStream: run_code over budsjett får server-side tool_result
   assertEquals(events.at(-1)?.type, "done");
 });
 
+Deno.test("runAgenticStream: text fra en pause_turn-segment overlever inn i en tekstløs tool_use-tur (turn_discard emitteres likevel)", async () => {
+  // Bug: turnHadText ble deklarert PER for-iterasjon, så tekst strømmet i et
+  // segment som endte i pause_turn ble glemt så snart neste segment (tool_use,
+  // uten ny tekst) ble håndtert — ingen turn_discard, og skraptekst ble
+  // stående igjen i klientens svar-buffer. Fiks: carryHadText overlever
+  // pause_turn-kontinuasjoner innad i kjøringen.
+  const pauseTurn = [
+    { type: "message_start", message: { usage: { input_tokens: 5 } } },
+    { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+    { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Tenker litt" } },
+    { type: "content_block_stop", index: 0 },
+    { type: "message_delta", delta: { stop_reason: "pause_turn" }, usage: { output_tokens: 3 } },
+    { type: "message_stop" },
+  ];
+  const toolOnlyTurn = [
+    { type: "message_start", message: { usage: { input_tokens: 4 } } },
+    { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "tu1", name: "probe", input: {} } },
+    { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: JSON.stringify({ url: "https://x/" }) } },
+    { type: "content_block_stop", index: 0 },
+    { type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 2 } },
+    { type: "message_stop" },
+  ];
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 99,
+    executeTool: () => Promise.resolve('{"ok":true}'),
+    deps: { fetchImpl: sseFetch([pauseTurn, toolOnlyTurn, streamedTextTurn("Ferdig svar")]) },
+  }));
+  const discardIdx = events.findIndex((e) => e.type === "turn_discard");
+  assertEquals(discardIdx >= 0, true); // turn_discard MÅ emitteres selv om segment 2 ikke hadde egen tekst
+  const toolProgressIdx = events.findIndex((e) =>
+    e.type === "progress" && !e.replace && String(e.text).includes("probe"));
+  assertEquals(toolProgressIdx > discardIdx, true); // discard før verktøyprogresjonen
+  const finalDeltas = events.filter((e) => e.type === "delta").map((e) => e.text).join("");
+  assertEquals(finalDeltas, "Tenker littFerdig svar");
+  assertEquals(events.at(-1)?.type, "done");
+});
+
 Deno.test("runAgenticStream(stream): tool-tur akkumulerer input_json_delta, kjører verktøyet og emitterer turn_discard", async () => {
   const calls: [string, Record<string, unknown>][] = [];
   const events = await collectSse(runAgenticStream({

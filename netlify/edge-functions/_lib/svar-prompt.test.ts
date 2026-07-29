@@ -93,3 +93,17 @@ Deno.test("buildRouteToolDefs: data-ruten har search_datasets; beregning/oppslag
   assert(!names(buildRouteToolDefs("beregning", "standard")).includes("search_datasets"));
   assert(!names(buildRouteToolDefs("oppslag", "standard")).includes("search_datasets"));
 });
+
+Deno.test("buildSvarSystem(data): META_SEARCH inne, SEARCH_HINTS ute, KODEBOK inne", () => {
+  const s = buildSvarSystem("data", "python", "REG");
+  assert(s.includes("search_datasets"));
+  assert(s.includes("Kodebok"));
+  assert(!s.includes("Søketips utenfor registeret"));
+  assert(s.includes("SISTE utvei"));
+});
+
+Deno.test("buildSvarSystem(beregning): ingen META_SEARCH/KODEBOK", () => {
+  const s = buildSvarSystem("beregning", "python", "");
+  assert(!s.includes("search_datasets"));
+  assert(!s.includes("Kodebok"));
+});

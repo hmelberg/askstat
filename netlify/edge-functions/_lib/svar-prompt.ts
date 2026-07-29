@@ -29,8 +29,9 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
 1. **TOLK** spørsmålet: hva er estimanden (beskrivelse? sammenligning?
    årsakseffekt?), analyseenhet, geografi og periode, og hvilken
    identifikasjonsstrategi som er realistisk. Lag en data-ønskeliste.
-2. **FINN data med verktøyene** (search_catalog → table_metadata → probe;
-   web_search/web_fetch for kilder utenfor registeret). Regler:
+2. **FINN data med verktøyene** (search_datasets → table_metadata → probe;
+   search_catalog for å grave i én katalog; web_search/web_fetch for kilder
+   utenfor registeret). Regler:
    - Datasett-ID-er og kolonnenavn skal komme fra verktøy-resultater.
      ALDRI generer mot antatte skjemaer eller funnede ID-er fra hukommelsen.
    - Alt funnet via web_search MÅ probes (eller leses med web_fetch) før
@@ -286,16 +287,36 @@ se join-nøkler i registeret). Harmoniser koder og enheter FØR join, kommenter
 join-type (inner/left) og hvorfor, og sjekk radtall før/etter (stille
 rad-tap er en klassisk feilkilde).`;
 
-const SEARCH_HINTS = `\
-## Søketips utenfor registeret
+const META_SEARCH = `\
+## Datasøk (search_datasets først)
 
-awesome-public-datasets er en registerkilde (\`search_catalog(apd, …)\`),
-IKKE et web_search-mål lenger. Når registeret og search_catalog likevel ikke
-dekker temaet, er gode startpunkter for web_search/web_fetch: data.europa.eu
-(EU-landenes offisielle datasett) og Google Dataset Search
-(datasetsearch.research.google.com). Alt funnet denne veien er tillit=funnet:
-probe URL-en før bruk (som alltid), og foretrekk registerkilder når de
-dekker spørsmålet.`;
+Let etter data i denne rekkefølgen:
+1. **search_datasets(query, scope)** — scope='stats' for offisiell
+   statistikk/indikatorer/tidsserier; scope='research' for survey-,
+   individ- og forskningsdata; scope='all' når du er usikker. Engelske
+   søkeord gir flest treff i internasjonale kataloger.
+2. Følg **how_to_read**-hintet på treffet du velger (table_metadata →
+   kanonisk read, eller probe/web_fetch av landingsside). Treff med
+   access='landing-page' er IKKE lastbare før probe/web_fetch har funnet en
+   faktisk fil-URL — probe-✅-kravet gjelder uendret.
+3. **search_catalog(source, query)** for å grave dypere i ÉN katalog.
+4. web_search/web_fetch er SISTE utvei for datasøk — ikke første.
+Kataloger i failed-listen svarte ikke — nevn det om det er relevant for
+svaret, eller søk dem målrettet med search_catalog.`;
+
+const KODEBOK = `\
+## Kodebok (survey-/individ-/forskningsdata)
+
+FØR analyse av forskningsdata (Stata/SPSS/survey-CSV):
+- Les variabel- og verdietiketter: \`pd.read_stata(url_eller_fil,
+  convert_categoricals=True)\` (etikettene ligger i fila). CSV uten
+  kodebok: let etter kodebok/dokumentasjon på landingssiden (web_fetch).
+- Sjekk spesielle missing-koder (mønstre som 8/9/98/99/999 = «vet ikke»/
+  «ikke svart») FØR beregning — aldri behandle dem som verdier.
+- Se etter vekter/strata (kolonnenavn som weight/vekt/stratum) og NEVN i
+  svaret om analysen er vektet eller ikke.
+- Mangler kodebok: si eksplisitt hvilke variabeltolkninger som er antatt —
+  aldri gjett verdibetydninger stille.`;
 
 const RUN = `\
 ## Kjøring og sluttsvar (run_code)
@@ -468,7 +489,7 @@ const MEMORY_URLS = `\
 Denne kjøringen har IKKE web_search/web_fetch. Registerverktøyene
 (search_catalog → table_metadata → probe) er primærveien. For behov utenfor
 registeret KAN du foreslå konkrete data-URL-er fra egen kunnskap (f.eks. hos
-kildene i Søketips-blokken over) — men HVER slik URL MÅ verifiseres med probe
+kildene i Datasøk-blokken over) — men HVER slik URL MÅ verifiseres med probe
 før den brukes i scriptet. Feiler proben: prøv en annen kandidat, eller si
 ærlig at kilden ikke ble funnet. ALDRI lever en uprobet URL, og ALDRI merk noe
 «probe-verifisert» uten at probe faktisk returnerte ok=true for akkurat den
@@ -487,7 +508,7 @@ export function buildSvarSystem(
   if (route === "oppslag") {
     return [INTRO_LOOKUP, RUN].join("\n\n");
   }
-  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS, RUN, PARTIAL];
+  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], META_SEARCH, KODEBOK, RUN, PARTIAL];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   return blocks.join("\n\n");

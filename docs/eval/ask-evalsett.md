@@ -139,3 +139,10 @@ output hjem; nytt spørsmål rydder kort + liveOut. Alle mount/unmount-sjekker �
 - Ratelimit: hele evalkjøringen (11 spørsmål + retry) traff ALDRI 429 —
   per-spørsmål-telling m/X-Svar-Resume virker (gamle pipeline brant 10/time
   på hops).
+
+**F5 AVGJORT (2026-07-29 kveld):** standard-budsjettet for run_code økt 2 → 3
+(Hans). Samtidig fikset: dybde-nedtrekket på split-knappen åpnet aldri
+(`.mode-dropdown-menu` er display:none i app.css og vises kun med .open-klassen
+— ask toggler hidden; eksplisitt :not([hidden])-regel i ask.css løser det), og
+fire nye eksempelspørsmål i hamburgermenyen (simulering m/slider, rettferdig
+fordeling, hyperbolsk diskontering, nordisk ledighet).

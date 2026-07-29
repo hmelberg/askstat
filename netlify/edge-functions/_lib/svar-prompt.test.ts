@@ -74,7 +74,7 @@ Deno.test("buildRouteToolDefs: hostedWeb:false dropper webverktøyene", () => {
 Deno.test("budsjetter per dybde", () => {
   assertEquals(depthClientToolCalls("standard"), 4);
   assertEquals(depthClientToolCalls("deep"), 12);
-  assertEquals(depthRunCodeCalls("standard"), 2);
+  assertEquals(depthRunCodeCalls("standard"), 3);
   assertEquals(depthRunCodeCalls("deep"), 4);
 });
 

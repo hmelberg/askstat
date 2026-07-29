@@ -54,7 +54,7 @@ Budsjett og ambisjon:
 | Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 4 totalt |
 | web_search | ≤ 2 |
 | web_fetch | ≤ 1 |
-| run_code | ≤ 2 kjøringer |
+| run_code | ≤ 3 kjøringer |
 | Kilder | ÉN er nok (to kun ved eksplisitt sammenligning) |
 | Metode | enkleste troverdige; dropp heterogenitet og sekundæranalyser |
 | Svartekst | kort — funn, én figur, forbehold |
@@ -526,3 +526,6 @@ MODE_PY/R/DUCK er videreført fra `data-svar-prompt.ts` men har mistet en
 tidligere «Svarformat»-seksjon (sluttsvarets form er nå i RUN-blokken, felles
 for alle ruter); INTERAKTIVITET-linja i MODE_PY er UENDRET.
 `_lib/`-testsuiten (deno test --allow-all) grønn etter opprydding.
+
+- 2026-07-29 (kveld): run_code-budsjettet i STANDARD økt 2 → 3 (F5 i
+  evalloggen: to SSB-feil på rad tømte budsjettet på Q6; Hans' beslutning).

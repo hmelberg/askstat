@@ -101,7 +101,11 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-send-wrap { position: relative; display: flex; }
 .ask-send-wrap #askSendBtn { border-top-right-radius: 0; border-bottom-right-radius: 0; white-space: nowrap; }
 .ask-caret-btn { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 1px; padding: 6px 8px; }
-.ask-depth-menu { position: absolute; right: 0; bottom: 100%; margin-bottom: 6px; min-width: 240px; }
+.ask-depth-menu { position: absolute; left: auto; right: 0; bottom: 100%; margin-bottom: 6px; min-width: 240px; }
+/* Basen .mode-dropdown-menu er display:none og vises kun med .open-klassen
+   (app.css) — ask styrer med hidden-attributtet, så synlig-regelen må slå
+   basens display:none eksplisitt (målt 2026-07-29: menyen åpnet aldri). */
+.ask-depth-menu:not([hidden]) { display: block; }
 .ask-depth-menu[hidden] { display: none; }
 
 /* Levende output i svarkortet */

@@ -59,7 +59,7 @@ Budsjett og ambisjon:
 | Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 4 totalt |
 | web_search | ≤ 2 |
 | web_fetch | ≤ 1 |
-| run_code | ≤ 2 kjøringer |
+| run_code | ≤ 3 kjøringer |
 | Kilder | ÉN er nok (to kun ved eksplisitt sammenligning) |
 | Metode | enkleste troverdige; dropp heterogenitet og sekundæranalyser |
 | Svartekst | kort — funn, én figur, forbehold |
@@ -581,7 +581,7 @@ export function depthClientToolCalls(depth: Depth): number {
 }
 
 export function depthRunCodeCalls(depth: Depth): number {
-  return depth === "standard" ? 2 : 4;
+  return depth === "standard" ? 3 : 4;
 }
 
 export function questionTurn(question: string, script?: string): string {

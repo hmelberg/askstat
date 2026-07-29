@@ -148,3 +148,26 @@ output hjem; nytt spørsmål rydder kort + liveOut. Alle mount/unmount-sjekker �
 — ask toggler hidden; eksplisitt :not([hidden])-regel i ask.css løser det), og
 fire nye eksempelspørsmål i hamburgermenyen (simulering m/slider, rettferdig
 fordeling, hyperbolsk diskontering, nordisk ledighet).
+
+### 2026-07-30 — OPPDAGELSESLAGET (spec 2026-07-30): målinger
+
+Kjørt etter runde 2 (search_datasets-meta-søk, 5 nye kataloger, META_SEARCH/
+KODEBOK-prompter). Standard-dybde, BYOK, playwright.
+
+| # | Rute | Tid | katalogsøk | websøk | run_code | Resultat |
+|---|---|---|---|---|---|---|
+| 11 | data ✓ | **58,7 s** | 2 (research) | 1 | 0 | PASS — DataCite/DOI-treff inkl. norske Sikt-surveydata; ærlig tilgangsinfo; INGEN fabrikerte fil-URL-er; relevant litteratur (Kinge et al.) via search_literature |
+| 12 | data ✓ | **84,9 s** | 1 (stats) | **0** | 3 | PASS — SH.XPD.CHEX.GD.ZS funnet i den høstede WB-katalogen; EU27-topp-10 (Tyskland 12,5 %, 2022) m/kilde+år+definisjon; suksesskriteriet «UTEN web_search» innfridd |
+| 4 (regresjon) | data ✓ | **35,9 s** (var 61,6 s) | 1 | **0** (var websøk-avhengig) | 1 | PASS — katalogsøket nesten HALVERTE tiden; riktig indikator direkte |
+| 1 (stikkprøve) | beregning ✓ | 9 s | 0 | 0 | 1 | PASS — upåvirket |
+
+**Funn:**
+- Katalogsøket erstatter websøk i praksis: Q4 og Q12 kjørte helt uten
+  web_search — raskere OG mer presist (indikator-ID fra katalog, ikke fra
+  søketreff).
+- Q12 brukte alle 3 run_code (nytt budsjett) — F5-økningen var riktig.
+- OECD-katalogen kan lande i failed-listen på kald cache (5,9 MB
+  SDMX-struktur > 2,5 s første gang; varm OK) — grasiøs degradering som
+  designet, de andre katalogene leverer.
+- Q11 fikk ingen badge (prosa-svar uten kjøring og uten probede kilder) —
+  konsistent med badge-logikken; svaret er ærlig kildeoversikt.

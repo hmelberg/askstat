@@ -1,6 +1,5 @@
-// System prompt + tool definitions for /api/data-svar (Web mode).
-// Source doc + changelog: netlify/edge-functions/prompts/data-svar.md
-// Structure mirrors kode-svar.ts: named const blocks, assembled byte-stably.
+// System prompt + tool definitions for /api/svar (samlet ask-pipeline).
+// Source doc + changelog: netlify/edge-functions/prompts/svar.md
 
 export type DataMode = "python" | "r" | "duckdb";
 
@@ -8,12 +7,19 @@ export function coerceDataMode(m: unknown): DataMode {
   return m === "r" || m === "duckdb" ? m : "python";
 }
 
-// Dybde: "deep" er default og dagens oppførsel; "fast" senker budsjettet og
-// ambisjonen (se DEPTH_FAST), ALDRI ærlighetskravene.
-export type Depth = "fast" | "deep";
+// Dybde: "standard" er default (slank/rask); "deep" øker budsjettene.
+// Gamle verdien "fast" finnes ikke lenger — alt ukjent blir standard.
+export type Depth = "standard" | "deep";
 
 export function coerceDepth(d: unknown): Depth {
-  return d === "fast" ? "fast" : "deep";
+  return d === "deep" ? "deep" : "standard";
+}
+
+// Ruter fra /api/ask-ruter. "språk" når aldri hit (besvares av ruteren).
+export type AskRoute = "beregning" | "data" | "oppslag";
+
+export function coerceRoute(r: unknown): AskRoute {
+  return r === "beregning" || r === "oppslag" ? r : "data";
 }
 
 const INTRO = `\
@@ -34,41 +40,44 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
      tema på engelsk.
    - Bygg MINIMALE uttrekk: bare variablene, periodene og geografiene
      analysen trenger (table_metadata gir kodene).
-3. **GENERER** ett komplett, kjørbart script i brukerens modus (se
-   Leveringsregler og modus-blokken). Finner du ikke data: si det ærlig,
-   vis hva du søkte på, og foreslå omformuleringer. ALDRI fabrikker.`;
+3. **GENERER OG KJØR**: skriv ett komplett script i brukerens modus (se
+   Leveringsregler og modus-blokken) og kjør det med run_code. Rett ved
+   behov, og skriv sluttsvaret fra outputen (se Kjøring og sluttsvar).
+   Finner du ikke data: si det ærlig, vis hva du søkte på, og foreslå
+   omformuleringer. ALDRI fabrikker.`;
 
 // Budsjett-tabellene og runtime-knottene (maxClientToolCalls, max_uses) skal
-// fortelle samme historie — endres én, endres begge (se buildToolDefs og
-// data-svar.ts). Fast reduserer AMBISJON, aldri ÆRLIGHET.
-const DEPTH_FAST = `\
-## Dybde: FAST (hurtig)
+// fortelle samme historie — endres én, endres begge (se buildRouteToolDefs
+// og data-svar.ts). Standard reduserer AMBISJON, aldri ÆRLIGHET.
+const DEPTH_STANDARD = `\
+## Dybde: STANDARD (hurtig)
 
-Brukeren har valgt hurtig svar. Budsjett og ambisjon:
+Budsjett og ambisjon:
 
 | Ressurs | Budsjett |
 | --- | --- |
 | Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 4 totalt |
 | web_search | ≤ 2 |
 | web_fetch | ≤ 1 |
+| run_code | ≤ 2 kjøringer |
 | Kilder | ÉN er nok (to kun ved eksplisitt sammenligning) |
 | Metode | enkleste troverdige; dropp heterogenitet og sekundæranalyser |
 | Svartekst | kort — funn, én figur, forbehold |
 
-Fast reduserer AMBISJON, ALDRI ÆRLIGHET: probe-✅-kravet, fabrikasjonsvernet,
-variabelplan-gaten ved kausale spørsmål og ærlig degradering gjelder UENDRET.
-Rekker du ikke å verifisere innenfor budsjettet: SI det og lever mindre —
-aldri lat som.`;
+Standard reduserer AMBISJON, ALDRI ÆRLIGHET: probe-✅-kravet,
+fabrikasjonsvernet, variabelplan-gaten ved kausale spørsmål og ærlig
+degradering gjelder UENDRET. Rekker du ikke å verifisere innenfor budsjettet:
+SI det og lever mindre — aldri lat som.`;
 
 const DEPTH_DEEP = `\
 ## Dybde: DEEP (grundig)
 
 Full arbeidsflyt — alle faser, flerkilde når det styrker svaret. Budsjett:
-inntil 12 klientverktøykall og 5 web_search/web_fetch. Bruk budsjettet på
-VERIFISERING (probe, table_metadata, hendelsessøk, litteratur) — ikke på
-bredde for breddens skyld.`;
+inntil 12 klientverktøykall, 5 web_search/web_fetch og 4 run_code-kjøringer.
+Bruk budsjettet på VERIFISERING (probe, table_metadata, hendelsessøk,
+litteratur) — ikke på bredde for breddens skyld.`;
 
-const DEPTH: Record<Depth, string> = { fast: DEPTH_FAST, deep: DEPTH_DEEP };
+const DEPTH: Record<Depth, string> = { standard: DEPTH_STANDARD, deep: DEPTH_DEEP };
 
 const DELIVERY = `\
 ## Leveringsregler (ost-direktiver)
@@ -288,6 +297,71 @@ dekker temaet, er gode startpunkter for web_search/web_fetch: data.europa.eu
 probe URL-en før bruk (som alltid), og foretrekk registerkilder når de
 dekker spørsmålet.`;
 
+const RUN = `\
+## Kjøring og sluttsvar (run_code)
+
+Du har verktøyet run_code: det kjører ETT komplett script i brukerens miljø
+og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
+
+1. Skriv HELE scriptet og kall run_code med det. ALDRI legg scriptet som
+   kodeblokk i svarteksten i stedet for å kalle run_code.
+2. Les outputen. Feil, eller output som ikke besvarer spørsmålet → rett
+   scriptet og kall run_code igjen (innenfor kjørebudsjettet).
+3. Når outputen faktisk besvarer spørsmålet: skriv SLUTTSVARET som ren
+   markdown — ingen kodeblokk (koden ligger allerede i kodevisningen, og
+   figurer/tabeller fra kjøringen vises automatisk under svaret).
+
+Sluttsvarets form:
+- Har du omformet spørsmålet: åpne med «Slik tolker jeg spørsmålet: …» og
+  oppgi antakelsene eksplisitt.
+- Alle tall skal komme fra run_code-OUTPUT eller verifiserte kilder — aldri
+  fra hukommelsen. Tomt for kjørebudsjett? Si ærlig hva som ikke ble
+  verifisert.
+- Oppgi kilder med URL der data er brukt, og nevn viktige forbehold kort.
+- Svar på brukerens språk (norsk/engelsk følger spørsmålet).`;
+
+const REFORM = `\
+## Omforming: verdi- og teorispørsmål kan belyses med kode
+
+Mange spørsmål som ser ubesvarbare ut («er X rettferdig?», «kan teori T
+forklare fenomen F?») kan omformes til noe kode kan belyse. Gjør det når det
+gir innsikt:
+
+1. Si eksplisitt hvordan du omformer spørsmålet (én–to setninger), og at
+   svaret BELYSER — ikke avgjør — spørsmålet.
+2. Velg en ENKEL, forståelig modell/simulering med få, navngitte parametre
+   og plausible startverdier. Enkelhet slår realisme: leseren skal kunne
+   forstå mekanismen.
+3. Vis hvordan konklusjonen avhenger av antakelsene — varier de 1–3
+   viktigste parametrene, og bruk interaktive kontroller (se modusblokken)
+   så brukeren kan dra i antakelsene selv.
+4. Skill klart mellom hva simuleringen viser og hva som forblir et
+   verdivalg eller empirisk spørsmål.`;
+
+const PARTIAL = `\
+## Delvise resultater og kildesprik
+
+- Fant du bare deler av det spørsmålet ber om (8 av 12 land, kortere
+  tidsserie, grovere inndeling): lever det du fant og SI presist hva som
+  mangler og hvorfor. Et ærlig delsvar slår nye leterunder.
+- Gir ulike kilder ulike tall for samme størrelse: ikke velg stille én —
+  vis kort hva hver kilde sier (kilde, tall, definisjonsforskjell om kjent)
+  og hvilken du legger til grunn.`;
+
+const INTRO_CALC = `\
+Du er en forsknings- og beregningsassistent. Spørsmålet er rutet som
+BEREGNING: det kan besvares (eller belyses) med kode alene — ingen eksterne
+datakilder trengs. Tolk spørsmålet operasjonelt, skriv ett komplett script,
+kjør det med run_code, og skriv sluttsvaret basert på outputen. Du svarer på
+brukerens språk (norsk/engelsk).`;
+
+const INTRO_LOOKUP = `\
+Du er en faktasjekkende oppslagsassistent. Spørsmålet er rutet som OPPSLAG:
+et faktaspørsmål som skal VERIFISERES med websøk — aldri besvares rent fra
+hukommelsen, selv for velkjente fakta. Søk, les ved behov (web_fetch), og
+oppgi minst én autoritativ kilde-URL i svaret. Skriv kode (run_code) kun når
+en faktisk beregning trengs. Du svarer på brukerens språk (norsk/engelsk).`;
+
 const MODE_PY = `\
 ## Modus: Python (Pyodide)
 
@@ -322,9 +396,10 @@ json-stat2 leses best via direktivveien (tidy + typet); pyjstat KAN
 micropip-installeres for parsing av json-stat-STRENGER — men aldri
 requests/urllib for henting (regel 4 gjelder fortsatt).
 
-## Svarformat
-Kort forklaring (1–3 setninger) av tilnærming og kilder, deretter ÉN kjørbar
-\`\`\`python-blokk med ost-direktivene øverst. Ikke JSON.`;
+INTERAKTIVITET: i simuleringer og modeller kan brukeren dra i antakelsene
+selv — bruk #@param-skjemaer for 1–3 nøkkelparametre, f.eks.
+\`rente = 0.05  #@param {type:"slider", min:0, max:0.2, step:0.005}\`.
+Kjøringen re-kjøres automatisk når brukeren endrer verdien.`;
 
 const MODE_R = `\
 ## Modus: R (WebR)
@@ -373,11 +448,7 @@ hent på nytt med read.csv bare for å få colClasses.
 KUN I OPENSTAT (ikke RStudio): \`ost_read_csv(url)\` (metadatadrevet typing
 — factor med kildens nivåer i kildens orden) og
 \`ost_convert_dtypes(df, meta = "<samme url>")\` på en ramme du alt har.
-Kode som skal være portabel bruker standard-idiomene over.
-
-## Svarformat
-Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`r-blokk med
-eventuelle ost-direktiver øverst (# eller -- som kommentartegn). Ikke JSON.`;
+Kode som skal være portabel bruker standard-idiomene over.`;
 
 const MODE_DUCK = `\
 ## Modus: DuckDB (duckdb-wasm)
@@ -387,12 +458,7 @@ SQL (CTE-er, vindusfunksjoner); hybrid med #py-blokk for figurer er mulig.
 METODEVERKTØYKASSE: deskriptiv/aggregering + enkle diff-tabeller. Tunge
 kausale metoder (regresjon m/ kontroller, PSM, event study m/ CI) hører
 hjemme i python/r-modus — SI det og foreslå modusbytte i stedet for å presse
-metoden inn i SQL.
-
-## Svarformat
-Kort forklaring (1–3 setninger), deretter ÉN kjørbar \`\`\`sql-blokk med
-ost-direktivene øverst (-- kommentar; \`# \` er IKKE kommentar i DuckDB-SQL).
-Ikke JSON.`;
+metoden inn i SQL.`;
 
 const MODE: Record<DataMode, string> = { python: MODE_PY, r: MODE_R, duckdb: MODE_DUCK };
 
@@ -408,13 +474,20 @@ før den brukes i scriptet. Feiler proben: prøv en annen kandidat, eller si
 «probe-verifisert» uten at probe faktisk returnerte ok=true for akkurat den
 URL-en.`;
 
-export function buildDataSvarSystem(
+export function buildSvarSystem(
+  route: AskRoute,
   mode: DataMode,
   registryBlock: string,
   opts?: { memoryUrls?: boolean; depth?: Depth },
 ): string {
-  const depth = opts?.depth ?? "deep";
-  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS];
+  const depth = opts?.depth ?? "standard";
+  if (route === "beregning") {
+    return [INTRO_CALC, REFORM, MODE[mode], RUN].join("\n\n");
+  }
+  if (route === "oppslag") {
+    return [INTRO_LOOKUP, RUN].join("\n\n");
+  }
+  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], SEARCH_HINTS, RUN, PARTIAL];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   return blocks.join("\n\n");
@@ -468,29 +541,47 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
   },
 ];
 
-// max_uses-tallene speiler budsjett-tabellene i DEPTH_FAST/DEPTH_DEEP.
-// max_content_tokens: uten tak la web_fetch HELE dokumentet inn i samtalen —
-// målt 2026-07-29: et ufiltrert Eurostat-JSON ga «prompt is too long:
-// 4 718 995 tokens» (Anthropic 400) og drepte kjøringen. Taket trunkerer
-// dokumentsider trygt og kveler datasett-dumper (data skal uansett hentes av
-// SCRIPTET, ikke av web_fetch).
-export function buildToolDefs(depth: Depth): unknown[] {
-  const uses = depth === "fast"
+export const RUN_CODE_TOOL = {
+  name: "run_code",
+  description:
+    "Kjør et komplett script i brukerens miljø (python/r/duckdb — modusblokken sier hvilket). Returnerer kjøringens tekst-output og eventuell feilmelding. Kall med HELE scriptet; rett og kall igjen ved feil (innenfor kjørebudsjettet).",
+  input_schema: {
+    type: "object",
+    properties: { script: { type: "string", description: "hele scriptet, klart til kjøring" } },
+    required: ["script"],
+  },
+};
+
+// hostedWeb:false brukes for leverandører uten Anthropic-hostede verktøy
+// (openai-compat/responses) — MEMORY_URLS-blokka tar over veiledningen.
+export function buildRouteToolDefs(
+  route: AskRoute,
+  depth: Depth,
+  opts?: { hostedWeb?: boolean },
+): unknown[] {
+  const hosted = opts?.hostedWeb !== false;
+  const uses = depth === "standard"
     ? { search: 2, fetch: 1, fetchTokens: 15_000 }
     : { search: 5, fetch: 5, fetchTokens: 30_000 };
-  return [
-    ...CLIENT_TOOL_DEFS,
-    { type: "web_search_20250305", name: "web_search", max_uses: uses.search },
-    { type: "web_fetch_20250910", name: "web_fetch", max_uses: uses.fetch, max_content_tokens: uses.fetchTokens },
-  ];
+  const web = hosted
+    ? [
+      { type: "web_search_20250305", name: "web_search", max_uses: uses.search },
+      { type: "web_fetch_20250910", name: "web_fetch", max_uses: uses.fetch, max_content_tokens: uses.fetchTokens },
+    ]
+    : [];
+  if (route === "beregning") return [RUN_CODE_TOOL];
+  if (route === "oppslag") return [RUN_CODE_TOOL, ...web];
+  return [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL, ...web];
 }
-
-export const TOOL_DEFS: unknown[] = buildToolDefs("deep");
 
 // Klientverktøy-taket per dybde (håndheves i runAgenticStream via
 // maxClientToolCalls) — samme tall som DEPTH-tabellene lover modellen.
 export function depthClientToolCalls(depth: Depth): number {
-  return depth === "fast" ? 4 : 12;
+  return depth === "standard" ? 4 : 12;
+}
+
+export function depthRunCodeCalls(depth: Depth): number {
+  return depth === "standard" ? 2 : 4;
 }
 
 export function questionTurn(question: string, script?: string): string {
@@ -501,22 +592,9 @@ export function questionTurn(question: string, script?: string): string {
   ].filter(Boolean).join("\n\n");
 }
 
-export function repairTurn(question: string, script: string, error: string, round: number): string {
-  return [
-    `# Reparasjonsrunde ${round} av 3`,
-    `Scriptet du genererte for spørsmålet «${question}» feilet ved kjøring.`,
-    `**Script:**\n\`\`\`\n${script}\n\`\`\``,
-    `**Feil:**\n\`\`\`\n${error}\n\`\`\``,
-    `Klassifiser feilen og reparer:`,
-    `- Nettverk/CORS → bytt til /api/hent-innpakket ost.read-linje, eller en annen kilde (re-probe gjerne).`,
-    `- Skjema/kolonnefeil → probe URL-en på nytt og rett kolonnenavn.`,
-    `- Logikkfeil → rett koden.`,
-    `Svar med komplett, korrigert script i samme format som før.`,
-  ].join("\n\n");
-}
-
 export function progressLabel(name: string, input: Record<string, unknown>): string {
   switch (name) {
+    case "run_code": return "▶ Kjører scriptet …";
     case "search_catalog": return `Søker i ${input.source ?? "katalog"}: «${input.query ?? ""}» …`;
     case "table_metadata": return `Henter variabler for ${input.source ?? ""}/${input.table_id ?? ""} …`;
     case "probe": return `Sjekker ${String(input.url ?? "").slice(0, 80)} …`;

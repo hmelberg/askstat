@@ -364,6 +364,11 @@
         var confirm = confirmChoice();
         var confirmed = false;
         var lastRunOk = false;
+        // Did the run ever reach onRunCode? Distinguishes "code ran and
+        // failed" (still warn, even with 0 probed sources) from "no code was
+        // ever executed" (e.g. oppslag/språk-style answers via the data
+        // path) — the latter must not get a false "code did not run" badge.
+        var ranAny = false;
         var res = await window.mdSvarRun({
           question: fullQuestion,
           route: route.rute,
@@ -392,6 +397,7 @@
               statusBox.appendChild(d);
             },
             onRunCode: async function (script) {
+              ranAny = true;
               if (!confirmed) {
                 var ok = await confirm();
                 if (!ok) {
@@ -414,7 +420,17 @@
           showAnswer(res.markdown, null, false);
           renderSources(res.sources);
           mountLiveOutput();
+        } else if (ranAny) {
+          // Code was actually attempted and did not succeed — warn
+          // regardless of how many sources were probed (0 probed sources
+          // here means the run failed before/without probing, not that
+          // nothing needs a warning).
+          showAnswer(res.markdown,
+            '⚠ The code did not run successfully — treat numbers with caution', true);
+          renderSources(res.sources);
         } else {
+          // No code ever ran (e.g. oppslag/språk-style answers via the data
+          // path) — only warn if there were probed sources to caveat.
           showAnswer(res.markdown,
             res.sources && res.sources.length
               ? '⚠ Source-based answer — the code did not run successfully'

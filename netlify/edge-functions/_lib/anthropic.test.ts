@@ -341,6 +341,71 @@ Deno.test("runAgenticStream(stream): text-turn emitterer delta-events og done", 
   assertEquals(done?.inputTokens, 10);
 });
 
+Deno.test("runAgenticStream: run_code emitterer run_code + continue med pending-state", async () => {
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code"],
+    executeTool: () => Promise.reject(new Error("skal ikke kalles")),
+    deps: { fetchImpl: sseFetch([
+      streamedToolTurn("run_code", "tu_run1", JSON.stringify({ script: "print(1)" })),
+    ]) },
+  }));
+  const rc = events.find((e) => e.type === "run_code");
+  assertEquals(rc?.script, "print(1)");
+  const cont = events.find((e) => e.type === "continue");
+  const st = cont?.state as Record<string, unknown>;
+  assertEquals((st.pending as Record<string, unknown>).awaitingId, "tu_run1");
+  assertEquals(st.runCalls, 1);
+});
+
+Deno.test("runAgenticStream: resume med runResult fletter tool_result og fortsetter", async () => {
+  // Første invokasjon: run_code → pending. Andre: resume + runResult → svar.
+  const base = {
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code"],
+    executeTool: () => Promise.resolve(""),
+  };
+  const ev1 = await collectSse(runAgenticStream({
+    ...base,
+    deps: { fetchImpl: sseFetch([streamedToolTurn("run_code", "tu_r", JSON.stringify({ script: "x" }))]) },
+  }));
+  const st = (ev1.find((e) => e.type === "continue")?.state ?? {}) as never;
+  let capturedBody: Record<string, unknown> | null = null;
+  const capturingFetch = ((_u: string, init: RequestInit) => {
+    capturedBody = JSON.parse(String(init.body));
+    return Promise.resolve(new Response(sseUpstream(streamedTextTurn("Ferdig")), { status: 200 }));
+  }) as unknown as typeof fetch;
+  const ev2 = await collectSse(runAgenticStream({
+    ...base, resume: st, runResult: "OK. OUTPUT:\n42",
+    deps: { fetchImpl: capturingFetch },
+  }));
+  assertEquals(ev2.at(-1)?.type, "done");
+  // tool_result for tu_r ligger i meldingsarrayet som ble sendt oppstrøms.
+  const msgs = ((capturedBody as Record<string, unknown> | null)?.messages ?? []) as Record<string, unknown>[];
+  const lastUser = msgs.at(-1) as { role: string; content: { type: string; tool_use_id: string; content: string }[] };
+  assertEquals(lastUser.role, "user");
+  assertEquals(lastUser.content[0].tool_use_id, "tu_r");
+  assertEquals(lastUser.content[0].content, "OK. OUTPUT:\n42");
+});
+
+Deno.test("runAgenticStream: run_code over budsjett får server-side tool_result i stedet for event", async () => {
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code"], maxRunCode: 2,
+    executeTool: () => Promise.resolve(""),
+    resume: {
+      messages: [{ role: "user", content: "q" }], turn: 1, clientCalls: 0, runCalls: 2,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    } as never,
+    deps: { fetchImpl: sseFetch([
+      streamedToolTurn("run_code", "tu_over", JSON.stringify({ script: "x" })),
+      streamedTextTurn("Svar uten flere kjøringer"),
+    ]) },
+  }));
+  assertEquals(events.some((e) => e.type === "run_code"), false);
+  assertEquals(events.at(-1)?.type, "done");
+});
+
 Deno.test("runAgenticStream(stream): tool-tur akkumulerer input_json_delta, kjører verktøyet og emitterer turn_discard", async () => {
   const calls: [string, Record<string, unknown>][] = [];
   const events = await collectSse(runAgenticStream({

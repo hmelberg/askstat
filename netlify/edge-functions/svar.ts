@@ -51,18 +51,31 @@ function validResumeState(s: AgenticResumeState | undefined): s is AgenticResume
 }
 
 export default async (request: Request): Promise<Response> => {
+  // Ratelimiten teller SPØRSMÅL: continuation-hops er samme spørsmål, derfor
+  // hoppes den over når klienten hevder å fortsette en påbegynt kjøring. Denne
+  // avgjørelsen tas FØR body er lest, så den kan ikke selv sjekke at det
+  // faktisk foreligger et resume-objekt — det håndheves nedenfor, rett etter
+  // JSON-parsingen, så en FERSK spørring med kun headeren (+ en velformet
+  // nøkkel) ikke slipper forbi ratelimiten. Merk: resume-state er fortsatt
+  // usignert (ingen HMAC) — en klient som SENDER et resume-objekt kan
+  // fremdeles forfalske det for å hoppe over ratelimiten på et nytt
+  // spørsmål; det er en dokumentert gjenværende risiko (roadmap: HMAC over
+  // state).
+  const svarResumeHeader = request.headers.get("x-svar-resume") === "1";
   const gateResp = await adminGate(request, {
     endpoint: "svar",
     maxBodyBytes: MAX_BODY_BYTES,
     allowByok: true,
     allowLlmKey: true,
-    // Ratelimiten teller SPØRSMÅL: continuation-hops er samme spørsmål.
-    skipRateLimit: request.headers.get("x-svar-resume") === "1",
+    skipRateLimit: svarResumeHeader,
   });
   if (gateResp) return gateResp;
 
   let body: RequestBody;
   try { body = await request.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
+  if (svarResumeHeader && !body.resume) {
+    return new Response("X-Svar-Resume krever resume-state", { status: 400 });
+  }
   const question = (body.question ?? "").trim();
   if (!question) return new Response("Missing question", { status: 400 });
 

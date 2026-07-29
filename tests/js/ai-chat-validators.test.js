@@ -15,6 +15,8 @@ const assert = require('node:assert');
 const path = require('path');
 
 const AI_CHAT_PATH = path.join(__dirname, '..', '..', 'js', 'ai-chat.js');
+const CELLS_PATH = path.join(__dirname, '..', '..', 'js', 'cells.js');
+const PARAM_FORMS_PATH = path.join(__dirname, '..', '..', 'js', 'param-forms.js');
 
 global.window = global;
 global.document = {
@@ -25,6 +27,13 @@ global.document = {
 };
 
 const aiChat = require(AI_CHAT_PATH);
+// Ren-halvdel-eksportene (js/cells.js/js/param-forms.js sine egne
+// module.exports, satt FØR deres respektive DOM-halvdel-IIFE) — akkurat de
+// samme hasMarkers/supportedMode/paramLangForType/parse-funksjonene
+// computeParamFormsWrap kalles med i nettleseren (window.Cells/
+// window.ParamForms, satt av script-tag-lastingen i index.html).
+const CellsPure = require(CELLS_PATH);
+const ParamFormsPure = require(PARAM_FORMS_PATH);
 
 // ---- extractFirstCodeBlock -------------------------------------------------
 
@@ -198,4 +207,57 @@ test('_v2Validators.r.unknownNames: grunnet i microdata-segmentet, ikke i analys
   assert.deepEqual(unknown, ['OPPDIKTET_VARIABEL']);
   delete global.parseHybridScript;
   delete global.microdataVariableNames;
+});
+
+// ---- computeParamFormsWrap --------------------------------------------------
+// task-9-report.md root cause: ParamForms.decorate only runs inside notebook
+// mode (js/cells.js docCellNode), which requires a '#%%' marker AND an
+// explicit Cells.enter() (tick()'s "was this typed" heuristic refuses to
+// auto-enter for a script inserted via a dispatched 'input' event — see
+// insertScriptIntoEditor's comment). computeParamFormsWrap decides whether an
+// about-to-run script needs that '#%%' wrapper: only when it actually
+// contains a #@param/#@title/#@markdown line the given mode supports.
+
+test('computeParamFormsWrap: wraps a python script containing #@param with a #%% header', () => {
+  const script = 'annual_rate = 0.05  #@param {type:"slider", min:0.0, max:0.2, step:0.005}\nprint(annual_rate)\n';
+  const wrapped = aiChat.computeParamFormsWrap(script, 'python', CellsPure, ParamFormsPure);
+  assert.equal(wrapped, '#%% python\n' + script);
+});
+
+test('computeParamFormsWrap: r script with #@param wraps with the r mode token', () => {
+  const script = 'n <- 10  #@param {type:"integer"}\nprint(n)\n';
+  const wrapped = aiChat.computeParamFormsWrap(script, 'r', CellsPure, ParamFormsPure);
+  assert.equal(wrapped, '#%% r\n' + script);
+});
+
+test('computeParamFormsWrap: plain script without #@param/#@title/#@markdown is left untouched (returns null)', () => {
+  const script = 'x = 1\nprint(x)\n';
+  assert.equal(aiChat.computeParamFormsWrap(script, 'python', CellsPure, ParamFormsPure), null);
+});
+
+test('computeParamFormsWrap: duckdb has no #@param support by design (paramLangForType is null) — returns null even with a matching line', () => {
+  const script = 'x = 1  #@param {type:"integer"}\nselect * from t;\n';
+  assert.equal(aiChat.computeParamFormsWrap(script, 'duckdb', CellsPure, ParamFormsPure), null);
+});
+
+test('computeParamFormsWrap: a script that already has a #%% marker is left untouched (already a notebook doc)', () => {
+  const script = '#%% python\nannual_rate = 0.05  #@param {type:"slider"}\n';
+  assert.equal(aiChat.computeParamFormsWrap(script, 'python', CellsPure, ParamFormsPure), null);
+});
+
+test('computeParamFormsWrap: #@title alone (no #@param line) still counts as something ParamForms would render', () => {
+  const script = '#@title Interest rate\nprint(1)\n';
+  const wrapped = aiChat.computeParamFormsWrap(script, 'python', CellsPure, ParamFormsPure);
+  assert.equal(wrapped, '#%% python\n' + script);
+});
+
+test('computeParamFormsWrap: unsupported mode returns null', () => {
+  const script = 'x = 1  #@param {type:"integer"}\n';
+  assert.equal(aiChat.computeParamFormsWrap(script, 'not-a-real-mode', CellsPure, ParamFormsPure), null);
+});
+
+test('computeParamFormsWrap: missing Cells/ParamForms returns null (defensive — never throws)', () => {
+  const script = 'x = 1  #@param {type:"integer"}\n';
+  assert.equal(aiChat.computeParamFormsWrap(script, 'python', null, ParamFormsPure), null);
+  assert.equal(aiChat.computeParamFormsWrap(script, 'python', CellsPure, null), null);
 });

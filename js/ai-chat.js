@@ -737,12 +737,87 @@
         return { markdown: buffer, sources: sources };
       }
 
+      // Root cause (E2E gap, task-9-report.md): ParamForms.decorate — the
+      // #@param/#@title/#@markdown DOM renderer — is wired ONLY into the
+      // notebook per-cell render path (js/cells.js docCellNode), which only
+      // runs once window.Cells.active() is true (i.e. #scriptInput has a
+      // '#%%' cell marker AND notebook mode has been entered). An
+      // ask/AI-panel-generated script is inserted as PLAIN code — no
+      // marker — so a live #@param slider in its source was NEVER rendered
+      // in ANY view (browser-verified in ?view=editor too, not an
+      // ask-view-only CSS/mounting bug: #modeGuiBar is an unrelated mode
+      // toolbar, not a ParamForms host).
+      //
+      // A second, independent gap compounds this: insertScriptIntoEditor
+      // sets #scriptInput.value and dispatches a genuine 'input' event (to
+      // drive the existing autosave/highlight listeners) — js/cells.js's
+      // tick() treats any value change accompanied by a same-window 'input'
+      // event as "the user is actively typing" and deliberately refuses to
+      // auto-enter notebook mode for it (only a dormant hint chip appears,
+      // see tick()'s "Per-tikk-attribusjon" comment). So even a
+      // marker-bearing ask script would sit inert until a human clicked
+      // that chip. window.Cells.enter(...) must be called explicitly to
+      // bypass that heuristic for a programmatic run.
+      //
+      // Fix (general — not ask-view-specific, shared by both callers of
+      // this function): when the script about to be inserted actually
+      // contains a #@param/#@title/#@markdown line, prefix it with a
+      // '#%% <mode>' marker and force notebook entry. Scripts without any
+      // such line (the common case) are left byte-for-byte unwrapped and
+      // window.Cells is left/kept inactive — editor-view's plain-script
+      // path is therefore untouched for everything except the exact gap
+      // this closes. Once active, docCellNode/ParamForms build the
+      // '.param-form' strip INSIDE '.nb-output', itself inside
+      // #outputArea — so ask-view.js's mountLiveOutput() (which moves
+      // #outputArea as one unit into the answer card) carries the live
+      // slider along for free, and a slider drag's run:auto re-run
+      // (ParamForms -> Cells.runCell -> window.mdRunNotebookCell) is a
+      // purely local Pyodide re-execution — no network/LLM call, no
+      // billing.
+      //
+      // Pure core (exported below for node tests): takes Cells/ParamForms
+      // as explicit arguments rather than reading window.* itself, so it
+      // is testable without a DOM stub.
+      function computeParamFormsWrap(script, mode, Cells, ParamForms) {
+        if (!Cells || !ParamForms) return null;
+        if (typeof Cells.hasMarkers === 'function' && Cells.hasMarkers(script)) return null; // already a notebook doc
+        if (typeof Cells.supportedMode === 'function' && !Cells.supportedMode(mode)) return null;
+        var lang = typeof Cells.paramLangForType === 'function' ? Cells.paramLangForType(mode) : null;
+        if (!lang) return null; // e.g. duckdb — #@param is out of scope by design (js/cells.js PARAM_LANG_FOR_TYPE)
+        var entries = typeof ParamForms.parse === 'function' ? ParamForms.parse(script, lang) : [];
+        if (!entries || !entries.length) return null; // no #@param/#@title/#@markdown — nothing to render
+        return '#%% ' + mode + '\n' + script;
+      }
+
+      // Mirrors js/cells.js's internal appLayout() (not itself exported) so
+      // a forced Cells.enter() picks the SAME layout the tick()/chip-click
+      // auto-entry path would have chosen.
+      function askNotebookLayout() {
+        if (window.mdIsInputHidden && window.mdIsInputHidden()) return 'output';
+        if (window.mdIsStackedLayout && window.mdIsStackedLayout()) return 'stacked';
+        return 'columns';
+      }
+
       // Replace the editor content with the generated script (mirrors the
       // existing "Sett inn" response-action button in attachResponseInsertBar).
       function insertScriptIntoEditor(script) {
         if (!dom.scriptInput) return;
-        dom.scriptInput.value = script;
+        var mode = (typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python';
+        var wrapped = computeParamFormsWrap(script, mode, window.Cells, window.ParamForms);
+        // Always leave notebook mode before inserting: a PRIOR ask/panel run
+        // may have entered it (this run's script had #@param), and this
+        // run's script may not need it — without this, a plain follow-up
+        // question would inherit stale notebook state (spec requirement:
+        // new-question/unmount must clean up). window.Cells.enter() below
+        // re-enters fresh when this run needs it.
+        if (window.Cells && typeof window.Cells.active === 'function' && window.Cells.active()) {
+          window.Cells.exit();
+        }
+        dom.scriptInput.value = wrapped || script;
         dom.scriptInput.dispatchEvent(new Event('input', { bubbles: true }));
+        if (wrapped && window.Cells && typeof window.Cells.enter === 'function') {
+          window.Cells.enter(askNotebookLayout());
+        }
       }
 
       // Run the script currently in the editor via the SAME path the Kjør
@@ -1431,6 +1506,7 @@
           validatePythonSyntax: validatePythonSyntax,
           validateRSyntax: validateRSyntax,
           _v2Validators: _v2Validators,
+          computeParamFormsWrap: computeParamFormsWrap,
         };
       }
     })();

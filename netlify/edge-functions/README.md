@@ -23,6 +23,10 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   kjører scriptet og re-POSTer med `run_result` + `resume:{state, probed}`)
   eller har et ferdig svar; ved CPU-tak avslutter den i stedet med
   `{type:"continue", state, probed}`, og klienten re-POSTer samme body.
+  Alle continuation-POSTer (både run_code- og CPU-tak-hopp) SKAL sette
+  headeren `X-Svar-Resume: 1` — den er unntatt rate-limiten (samme spørsmål
+  telles kun én gang, ikke per hop); uten den spiser hvert hopp av samme
+  per-IP-kvote som et nytt spørsmål.
   Erstatter de gamle `data-svar`- og `tolk-ask`-endepunktene (ett kall,
   ingen eget tolke-steg). Prompt-kilde: `prompts/svar.md`; register:
   `data/data-sources.json`; evalsett: `docs/eval/ask-evalsett.md`.

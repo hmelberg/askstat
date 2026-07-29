@@ -12,11 +12,24 @@ html.ask-view #sidebarOpenTab,
 html.ask-view #welcomeBackdrop { display: none !important; }
 /* (Topbar and welcome modal explain the editor — hidden in ask.) */
 
-/* The output panel (plots/tables from the run) appears after a run. */
-html.ask-view:not(.ask-has-run) .panel-right { display: none; }
-html.ask-view .container.layout-columns { flex: 0 1 auto; min-height: 0; }
+/* Editor-/output-panelene vises ALDRI i ask (Hans 2026-07-29) — men de ligger
+   usynlig off-screen med ekte bredde, slik at plotly rendrer med riktig layout
+   (display:none gir null-bredde). Figurer/tabeller KLONES inn i svarkortet;
+   kodevisningen (?view=editor) beholder originalene urørt. */
+html.ask-view .container.layout-columns {
+  position: fixed; left: -12000px; top: 0; width: 900px; height: 640px;
+  overflow: hidden; }
+
+/* Klonede figurer/tabeller i svarkortets «More information»-seksjon */
+.ask-figure { max-width: 100%; border-radius: 6px; margin: 6px 0; display: block; }
+.ask-table-wrap { max-height: 300px; overflow: auto; margin: 8px 0;
+  border: 1px solid var(--border); border-radius: 6px; }
 
 html.ask-view #askView[hidden] { display: flex; }   /* boot-JS removes hidden; belt-and-suspenders */
+/* [hidden] må VINNE over .ask-view-wrap{display:flex} i editor-visningen —
+   ellers spiser det usynlige ask-elementet hele bredden (målt 2026-07-29:
+   .panel-right fikk 0px etter bytte til ?view=editor). */
+html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-view-wrap { display: flex; align-items: stretch; width: 100%; min-height: 72vh; }
 
 /* Left sidebar */

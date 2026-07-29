@@ -222,6 +222,53 @@
       var src = processBox.querySelector('.ai-sources');
       if (src) answerBox.appendChild(src);
     }
+    // Kloner figurer/tabeller fra kjøringens output inn i svarkortet under
+    // «More information» (Hans 2026-07-29): matplotlib-img klones,
+    // plotly SNAPSHOTTES til PNG (originalen forblir interaktiv i
+    // kodevisningen), tabeller klones scrollbare (maks 3). Legges FØR
+    // kildelisten når den finnes.
+    async function appendRunVisuals(targetBox) {
+      var out = document.getElementById('outputArea');
+      if (!out) return;
+      var frag = document.createDocumentFragment();
+      var added = 0;
+      out.querySelectorAll('img').forEach(function (im) {
+        if (!im.src) return;
+        var c = im.cloneNode(false);
+        c.className = 'ask-figure';
+        frag.appendChild(c); added++;
+      });
+      var plotlys = out.querySelectorAll('.js-plotly-plot');
+      for (var i = 0; i < plotlys.length; i++) {
+        try {
+          var url = await window.Plotly.toImage(plotlys[i], { format: 'png', scale: 2 });
+          var pim = document.createElement('img');
+          pim.src = url;
+          pim.className = 'ask-figure';
+          frag.appendChild(pim); added++;
+        } catch (e) { /* plotly utilgjengelig/feilet — hopp over figuren */ }
+      }
+      var tables = out.querySelectorAll('table');
+      for (var ti = 0; ti < tables.length && ti < 3; ti++) {
+        var wrap = document.createElement('div');
+        wrap.className = 'ask-table-wrap';
+        wrap.appendChild(tables[ti].cloneNode(true));
+        frag.appendChild(wrap); added++;
+      }
+      if (!added) return;
+      var anchor = targetBox.querySelector('.ai-sources');
+      // tolk-ask kan selv ha skrevet en «More information»-seksjon — da legges
+      // figurene under den; ellers får de sin egen overskrift.
+      var hasHeading = Array.prototype.some.call(targetBox.querySelectorAll('h2'), function (h) {
+        return /more information|mer informasjon/i.test(h.textContent);
+      });
+      if (!hasHeading) {
+        var h = document.createElement('h2');
+        h.textContent = 'More information';
+        targetBox.insertBefore(h, anchor);
+      }
+      targetBox.insertBefore(frag, anchor);
+    }
     // S2-porten er PÅ KUN ved eksplisitt opt-in (localStorage.md_ask_confirm='1')
     // — ask auto-kjører som standard (Hans 2026-07-29). Injeksjonsrisikoen fra
     // webs søk-genererte script bæres da av brukerens eget nøkkellager.
@@ -309,9 +356,6 @@
           '\n\n' + instr;
         var prefix = buildAskProvenance({ question: question, tolkning: route.tolkning, rute: route.rute },
           currentAskMode());
-        // Output-panelet må være SYNLIG før kjøringen starter — plotly i et
-        // display:none-element får null-bredde (spec-ens verifiseringspunkt).
-        document.documentElement.classList.add('ask-has-run');
 
         // Kjør → tolk. Flagger tolk-ask outputen som ubrukelig
         // (UNUSABLE_OUTPUT), gis ÉN semantisk reparasjonsrunde (F1) før det
@@ -373,6 +417,7 @@
             showAnswer(parsed.clean, '⚠ The computed output did not answer the question', true);
           } else {
             showAnswer(parsed.clean, null, false);
+            await appendRunVisuals(answerBox);
           }
           return;
         }

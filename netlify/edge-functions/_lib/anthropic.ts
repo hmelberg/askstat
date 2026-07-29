@@ -313,7 +313,7 @@ function transformAnthropicStream(
   });
 }
 
-// ── Agentic tool loop (Web mode / data-svar) ─────────────────────────────
+// ── Agentic tool loop (Web mode / svar) ───────────────────────────────────
 // Each turn is streamed; text deltas forward live as {type:"delta", text}.
 // A turn that ends in tool_use had its text as scratch work only — it is
 // followed by {type:"turn_discard"} so the client can drop it. The final

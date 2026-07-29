@@ -48,7 +48,7 @@ kode. Du svarer på brukerens språk (norsk/engelsk). Arbeidsflyt i TRE faser:
 
 // Budsjett-tabellene og runtime-knottene (maxClientToolCalls, max_uses) skal
 // fortelle samme historie — endres én, endres begge (se buildRouteToolDefs
-// og data-svar.ts). Standard reduserer AMBISJON, aldri ÆRLIGHET.
+// og svar.ts). Standard reduserer AMBISJON, aldri ÆRLIGHET.
 const DEPTH_STANDARD = `\
 ## Dybde: STANDARD (hurtig)
 

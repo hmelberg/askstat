@@ -167,7 +167,7 @@ function adminDeps(over: Partial<AdminGateDeps> = {}): AdminGateDeps & { calls: 
 }
 
 Deno.test("runAdminGate: admin user passes, non-admin gets 403, invalid 401", async () => {
-  const opts = { endpoint: "data-svar", maxBodyBytes: 1000 };
+  const opts = { endpoint: "svar", maxBodyBytes: 1000 };
   assertEquals(await runAdminGate(req({ token: "t1" }), opts, adminDeps()), null);
   const r403 = await runAdminGate(req({ token: "t2" }), opts,
     adminDeps({ fetchUser: () => Promise.resolve({ ok: true, isAdmin: false }) }));
@@ -179,7 +179,7 @@ Deno.test("runAdminGate: admin user passes, non-admin gets 403, invalid 401", as
 
 Deno.test("runAdminGate: shared token is admin; result cached", async () => {
   const deps = adminDeps({ sharedToken: "hemmelig" });
-  const opts = { endpoint: "data-svar", maxBodyBytes: 1000 };
+  const opts = { endpoint: "svar", maxBodyBytes: 1000 };
   assertEquals(await runAdminGate(req({ token: "hemmelig" }), opts, deps), null);
   assertEquals(deps.calls.fetchUser, 0);
   assertEquals(await runAdminGate(req({ token: "bruker" }), opts, deps), null);

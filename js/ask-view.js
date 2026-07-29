@@ -9,7 +9,7 @@
 
   // Tolerant uthenting av ruter-JSON: modellen skal svare med rent JSON, men
   // vi godtar tekst/kodeblokker rundt. Alt ugyldig → rute 'data' (= dagens
-  // data-svar-oppførsel, spec §Feilhåndtering).
+  // data-rute-oppførsel i /api/svar, spec §Feilhåndtering).
   function parseAskRoute(text) {
     var fallback = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
     if (!text) return fallback;
@@ -164,7 +164,7 @@
     var running = false;
     var lastAnswerMd = '';
 
-    // Ask krever en data-svar-kompatibel modus (fence-språk + MODE-prompt).
+    // Ask krever en svar-kompatibel modus (fence-språk + MODE-prompt).
     // Bare identifier m/typeof-guard, ikke window.-oppslag (let/const-globaler).
     function currentAskMode() {
       return (typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python';

@@ -96,7 +96,7 @@ export interface GateOptions {
   /**
    * Accept a well-formed X-Llm-Key in place of token/admin auth — only for
    * endpoints that require AND consume a full custom-provider config
-   * (currently data-svar and tolk-resultat). Unlike allowByok, an X-Llm-Key
+   * (currently svar and tolk-resultat). Unlike allowByok, an X-Llm-Key
    * alone proves nothing (it's provider-agnostic and never validated by this
    * gate) — the handler MUST additionally reject any X-Llm-Key-authenticated
    * request that lacks a complete parsed `provider` body, or it would fall
@@ -324,7 +324,7 @@ export interface AdminGateDeps {
 
 const _adminCache = new Map<string, { exp: number; isAdmin: boolean }>();
 
-/** Gate + admin requirement (data-svar, hent). Shared token counts as admin. */
+/** Gate + admin requirement (svar, hent). Shared token counts as admin. */
 export async function runAdminGate(
   request: Request,
   opts: GateOptions,
@@ -367,7 +367,7 @@ export async function runAdminGate(
   return null;
 }
 
-/** Env-wired admin gate used by data-svar and hent. */
+/** Env-wired admin gate used by svar and hent. */
 export function adminGate(request: Request, opts: GateOptions): Promise<Response | null> {
   const anvilUrl = Deno.env.get("M2PY_ANVIL_VALIDATE_URL") ?? ANVIL_DEFAULT_URL;
   return runAdminGate(request, opts, {

@@ -1290,11 +1290,11 @@
         }
 
         // Send is routed by the active mode: microdata-modus → microdata AI
-        // (kode-svar); otherwise the agentic data-svar flow (search data → script
+        // (kode-svar); otherwise the agentic svar flow (search data → script
         // in the active mode's language → run → revise).
         function sendCurrent() {
           // Microdata-modusen (kode-svar/v2-flyten) er fjernet fra openstat
-          // (2026-07-24) — alle moduser går data-svar-veien.
+          // (2026-07-24) — alle moduser går svar-veien.
           sendWebMessage();
         }
         if (dom.aiSendFastBtn) dom.aiSendFastBtn.addEventListener('click', sendCurrent);

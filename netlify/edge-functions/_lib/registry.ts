@@ -1,4 +1,5 @@
-// Curated data-source registry for the Web mode (spec 2026-07-03-web-data-svar).
+// Curated data-source registry for the data route in /api/svar
+// (design: docs/superpowers/specs/2026-07-29-samlet-ask-pipeline-design.md).
 // The JSON file is served statically (like variable_metadata.json); this module
 // loads, validates and caches it, and renders the compact prompt block.
 

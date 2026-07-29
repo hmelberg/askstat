@@ -86,6 +86,24 @@ Deno.test("runGate: rate-limited -> 429 and Anvil NOT called (no amplification)"
   assertEquals(deps.calls.validate, 0); // rate-limit ran before validation
 });
 
+Deno.test("runGate: skipRateLimit hopper over ratelimit-sjekken", async () => {
+  let called = false;
+  const deps = makeDeps({
+    sharedToken: "tok",
+    checkRateLimit: () => {
+      called = true;
+      return Promise.resolve({ allowed: false, retryAfterSeconds: 9 });
+    },
+  });
+  const resp = await runGate(
+    req({ token: "tok", contentLength: 10 }),
+    { endpoint: "svar", maxBodyBytes: 1000, skipRateLimit: true },
+    deps,
+  );
+  assertEquals(resp, null);
+  assertEquals(called, false);
+});
+
 Deno.test("runGate: valid shared token proceeds without calling Anvil", async () => {
   const deps = makeDeps({ sharedToken: "shared-secret" });
   const resp = await runGate(req({ token: "shared-secret" }), { endpoint: "t", maxBodyBytes: 100 }, deps);

@@ -1,5 +1,6 @@
-// /api/data-svar — Web mode: agentic discovery + generation (admin-only).
-// Spec: docs/superpowers/specs/2026-07-03-web-data-svar-design.md
+// /api/svar — samlet ask-pipeline: ETT agentisk løp med run_code som
+// klientutført verktøy. Erstatter data-svar + tolk-ask.
+// Spec: docs/superpowers/specs/2026-07-29-samlet-ask-pipeline-design.md
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { loadRegistry, renderRegistryBlock } from "./_lib/registry.ts";
@@ -8,50 +9,55 @@ import { tableMetadata } from "./_lib/tools/table-metadata.ts";
 import { probeUrl } from "./_lib/tools/probe.ts";
 import { injectBeforeDone } from "./_lib/sse-util.ts";
 import {
-  buildDataSvarSystem, buildToolDefs, CLIENT_TOOL_DEFS, coerceDataMode, coerceDepth,
-  depthClientToolCalls, progressLabel, questionTurn, repairTurn,
-} from "./_lib/data-svar-prompt.ts";
+  buildRouteToolDefs, buildSvarSystem, CLIENT_TOOL_DEFS, coerceDataMode,
+  coerceDepth, coerceRoute, depthClientToolCalls, depthRunCodeCalls,
+  progressLabel, questionTurn, RUN_CODE_TOOL,
+} from "./_lib/svar-prompt.ts";
 import { searchLiterature } from "./_lib/tools/search-literature.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { runProviderAgenticStream } from "./_lib/providers/agentic.ts";
 import { makeOpenAiCompatTurn } from "./_lib/providers/openai-compat.ts";
 import { makeOpenAiResponsesTurn } from "./_lib/providers/openai-responses.ts";
 
-interface RepairBody { script: string; error: string; round: number; }
 interface ResumeBody { state?: AgenticResumeState; probed?: unknown; }
 interface RequestBody {
   question?: string;
+  route?: string;
   mode?: string;
   depth?: string;
   script?: string;
   available_keys?: unknown;
   provider?: unknown;
-  repair?: RepairBody;
   resume?: ResumeBody;
+  run_result?: string;
 }
 
-// Continuation protocol (see runAgenticStream): each invocation runs one API
-// turn and, if not finished, ends with {type:"continue", state, probed}; the
-// client re-POSTs the same body plus `resume: {state, probed}`. The loop
-// state that made 120k too small: tool results and hosted web_search blocks
-// ride along in `state.messages`, so resume bodies run to a few hundred kB.
+// Resume-bodies bærer hele samtaletilstanden (tool-results, websøk-blokker).
 const MAX_BODY_BYTES = 2_000_000;
 
 function validResumeState(s: AgenticResumeState | undefined): s is AgenticResumeState {
-  return !!s && Array.isArray(s.messages) && s.messages.length >= 1 && s.messages.length <= 400 &&
-    Number.isInteger(s.turn) && s.turn >= 1 && s.turn <= 64 &&
-    Number.isInteger(s.clientCalls) && s.clientCalls >= 0 && s.clientCalls <= 200 &&
-    (s.prevResponseId === undefined ||
-      (typeof s.prevResponseId === "string" && s.prevResponseId.length <= 200)) &&
-    typeof s.usage === "object" && s.usage !== null;
+  if (!s || !Array.isArray(s.messages) || s.messages.length < 1 || s.messages.length > 400) return false;
+  if (!Number.isInteger(s.turn) || s.turn < 1 || s.turn > 64) return false;
+  if (!Number.isInteger(s.clientCalls) || s.clientCalls < 0 || s.clientCalls > 200) return false;
+  if (s.runCalls !== undefined && (!Number.isInteger(s.runCalls) || s.runCalls < 0 || s.runCalls > 50)) return false;
+  if (s.prevResponseId !== undefined &&
+    (typeof s.prevResponseId !== "string" || s.prevResponseId.length > 200)) return false;
+  if (s.pending !== undefined) {
+    const p = s.pending as Record<string, unknown>;
+    if (!p || typeof p.awaitingId !== "string" || p.awaitingId.length > 200 ||
+      !Array.isArray(p.results) || (p.results as unknown[]).length > 20) return false;
+  }
+  return typeof s.usage === "object" && s.usage !== null;
 }
 
 export default async (request: Request): Promise<Response> => {
   const gateResp = await adminGate(request, {
-    endpoint: "data-svar",
+    endpoint: "svar",
     maxBodyBytes: MAX_BODY_BYTES,
     allowByok: true,
     allowLlmKey: true,
+    // Ratelimiten teller SPØRSMÅL: continuation-hops er samme spørsmål.
+    skipRateLimit: request.headers.get("x-svar-resume") === "1",
   });
   if (gateResp) return gateResp;
 
@@ -59,21 +65,21 @@ export default async (request: Request): Promise<Response> => {
   try { body = await request.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
   const question = (body.question ?? "").trim();
   if (!question) return new Response("Missing question", { status: 400 });
-  const repair = body.repair;
-  if (repair && (!repair.script || !repair.error || !(repair.round >= 1 && repair.round <= 3))) {
-    return new Response("Invalid repair payload", { status: 400 });
-  }
+
   let resumeState: AgenticResumeState | undefined;
   if (body.resume) {
     if (!validResumeState(body.resume.state)) {
       return new Response("Invalid resume payload", { status: 400 });
     }
-    const u = body.resume.state.usage as Record<string, unknown>;
+    const s = body.resume.state;
+    const u = s.usage as Record<string, unknown>;
     resumeState = {
-      messages: body.resume.state.messages,
-      turn: body.resume.state.turn,
-      clientCalls: body.resume.state.clientCalls,
-      prevResponseId: body.resume.state.prevResponseId,
+      messages: s.messages,
+      turn: s.turn,
+      clientCalls: s.clientCalls,
+      runCalls: s.runCalls,
+      pending: s.pending,
+      prevResponseId: s.prevResponseId,
       usage: {
         inputTokens: Number(u.inputTokens) || 0,
         outputTokens: Number(u.outputTokens) || 0,
@@ -82,6 +88,9 @@ export default async (request: Request): Promise<Response> => {
       },
     };
   }
+  const runResult = typeof body.run_result === "string"
+    ? body.run_result.slice(0, 30_000)
+    : undefined;
 
   const provider = parseProviderConfig(body.provider, request);
   if (provider && "error" in provider) return provider.error;
@@ -95,35 +104,35 @@ export default async (request: Request): Promise<Response> => {
     ? provider.model
     : (Deno.env.get("DATA_SVAR_MODEL") ?? Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-6");
   if (!apiKey) {
-    console.error("data-svar: mangler API-nøkkel (env ANTHROPIC_API_KEY eller leverandørnøkkel)");
+    console.error("svar: mangler API-nøkkel (env ANTHROPIC_API_KEY eller leverandørnøkkel)");
     return new Response("Server configuration error", { status: 500 });
   }
 
+  const route = coerceRoute(body.route);
+  const mode = coerceDataMode(body.mode);
+  const depth = coerceDepth(body.depth);
+
+  // Registeret trengs bare i data-ruten (beregning/oppslag har verken
+  // katalogverktøy eller registerblokk i prompten) — sparer et nettkall.
   const origin = new URL(request.url).origin;
-  let registry;
-  try { registry = await loadRegistry(origin); } catch (e) {
-    console.error("data-svar: registry load failed:", e);
-    return new Response("Kilderegister utilgjengelig", { status: 502 });
+  let registryBlock = "";
+  let registry: Awaited<ReturnType<typeof loadRegistry>> | null = null;
+  if (route === "data") {
+    try { registry = await loadRegistry(origin); } catch (e) {
+      console.error("svar: registry load failed:", e);
+      return new Response("Kilderegister utilgjengelig", { status: 502 });
+    }
+    const availableKeys = Array.isArray(body.available_keys)
+      ? (body.available_keys as unknown[])
+        .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))
+        .slice(0, 20)
+      : [];
+    registryBlock = renderRegistryBlock(registry, availableKeys);
   }
 
-  const mode = coerceDataMode(body.mode);
-  // Dybde styrer både prompt-blokk (budsjett-tabell) og runtime-knotter;
-  // "deep" er default og identisk med oppførselen før parameteren fantes.
-  const depth = coerceDepth(body.depth);
-  // Kun kilde-ider (aldri verdier): styrer om user-auth-kilder framstår som
-  // brukbare i registerblokken. Endrer prompt-prefikset → egen cache-nøkkel
-  // per nøkkeloppsett; bevisst (få varianter, riktighet > cache-treff).
-  const availableKeys = Array.isArray(body.available_keys)
-    ? (body.available_keys as unknown[])
-      .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))
-      .slice(0, 20)
-    : [];
   const memoryUrls = provider ? provider.webSearch === "none" : false;
-  const system = buildDataSvarSystem(mode, renderRegistryBlock(registry, availableKeys), { memoryUrls, depth });
+  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth });
 
-  // Deterministic source manifest: collected from probe calls, not model text.
-  // On resume, re-seeded from the previous invocations' manifest so the final
-  // sources event covers the whole run.
   const probed: { url: string; ok: boolean; cors: boolean; viaProxy: boolean }[] = [];
   if (body.resume && Array.isArray(body.resume.probed)) {
     for (const p of (body.resume.probed as Record<string, unknown>[]).slice(0, 60)) {
@@ -134,10 +143,10 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
-    if (name === "search_catalog") {
+    if (name === "search_catalog" && registry) {
       return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin }));
     }
-    if (name === "table_metadata") {
+    if (name === "table_metadata" && registry) {
       return JSON.stringify(await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), { registry }));
     }
     if (name === "probe") {
@@ -148,8 +157,6 @@ export default async (request: Request): Promise<Response> => {
     }
     if (name === "search_literature") {
       const fromYear = Number.isInteger(input.from_year) ? Number(input.from_year) : undefined;
-      // mailto er valgfri (OpenAlex' "polite pool"); settes i Netlify-env
-      // og lokal .env som OPENALEX_MAILTO. Uten den virker alt, bare tregere.
       return JSON.stringify(await searchLiterature(String(input.query ?? ""), fromYear, {
         mailto: Deno.env.get("OPENALEX_MAILTO") || undefined,
       }));
@@ -157,32 +164,37 @@ export default async (request: Request): Promise<Response> => {
     throw new Error(`ukjent verktøy: ${name}`);
   };
 
-  const userContent = repair
-    ? repairTurn(question, repair.script, repair.error, repair.round)
-    : questionTurn(question, body.script);
-
   const commonOpts = {
-    system, userContent,
-    executeTool, progressLabel,
+    system,
+    userContent: questionTurn(question, body.script),
+    executeTool,
+    progressLabel,
     maxTokens: 8192,
     maxClientToolCalls: depthClientToolCalls(depth),
+    clientTools: ["run_code"],
+    maxRunCode: depthRunCodeCalls(depth),
+    runResult,
     resume: resumeState,
     continueExtra: () => ({ probed }),
   };
-  // Agentic provider turns (non-idempotent, billed) get a longer timeout
-  // than the default (matches anthropic's AGENTIC_TIMEOUT_MS) and fewer
-  // retries — retrying a slow-but-successful turn would double-bill it.
   const providerDeps = { timeoutMs: 180_000, retries: 1 };
   let inner: ReadableStream<Uint8Array>;
   if (provider && provider.type === "openai-compat") {
-    inner = runProviderAgenticStream({ ...commonOpts, deps: providerDeps, runTurn: makeOpenAiCompatTurn(provider), tools: CLIENT_TOOL_DEFS });
+    inner = runProviderAgenticStream({
+      ...commonOpts, deps: providerDeps, runTurn: makeOpenAiCompatTurn(provider),
+      tools: route === "data" ? [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL] : buildRouteToolDefs(route, depth, { hostedWeb: false }),
+    });
   } else if (provider && provider.type === "openai-responses") {
-    inner = runProviderAgenticStream({ ...commonOpts, deps: providerDeps, runTurn: makeOpenAiResponsesTurn(provider), tools: CLIENT_TOOL_DEFS });
+    inner = runProviderAgenticStream({
+      ...commonOpts, deps: providerDeps, runTurn: makeOpenAiResponsesTurn(provider),
+      tools: route === "data" ? [...CLIENT_TOOL_DEFS, RUN_CODE_TOOL] : buildRouteToolDefs(route, depth, { hostedWeb: false }),
+    });
   } else {
     inner = runAgenticStream({
       ...commonOpts,
       apiKey, model,
-      tools: buildToolDefs(depth),
+      tools: buildRouteToolDefs(route, depth),
+      turnsPerCall: 8,
       cacheTtl: "1h",
       apiBase: provider?.type === "anthropic-compat" ? provider.baseUrl : undefined,
     });

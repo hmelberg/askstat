@@ -104,6 +104,9 @@ export interface GateOptions {
    * bypass. Never set this on an endpoint that doesn't perform that check.
    */
   allowLlmKey?: boolean;
+  // Continuation-hops i /api/svar bærer allerede en påbegynt kjøring —
+  // ratelimiten skal telle SPØRSMÅL, ikke hops (spec 2026-07-29).
+  skipRateLimit?: boolean;
 }
 
 export interface GateDeps {
@@ -170,15 +173,17 @@ async function runBaseChecks(
   }
 
   // 4. rate-limit BEFORE the expensive Anvil validation (no amplification)
-  const rate = await checkRateLimit(opts.endpoint, clientIp(request));
-  if (!rate.allowed) {
-    return {
-      presentedToken,
-      failure: new Response("Rate limited", {
-        status: 429,
-        headers: { "Retry-After": String(rate.retryAfterSeconds) },
-      }),
-    };
+  if (!opts.skipRateLimit) {
+    const rate = await checkRateLimit(opts.endpoint, clientIp(request));
+    if (!rate.allowed) {
+      return {
+        presentedToken,
+        failure: new Response("Rate limited", {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSeconds) },
+        }),
+      };
+    }
   }
 
   return { presentedToken, failure: null };

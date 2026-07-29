@@ -17,6 +17,8 @@ proveniens-blokk (`# ══ ask ══ …`) øverst.
 | 8 | Hvem skrev Prosessen? | oppslag | Kildebasert-merking; kilde listet |
 | 9 | Bør Norge prioritere unge i helsekøen? | språk | «Ikke verifisert»-merking, ærlig drøfting |
 | 10 | Skriv et dikt om statistikk | språk | «Ikke verifisert»-merking |
+| 11 | Finn forskningsdata om helse og inntekt på individnivå | data | research-/all-scope-søk; DataCite-treff m/ærlig access-merking; INGEN fabrikkerte fil-URL-er; gjerne ærlig «krever søknad/landingsside» |
+| 12 | Hvilke EU-land bruker størst andel av BNP på helse? Bruk Eurostat eller Verdensbanken. | data | besvares via katalogsøk UTEN web_search; < 90 s; kilde+år oppgitt |
 
 Feilhåndtering (kjøres i tillegg):
 - Avbryt midt i en kjøring → «Avbrutt», ingen svar-kort.

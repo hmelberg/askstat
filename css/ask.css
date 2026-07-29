@@ -30,7 +30,10 @@ html.ask-view #askView[hidden] { display: flex; }   /* boot-JS removes hidden; b
    ellers spiser det usynlige ask-elementet hele bredden (målt 2026-07-29:
    .panel-right fikk 0px etter bytte til ?view=editor). */
 html:not(.ask-view) #askView[hidden] { display: none !important; }
-.ask-view-wrap { display: flex; align-items: stretch; width: 100%; min-height: 72vh; }
+/* .app-body er overflow:hidden (fastvindu-app) — ask-kolonnen må derfor være
+   sitt EGET scrolleområde, samme mønster som editor-panelene (målt
+   2026-07-29: lange svar ble kuttet uten scroll). */
+.ask-view-wrap { display: flex; align-items: stretch; width: 100%; flex: 1; min-height: 0; }
 
 /* Left sidebar */
 .ask-sidebar { width: 210px; flex: 0 0 210px; border-right: 1px solid var(--border);
@@ -55,7 +58,7 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 @media (max-width: 720px) { .ask-sidebar { display: none; } }
 
 /* Main column */
-.ask-main { flex: 1; padding: 16px 32px 8px; min-width: 0; }
+.ask-main { flex: 1; padding: 16px 32px 24px; min-width: 0; min-height: 0; overflow-y: auto; }
 .ask-main > * { max-width: 760px; }
 .ask-switchbar { display: flex; justify-content: flex-end; margin-bottom: 6px; max-width: 760px; }
 .ask-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }

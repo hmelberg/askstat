@@ -85,3 +85,57 @@ Feilhåndtering (kjøres i tillegg):
   og ga 0px output-panel i editor-visningen etter bytte.
 - Patchen til openstat regenerert med alle TRE motorfiksene; `git apply
   --check` grønn mot openstats nåværende tre.
+
+### 2026-07-29 (natt) — SAMLET PIPELINE (spec 2026-07-29): før/etter-måling
+
+Ny arkitektur: ruter + ETT agentisk løp (`/api/svar`) med `run_code` som
+klientutført verktøy; tolk-ask og alle fra-null-reparasjonsrunder slettet;
+sluttsvar strømmes; standard-dybde (≤4 verktøykall, ≤2 websøk, ≤2 run_code).
+Kjørt med playwright (BYOK fra .env via in-browser fetch — nøkkelen passerer
+aldri et verktøykall), MutationObserver på send-knappens disabled-attributt
+for eksakt tidtaking.
+
+| # | Rute | Før (gml. pipeline) | Etter | run_code | Resultat |
+|---|---|---|---|---|---|
+| 1 | beregning ✓ | 18 s | **15 s** | 1 | PASS — primtall bekreftet, levende output |
+| 2 | beregning ✓ | 32 s | **10 s** | 1 | PASS — 298 dager (+konvensjonsforbehold) |
+| 3 | beregning ✓ | 20 s | **9,3 s** | 1 | PASS — 2 r-er, posisjon 4 og 5 |
+| 4 | data ✓ | ~4,5 min (3 rep.) | **61,6 s** | 1 | PASS — ~8 % av BNP (2022) MED kildesprik-tabell (WHO 8,1 % / OECD 7,95 %) — PARTIAL-regelen virker |
+| 5 | data ✓ | ~3,5 min (ærlig-feil) | **77,3 s** | 2 | PASS — alle 5 nordiske land m/sammenlignbare Eurostat-tall (Sverige høyest ~8,5 %); modellen SÅ det ufiltrerte uttrekket selv og rettet i samme kontekst — gamle Q5-dødsfallet er borte |
+| 6 | data ✓ | ~3 min (1 rep.) | 52 s standard: ÆRLIG DELVIS / **69,5 s deep: PASS** | 2 / 3 | Standard: budsjett (2) tomt etter to SSB-feil → ærlig delsvar UTEN fabrikasjon. Deep (4): SSB 11342-tall + matplotlib-plott i kortet. Se F5 |
+| 7 | oppslag ✓ | 6–10 s | **12,1 s** | 0 | PASS — Accra m/Britannica-URL i svaret |
+| 8 | oppslag ✓ | 6 s | **14,9 s** | 0 | PASS — Kafka m/Wikipedia-URL |
+| 9 | språk ✓ | 6 s | **5,6 s** | 0 | PASS — «Not verified»-merking, ærlig drøfting |
+| 10 | språk ✓ | 6 s | **5,1 s** | 0 | PASS — dikt m/merking |
+
+**Suksesskriterier (spec):** data < 90 s ✅ (61,6/77,3/69,5 s — fra 3–4,5 min);
+beregning ≤ 35 s ✅; oppslag ≤ 15 s ✅ (så vidt — reelt websøk koster ~6 s mer
+enn gamle hukommelsessvar, F2-kravet beholdt); språk ≤ 15 s ✅.
+
+**Widget-røyk (ny):** «Simulate how 100 000 kr grows over 30 years — let me
+adjust the interest rate.» → beregning, 34,5 s (66,2 s etter reload m/pyodide-
+boot). Modellen skrev `#@param {type:"slider", …}` korrekt fra prompten, men
+skjemaet rendret IKKE (se F4). Etter fix `318c24b`: slider synlig i svarkortet,
+drag 5 %→15 % re-kjører og oppdaterer figuren I kortet; «Code & output» flytter
+output hjem; nytt spørsmål rydder kort + liveOut. Alle mount/unmount-sjekker ✅.
+
+**Funn:**
+- **F4 (LØST i 318c24b): #@param rendret aldri utenfor notatbokmodus.**
+  `ParamForms.decorate` kjøres kun fra cells.js' notatbok-sti (krever `#%%`-
+  markør OG `Cells.active()`), og `insertScriptIntoEditor`s programmatiske
+  input-event fikk tick()-heuristikken til å nekte auto-inntreden. Ikke en
+  ask-CSS-bug — reproduserte identisk i editor-visningen.
+- **F5 (åpent): standard-budsjettet på 2 run_code er ett for lite for SSB-
+  malfeil-klassen.** Q6 feilet to SSB-hentinger på rad under standard og
+  degraderte ærlig; deep (4 kjøringer) løste samme spørsmål på 3. forsøk,
+  69,5 s. Kandidat-tiltak: 3 kjøringer i standard, ELLER la «ærlig delsvar»
+  foreslå Deep-knappen eksplisitt i svarteksten. IKKE fikset — designvalg.
+- **F6 (åpent, minor): feilet kjøring uten kilder viser INGEN advarsel-badge**
+  (badge-logikken krever sources). Q6-standard-svaret så ut som et vanlig svar
+  tross «kjørebudsjettet er brukt opp» i teksten.
+- Delta-strømming verifisert live (svarteksten bygges ord for ord i kortet);
+  turn_discard arkiverer mellomtekst i Details; kildesprik-tabellen (Q4) er
+  første målte gevinst av den nye PARTIAL-blokken.
+- Ratelimit: hele evalkjøringen (11 spørsmål + retry) traff ALDRI 429 —
+  per-spørsmål-telling m/X-Svar-Resume virker (gamle pipeline brant 10/time
+  på hops).

@@ -14,13 +14,15 @@ def _unquote(field):
 
 
 def parse_toc_line(line):
+    # Kuratert: kun "dataset" type (drop "table" derivatives) for å holde 1 MB-taket
+    # uten å kutte titler, som søk (Task 2) er avhengig av.
     parts = line.rstrip("\n").split("\t")
     if len(parts) < 7:
         return None
     title, code, typ = _unquote(parts[0]), _unquote(parts[1]), _unquote(parts[2])
-    if typ not in ("dataset", "table") or code in ("code", ""):
+    if typ != "dataset" or code in ("code", ""):
         return None
-    return {"code": code, "title": title[:80],
+    return {"code": code, "title": title[:140],
             "start": _unquote(parts[5]), "end": _unquote(parts[6])}
 
 

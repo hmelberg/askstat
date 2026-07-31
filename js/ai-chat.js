@@ -1021,9 +1021,13 @@
             },
           },
         });
-        streamRenderMd(bubble, res.markdown);
+        // Panelet har ingen ref-resolver (ask-visningens #askAnswer-slots
+        // finnes ikke her) — strip {{fig:1}}-plassholdere til klammetekst
+        // før visning, samme fallback som ask-visningens feilede kjøringer.
+        const finalMd = window.mdAskStripRefs ? window.mdAskStripRefs(res.markdown) : res.markdown;
+        streamRenderMd(bubble, finalMd);
         attachCodeBlockActions(bubble);
-        bubble._rawMd = res.markdown;
+        bubble._rawMd = finalMd;
         if (res.sources && res.sources.length) {
           const list = document.createElement('div');
           list.className = 'ai-sources';

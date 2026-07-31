@@ -163,6 +163,9 @@
   if (typeof window !== 'undefined') {
     window.mdClassifyAskOutput = classifyAskOutput;
     window.mdAskManifest = formatOutputsManifest;
+    // AI-panelet (js/ai-chat.js) deler /api/svar men har ingen resolver —
+    // stripRefs er dets eneste vei bort fra rå {{fig:1}}-tekst.
+    window.mdAskStripRefs = stripRefs;
   }
 
   /* Levende output i svarkortet (spec §Output + 2026-07-31-referanser):
@@ -273,6 +276,15 @@
     el.parentNode.insertBefore(anchor, el);
     slot.appendChild(el);
     resizePlotlyIn(slot);
+    // Re-resolvet markdown-embed (§5) må få matten sin tilbake — KaTeX
+    // rendret den opprinnelige noden, ikke denne ferske erstatningen.
+    // typeof-vaktet: kun kjør om KaTeX alt er lastet (respekter lazy-last).
+    if (typeof renderMathInElement === 'function' && slot.querySelectorAll) {
+      Array.prototype.slice.call(slot.querySelectorAll('.output-markdown'))
+        .forEach(function (el2) {
+          try { renderMathInElement(el2, KATEX_OPTS); } catch (_) {}
+        });
+    }
   }
 
   function askAnswerSlots() {
@@ -310,6 +322,33 @@
     return resolved;
   }
 
+  // sweepUnresolvedRefs: siste sikkerhetsnett mot rå plassholdertekst.
+  // markdown-it kjører med breaks:true — en plassholder UTEN blanke linjer
+  // rundt havner inni et større <p>, og resolveAnswerRefs sitt
+  // hele-avsnitt-treff (ASK_REF_LINE_RE mot p.textContent) fyrer aldri.
+  // Går derfor gjennom tekstnodene under #askAnswer og bytter inline —
+  // slotter (allerede resolvet, kan inneholde brukerdata) holdes utenfor.
+  var ASK_REF_INLINE_RE = /\{\{(fig|table|map|widget|html|controls):([1-9]\d*)\}\}/g;
+  function sweepUnresolvedRefs() {
+    var box = document.getElementById('askAnswer');
+    if (!box || typeof document.createTreeWalker !== 'function') return;
+    var walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        var parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (parent.closest('.ask-out-slot')) return NodeFilter.FILTER_REJECT;
+        if (parent.closest('script, style')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    var node;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue.indexOf('{{') >= 0) {
+        node.nodeValue = node.nodeValue.replace(ASK_REF_INLINE_RE, '[$1 $2]');
+      }
+    }
+  }
+
   // Hjemreise (spec §4): slot-noder tilbake til ankrene sine FØR svaret
   // tømmes eller #outputArea flyttes hjem — slik forblir purgePlots +
   // renderOutput sin innerHTML='' den ENESTE oppryddingsveien, ingen
@@ -336,6 +375,22 @@
      _loadImportScript i index.html). CDN-feil → rå LaTeX blir stående,
      aldri kast. */
   var KATEX_BASE = 'https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/';
+  // ignoredClasses: auto-render sin egen tekstnode-vandring skal ALDRI gå inn
+  // i adopterte levende output-noder (Plotly/vegalite/leaflet/tabulator m.fl.
+  // muterer sine egne subtrær kontinuerlig — KaTeX som går der er både
+  // bortkastet og et krasj-risiko-punkt). Samme klasseliste som
+  // ASK_OUT_SELECTORS over, minus punktum-prefikset.
+  var KATEX_OPTS = {
+    delimiters: [
+      { left: '$$', right: '$$', display: true },
+      { left: '\\[', right: '\\]', display: true },
+      { left: '\\(', right: '\\)', display: false },
+      { left: '$', right: '$', display: false },
+    ],
+    throwOnError: false,
+    ignoredClasses: ['plotly-container', 'vegalite-container', 'leafletmap-container',
+      'tabulator-embed', 'ipw-view', 'output-html-embed', 'param-form', 'ui-controls'],
+  };
   var _katexP = null;
   function _addTag(make) {
     return new Promise(function (resolve, reject) {
@@ -368,22 +423,13 @@
     if (!MATH_HINT_RE.test(String(markdown || ''))) return;
     ensureKatex().then(function () {
       if (typeof renderMathInElement !== 'function') return;
-      var opts = {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '$', right: '$', display: false },
-        ],
-        throwOnError: false,
-      };
       var box = document.getElementById('askAnswer');
-      if (box) { try { renderMathInElement(box, opts); } catch (_) {} }
+      if (box) { try { renderMathInElement(box, KATEX_OPTS); } catch (_) {} }
       // Best effort (spec §6): matte i kjøringens egne markdown-embeds.
       Array.prototype.slice.call(
         document.querySelectorAll('#outputArea .output-markdown, .ask-out-slot .output-markdown')
       ).forEach(function (el) {
-        try { renderMathInElement(el, opts); } catch (_) {}
+        try { renderMathInElement(el, KATEX_OPTS); } catch (_) {}
       });
     }).catch(function () { /* CDN nede → rå LaTeX står igjen */ });
   }
@@ -738,6 +784,10 @@
           } else {
             mountLiveOutput();
           }
+          // Sikkerhetsnett (spec §Feilhåndtering): modellen kan sette
+          // plassholderen uten blanke linjer rundt → blir stående rå i et
+          // <p> resolveAnswerRefs aldri så.
+          sweepUnresolvedRefs();
           maybeRenderMath(res.markdown);
         } else if (ranAny) {
           // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig

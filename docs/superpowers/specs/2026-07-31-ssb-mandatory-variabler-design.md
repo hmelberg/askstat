@@ -121,9 +121,15 @@ rundtur, ingen ekstern avhengighet:
   guiden følger med første katalogkall.
 - Kilder uten guide-fil: helt uendret oppførsel.
 
-**Oppfølging (egen runde, ikke nå):** migrér eksisterende
-per-kilde-quirks (sdmx/worldbank/dbnomics/eurostat) fra DELIVERY til
-guider én kilde om gangen — prompten krymper for hvert steg.
+**Oppfølging (egne runder, ikke nå):**
+- Migrér eksisterende per-kilde-quirks (sdmx/worldbank/dbnomics/eurostat)
+  fra DELIVERY til guider én kilde om gangen — prompten krymper per steg.
+- **Landlaget** (vurdert 2026-07-31): `land`-felt + oppdeling av
+  data-sources.json i `data/sources/{int,eu,no,dk,…}.json`; flagg-velger i
+  UI som VEKTER (aldri filtrerer — spørsmålets geografi vinner over
+  UI-landet); svarspråk følger fortsatt spørsmålet; bruker-styrbar
+  search_datasets-scope; `md_country` i localStorage. Forutsetter at
+  guide-laget er bevist i denne runden.
 
 ## Testing
 

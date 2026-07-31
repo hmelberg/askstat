@@ -188,6 +188,18 @@ Deno.test("ecb metadata: kodeliste koblet via Ref.id (ingen URN-parsing), tidsdi
   assertEquals(calls[0], "https://data-api.ecb.europa.eu/service/dataflow/ECB/EXR/latest?references=all");
 });
 
+Deno.test("ecb metadata: find via pickValues — kort liste (<=MAX_VALUES) tømmes ikke (sluttreview, bundlet med pxweb-regelen)", async () => {
+  const meta = await tableMetadata("ecb", "ECB/EXR", {
+    registry: REG,
+    fetchImpl: fakeEcbXmlMetaFetch(ECB_EXR_DSD_XML),
+    find: "usd",
+  });
+  const currency = meta.variables.find((v) => v.code === "CURRENCY")!;
+  // CURRENCY har bare 2 koder — find skal IKKE filtrere en så kort liste,
+  // samme regel som pxwebMetadata nå bruker.
+  assertEquals(currency.values, [{ code: "NOK", label: "Norwegian krone" }, { code: "USD", label: "US dollar" }]);
+});
+
 // --- worldbank/dbnomics adapters (Task 5, delegerer til catalogs/*.ts) ---
 
 Deno.test("tableMetadata: kind worldbank delegerer til worldbankMetadata", async () => {
@@ -238,18 +250,31 @@ Deno.test("pickValues: uten find — første 40 + truncated-flagg", () => {
 });
 
 // Fake pxweb-metadata: ContentsCode/Tid elimination=false, Region=true.
+// Region har >40 koder (som ekte kommune-lister) slik at find fortsatt
+// filtrerer DER — mens ContentsCode (kort, obligatorisk liste, som SSBs
+// egen 4-koders variant) skal beholde ALLE koder selv når find er satt
+// (sluttreview 2026-07-31: find skal aldri tømme en mandatory-dimensjon).
+const REGION_ENTRIES = Array.from({ length: 45 }, (_, i) => ({ code: `K${i}`, label: `Sted ${i}` }));
+REGION_ENTRIES.push({ code: "0301", label: "Oslo" });
+const REGION_INDEX: Record<string, number> = {};
+const REGION_LABEL: Record<string, string> = {};
+REGION_ENTRIES.forEach((c, i) => { REGION_INDEX[c.code] = i; REGION_LABEL[c.code] = c.label; });
+
 const PXMETA = {
   label: "11342: Areal og befolkning",
   role: { time: ["Tid"] },
   dimension: {
     Region: {
       label: "region",
-      category: { index: { "0301": 0, "1103": 1 }, label: { "0301": "Oslo", "1103": "Stavanger" } },
+      category: { index: REGION_INDEX, label: REGION_LABEL },
       extension: { elimination: true },
     },
     ContentsCode: {
       label: "statistikkvariabel",
-      category: { index: { Folkemengde: 0 }, label: { Folkemengde: "Personer" } },
+      category: {
+        index: { Folkemengde: 0, Fodte: 1, Dode: 2, Innflytting: 3 },
+        label: { Folkemengde: "Personer", Fodte: "Fødte", Dode: "Døde", Innflytting: "Innflytting" },
+      },
       extension: { elimination: false },
     },
     Tid: {
@@ -266,7 +291,7 @@ const SSB_SRC: DataSource[] = [{
 const fakeMandatoryFetch = ((_url: string) =>
   Promise.resolve(new Response(JSON.stringify(PXMETA), { status: 200 }))) as typeof fetch;
 
-Deno.test("pxwebMetadata: mandatory fra elimination; find når fram", async () => {
+Deno.test("pxwebMetadata: mandatory fra elimination; find når fram (lang liste filtreres)", async () => {
   const m = await tableMetadata("ssb", "11342", { registry: SSB_SRC, fetchImpl: fakeMandatoryFetch, find: "oslo" });
   const region = m.variables.find((v) => v.code === "Region")!;
   const contents = m.variables.find((v) => v.code === "ContentsCode")!;
@@ -274,4 +299,14 @@ Deno.test("pxwebMetadata: mandatory fra elimination; find når fram", async () =
   assertEquals(contents.mandatory, true);
   assertEquals(region.values, [{ code: "0301", label: "Oslo" }]);
   assert(m.variables.find((v) => v.code === "Tid")!.mandatory);
+});
+
+Deno.test("pxwebMetadata: find tømmer IKKE en kort mandatory-dimensjon (ContentsCode)", async () => {
+  const m = await tableMetadata("ssb", "11342", { registry: SSB_SRC, fetchImpl: fakeMandatoryFetch, find: "oslo" });
+  const contents = m.variables.find((v) => v.code === "ContentsCode")!;
+  // Ingen av ContentsCode-kodene matcher "oslo" — hadde find filtrert denne
+  // korte, obligatoriske listen ville values vært tom (og modellen ville
+  // trodd tabellen ikke hadde noe å måle). Den skal stå urørt.
+  assertEquals(contents.values.length, 4);
+  assertEquals(contents.valuesTruncated, false);
 });

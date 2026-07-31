@@ -493,16 +493,19 @@
   // imf) normaliseres til protokoll-kind (sdmx) via ApiKinds når modulen er
   // lastet — brukeren kjenner kilden, ikke formatet.
   function normalizeKind(kind, src) {
-    // Registermigreringen 2026-07-25 (v2-beta→v2) fjernet «kind» fra
-    // ssb/scb-oppføringene — kun tilgang: "pxweb" ble stående. Uten kind
-    // falt resolve() rett forbi pxweb-grenen (kanonisk years=/indicators=/
-    // regions=-oversettelse OG tables/-sti-fiksen kjørte ALDRI): kanoniske
-    // read()-argumenter ble stille droppet, og URL-en ble base+id — 404.
-    // data-sources.json har nå kind: "pxweb" eksplisitt på begge (samme som
-    // alle andre kilder), men behold denne avledningen som sikkerhetsnett
-    // for neste migrering — KUN for tilgang==="pxweb", ikke andre
-    // tilgang-verdier (de skal fortsatt gi undefined og feile synlig et
-    // annet sted, ikke late som de er pxweb).
+    // ssb/scb har ALDRI hatt et «kind»-felt i data-sources.json (git-historikk
+    // sjekket 2026-07-31) — bare tilgang: "pxweb". Kanonisk `<alias>.read(...)`
+    // via registeret (resolve() uten eksplisitt kind()) har derfor ikke
+    // fungert i dette repoet før nå: uten kind falt resolve() rett forbi
+    // pxweb-grenen (years=/indicators=/regions=-oversettelse OG
+    // tables/-sti-fiksen kjørte ALDRI), og URL-en ble base+id — 404. Det som
+    // faktisk fungerte var den eldre connect-direkte-til-…/tables-URL-formen
+    // (kind="pxweb" oppgitt eksplisitt i connect()), brukt i eldre
+    // tester/eksempler. data-sources.json har nå kind: "pxweb" eksplisitt på
+    // begge (samme som alle andre kilder), men behold denne avledningen som
+    // sikkerhetsnett mot at feltet mangler igjen — KUN for
+    // tilgang==="pxweb", ikke andre tilgang-verdier (de skal fortsatt gi
+    // undefined og feile synlig et annet sted, ikke late som de er pxweb).
     var k = kind || (src && src.kind) || (src && src.tilgang === 'pxweb' ? 'pxweb' : undefined);
     var AKD = global.ApiKinds;
     return (k && AKD && AKD.kindAlias(k)) ? AKD.kindAlias(k) : k;

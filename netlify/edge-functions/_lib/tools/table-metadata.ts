@@ -33,15 +33,22 @@ export interface TableMeta {
 
 const MAX_VALUES = 40;
 
-// find-filter (delstreng i kode ELLER etikett, case-insensitivt) FØR
-// MAX_VALUES-kuttet — trunkeringen skjer hos oss, hele listen er i minnet.
-// valuesTruncated reflekterer listen ETTER filtrering.
+// find-filter (delstreng i kode ELLER etikett, case-insensitivt) — men KUN
+// når hele listen er lengre enn MAX_VALUES. Korte lister (typisk
+// obligatoriske dimensjoner som ContentsCode, som gjerne bare har noen få
+// koder) returneres derfor KOMPLETTE selv når find er satt: ett
+// table_metadata(find="Oslo")-kall gir dermed BÅDE regiontreffet OG de
+// fullstendige kodelistene for korte, obligatoriske dimensjoner — uten et
+// eget oppfølgingskall (spec 2026-07-31-ssb-mandatory-variabler task 5,
+// sluttreview: find skal aldri tømme en mandatory-dimensjon appen uansett
+// må ha et valg for). Trunkeringen skjer hos oss, hele listen er i minnet;
+// valuesTruncated reflekterer listen ETTER (evt.) filtrering.
 export function pickValues(
   all: { code: string; label: string }[],
   find?: string,
 ): { values: { code: string; label: string }[]; valuesTruncated: boolean } {
   const needle = (find ?? "").trim().toLowerCase();
-  const filtered = needle
+  const filtered = needle && all.length > MAX_VALUES
     ? all.filter((v) =>
       v.code.toLowerCase().includes(needle) || v.label.toLowerCase().includes(needle))
     : all;
@@ -212,7 +219,7 @@ function asArray<T>(v: T | T[] | undefined): T[] {
 async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetch, find?: string): Promise<TableMeta> {
   const accept = SDMX_STRUCTURE_ACCEPT[src.id];
   if (!accept) {
-    if (SDMX_XML_SOURCES.has(src.id)) return ecbMetadata(src, dataflowKey, f);
+    if (SDMX_XML_SOURCES.has(src.id)) return ecbMetadata(src, dataflowKey, f, find);
     throw new Error(`sdmx-strukturspørringer er ikke støttet for '${src.id}' ennå (kun XML) — bruk web_search + probe`);
   }
   const [agencyID, dataflowId] = dataflowKey.split("/");
@@ -263,7 +270,7 @@ async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetc
   return { source: src.id, id: dataflowKey, title: String(dsd.name ?? dataflowKey), variables };
 }
 
-async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch): Promise<TableMeta> {
+async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch, find?: string): Promise<TableMeta> {
   const [agencyID, dataflowId] = dataflowKey.split("/");
   if (!agencyID || !dataflowId) throw new Error(`sdmx table_id må være '<agencyID>/<dataflowId>', fikk '${dataflowKey}'`);
   const url = `${src.base_url.replace(/data\/$/, "")}dataflow/${agencyID}/${dataflowId}/latest?references=all`;
@@ -292,12 +299,14 @@ async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch
   const variables: TableVariable[] = [
     ...plainDims.map((d) => {
       const codes = codesFor(d);
+      const allValues = codes.map((c) => ({ code: String(c.id ?? ""), label: xmlText(c["com:Name"]) || String(c.id ?? "") }));
+      const { values, valuesTruncated } = pickValues(allValues, find);
       return {
         code: String(d.id ?? ""),
         label: String(d.id ?? ""),
         time: false,
-        values: codes.slice(0, MAX_VALUES).map((c) => ({ code: String(c.id ?? ""), label: xmlText(c["com:Name"]) || String(c.id ?? "") })),
-        valuesTruncated: codes.length > MAX_VALUES,
+        values,
+        valuesTruncated,
       };
     }),
     ...timeDims.map((d) => ({

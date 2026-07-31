@@ -362,7 +362,7 @@
       }).join(', ');
       return mm.dim + ' [' + mm.label + '] — bruk ' + syntaks + '; gyldige koder: ' + koder;
     });
-    return 'SSB-tabell ' + table + ' krever valg for obligatoriske dimensjoner ' +
+    return 'PxWeb-tabell ' + table + ' krever valg for obligatoriske dimensjoner ' +
       '(400 Missing selection). Legg til i read-linjen: ' + deler.join(' | ');
   }
 

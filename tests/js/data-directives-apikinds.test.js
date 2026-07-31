@@ -158,13 +158,16 @@ test('pxweb/eurostat-grenen er uendret', () => {
   assert.equal(item.table, '05839');
 });
 
-// ── pxweb v2 tables/-regresjon (spec-oppdrag 2026-07-31, task 5): registerets
-// ssb-oppføring mistet /tables-segmentet i base_url ved v2-beta→v2-migreringen
-// (2026-07-25) — ssb.read("11342") ble 404 (live-verifisert; med tables/ 200).
-// Fikset i resolve() for kind==='pxweb' ALENE: prepend tables/ til restPath,
-// men kun når base ikke allerede ender på /tables (direkte connect() til en
-// URL som selv inneholder /tables, som i testene over, skal forbli uendret —
-// ellers ville de fått tables/tables/). ──────────────────────────────────────
+// ── pxweb v2 tables/-fiks (spec-oppdrag 2026-07-31, task 5): base_url for
+// ssb/scb i registeret har ALDRI inneholdt /tables-segmentet (git-historikk
+// sjekket 2026-07-31) — kanonisk registerlesevei (`ssb = ost.connect("ssb")`
+// uten eksplisitt kind()) har derfor aldri fungert for ssb.read("11342") i
+// dette repoet: URL-en ble base+id, som er 404 (live-verifisert; med tables/
+// 200). Fikset i resolve() for kind==='pxweb' ALENE: prepend tables/ til
+// restPath, men kun når base ikke allerede ender på /tables (direkte
+// connect() til en URL som selv inneholder /tables, som i testene over —
+// den eldre formen som FAKTISK har fungert — skal forbli uendret, ellers
+// ville de fått tables/tables/). ─────────────────────────────────────────
 
 test('pxweb v2: ssb.read via registeret setter inn tables/-segmentet (regresjon v2-beta→v2)', () => {
   const registry = [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', kind: 'pxweb' }];
@@ -227,15 +230,16 @@ test('all() på ikke-pxweb-kilde → feil', () => {
 });
 
 // ── kind-avledning fra tilgang (spec-oppdrag 2026-07-31, ssb-mandatory task
-// 5): registermigreringen 2026-07-25 fjernet «kind» fra ssb/scb-oppføringene
-// (kun tilgang: "pxweb" ble stående). Uten kind falt resolve() rett forbi
-// pxweb-grenen — kanonisk years=/indicators=/regions=-oversettelse OG
-// tables/-sti-fiksen kjørte ALDRI — og ssb.read("11342") ble base+id, som er
-// 404 (live-verifisert). data-sources.json har nå kind: "pxweb" eksplisitt
-// på begge (samme som alle andre kilder), men normalizeKind() avleder også
-// fra tilgang==="pxweb" som sikkerhetsnett mot neste migrering — KUN pxweb,
-// ikke andre tilgang-verdier (de skal fortsatt gi kind===undefined og feile
-// synlig et annet sted, ikke late som de er pxweb). ──────────────────────
+// 5): ssb/scb-oppføringene i data-sources.json har ALDRI hatt et «kind»-felt
+// (kun tilgang: "pxweb") — git-historikken viser ingen tidligere versjon med
+// kind satt. Uten kind falt resolve() rett forbi pxweb-grenen — kanonisk
+// years=/indicators=/regions=-oversettelse OG tables/-sti-fiksen kjørte
+// ALDRI — og ssb.read("11342") ble base+id, som er 404 (live-verifisert).
+// data-sources.json har nå kind: "pxweb" eksplisitt på begge (samme som alle
+// andre kilder), men normalizeKind() avleder også fra tilgang==="pxweb" som
+// sikkerhetsnett mot at feltet mangler igjen — KUN pxweb, ikke andre
+// tilgang-verdier (de skal fortsatt gi kind===undefined og feile synlig et
+// annet sted, ikke late som de er pxweb). ─────────────────────────────────
 
 test('normalizeKind avleder pxweb fra tilgang når kind mangler i registeret (sikkerhetsnett)', () => {
   const registry = [{ id: 'ssb', tilgang: 'pxweb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/' }];

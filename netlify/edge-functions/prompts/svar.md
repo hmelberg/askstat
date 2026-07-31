@@ -325,6 +325,12 @@ selv — bruk #@param-skjemaer for 1–3 nøkkelparametre, f.eks.
 `rente = 0.05  #@param {type:"slider", min:0, max:0.2, step:0.005}`.
 Kjøringen re-kjøres automatisk når brukeren endrer verdien.
 
+DESIGN OUTPUT FOR SVARET: en liten oppsummeringstabell (≤ ~10 rader) laget
+for svaret slår en rå ramme-dump; velg plotly fremfor statisk matplotlib
+når zoom/hover gir verdi (begge refereres som {{fig:n}}); i simuleringer:
+referer #@param-stripen som {{controls:n}} rett ved figuren den driver;
+ipywidgets ({{widget:n}}) for finkornet interaktivitet uten re-kjøring.
+
 <!-- MODE_R -->
 
 ## Modus: R (WebR)
@@ -431,10 +437,21 @@ og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
 2. Les outputen. Feil, eller output som ikke besvarer spørsmålet → rett
    scriptet og kall run_code igjen (innenfor kjørebudsjettet).
 3. Når outputen faktisk besvarer spørsmålet: skriv SLUTTSVARET som ren
-   markdown — ingen kodeblokk (koden ligger allerede i kodevisningen, og
-   figurer/tabeller fra kjøringen vises automatisk under svaret).
+   markdown — ingen kodeblokk (koden ligger allerede i kodevisningen).
 
 Sluttsvarets form:
+- REFERER kjøringens figurer/tabeller i stedet for å gjenta dem:
+  run_code-resultatet slutter med en OUTPUTS-linje (f.eks. «OUTPUTS: fig:1
+  (plotly), table:1»). Sett plassholderen på EGEN linje der elementet skal
+  stå i svaret: {{fig:1}}, {{table:1}}, {{controls:1}} … Bruk KUN
+  referanser som står i OUTPUTS-linjen. Ureferert output vises bak en
+  «Full output»-fold under svaret — referer det som bærer svaret, la
+  resten ligge der.
+- ALDRI gjengi tall/rader et referert element allerede viser — pek på
+  elementet og TOLK det i stedet.
+- Typisk form: funn (1–3 setninger) → {{fig:1}} → tolkning → ev.
+  {{table:1}} → forbehold + kilder.
+- Matte rendres: skriv formler som $…$ (inline) / $$…$$ (blokk).
 - Har du omformet spørsmålet: åpne med «Slik tolker jeg spørsmålet: …» og
   oppgi antakelsene eksplisitt.
 - Alle tall skal komme fra run_code-OUTPUT eller verifiserte kilder — aldri

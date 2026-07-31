@@ -112,3 +112,8 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-live-output { margin-top: 12px; }
 .ask-live-output[hidden] { display: none; }
 .ask-live-output #outputArea { max-height: 560px; overflow: auto; }
+
+/* Resolver-slots + Full output-fold (spec 2026-07-31-ask-svar-referanser) */
+.ask-out-slot { margin: 0.75rem 0; max-width: 100%; overflow-x: auto; }
+.ask-out-anchor { display: none; }
+.ask-full-output { margin-top: 0.75rem; }

@@ -165,35 +165,116 @@
     window.mdAskManifest = formatOutputsManifest;
   }
 
-  /* Levende output i svarkortet (spec §Output): selve #outputArea-noden
-     FLYTTES inn i kortet etter vellykket kjøring (ikke klones) — interaktiv
-     plotly og widgets/#@param-re-kjøringer virker der den står. Flyttes
-     tilbake ved nytt spørsmål eller bytte til kodevisningen. */
+  /* Levende output i svarkortet (spec §Output + 2026-07-31-referanser):
+     #outputArea-noden FLYTTES (ikke klones) etter vellykket kjøring —
+     til #askLiveOutput (synlig, fallback uten plassholdere) eller inn i
+     «Full output»-folden (#askFullOutputHost) når svaret refererer
+     enkeltnoder. Flyttes tilbake ved nytt spørsmål/kodevisning. */
   var outputHome = null;
-  function mountLiveOutput() {
+  function resizePlotlyIn(root) {
+    if (!window.Plotly || !window.Plotly.Plots || !root.querySelectorAll) return;
+    root.querySelectorAll('.js-plotly-plot').forEach(function (p) {
+      try { window.Plotly.Plots.resize(p); } catch (_) { /* plotly borte */ }
+    });
+  }
+  function mountOutputInto(hostId) {
     var out = document.getElementById('outputArea');
-    var host = document.getElementById('askLiveOutput');
+    var host = document.getElementById(hostId);
     if (!out || !host || out.dataset.askMounted === '1') return;
     outputHome = { parent: out.parentNode, next: out.nextSibling };
     out.dataset.askMounted = '1';
-    host.hidden = false;
+    var details = host.closest && host.closest('details');
+    if (details) details.hidden = false; else host.hidden = false;
     host.appendChild(out);
     window.dispatchEvent(new Event('resize'));
-    if (window.Plotly && window.Plotly.Plots) {
-      out.querySelectorAll('.js-plotly-plot').forEach(function (p) {
-        try { window.Plotly.Plots.resize(p); } catch (_) { /* plotly borte */ }
-      });
-    }
+    resizePlotlyIn(out);
   }
+  function mountLiveOutput() { mountOutputInto('askLiveOutput'); }
+  function mountFullOutput() { mountOutputInto('askFullOutputHost'); }
   function unmountLiveOutput() {
+    stopReResolveObserver();
+    returnSlotNodesHome();
     var out = document.getElementById('outputArea');
-    var host = document.getElementById('askLiveOutput');
+    var live = document.getElementById('askLiveOutput');
+    var details = document.getElementById('askFullOutput');
+    if (live) live.hidden = true;
+    if (details) { details.hidden = true; details.open = false; }
     if (!out || out.dataset.askMounted !== '1' || !outputHome) return;
     delete out.dataset.askMounted;
-    if (host) host.hidden = true;
     outputHome.parent.insertBefore(out, outputHome.next);
     outputHome = null;
     window.dispatchEvent(new Event('resize'));
+  }
+
+  // Task 4 erstatter disse stubbene med en ekte MutationObserver.
+  function stopReResolveObserver() {}
+  function startReResolveObserver() {}
+
+  // Flytt en levende output-node inn i en slot; etterlat et anker
+  // (hjemreisebillett + nummer-plassholder for classifyAskOutput).
+  function moveIntoSlot(slot, el) {
+    var anchor = document.createElement('span');
+    anchor.className = 'ask-out-anchor';
+    anchor.dataset.ref = slot.dataset.ref;
+    el.parentNode.insertBefore(anchor, el);
+    slot.appendChild(el);
+    resizePlotlyIn(slot);
+  }
+
+  function askAnswerSlots() {
+    var box = document.getElementById('askAnswer');
+    return box ? Array.prototype.slice.call(box.querySelectorAll('.ask-out-slot')) : [];
+  }
+
+  // resolveAnswerRefs: bytt {{fig:1}}-avsnitt i #askAnswer mot slots med
+  // levende noder fra #outputArea. Returnerer antall resolvede slots —
+  // 0 → kalleren faller tilbake til dagens mountLiveOutput-oppførsel.
+  function resolveAnswerRefs() {
+    var box = document.getElementById('askAnswer');
+    var out = document.getElementById('outputArea');
+    if (!box || !out) return 0;
+    var byRef = {};
+    classifyAskOutput(out).forEach(function (r) { byRef[r.ref] = r.el; });
+    var candidates = Array.prototype.slice.call(box.querySelectorAll('p'))
+      .map(function (p) {
+        var m = ASK_REF_LINE_RE.exec((p.textContent || '').trim());
+        return m ? { p: p, ref: m[1] + ':' + m[2] } : null;
+      }).filter(Boolean);
+    var plan = planRefResolution(Object.keys(byRef),
+      candidates.map(function (c) { return c.ref; }));
+    var resolved = 0;
+    plan.forEach(function (step, i) {
+      var p = candidates[i].p;
+      if (step.action !== 'resolve') { p.remove(); return; }
+      var slot = document.createElement('div');
+      slot.className = 'ask-out-slot';
+      slot.dataset.ref = step.ref;
+      p.replaceWith(slot);
+      moveIntoSlot(slot, byRef[step.ref]);
+      resolved++;
+    });
+    return resolved;
+  }
+
+  // Hjemreise (spec §4): slot-noder tilbake til ankrene sine FØR svaret
+  // tømmes eller #outputArea flyttes hjem — slik forblir purgePlots +
+  // renderOutput sin innerHTML='' den ENESTE oppryddingsveien, ingen
+  // plotly-lekkasje fra noder som bor utenfor #outputArea.
+  function returnSlotNodesHome() {
+    var out = document.getElementById('outputArea');
+    askAnswerSlots().forEach(function (slot) {
+      var node = slot.firstElementChild;
+      if (node && out) {
+        var anchor = out.querySelector('.ask-out-anchor[data-ref="' + slot.dataset.ref + '"]');
+        if (anchor) anchor.replaceWith(node);
+        else out.appendChild(node);   // anker re-rendret bort → bakerst
+      }
+      slot.remove();
+    });
+    if (out) {
+      Array.prototype.slice.call(out.querySelectorAll('.ask-out-anchor'))
+        .forEach(function (a) { a.remove(); });
+    }
   }
 
   /* ── DOM wiring (browser only; bails in the node test stub) ─────── */
@@ -339,7 +420,7 @@
     document.getElementById('askSwitchCode').addEventListener('click', switchToEditor);
     document.getElementById('askOpenEditorBtn').addEventListener('click', switchToEditor);
     document.getElementById('askCopyBtn').addEventListener('click', function () {
-      var text = lastAnswerMd || (answerBox ? answerBox.innerText : '');
+      var text = lastAnswerMd ? stripRefs(lastAnswerMd) : (answerBox ? answerBox.innerText : '');
       if (!text) return;
       navigator.clipboard.writeText(text).catch(function () {});
     });
@@ -536,19 +617,24 @@
         if (lastRunOk) {
           showAnswer(res.markdown, null, false);
           renderSources(res.sources);
-          mountLiveOutput();
+          // Kuratert svar (spec 2026-07-31): plassholdere → levende noder.
+          // ≥1 resolvet → resten bak «Full output»-folden; 0 → dagens
+          // synlige mount (trygg degradering når modellen ignorerer
+          // kontrakten).
+          if (resolveAnswerRefs() > 0) {
+            mountFullOutput();
+            startReResolveObserver();
+          } else {
+            mountLiveOutput();
+          }
         } else if (ranAny) {
-          // Code was actually attempted and did not succeed — warn
-          // regardless of how many sources were probed (0 probed sources
-          // here means the run failed before/without probing, not that
-          // nothing needs a warning).
-          showAnswer(res.markdown,
+          // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig
+          // output å peke på: strip til klammetekst.
+          showAnswer(stripRefs(res.markdown),
             '⚠ The code did not run successfully — treat numbers with caution', true);
           renderSources(res.sources);
         } else {
-          // No code ever ran (e.g. oppslag/språk-style answers via the data
-          // path) — only warn if there were probed sources to caveat.
-          showAnswer(res.markdown,
+          showAnswer(stripRefs(res.markdown),
             res.sources && res.sources.length
               ? '⚠ Source-based answer — the code did not run successfully'
               : null,

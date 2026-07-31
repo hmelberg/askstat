@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="preload" as="script" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js">
   <link rel="stylesheet" href="app.css?v=2026-07-25a">
-  <link rel="stylesheet" href="css/ask.css?v=2026-07-29b">
+  <link rel="stylesheet" href="css/ask.css?v=2026-07-31a">
   <script>
     // Ask er DEFAULT-visningen i askstat; ?view=editor gir full editor-visning.
     // Klassen settes FØR body rendres så editor-chrome aldri blinker frem.
@@ -152,6 +152,10 @@
         <div id="askStatus" class="ask-process"></div>
         <div id="askAnswer" class="ask-answer"></div>
         <div id="askLiveOutput" class="ask-live-output" hidden></div>
+        <details id="askFullOutput" class="ask-details ask-full-output" hidden>
+          <summary>Full output</summary>
+          <div id="askFullOutputHost"></div>
+        </details>
         <div class="ask-answer-actions">
           <button type="button" class="ai-response-insert-btn" id="askCopyBtn">Copy answer</button>
           <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code</button>

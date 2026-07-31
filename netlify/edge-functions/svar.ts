@@ -4,6 +4,7 @@
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { loadRegistry, renderRegistryBlock } from "./_lib/registry.ts";
+import { makeGuideAttacher } from "./_lib/source-guides.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
 import { coerceScope, searchDatasets } from "./_lib/tools/search-datasets.ts";
@@ -156,6 +157,8 @@ export default async (request: Request): Promise<Response> => {
     }
   }
 
+  const attachGuide = makeGuideAttacher(origin);
+
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_datasets" && registry) {
       return JSON.stringify(await searchDatasets(
@@ -163,13 +166,23 @@ export default async (request: Request): Promise<Response> => {
       ));
     }
     if (name === "search_catalog" && registry) {
-      return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin }));
+      const hits = await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin });
+      // searchCatalog svarer med en ARRAY (CatalogHit[]) — JSON.stringify på
+      // en array dropper stille alle ikke-indekserte egenskaper, så et
+      // guide-felt satt direkte på arrayen ville aldri nådd modellen. Pakk
+      // derfor inn i et objekt (samme "hits"-konvensjon som
+      // SearchDatasetsResult) FØR attach, uansett om kilden har guide.
+      const r: Record<string, unknown> = { hits };
+      await attachGuide(String(input.source ?? ""), r);
+      return JSON.stringify(r);
     }
     if (name === "table_metadata" && registry) {
-      return JSON.stringify(await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), {
+      const r = await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), {
         registry,
         find: typeof input.find === "string" && input.find.trim() ? input.find : undefined,
-      }));
+      }) as Record<string, unknown>;
+      await attachGuide(String(input.source ?? ""), r);
+      return JSON.stringify(r);
     }
     if (name === "probe") {
       const url = String(input.url ?? "");

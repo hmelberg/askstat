@@ -7670,6 +7670,32 @@ try:
     _plt_mod.show = _m2py_plt_show
 except Exception:
     pass
+def _m2py_patch_plotly_show():
+    # fig.show()/pio.show() krasjer i pyodide ("ValueError: Mime type
+    # rendering requires ipython but it is not installed") fordi plotly sin
+    # innebygde show-sti prøver en IPython-mime-rendering som ikke finnes
+    # her. _show_one (under) rendrer OBJEKTET fint via pio.to_json — .show()
+    # var det upatchede hullet (plt.show() er patchet over; symmetrien
+    # manglet for plotly). plotly er ofte lat-installert (micropip lenger
+    # nede i index.html, ETTER at denne preamble-koden alt har kjørt), så
+    # denne funksjonen kalles BÅDE her (dekker eager import) OG fra toppen
+    # av _exec_pyodide_block (dekker installasjon midt i en økt) —
+    # markørattributtet _m2py_patched gjør gjentatte kall billige/no-op.
+    try:
+        import plotly.graph_objects as go
+        import plotly.io as pio
+    except Exception:
+        return
+    if getattr(getattr(go.Figure, "show", None), "_m2py_patched", False):
+        return
+    def _m2py_fig_show(self, *args, **kwargs):
+        print(_EMBED_S + "figure__" + chr(10) + pio.to_json(self) + chr(10) + _EMBED_E)
+    _m2py_fig_show._m2py_patched = True
+    go.Figure.show = _m2py_fig_show
+    def _m2py_pio_show(fig_or_data, *args, **kwargs):
+        print(_EMBED_S + "figure__" + chr(10) + pio.to_json(fig_or_data) + chr(10) + _EMBED_E)
+    pio.show = _m2py_pio_show
+_m2py_patch_plotly_show()
 def _show_one(obj):
     import base64
     import io
@@ -7812,6 +7838,11 @@ def _exec_pyodide_block(code, g, show_commands=False, only_last=False):
     som i dag; kun visningen endres. Display policy v2 (spec 2026-07-20):
     _-prefiks-navn, ';'-etterheng og nakne ui.*-kontrollkall dempes i begge
     moduser."""
+    # Billig idempotent guard per blokk-kjøring: plotly kan ha blitt
+    # micropip-installert LAT (etter at preamblets eager-kall lenger oppe
+    # allerede feilet stille via except Exception) — se kommentar ved
+    # _m2py_patch_plotly_show-definisjonen for hvorfor begge kallstedene trengs.
+    _m2py_patch_plotly_show()
     code = (code or "").strip()
     if not code:
         return

@@ -117,6 +117,54 @@
     });
   }
 
+  // DOM-klassifisereren: wrapper-selektorene fra buildOutputNodes/mdRender*
+  // (index.html). Rekkefølgen er også kind-prioritet ved treff.
+  var ASK_OUT_SELECTORS = [
+    ['.plotly-container', 'plotly'],
+    ['img.output-matplotlib-img', 'png'],
+    ['.vegalite-container', 'vegalite'],
+    ['.tabulator-embed', 'tabulator'],
+    ['.output-table-wrap', 'table'],
+    ['.leafletmap-container', 'map'],
+    ['.ipw-view', 'widget'],
+    ['.output-html-embed', 'html'],
+    ['.param-form', 'controls'],
+    ['.ui-controls', 'controls'],
+  ];
+  var ASK_OUT_SELECTOR_ALL = ASK_OUT_SELECTORS.map(function (s) { return s[0]; }).join(', ');
+  var ASK_SCAN_SELECTOR = ASK_OUT_SELECTOR_ALL + ', .ask-out-anchor';
+
+  // mdClassifyAskOutput(container) → [{ref, kind, el}] i dokumentrekkefølge.
+  // Nøstede treff (element inni et annet treff) hoppes over — wrapperen er
+  // referansen. Ankre telles med i nummereringen (se assignRefs) men
+  // returneres ikke.
+  function classifyAskOutput(container) {
+    if (!container || !container.querySelectorAll) return [];
+    var els = Array.prototype.slice.call(container.querySelectorAll(ASK_SCAN_SELECTOR));
+    els = els.filter(function (el) {
+      return !(el.parentElement && el.parentElement.closest &&
+               el.parentElement.closest(ASK_OUT_SELECTOR_ALL));
+    });
+    var items = els.map(function (el) {
+      if (el.classList && el.classList.contains('ask-out-anchor')) {
+        return { anchor: (el.dataset && el.dataset.ref) || '' };
+      }
+      for (var i = 0; i < ASK_OUT_SELECTORS.length; i++) {
+        if (el.matches && el.matches(ASK_OUT_SELECTORS[i][0])) {
+          return { kind: ASK_OUT_SELECTORS[i][1] };
+        }
+      }
+      return {};
+    });
+    return assignRefs(items).map(function (r) {
+      return { ref: r.ref, kind: r.kind, el: els[r.idx] };
+    });
+  }
+  if (typeof window !== 'undefined') {
+    window.mdClassifyAskOutput = classifyAskOutput;
+    window.mdAskManifest = formatOutputsManifest;
+  }
+
   /* Levende output i svarkortet (spec §Output): selve #outputArea-noden
      FLYTTES inn i kortet etter vellykket kjøring (ikke klones) — interaktiv
      plotly og widgets/#@param-re-kjøringer virker der den står. Flyttes

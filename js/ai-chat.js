@@ -1480,11 +1480,21 @@
           var err = await runScriptAndCaptureError(signal);
           var out = document.getElementById('outputArea');
           var outText = ((out && out.innerText) || '').trim();
+          // OUTPUTS-manifest (spec 2026-07-31-ask-svar-referanser §2):
+          // forteller modellen HVA den kan referere med {{fig:1}} osv. —
+          // samme klassifiseringsfunksjon som resolveren bruker, så
+          // nummereringen kan aldri sprike.
+          var manifest = '';
+          if (!err && out && window.mdClassifyAskOutput && window.mdAskManifest) {
+            try { manifest = window.mdAskManifest(window.mdClassifyAskOutput(out)); }
+            catch (e) { manifest = ''; }
+          }
           return {
             ok: !err,
             result: err
               ? 'FEIL:\n' + String(err).slice(0, 20000)
-              : 'OK. OUTPUT (truncated):\n' + outText.slice(0, 20000),
+              : 'OK. OUTPUT (truncated):\n' + outText.slice(0, 20000) +
+                (manifest ? '\n' + manifest : ''),
           };
         };
         window.mdSvarRun = runSvarLoop;

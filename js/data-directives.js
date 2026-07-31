@@ -551,10 +551,23 @@
             (kind === 'worldbank' ? 'country/NOR/indicator/NY.GDP.MKTP.CD' :
              kind === 'dbnomics' ? 'IMF/WEO:latest/NOR.NGDP_RPCH' :
              kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' : '<tabellid>') + ')' };
+        // pxweb v2: tabellressursen bor under tables/<id> — direktivstien er
+        // bare tabell-id-en (regresjon fra v2-beta→v2-migreringen 2026-07-25:
+        // base_url mistet tables/-segmentet; målt 404 uten, 200 med).
+        // Normaliser også et eksplisitt «tables/<id>» fra brukeren. Kun når
+        // base IKKE allerede ender på /tables — direkte connect() til en URL
+        // som selv er tabell-kolleksjonen (utbredt i eksisterende skript/
+        // tester) skal ikke få et doblet tables/tables/-segment.
+        var tableForItem = restPath;
+        if (kind === 'pxweb') {
+          if (restPath.indexOf('tables/') === 0) restPath = restPath.slice(7);
+          tableForItem = restPath;
+          if (!/\/tables$/.test(base.replace(/\/+$/, ''))) restPath = 'tables/' + restPath;
+        }
         if (base.charAt(base.length - 1) !== '/') base += '/';
         var item = { alias: l.alias, url: base + restPath + (restQuery ? '?' + restQuery : ''),
                      viaProxy: viaProxy, key: key, exec: exec, kind: kind,
-                     cache: cache, table: restPath };
+                     cache: cache, table: tableForItem };
         if (tr && tr.needsSdmxKey) item.needsSdmxKey = tr.needsSdmxKey;
         if (tr && tr.clientYears) item.clientYears = tr.clientYears;
         if (tr && tr.all) item.all = true;

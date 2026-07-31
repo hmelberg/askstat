@@ -156,6 +156,49 @@ test('pxweb/eurostat-grenen er uendret', () => {
   assert.equal(item.table, '05839');
 });
 
+// ── pxweb v2 tables/-regresjon (spec-oppdrag 2026-07-31, task 5): registerets
+// ssb-oppføring mistet /tables-segmentet i base_url ved v2-beta→v2-migreringen
+// (2026-07-25) — ssb.read("11342") ble 404 (live-verifisert; med tables/ 200).
+// Fikset i resolve() for kind==='pxweb' ALENE: prepend tables/ til restPath,
+// men kun når base ikke allerede ender på /tables (direkte connect() til en
+// URL som selv inneholder /tables, som i testene over, skal forbli uendret —
+// ellers ville de fått tables/tables/). ──────────────────────────────────────
+
+test('pxweb v2: ssb.read via registeret setter inn tables/-segmentet (regresjon v2-beta→v2)', () => {
+  const registry = [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', kind: 'pxweb' }];
+  const item = resolveOne(
+    '# ssb = ost.connect("ssb")\n# bef = ssb.read("11342")', registry);
+  assert.ok(!item.error, item.error);
+  assert.equal(item.url, 'https://data.ssb.no/api/pxwebapi/v2/tables/11342');
+  assert.equal(item.table, '11342');   // bare id — feilmeldingsvennlig (mandatoryErrorMessage)
+});
+
+test('pxweb v2: read("tables/11342") normaliseres — ingen tables/tables/', () => {
+  const registry = [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', kind: 'pxweb' }];
+  const item = resolveOne(
+    '# ssb = ost.connect("ssb")\n# bef = ssb.read("tables/11342")', registry);
+  assert.ok(!item.error, item.error);
+  assert.equal(item.url, 'https://data.ssb.no/api/pxwebapi/v2/tables/11342');
+  assert.equal(item.table, '11342');
+});
+
+test('pxweb v2: connect-URL som allerede ender på /tables dobles ikke opp', () => {
+  const item = resolveOne(
+    '# ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")\n' +
+    '# bef = ssb.read("05839")');
+  assert.equal(item.url, 'https://data.ssb.no/api/pxwebapi/v2/tables/05839');
+  assert.equal(item.table, '05839');
+});
+
+test('eurostat-grenen får ikke tables/-segmentet (kun pxweb rammes av fiksen)', () => {
+  const registry = [{ id: 'eu', base_url: 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/', kind: 'eurostat' }];
+  const item = resolveOne(
+    '# eu = ost.connect("eu")\n# bnp = eu.read("nama_10_gdp")', registry);
+  assert.ok(!item.error, item.error);
+  assert.equal(item.url, 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_gdp');
+  assert.equal(item.table, 'nama_10_gdp');
+});
+
 // ── all()-direktiv (spec 2026-07-25/26-all-direktiv-design): last alle
 // verdier av uspesifiserte dimensjoner for pxweb. Ren parser+resolve her —
 // selve async-utvidelsen skjer i lasteren (Task 3). ──────────────────────

@@ -166,7 +166,10 @@ export default async (request: Request): Promise<Response> => {
       return JSON.stringify(await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin }));
     }
     if (name === "table_metadata" && registry) {
-      return JSON.stringify(await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), { registry }));
+      return JSON.stringify(await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), {
+        registry,
+        find: typeof input.find === "string" && input.find.trim() ? input.find : undefined,
+      }));
     }
     if (name === "probe") {
       const url = String(input.url ?? "");

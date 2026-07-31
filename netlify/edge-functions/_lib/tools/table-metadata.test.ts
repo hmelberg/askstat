@@ -1,6 +1,7 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { tableMetadata } from "./table-metadata.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { pickValues, tableMetadata } from "./table-metadata.ts";
 import { parseRegistry } from "../registry.ts";
+import type { DataSource } from "../registry.ts";
 
 const REG = parseRegistry([
   { id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell", tilgang: "pxweb",
@@ -215,4 +216,62 @@ Deno.test("tableMetadata: kind dbnomics delegerer til dbnomicsMetadata", async (
     base_url: "https://api.db.nomics.world/v22/series/", cors: true }]);
   const m = await tableMetadata("dbnomics", "IMF/CPI", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
   assertEquals(m.navn, "Consumer Price Index");
+});
+
+// --- mandatory-flagg + find-param (Task 1, ssb-mandatory) ---
+
+Deno.test("pickValues: find-filter treffer kode OG etikett, case-insensitivt, FØR kuttet", () => {
+  const all = Array.from({ length: 100 }, (_, i) => ({ code: `K${i}`, label: `Sted ${i}` }));
+  all.push({ code: "0301", label: "Oslo" });
+  const r = pickValues(all, "oslo");
+  assertEquals(r.values, [{ code: "0301", label: "Oslo" }]);
+  assertEquals(r.valuesTruncated, false);
+  const rKode = pickValues(all, "030");
+  assertEquals(rKode.values.length, 1);
+});
+
+Deno.test("pickValues: uten find — første 40 + truncated-flagg", () => {
+  const all = Array.from({ length: 50 }, (_, i) => ({ code: `${i}`, label: `${i}` }));
+  const r = pickValues(all);
+  assertEquals(r.values.length, 40);
+  assertEquals(r.valuesTruncated, true);
+});
+
+// Fake pxweb-metadata: ContentsCode/Tid elimination=false, Region=true.
+const PXMETA = {
+  label: "11342: Areal og befolkning",
+  role: { time: ["Tid"] },
+  dimension: {
+    Region: {
+      label: "region",
+      category: { index: { "0301": 0, "1103": 1 }, label: { "0301": "Oslo", "1103": "Stavanger" } },
+      extension: { elimination: true },
+    },
+    ContentsCode: {
+      label: "statistikkvariabel",
+      category: { index: { Folkemengde: 0 }, label: { Folkemengde: "Personer" } },
+      extension: { elimination: false },
+    },
+    Tid: {
+      label: "år",
+      category: { index: { "2024": 0 }, label: { "2024": "2024" } },
+      extension: { elimination: false },
+    },
+  },
+};
+const SSB_SRC: DataSource[] = [{
+  id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell",
+  tilgang: "pxweb", base_url: "https://data.ssb.no/api/pxwebapi/v2/",
+} as unknown as DataSource];
+const fakeMandatoryFetch = ((_url: string) =>
+  Promise.resolve(new Response(JSON.stringify(PXMETA), { status: 200 }))) as typeof fetch;
+
+Deno.test("pxwebMetadata: mandatory fra elimination; find når fram", async () => {
+  const m = await tableMetadata("ssb", "11342", { registry: SSB_SRC, fetchImpl: fakeMandatoryFetch, find: "oslo" });
+  const region = m.variables.find((v) => v.code === "Region")!;
+  const contents = m.variables.find((v) => v.code === "ContentsCode")!;
+  assertEquals(region.mandatory, false);
+  assertEquals(contents.mandatory, true);
+  assertEquals(region.values, [{ code: "0301", label: "Oslo" }]);
+  assert(m.variables.find((v) => v.code === "Tid")!.mandatory);
 });

@@ -548,12 +548,13 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
   },
   {
     name: "table_metadata",
-    description: "Variabel-nivå metadata for en tabell fra search_catalog: dimensjoner, koder, tidsperioder — grunnlaget for et minimalt uttrekk.",
+    description: "Variabel-nivå metadata for en tabell fra search_catalog: dimensjoner, koder, tidsperioder — grunnlaget for et minimalt uttrekk. mandatory=true på en dimensjon betyr at read-kallet MÅ velge verdier for den (indicators= for ContentsCode, years= for Tid). Lange kodelister trunkeres — bruk find til å søke fram koder (f.eks. find=\"Oslo\").",
     input_schema: {
       type: "object",
       properties: {
         source: { type: "string" },
         table_id: { type: "string" },
+        find: { type: "string", description: "valgfritt: delstreng-søk i kodelistene (kode eller etikett)" },
       },
       required: ["source", "table_id"],
     },

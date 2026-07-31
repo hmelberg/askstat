@@ -49,6 +49,10 @@ output».
 - Presentasjonsscript som svarform («lag 2» fra brainstormen) og p5-innslag.
 - Navngitte referanser (`id=`-konvensjon i scriptet) — posisjonsreferanser
   holder i v1.
+- `pre`-referanseklasse (printede blokker, f.eks. statsmodels-sammendrag) —
+  mest sannsynlige første utvidelse, men v1-praksis er en liten kuratert
+  tabell i stedet. Å legge til en klasse koster tre grep: mapping-rad,
+  regex-alternativ, promptlinje.
 - KaTeX under streaming (rå `$…$` synlig til svaret er ferdig — akseptert).
 - Endringer i v2-pipelinen (`kode-svar-v2.ts`) — kun `/api/svar`-løpet.
 
@@ -74,6 +78,12 @@ output for svaret):
   på svaret fremfor rå ramme-dump; plotly fremfor statisk figur der
   interaktivitet gir verdi; i simuleringer (REFORM-veien): `#@param`-kontroller
   og referer `{{controls:1}}` + figuren den driver.
+
+**Python-først (Hans 2026-07-31):** «design for svaret»-tillegget legges fullt
+i MODE_PY (plotly, ipywidgets/`widget`, `#@param`/`controls`); MODE_R/duckdb
+får kun minimumsvarianten (referer i stedet for å gjenta; liten
+oppsummeringstabell). fig/table-referansene virker likevel i alle moduser —
+maskineriet er delt.
 
 ## 2. Manifest (`mdAskExecuteScript`, `js/ai-chat.js`)
 

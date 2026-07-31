@@ -967,11 +967,16 @@
         }
         let confirmed = false;
         let _lastRender = 0;
+        // Editor context only rides along when the user ticked "Inkluder
+        // skript fra editor" — matches safestat's sendMessage() (ai-chat.js
+        // ~535). svar.ts's questionTurn() only reads this on round 0 anyway,
+        // so gating it here can't break the run_code/repair loop.
+        const includeScript = dom.aiIncludeScript.checked && dom.scriptInput && dom.scriptInput.value.trim();
         const res = await runSvarLoop({
           question: question,
           route: 'data',
           depth: 'deep',
-          scriptContext: scrubScript((dom.scriptInput && dom.scriptInput.value) || ''),
+          scriptContext: includeScript ? scrubScript(dom.scriptInput.value) : undefined,
           signal: signal,
           handlers: {
             onProgress: function (ev) {

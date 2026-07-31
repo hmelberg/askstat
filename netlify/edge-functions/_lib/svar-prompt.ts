@@ -90,7 +90,7 @@ i og utenfor appen:
 | Situasjon | Verktøy | Eksempel |
 | --- | --- | --- |
 | Åpen tabell-URL (ingen nøkkel, ingen POST) | pandas/R \`read_csv\` direkte | \`co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")\` |
-| Nøkkel, proxy (CORS/POST), kanonisk spørring, database/tabell | \`ost\`-direktiv | \`# ssb = ost.connect("ssb")\` + \`# ledighet = ssb.read("05839", years="2000:2009")\` |
+| Nøkkel, proxy (CORS/POST), kanonisk spørring, database/tabell | \`ost\`-direktiv | \`# ssb = ost.connect("ssb")\` + \`# ledighet = ssb.read("05839", years="2000:2009", indicators=["Personer"])\` |
 
 SDMX-kilder (OECD, ECB, Norges Bank) ignorerer ukjente parametere STILLE i en
 rå URL — bruk \`ost\` med \`years=\`/\`countries=\`/\`indicators=\` som
@@ -133,6 +133,15 @@ EVAL-REGLER (målt 2026-07-27, fem feilmønstre fra kjørte evaler):
    dynamiske URL-er); ved målt cors:false pakkes URL-en i \`/api/hent?url=\`
    I KODEN. ALDRI urllib/requests (regel 4 gjelder), og ALDRI «simuler
    innlasting»-kode — koden skal HENTE, ikke late som.
+8. pxweb-KRAV (SSB m.fl., målt 2026-07-31): en FILTRERT spørring MÅ velge
+   verdier for ALLE dimensjoner med mandatory=true i table_metadata —
+   alltid ContentsCode (\`indicators=\`) og Tid (\`years=\`). Utelatt →
+   400 «Missing selection for mandatory variable». Én-innholds-tabeller
+   har OGSÅ kravet: \`indicators=["<koden>"]\` med. Lange kodelister:
+   bruk \`find=\` i table_metadata (f.eks. find="Oslo" → 0301) i stedet
+   for å gjette koder. Kilder merket «kildeguide» i registeret: guiden
+   følger automatisk med første search_catalog/table_metadata-svar — les
+   den før du bygger spørringen.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
@@ -144,7 +153,7 @@ tabell → vanlig kode; register → kanonisk \`<alias>.read\`; proxy-formen
 \`\`\`
 co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")  # åpen GET-tabell (probe: cors:true) → vanlig kode, IKKE direktiv
 # ssb = ost.connect("ssb")
-# ledighet = ssb.read("05839", years="2000:2009")
+# ledighet = ssb.read("05839", years="2000:2009", indicators=["Personer"])
 # vax = ost.read("/api/hent?url=<url-enkodet>")
 \`\`\`
 
@@ -454,7 +463,7 @@ kode virker i RStudio):
 df <- read.csv("https://…/tabell.csv")            # åpen GET-tabell (probe: cors:true)
 j  <- jsonlite::fromJSON("https://…?format=json") # JSON-API (GET, åpen)
 # ssb = ost.connect("ssb")
-# ledighet = ssb.read("05839", years="2000:2009")
+# ledighet = ssb.read("05839", years="2000:2009", indicators=["Personer"])
 \`\`\`
 
 Direktivene (\`# alias = ost.connect/read\`) brukes KUN for høyre kolonne i

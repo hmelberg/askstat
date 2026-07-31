@@ -8,9 +8,10 @@ kilde: SSBs api-eksempler (janbrus), destillert 2026-07-31
 for ALLE dimensjoner som har `elimination: false` i tabellens metadata.
 To dimensjoner er ALLTID obligatoriske — `ContentsCode` (hva som måles)
 og `Tid` (tid) — selv i tabeller med bare ett innholdsalternativ. Mangler
-én: SSB svarer `400 Bad Request` med `detail`-teksten
-`"Missing selection for mandatory variable(s): ..."` og lister nettopp de
-manglende kodene. Sjekk `mandatory`-flagget per dimensjon i
+én: SSB svarer `400 Bad Request` med `title`-feltet
+`"Missing selection for mandantory variable"` (ja, SSBs egen stavefeil —
+«mandantory») og lister de manglende kodene i responsen for øvrig. Sjekk
+`mandatory`-flagget per dimensjon i
 `table_metadata`-svaret FØR du bygger spørringen — ikke gjett hvilke som
 trengs.
 
@@ -33,7 +34,7 @@ konverter heller via json-stat2.
 | Kodelisteoppslag | `GET /codelists/{id}` |
 
 Base: `https://data.ssb.no/api/pxwebapi/v2/`. **`/v2-beta/` er død** —
-svarer 503 på søk, metadata og data likt (verifisert 2026-07-31). Bruk
+svarer 503 på søk, metadata og data likt (verifisert 2026-07-25). Bruk
 alltid `/v2/`, aldri `/v2-beta/`.
 
 ## Tidsuttrykk (Tid-dimensjonen)
@@ -73,7 +74,7 @@ med `GET /codelists/{id}` — koder fra ulike codelists må ikke blandes.
   direktivveien håndterer dette automatisk.
 - Ukjent variabel-/verdikode, feil tidsformat, for mange celler (sjekk
   `/config` → `maxDataCells`) og manglende obligatorisk dimensjon gir
-  alle `400` — `detail`-feltet forteller hvilken.
+  alle `400` — `title`-feltet i responsen forteller hvilken.
 
 ## Komplett eksempel (Oslos folkemengde, tabell 11342)
 

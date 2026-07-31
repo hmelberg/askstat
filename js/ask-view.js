@@ -331,6 +331,63 @@
     }
   }
 
+  /* KaTeX (spec §6): lazy — lastes KUN når svaret ser ut til å inneholde
+     matte. Idempotent per fane (promise-cache, samme mønster som
+     _loadImportScript i index.html). CDN-feil → rå LaTeX blir stående,
+     aldri kast. */
+  var KATEX_BASE = 'https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/';
+  var _katexP = null;
+  function _addTag(make) {
+    return new Promise(function (resolve, reject) {
+      var el = make();
+      el.onload = resolve;
+      el.onerror = function () { reject(new Error('KaTeX-lasting feilet')); };
+      document.head.appendChild(el);
+    });
+  }
+  function ensureKatex() {
+    if (_katexP) return _katexP;
+    _katexP = _addTag(function () {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = KATEX_BASE + 'katex.min.css'; return l;
+    }).then(function () {
+      return _addTag(function () {
+        var s = document.createElement('script');
+        s.src = KATEX_BASE + 'katex.min.js'; return s;
+      });
+    }).then(function () {
+      return _addTag(function () {
+        var s = document.createElement('script');
+        s.src = KATEX_BASE + 'contrib/auto-render.min.js'; return s;
+      });
+    }).catch(function (e) { _katexP = null; throw e; });
+    return _katexP;
+  }
+  var MATH_HINT_RE = /\$|\\\(|\\\[/;
+  function maybeRenderMath(markdown) {
+    if (!MATH_HINT_RE.test(String(markdown || ''))) return;
+    ensureKatex().then(function () {
+      if (typeof renderMathInElement !== 'function') return;
+      var opts = {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '$', right: '$', display: false },
+        ],
+        throwOnError: false,
+      };
+      var box = document.getElementById('askAnswer');
+      if (box) { try { renderMathInElement(box, opts); } catch (_) {} }
+      // Best effort (spec §6): matte i kjøringens egne markdown-embeds.
+      Array.prototype.slice.call(
+        document.querySelectorAll('#outputArea .output-markdown, .ask-out-slot .output-markdown')
+      ).forEach(function (el) {
+        try { renderMathInElement(el, opts); } catch (_) {}
+      });
+    }).catch(function () { /* CDN nede → rå LaTeX står igjen */ });
+  }
+
   /* ── DOM wiring (browser only; bails in the node test stub) ─────── */
   function sseAccumulate(resp, onText, signal) {
     // Minimal SSE-leser for tolk-/ruter-endepunktene ({type:'text'|'error'}).
@@ -681,12 +738,14 @@
           } else {
             mountLiveOutput();
           }
+          maybeRenderMath(res.markdown);
         } else if (ranAny) {
           // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig
           // output å peke på: strip til klammetekst.
           showAnswer(stripRefs(res.markdown),
             '⚠ The code did not run successfully — treat numbers with caution', true);
           renderSources(res.sources);
+          maybeRenderMath(res.markdown);
         } else {
           showAnswer(stripRefs(res.markdown),
             res.sources && res.sources.length
@@ -694,6 +753,7 @@
               : null,
             true);
           renderSources(res.sources);
+          maybeRenderMath(res.markdown);
         }
       } catch (e) {
         if (e && e.name === 'AbortError') { progressLine('Stopped.'); archiveStatus(); }

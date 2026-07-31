@@ -206,9 +206,63 @@
     window.dispatchEvent(new Event('resize'));
   }
 
-  // Task 4 erstatter disse stubbene med en ekte MutationObserver.
-  function stopReResolveObserver() {}
-  function startReResolveObserver() {}
+  /* Re-resolve (spec §5): renderOutput/celle-re-kjøringer bygger NYE noder
+     i #outputArea — slots re-fylles med ferske noder med samme referanse.
+     Samme debounce-mønster som observeOutputAreaForCopyButtons
+     (index.html): {childList, subtree}, 150 ms. disconnect/observe-paret
+     rundt egne mutasjoner hindrer selv-trigging (observer-løkke). */
+  var _reResolveObserver = null;
+  var _reResolveTimer = null;
+  function startReResolveObserver() {
+    var out = document.getElementById('outputArea');
+    if (!out || typeof MutationObserver === 'undefined' || _reResolveObserver) return;
+    _reResolveObserver = new MutationObserver(function () {
+      if (_reResolveTimer) clearTimeout(_reResolveTimer);
+      _reResolveTimer = setTimeout(reResolveSlots, 150);
+    });
+    _reResolveObserver.observe(out, { childList: true, subtree: true });
+  }
+  function stopReResolveObserver() {
+    if (_reResolveTimer) { clearTimeout(_reResolveTimer); _reResolveTimer = null; }
+    if (_reResolveObserver) { _reResolveObserver.disconnect(); _reResolveObserver = null; }
+  }
+  function reResolveSlots() {
+    var out = document.getElementById('outputArea');
+    var slots = askAnswerSlots();
+    var obs = _reResolveObserver;
+    if (!out || !slots.length) return;
+    if (obs) obs.disconnect();
+    try {
+      var byRef = {};
+      classifyAskOutput(out).forEach(function (r) { byRef[r.ref] = r.el; });
+      slots.forEach(function (slot) {
+        var ref = slot.dataset.ref;
+        var fresh = byRef[ref];
+        if (fresh) {
+          // Ny node med denne referansen finnes i outputen → bytt.
+          // purgePlots her: slotten er UTENFOR #outputArea, så
+          // renderOutput sin egen purge nådde aldri den gamle noden.
+          if (window.purgePlots) window.purgePlots(slot);
+          slot.innerHTML = '';
+          moveIntoSlot(slot, fresh);
+          return;
+        }
+        // Ingen fersk node: lever ankeret? → noden i slotten lever videre
+        // (re-rendringen traff en annen celle). Anker borte → referansen
+        // finnes ikke lenger (f.eks. færre figurer med ny param-verdi) →
+        // slotten står tom (spec §5 pkt 4).
+        var anchor = out.querySelector('.ask-out-anchor[data-ref="' + ref + '"]');
+        if (!anchor) {
+          if (window.purgePlots) window.purgePlots(slot);
+          slot.innerHTML = '';
+        }
+      });
+    } finally {
+      if (obs && _reResolveObserver === obs) {
+        obs.observe(out, { childList: true, subtree: true });
+      }
+    }
+  }
 
   // Flytt en levende output-node inn i en slot; etterlat et anker
   // (hjemreisebillett + nummer-plassholder for classifyAskOutput).

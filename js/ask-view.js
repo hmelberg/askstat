@@ -5,7 +5,7 @@
    =================================================================== */
 (function askViewModule() {
 
-  var ASK_ROUTES = ['beregning', 'data', 'oppslag', 'språk'];
+  var ASK_ROUTES = ['beregning', 'data', 'oppslag', 'språk', 'utforsk'];
 
   // Tolerant uthenting av ruter-JSON: modellen skal svare med rent JSON, men
   // vi godtar tekst/kodeblokker rundt. Alt ugyldig → rute 'data' (= dagens

@@ -29,6 +29,10 @@ test('parseAskRoute: JSON pakket i tekst og kodeblokk', () => {
   assert.strictEqual(r.svar, 'Direkte svar.');
 });
 
+test('parseAskRoute: utforsk er gyldig rute', () => {
+  assert.strictEqual(askView.parseAskRoute('{"rute":"utforsk","tolkning":"x"}').rute, 'utforsk');
+});
+
 test('parseAskRoute: ugyldig rute og søppel faller tilbake til data', () => {
   assert.strictEqual(askView.parseAskRoute('{"rute":"kausal","tolkning":"x"}').rute, 'data');
   assert.strictEqual(askView.parseAskRoute('ikke json i det hele tatt').rute, 'data');

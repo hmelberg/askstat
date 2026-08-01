@@ -143,6 +143,14 @@ Deno.test("buildRouteToolDefs(utforsk): run_code + web m/ budsjett, ingen katalo
   assertEquals(defs.find((d) => d.name === "web_search")?.max_uses, 2);
 });
 
+Deno.test("RUN-fellesregler: definisjonssprik + feilruting i alle pipeline-ruter", () => {
+  for (const route of ["beregning", "oppslag", "data", "utforsk"] as const) {
+    const s = buildSvarSystem(route, "python", "REG");
+    assert(s.includes("FLERE FORSVARLIGE DEFINISJONER"), route);
+    assert(s.includes("FEILRUTET"), route);
+  }
+});
+
 Deno.test("buildRouteToolDefs(utforsk, hostedWeb:false): kun run_code", () => {
   const defs = buildRouteToolDefs("utforsk", "deep", { hostedWeb: false }) as { name?: string }[];
   assertEquals(defs.map((d) => d.name), ["run_code"]);

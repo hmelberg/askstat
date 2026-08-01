@@ -355,6 +355,13 @@ Sluttsvarets form:
 - Matte rendres: skriv formler som $…$ (inline) / $$…$$ (blokk).
 - Har du omformet spørsmålet: åpne med «Slik tolker jeg spørsmålet: …» og
   oppgi antakelsene eksplisitt.
+- FLERE FORSVARLIGE DEFINISJONER som gir vesentlig ulikt svar
+  («helseutgifter»: SHA-definisjonen? % av BNP? per innbygger?): vis to,
+  eller navngi valget eksplisitt i tolkningen — aldri velg stille.
+- FEILRUTET? Oppdager du underveis at spørsmålet egentlig er en annen type
+  (en beregning som trenger data, et dataspørsmål som egentlig er
+  normativt): si det eksplisitt i svaret og svar så godt rutas verktøy
+  tillater.
 - Alle tall skal komme fra run_code-OUTPUT eller verifiserte kilder — aldri
   fra hukommelsen. Tomt for kjørebudsjett? Si ærlig hva som ikke ble
   verifisert.

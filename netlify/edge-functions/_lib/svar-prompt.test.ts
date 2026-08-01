@@ -46,6 +46,7 @@ Deno.test("buildSvarSystem(oppslag): minimal — websøk-krav, ingen register", 
 Deno.test("buildSvarSystem: svarformatet sier ingen kodeblokk i sluttsvaret", () => {
   const s = buildSvarSystem("data", "python", "");
   assert(s.includes("ingen kodeblokk"));
+  assert(s.includes("ALDRI underscore inni"));   // KaTeX-regelen i RUN
   assert(!s.includes("ÉN kjørbar"));
 });
 
@@ -118,6 +119,8 @@ Deno.test("buildSvarSystem(utforsk): kontrakt + dybde + ankere + modus + run_cod
   assert(s.includes("DEKOMPONERINGS-GATE"));
   assert(s.includes("VERDIPREMISSER VELGES ALDRI STILLE"));
   assert(s.includes("MORALSKE SPØRSMÅL"));
+  assert(s.includes("KORTSVAR"));
+  assert(s.includes("LIGNINGER FORPLIKTER"));
   assert(s.includes("REGIONBESKRIVELSER"));
   assert(s.includes("Dybde: STANDARD"));
   assert(s.includes("Empiriske ankere"));

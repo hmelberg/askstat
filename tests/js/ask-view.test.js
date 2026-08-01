@@ -29,6 +29,39 @@ test('parseAskRoute: JSON pakket i tekst og kodeblokk', () => {
   assert.strictEqual(r.svar, 'Direkte svar.');
 });
 
+// Matte-maskering (2026-08-01): markdown-it spiste `}_{`-underscorene i en
+// \underbrace-ligning som emphasis før KaTeX fikk se teksten.
+test('maskMathSegments: $$-blokk maskeres helt — ingen _ igjen for markdown-it', () => {
+  const eq = '$$\\text{Fortell} \\iff \\underbrace{S \\cdot \\text{nytte}}_{\\text{gevinst}} > \\underbrace{K}_{\\text{skade}}$$';
+  const m = askView.maskMathSegments('Før\n\n' + eq + '\n\nEtter');
+  assert.strictEqual(m.segs.length, 1);
+  assert.strictEqual(m.segs[0], eq);
+  assert.ok(m.masked.indexOf('_') < 0);
+  assert.ok(m.masked.indexOf('$') < 0);
+});
+
+test('restoreMathSegments: segmentet gjeninnsettes uskadd selv om rendereren tuklet rundt', () => {
+  const eq = '$$\\underbrace{a}_{b} > \\underbrace{c}_{d}$$';
+  const m = askView.maskMathSegments(eq);
+  const html = '<p><em>' + m.masked + '</em></p>';   // renderer pakket plassholderen inn
+  const out = askView.restoreMathSegments(html, m.segs);
+  assert.ok(out.indexOf('}_{b}') >= 0 && out.indexOf('}_{d}') >= 0);
+});
+
+test('restoreMathSegments: HTML-escaper LaTeX med < og &', () => {
+  const m = askView.maskMathSegments('$a < b \\& c$');
+  assert.strictEqual(askView.restoreMathSegments(m.masked, m.segs), '$a &lt; b \\&amp; c$');
+});
+
+test('maskMathSegments: flere segmenter, inline krysser ikke linjer, tall i prosa urørt', () => {
+  const m = askView.maskMathSegments('Pris 100 kr. $x_1$ og\n$$y_2$$ men $ikke\nover linjer$.');
+  assert.strictEqual(m.segs.length, 2);
+  assert.ok(m.masked.indexOf('100 kr') >= 0);
+  const out = askView.restoreMathSegments(m.masked, m.segs);
+  assert.ok(out.indexOf('$x_1$') >= 0 && out.indexOf('$$y_2$$') >= 0);
+  assert.ok(out.indexOf('100 kr') >= 0);
+});
+
 test('parseAskRoute: utforsk er gyldig rute', () => {
   assert.strictEqual(askView.parseAskRoute('{"rute":"utforsk","tolkning":"x"}').rute, 'utforsk');
 });

@@ -370,6 +370,32 @@
     }
   }
 
+  /* ── Matte-maskering (målt 2026-08-01): markdown-it behandler _ og *
+     INNE i $$…$$ som emphasis (`}_{`-underscorene i en \underbrace-ligning
+     ble spist som kursiv-par og <em> splittet tekstnoden), så KaTeX
+     auto-render fant aldri delimiterne og rå, lemlestet LaTeX ble stående.
+     Segmentene maskeres med private-use-plassholdere FØR md.render og
+     gjeninnsettes HTML-escapet etterpå — da står uskadd LaTeX i ÉN
+     tekstnode når auto-render leter. Samme delimitere som KATEX_OPTS. ── */
+  var MATH_SEG_RE = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+\$/g;
+  function maskMathSegments(text) {
+    var segs = [];
+    var masked = String(text || '').replace(MATH_SEG_RE, function (m) {
+      segs.push(m);
+      return '\uE000' + (segs.length - 1) + '\uE001';
+    });
+    return { masked: masked, segs: segs };
+  }
+  function restoreMathSegments(html, segs) {
+    return String(html || '').replace(/\uE000(\d+)\uE001/g, function (whole, i) {
+      var seg = segs[Number(i)];
+      if (seg === undefined) return whole;
+      return seg.replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    });
+  }
+
   /* KaTeX (spec §6): lazy — lastes KUN når svaret ser ut til å inneholde
      matte. Idempotent per fane (promise-cache, samme mønster som
      _loadImportScript i index.html). CDN-feil → rå LaTeX blir stående,
@@ -595,7 +621,13 @@
     });
 
     function renderMd(node, text) {
-      if (md) { try { node.innerHTML = md.render(text || ''); return; } catch (_) {} }
+      if (md) {
+        try {
+          var mm = maskMathSegments(text || '');
+          node.innerHTML = restoreMathSegments(md.render(mm.masked), mm.segs);
+          return;
+        } catch (_) {}
+      }
       node.textContent = text || '';
     }
     function esc(s) {
@@ -839,6 +871,8 @@
       formatOutputsManifest: formatOutputsManifest,
       stripRefs: stripRefs,
       planRefResolution: planRefResolution,
+      maskMathSegments: maskMathSegments,
+      restoreMathSegments: restoreMathSegments,
     };
   }
 })();

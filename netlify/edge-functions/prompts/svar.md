@@ -460,7 +460,9 @@ Sluttsvarets form:
   elementet og TOLK det i stedet.
 - Typisk form: funn (1–3 setninger) → {{fig:1}} → tolkning → ev.
   {{table:1}} → forbehold + kilder.
-- Matte rendres: skriv formler som $…$ (inline) / $$…$$ (blokk).
+- Matte rendres: skriv formler som $…$ (inline) / $$…$$ (blokk). KaTeX:
+  bruk korte symboler ($S$, $U_k$, $\Delta$) — ALDRI underscore inni
+  \text{…} (parse-feil; skriv «\text{nytte kone}» eller et symbol).
 - Har du omformet spørsmålet: åpne med «Slik tolker jeg spørsmålet: …» og
   oppgi antakelsene eksplisitt.
 - FLERE FORSVARLIGE DEFINISJONER som gir vesentlig ulikt svar
@@ -512,9 +514,12 @@ vært en mening eller en skuldertrekning. Oppdraget:
 > Ikke avgjør spørsmålet direkte. Oversett det til en modell som viser
 > hvilke fakta, verdier og antakelser ulike svar avhenger av.
 
-Svaret ÅPNER med den operasjonelle tolkningen («Slik tolker jeg spørsmålet:
-…») og markerer at dette er ÉN måte å formalisere spørsmålet på —
-modellformen er ditt valg, ikke gitt av spørsmålet. Du svarer på brukerens
+Svaret ÅPNER med et KORTSVAR (2–4 setninger: hovedkonklusjonen som
+regionbeskrivelse + den viktigste følsomheten), deretter den operasjonelle
+tolkningen («Slik tolker jeg spørsmålet: …») som markerer at dette er ÉN
+måte å formalisere spørsmålet på — modellformen er ditt valg, ikke gitt av
+spørsmålet. Resten er UTDYPING — hold den stram; detaljer som ikke endrer
+konklusjonen hører hjemme bak «Full output»-folden. Du svarer på brukerens
 språk (norsk/engelsk).
 
 KONTRAKTEN under er EGENSKAPER svaret skal ha — ikke seksjoner det skal
@@ -562,6 +567,15 @@ MIDLER (ditt valg, styrt av gate-tabellen): simulering, transkriberte
 småtabeller, widgets, en 2×2-tabell over posisjoner, flere modellformer.
 Ingen er obligatoriske — en ren dekomponering i prosa er et gyldig svar
 når en modell ikke tilfører innsikt.
+
+LIGNINGER FORPLIKTER: presenterer du en modell eller ligning med
+parametre, skal brukeren kunne dra i dem — kjør modellen med run_code der
+verdipremissene er #@param-kontroller (python) og en enkel figur (f.eks.
+søyler for utfallet per ramme/scenario) er koblet til kontrollene;
+referer {{controls:n}} + {{fig:n}} i svaret. En statisk ligning uten
+kjørbar, interaktiv motpart er et uferdig utforsk-svar. (Ren
+prosa-dekomponering UTEN modell er fortsatt gyldig — regelen gjelder når
+du faktisk bygger en modell.)
 
 KOMPLEKSITET VS. REALISME: default er en ENKEL modell med få, navngitte
 nøkkelparametre — enkelhet slår realisme, leseren skal kunne forstå
@@ -655,6 +669,16 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-01 (kveld, Hans' utroskap-smoke)
+
+Tre funn fra første utforsk-kjøring: (1) KORTSVAR-åpning i INTRO_UTFORSK
+(konklusjon før tolkning — svaret var for langt uten oppsummering);
+(2) LIGNINGER FORPLIKTER-regelen (modellen skrev ligning uten interaktiv
+motpart); (3) KaTeX-regel i RUN (aldri underscore i \text{} — parse-feil).
+Klientfiksen for selve rendringsfeilen (markdown-it spiste `}_{`-underscorer
+som emphasis før KaTeX) ligger i js/ask-view.js (maskMathSegments/
+restoreMathSegments rundt md.render).
 
 ### 2026-08-01
 

@@ -17,11 +17,11 @@ Deno.test("coerceDepth: standard er default", () => {
   assertEquals(coerceDepth(undefined), "standard");
 });
 
-Deno.test("buildSvarSystem(beregning): omforming + run_code, INGEN register/EVAL/ost", () => {
+Deno.test("buildSvarSystem(beregning): run_code + modus, INGEN register/EVAL/ost/Omforming", () => {
   const s = buildSvarSystem("beregning", "python", "REGISTERBLOKK-MARKØR");
-  assert(s.includes("Omforming"));
   assert(s.includes("run_code"));
   assert(s.includes("#@param"));
+  assert(!s.includes("Omforming"));
   assert(!s.includes("REGISTERBLOKK-MARKØR"));
   assert(!s.includes("EVAL-REGLER"));
   assert(!s.includes("ost.connect"));
@@ -106,4 +106,44 @@ Deno.test("buildSvarSystem(beregning): ingen META_SEARCH/KODEBOK", () => {
   const s = buildSvarSystem("beregning", "python", "");
   assert(!s.includes("search_datasets"));
   assert(!s.includes("Kodebok"));
+});
+
+Deno.test("coerceRoute: utforsk er gyldig", () => {
+  assertEquals(coerceRoute("utforsk"), "utforsk");
+});
+
+Deno.test("buildSvarSystem(utforsk): kontrakt + dybde + ankere + modus + run_code, ingen register/EVAL/katalog", () => {
+  const s = buildSvarSystem("utforsk", "python", "REGISTERBLOKK-MARKØR", { depth: "standard" });
+  assert(s.includes("Ikke avgjør spørsmålet"));      // oppdragssetningen
+  assert(s.includes("DEKOMPONERINGS-GATE"));
+  assert(s.includes("VERDIPREMISSER VELGES ALDRI STILLE"));
+  assert(s.includes("MORALSKE SPØRSMÅL"));
+  assert(s.includes("REGIONBESKRIVELSER"));
+  assert(s.includes("Dybde: STANDARD"));
+  assert(s.includes("Empiriske ankere"));
+  assert(s.includes("#@param"));                     // MODE_PY er med
+  assert(s.includes("run_code"));
+  assert(!s.includes("REGISTERBLOKK-MARKØR"));
+  assert(!s.includes("EVAL-REGLER"));
+  assert(!s.includes("search_datasets"));
+});
+
+Deno.test("buildSvarSystem(utforsk, deep): deep-dybdeblokk", () => {
+  const s = buildSvarSystem("utforsk", "python", "", { depth: "deep" });
+  assert(s.includes("Dybde: DEEP"));
+  assert(!s.includes("Dybde: STANDARD"));
+});
+
+Deno.test("buildRouteToolDefs(utforsk): run_code + web m/ budsjett, ingen katalogverktøy", () => {
+  const defs = buildRouteToolDefs("utforsk", "standard") as { name?: string; max_uses?: number }[];
+  const names = defs.map((d) => d.name);
+  assert(names.includes("run_code"));
+  assert(names.includes("web_search") && names.includes("web_fetch"));
+  assert(!names.includes("search_datasets") && !names.includes("search_catalog") && !names.includes("probe"));
+  assertEquals(defs.find((d) => d.name === "web_search")?.max_uses, 2);
+});
+
+Deno.test("buildRouteToolDefs(utforsk, hostedWeb:false): kun run_code", () => {
+  const defs = buildRouteToolDefs("utforsk", "deep", { hostedWeb: false }) as { name?: string }[];
+  assertEquals(defs.map((d) => d.name), ["run_code"]);
 });

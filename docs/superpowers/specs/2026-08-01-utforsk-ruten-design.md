@@ -116,6 +116,14 @@ det til boilerplate.
 - **Ærlighetsfooter, tre punkter:** utelatte konsekvenser; antakelser uten
   evidens; om alternative modellformer ville gitt andre svar. (Innbakte
   verdier trenger ikke footerplass — de er allerede synlige som parametre.)
+- **Moralske spørsmål spesielt (Hans 2026-08-01):** maksimeringsformen er i
+  seg selv et konsekvensetisk valg — etisk rammeverk behandles som
+  strukturantakelse i gate-tabellen. Pliktetiske hensyn representeres som
+  harde bivilkår (plikten er ikke omsettelig) eller, mykere, som høy
+  kostnad ved brudd med brukerstyrt vekt — og grepet NAVNGIS (oversettelsen
+  er selv filosofisk omstridt). Ved reell rammeverk-kontrovers vises begge
+  rammene og hvor de divergerer, i stedet for stille valg. Prompten skal
+  ALDRI anbefale utilitarisme fordi den er lettest å modellere.
 
 **2c. Foretrukket konklusjonsform.**
 

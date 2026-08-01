@@ -496,3 +496,77 @@ test('meta: første = varsler ikke, og ulike mål varsler ikke', () => {
   const r = DD.parse('# meta.iris.note = "A"\n# meta.pen.note = "B"\n# meta.iris.link = "https://a"');
   assert.deepEqual(r.warnings, []);
 });
+
+// Auto-connect (2026-08-01, synket fra openstat c1e6f6d): en registerkilde-id
+// kan stå direkte som receiver uten connect-linje — alle how_to_read-hint og
+// DELIVERY-eksempelet er skrevet på den formen og feilet før.
+const AUTOCONNECT_REG = [
+  { id: 'worldbank', navn: 'World Bank Open Data', utgiver: 'Verdensbanken',
+    tillit: 'offisiell', tilgang: 'rest', kind: 'worldbank',
+    base_url: 'https://api.worldbank.org/v2/', cors: true },
+  { id: 'oecd', navn: 'OECD SDMX', utgiver: 'OECD', tillit: 'offisiell',
+    tilgang: 'sdmx', kind: 'sdmx',
+    base_url: 'https://sdmx.oecd.org/public/rest/data/', cors: true },
+  { id: 'dbnomics', navn: 'DBnomics', utgiver: 'Cepremap', tillit: 'etablert',
+    tilgang: 'rest', kind: 'dbnomics', base_url: 'https://api.db.nomics.world/v22/series/', cors: true },
+];
+
+test('resolve: registerkilde som receiver uten connect-linje (auto-connect)', () => {
+  const p = DD.parse('# helse = worldbank.read("country/NOR;SWE/indicator/SH.XPD.CHEX.GD.ZS")');
+  assert.deepEqual(p.errors, []);
+  const items = DD.resolve(p, AUTOCONNECT_REG);
+  assert.equal(items[0].error, undefined);
+  assert.equal(items[0].url, 'https://api.worldbank.org/v2/country/NOR;SWE/indicator/SH.XPD.CHEX.GD.ZS');
+});
+
+test('resolve: auto-connect med kanonisk vokabular (sdmx, komma-form)', () => {
+  const p = DD.parse('# o = oecd.read("OECD.CFE.EDS,DSD_FUA_CLIM@DF_CLIM_PROJ", years="2030:2060", countries=["NOR"])');
+  assert.deepEqual(p.errors, []);
+  const items = DD.resolve(p, AUTOCONNECT_REG);
+  assert.equal(items[0].error, undefined);
+  assert.equal(items[0].url,
+    'https://sdmx.oecd.org/public/rest/data/OECD.CFE.EDS,DSD_FUA_CLIM@DF_CLIM_PROJ?startPeriod=2030&endPeriod=2060');
+});
+
+test('resolve: ukjent receiver uten registertreff feiler fortsatt', () => {
+  const items = DD.resolve(DD.parse('# x = tullekilde.read("noe/sti")'), AUTOCONNECT_REG);
+  assert.match(items[0].error, /ukjent kilde-alias «tullekilde»/);
+});
+
+test('resolve: eksplisitt connect-alias vinner over registerid', () => {
+  const items = DD.resolve(DD.parse([
+    '# worldbank = ost.connect("https://example.org/annet/")',
+    '# x = worldbank.read("sti")',
+  ].join('\n')), AUTOCONNECT_REG);
+  assert.equal(items[0].url, 'https://example.org/annet/sti');
+});
+
+// dbnomics dimensions= (synket fra openstat b41147f)
+test('translateCanonical dbnomics: filters blir dimensions=<url-enkodet JSON>', () => {
+  const t = DD.translateCanonical('dbnomics', 'IMF/WEO:latest',
+    { filters: { 'weo-country': ['NOR', 'SWE'] } });
+  assert.equal(t.error, undefined);
+  assert.deepEqual(JSON.parse(decodeURIComponent(t.params[0].replace(/^dimensions=/, ''))),
+    { 'weo-country': ['NOR', 'SWE'] });
+});
+
+test('translateCanonical dbnomics: enkeltverdi pakkes som liste (API-et krever array)', () => {
+  const t = DD.translateCanonical('dbnomics', 'IMF/WEO:latest', { filters: { 'weo-country': 'NOR' } });
+  assert.deepEqual(JSON.parse(decodeURIComponent(t.params[0].replace(/^dimensions=/, ''))),
+    { 'weo-country': ['NOR'] });
+});
+
+test('translateCanonical dbnomics: countries peker til filters, ikke til stien', () => {
+  const t = DD.translateCanonical('dbnomics', 'IMF/WEO:latest', { countries: ['NOR'] });
+  assert.match(t.error, /filters=/);
+  assert.ok(!/i stien/.test(t.error), t.error);
+});
+
+test('resolve dbnomics: filters + years gir dimensions i URL og klient-årsfilter', () => {
+  const p = DD.parse('# w = dbnomics.read("IMF/WEO:latest", filters={"weo-country": ["NOR"]}, years="2015:2020")');
+  assert.deepEqual(p.errors, []);
+  const item = DD.resolve(p, AUTOCONNECT_REG)[0];
+  assert.equal(item.error, undefined);
+  assert.match(item.url, /^https:\/\/api\.db\.nomics\.world\/v22\/series\/IMF\/WEO:latest\?dimensions=/);
+  assert.deepEqual(item.clientYears, { from: '2015', to: '2020' });
+});

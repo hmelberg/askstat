@@ -158,3 +158,13 @@ Deno.test("buildRouteToolDefs(utforsk, hostedWeb:false): kun run_code", () => {
   const defs = buildRouteToolDefs("utforsk", "deep", { hostedWeb: false }) as { name?: string }[];
   assertEquals(defs.map((d) => d.name), ["run_code"]);
 });
+
+Deno.test("buildSvarSystem(data): DELIVERY dokumenterer auto-connect (registerid rett som receiver)", () => {
+  // Kodekontrakt siden 2026-08-01 (DataDirectives.resolve, synket fra openstat):
+  // en registerkilde-id som receiver er en implisitt connect. Verktøyhintene
+  // viser bare read-linja, så prompten MÅ si at den formen er gyldig.
+  const s = buildSvarSystem("data", "python", "REG");
+  assert(s.includes("connect-linja er valgfri"));
+  // SDMX-flowRef er komma-form (slash 404-er hos OECD, målt live 2026-08-01)
+  assert(s.includes("<agency>,<dataflow>"));
+});

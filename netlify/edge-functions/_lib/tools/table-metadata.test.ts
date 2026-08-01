@@ -166,6 +166,15 @@ Deno.test("sdmx metadata: kodeliste koblet via enumeration-URN, tidsdimensjon fr
   assertEquals(calls[1], "en");
 });
 
+Deno.test("sdmx metadata: komma-form id (som search_catalog nå returnerer) godtas likt", async () => {
+  // search_catalog gir flowRef-en på komma-form («NB,EXR» — det read() tar);
+  // strukturendepunktet trenger agency/flow som separate path-segmenter.
+  const calls: string[] = [];
+  const meta = await tableMetadata("norgesbank", "NB,EXR", { registry: REG, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE, calls) });
+  assertEquals(meta.title, "Exchange rates");
+  assertEquals(calls[0], "https://data.norges-bank.no/api/dataflow/NB/EXR/latest?references=all");
+});
+
 // --- ecb adapter (XML, Task 1) ---
 
 const ECB_EXR_DSD_XML = `<?xml version='1.0' encoding='UTF-8'?><mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><mes:Structures><str:DataStructures><str:DataStructure agencyID="ECB" id="ECB_EXR1"><com:Name xml:lang="en">Exchange Rates</com:Name><str:DataStructureComponents><str:DimensionList><str:Dimension id="CURRENCY"><str:LocalRepresentation><str:Enumeration><Ref agencyID="ECB" id="CL_CURRENCY" version="1.0" package="codelist"/></str:Enumeration></str:LocalRepresentation></str:Dimension><str:TimeDimension id="TIME_PERIOD"/></str:DimensionList></str:DataStructureComponents></str:DataStructure></str:DataStructures><str:Codelists><str:Codelist id="CL_CURRENCY"><str:Code id="NOK"><com:Name xml:lang="en">Norwegian krone</com:Name></str:Code><str:Code id="USD"><com:Name xml:lang="en">US dollar</com:Name></str:Code></str:Codelist></str:Codelists></mes:Structures></mes:Structure>`;
@@ -309,4 +318,32 @@ Deno.test("pxwebMetadata: find tømmer IKKE en kort mandatory-dimensjon (Content
   // trodd tabellen ikke hadde noe å måle). Den skal stå urørt.
   assertEquals(contents.values.length, 4);
   assertEquals(contents.valuesTruncated, false);
+});
+
+Deno.test("dbnomicsMetadata: gir dimensjonsKODER + verdikoder (grunnlaget for filters=)", async () => {
+  // Før returnerte adapteren {lesbar etikett: antall verdier} — modellen kunne
+  // dermed IKKE bygge filters={"weo-country": ["NOR"]}, som er den eneste veien
+  // til et uttrekk under 1000-serie-taket (målt live 2026-08-01).
+  const f = (() => Promise.resolve(new Response(JSON.stringify({
+    datasets: { docs: [{
+      code: "WEO", name: "World Economic Outlook", provider_code: "IMF",
+      dimensions_codes_order: ["weo-country", "weo-subject"],
+      dimensions_labels: { "weo-country": "Country", "weo-subject": "Subject" },
+      dimensions_values_labels: {
+        "weo-country": { NOR: "Norway", SWE: "Sweden" },
+        "weo-subject": { NGDP_RPCH: "GDP growth" },
+      },
+    }] },
+  }), { status: 200 }))) as unknown as typeof fetch;
+  const reg = parseRegistry([{ id: "dbnomics", navn: "DBnomics", utgiver: "Cepremap",
+    tillit: "etablert", tilgang: "rest", kind: "dbnomics",
+    base_url: "https://api.db.nomics.world/v22/series/", cors: true }]);
+  const m = await tableMetadata("dbnomics", "IMF/WEO", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
+
+  const dims = m.dimensjoner as { kode: string; navn: string; verdier: { code: string; label: string }[] }[];
+  assertEquals(dims[0].kode, "weo-country");          // KODEN, ikke etiketten
+  assertEquals(dims[0].navn, "Country");
+  assertEquals(dims[0].verdier[0], { code: "NOR", label: "Norway" });
+  // lesing-hintet skal vise filters=-veien, ikke serie-masken
+  assertEquals(String(m.lesing).includes("filters="), true);
 });

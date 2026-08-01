@@ -101,8 +101,23 @@
       return out;
     }
     if (kind === 'dbnomics') {
-      if (c.countries || c.indicators || c.regions || c.filters) {
-        return { error: 'countries()/indicators()/filters() støttes ikke for dbnomics — dimensjonene ligger i serie-masken i stien (f.eks. IMF/WEO:latest/NOR+SWE.NGDP_RPCH)' };
+      // countries/indicators/regions har INGEN fast dimensjonsnavn hos
+      // dbnomics (weo-country, geo, REF_AREA … varierer per datasett), så de
+      // kan ikke oversettes verifiserbart — hard feil, men pek på veien som
+      // FINNES (filters=), ikke på serie-masken grammatikken ikke tar.
+      if (c.countries || c.indicators || c.regions) {
+        return { error: 'countries()/indicators()/regions() støttes ikke for dbnomics — dimensjonsnavnene varierer per datasett; bruk filters={"<dimensjon>": "<kode>"} (table_metadata gir dimensjonskodene)' };
+      }
+      // ?dimensions=<url-enkodet JSON> (verifisert live 2026-08-01 mot
+      // /v22/series/<provider>/<dataset>): verdiene MÅ være lister. Uten
+      // dette traff et helt datasett 1000-serie-taket og kastet.
+      if (c.filters) {
+        var dims = {};
+        Object.keys(c.filters).forEach(function (k) {
+          var v = c.filters[k];
+          dims[k] = Object.prototype.toString.call(v) === '[object Array]' ? v : [v];
+        });
+        params.push('dimensions=' + encodeURIComponent(JSON.stringify(dims)));
       }
       if (y) out.clientYears = { from: y.from, to: y.to };   // filtreres klient-side etter flatening
       return out;
@@ -525,7 +540,16 @@
       var head = slash > 0 ? l.target.slice(0, slash) : l.target;
       var rest = slash > 0 ? l.target.slice(slash + 1) : '';
       var conn = byAlias[head];
-      if (!conn) return { alias: l.alias, url: '', viaProxy: false, error: 'ukjent kilde-alias «' + head + '» (mangler connect-linje?)' };
+      if (!conn) {
+        // Auto-connect (2026-08-01): en registerkilde-id direkte som receiver
+        // er en implisitt «# <id> = ost.connect("<id>")». Feilklassen var målt:
+        // how_to_read-hintene og DELIVERY-eksemplene viser bare read-linja.
+        if (findRegistrySource(registry, head)) {
+          conn = { target: head, alias: head, options: {} };
+        } else {
+          return { alias: l.alias, url: '', viaProxy: false, error: 'ukjent kilde-alias «' + head + '» (mangler connect-linje?)' };
+        }
+      }
       var copts = conn.options || {};
       var key = lopts.key || copts.key, exec = lopts.exec || copts.exec, kind = lopts.kind || copts.kind;
       var cache = lopts.cache || copts.cache;

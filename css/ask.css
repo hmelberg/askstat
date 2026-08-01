@@ -40,10 +40,12 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 /* Hamburger-dropdown med eksempelspørsmål (Hans 2026-07-29). */
 .ask-menu { position: absolute; top: 100%; left: 4px; z-index: 50;
   background: var(--bg-code); border: 1px solid var(--border); border-radius: 10px;
-  padding: 8px; min-width: 240px; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  padding: 8px; min-width: 240px; box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  max-height: min(70vh, 560px); overflow-y: auto; }
 .ask-menu[hidden] { display: none; }
 .ask-menu-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
   color: var(--text-muted); padding: 2px 8px 6px; }
+.ask-menu-title + .ask-menu-title, .ask-menu button + .ask-menu-title { margin-top: 8px; }
 .ask-menu button { display: block; width: 100%; text-align: left; background: none;
   border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer; color: inherit; font-size: 13px; }
 .ask-menu button:hover { background: rgba(127,127,127,.14); }

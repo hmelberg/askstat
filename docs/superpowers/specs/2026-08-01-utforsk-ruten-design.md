@@ -135,6 +135,13 @@ spørsmål, styrt av gate-tabellens klasse→håndtering-mapping. Ingen av dem e
 obligatoriske; en ren dekomponering i prosa er et gyldig svar når modellen
 ikke tilfører innsikt.
 
+**Kompleksitet vs. realisme (default med brukeroverstyring):** default er en
+ENKEL modell med få, navngitte nøkkelparametre — enkelhet slår realisme,
+leseren skal kunne forstå mekanismen (videreført fra REFORM). Men ber
+brukeren selv om en rikere eller mer realistisk modell (flere mekanismer,
+flere grupper, kalibrering mot tall), følges bestillingen — da er
+kompleksiteten et ønske, ikke støy.
+
 **2e. Ett kompakt worked example (few-shot) i blokka.** Ett eksempel lærer
 formen bedre enn en påbudt disposisjon. Skisse (utformes presist i
 implementasjonen, holdes kort — ~15 linjer):

@@ -421,6 +421,53 @@ prøve fra PyPI eller GitHub. Nivåene:
       evalsettet ved neste AI-økt (krever nøkkel; promptmalene er alt
       oppdatert til # read).
 
+- [ ] **Hugging Face som datakilde — teknisk klarert, men trenger et
+      «hva slags data spør du om?»-lag** (undersøkt 2026-08-01). Alt målt
+      live mot ekte API-er:
+      - **CORS er helt åpent.** Søke-API-et (`huggingface.co/api/datasets?
+        search=…&sort=downloads`), Dataset Viewer (`datasets-server.
+        huggingface.co`: `/is-valid`, `/rows`, `/filter`, `/search`,
+        `/parquet`) OG selve parquet-filene reflekterer Origin. Parquet-
+        CDN-en svarer HTTP 206 på range-forespørsler med
+        `access-control-allow-origin: *` og eksponerer Accept-Ranges/
+        Content-Range → **duckdb-wasm kan spørre HF-parquet DIREKTE fra
+        nettleseren, uten /api/hent**. Det er en kapabilitet vi ikke har
+        for noen annen kilde i dag.
+      - `/rows` gir typet kolonneskjema (`features[].type.dtype`), altså
+        gratis grunnlag for typing/kodebok-laget.
+      - **MEN søkekvaliteten er dårlig i vårt domene.** «health
+        expenditure» sortert på nedlastinger gir republiserte WHO/OWID-
+        derivater fra bulk-opplastere (66–188 nedlastinger) — dårligere
+        kopier av kilder vi allerede har VED KILDEN, med svakere
+        proveniens. Å legge HF rett inn i `search_datasets`' rotasjon
+        ville støye ned nettopp de spørsmålene Hans jobber med.
+      - **Derfor det åpne designspørsmålet (Hans, 2026-08-01): hvordan
+        skille «jeg vil ha ML-/forskningsdata» fra «jeg vil ha offisiell
+        statistikk»?** To retninger, ikke gjensidig utelukkende:
+        (a) BRUKERVALG — eksplisitt kilde/omfang i UI-et, eller at
+        HF bare nås når brukeren navngir den (`# d = huggingface.read(…)`);
+        (b) INFERENS fra spørsmålet — ruteren/`scope`-parameteren
+        klassifiserer allerede stats/research; HF hører hjemme under
+        `research` sammen med datacite/dataeuropa, ikke under `stats`.
+        Merk at dagens `scope='research'` KUN har metadatakataloger som
+        stort sett gir landingssider — HF er den eneste kandidaten som gir
+        direkte lastbare, typede data. Det er det sterkeste argumentet for
+        å ta den inn, og det gjelder survey-/individ-/mikrodata, som
+        KODEBOK-blokken og de kausale designene eksplisitt etterspør.
+      - Foreslått rekkefølge om vi går videre: (1) HF som EKSPLISITT
+        navngitt kilde i registeret (ingen discovery-støy), (2) duckdb-
+        parquet-veien som egen leveringsform, (3) først til slutt —
+        og bare hvis (1) viser seg nyttig — vurdere plass i `research`-
+        rotasjonen, med kvalitetsfilter (nedlastinger/likes) og
+        eksplisitt «uoffisiell kilde»-merking i svaret.
+      - Vurdert og forkastet samtidig: skills.rest-skillene
+        (`api-data-fetcher` genererer requests/pandas = EVAL-regel 4-brudd
+        og dekker FRED/WB/OECD vi har bedre; `nl-gov-shared` er en
+        konfig-stubb; `datagouv-apis` har en ekte Tabular API med
+        server-side filter/sort/aggregat, men fransk forvaltningsdata =
+        lav relevans). openstat konsumerer uansett ikke Claude Skills —
+        alt må bli adapter + registeroppføring + promptregel.
+
 ## Diverse / uavklart
 
 - [ ] Pandas-basert GUI som egen modus (Hans' idé — holdes adskilt fra

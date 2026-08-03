@@ -44,6 +44,18 @@
     }
   }
 
+  // Feilkropper (spec 2026-08-03 §fase 2.1): oppstrøms feilkropp er ekstern
+  // grunnsannhet («Missing selection for mandatory variable Tid») — ta den
+  // med i kastet melding så run_code-FEIL-teksten navngir årsaken og
+  // modellen kan reparere på ÉN runde. Prefikset («proxy 400 for x» /
+  // «HTTP 400 for x») BEVARES — pxweb-400-oversettelsen i
+  // fetchResolvedItems matcher på det.
+  async function httpFeilMedKropp(resp, prefiks) {
+    var kropp = '';
+    try { kropp = (await resp.text()).slice(0, 1500).trim(); } catch (e) {}
+    return new Error(prefiks + (kropp ? ' — oppstrøms svar: ' + kropp : ''));
+  }
+
   // Brukernøkler (spec 2026-07-23): en kilde med auth.user i registeret krever
   // registrert nøkkel (js/keys.js). Nøkkelen sendes KUN som X-Source-Key til
   // /api/hent (som injiserer etter plasseringsregelen, vertsbundet) — den
@@ -86,13 +98,13 @@
     function hdrs() { return Object.assign({}, proxyHeaders(authToken, anthropicKey), srcKey, item.fetchHeaders || {}); }
     async function viaProxy() {
       var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(item.url), { headers: hdrs() });
-      if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + item.alias);
+      if (!pr.ok) throw await httpFeilMedKropp(pr, 'proxy ' + pr.status + ' for ' + item.alias);
       assertNotTruncated(pr, item.alias);
       return pr;
     }
     if (item.url.indexOf('/api/hent?') === 0) {
       var r0 = await fetchImpl(item.url, { headers: hdrs() });
-      if (!r0.ok) throw new Error('proxy ' + r0.status + ' for ' + item.alias);
+      if (!r0.ok) throw await httpFeilMedKropp(r0, 'proxy ' + r0.status + ' for ' + item.alias);
       assertNotTruncated(r0, item.alias);
       return r0;
     }
@@ -102,7 +114,7 @@
     if (item.viaProxy || srcKey['X-Source-Key']) return viaProxy();
     try {
       var r1 = await fetchImpl(item.url, item.fetchHeaders ? { headers: item.fetchHeaders } : undefined);
-      if (!r1.ok) throw new Error('HTTP ' + r1.status + ' for ' + item.alias + ' (' + item.url + ')');
+      if (!r1.ok) throw await httpFeilMedKropp(r1, 'HTTP ' + r1.status + ' for ' + item.alias + ' (' + item.url + ')');
       return r1;
     } catch (e) {
       if (e instanceof TypeError) return viaProxy();   // CORS/nettverk → proxy
@@ -125,17 +137,17 @@
       // Headerne sendes KUN til proxyen, aldri til eksterne kilder.
       var pr = await fetchImpl('/api/hent?url=' + encodeURIComponent(url),
                                { headers: proxyHeaders(deps.authToken, deps.anthropicKey) });
-      if (!pr.ok) throw new Error('proxy ' + pr.status + ' for ' + url);
+      if (!pr.ok) throw await httpFeilMedKropp(pr, 'proxy ' + pr.status + ' for ' + url);
       return pr;
     }
     var resp;
     if (url.indexOf('/api/hent?') === 0) {
       resp = await fetchImpl(url, { headers: proxyHeaders(deps.authToken, deps.anthropicKey) });
-      if (!resp.ok) throw new Error('proxy ' + resp.status + ' for ' + url);
+      if (!resp.ok) throw await httpFeilMedKropp(resp, 'proxy ' + resp.status + ' for ' + url);
     } else {
       try {
         resp = await fetchImpl(url);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' for ' + url);
+        if (!resp.ok) throw await httpFeilMedKropp(resp, 'HTTP ' + resp.status + ' for ' + url);
       } catch (e) {
         if (e instanceof TypeError) resp = await viaProxy();
         else throw e;

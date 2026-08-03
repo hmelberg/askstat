@@ -1,12 +1,9 @@
-# label: wbgapi — World Bank via micropip
+# label: wbgapi — World Bank via auto-install
 # group: Libraries
 # Spike-script (docs/2026-08-spike-wbgapi-sdmx1.md): kan det EKTE World
-# Bank-biblioteket installeres og hente data i Pyodide? Det er nøyaktig det
-# treningsdataene til modellene inneholder — virker dette rent, er det et
-# argument for å la python-modus bruke bibliotekene direkte (ROADMAP «DSL
-# vs. LLM-vaner» pkt 2). Noter utfallet i memoet.
-import micropip
-await micropip.install("wbgapi")
+# Bank-biblioteket brukes i Pyodide? Appen installerer manglende imports
+# automatisk (micropip bak kulissene) — derfor INGEN micropip-linje her;
+# toppnivå-await støttes ikke i kjøringen. Noter utfallet i memoet.
 import wbgapi as wb
 df = wb.data.DataFrame("SH.XPD.CHEX.GD.ZS", ["NOR", "SWE"], time=range(2015, 2023))
 print(df.head())

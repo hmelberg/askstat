@@ -370,12 +370,12 @@
     },
     {
       "file": "python/lib02_wbgapi.txt",
-      "label": "wbgapi — World Bank via micropip",
+      "label": "wbgapi — World Bank via auto-install",
       "group": "Libraries"
     },
     {
       "file": "python/lib03_sdmx1.txt",
-      "label": "sdmx1 — OECD dataflows via micropip",
+      "label": "sdmx1 — OECD dataflows via auto-install",
       "group": "Libraries"
     },
     {

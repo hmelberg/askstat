@@ -27,3 +27,13 @@ Deno.test("dekningssjekk- og omstartsreglene er montert i data-ruten (spec fase 
   assert(sys.includes("DEKNINGSSJEKK"), "META_SEARCH må ha dekningssjekk-regelen");
   assert(sys.includes("forkast tilnærmingen"), "RUN må ha omstartsregelen");
 });
+
+Deno.test("MODE_PY lærer aldri bort toppnivå-await micropip (målt SyntaxError 2026-08-04)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(!/Andre pakker: `import micropip/.test(sys),
+    "MODE_PY må ikke instruere `import micropip; await micropip.install(...)`");
+  assert(sys.includes("installerer manglende\nimports automatisk"),
+    "MODE_PY må forklare auto-install-veien");
+  assert(sys.includes("ALDRI `await micropip.install(...)`"),
+    "MODE_PY må forby toppnivå-await eksplisitt");
+});

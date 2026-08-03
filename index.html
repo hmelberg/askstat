@@ -2776,7 +2776,9 @@
                 'import importlib.util as _iu\n_iu.find_spec(' + JSON.stringify(_pkg) + ') is None');
               if (_needInstall) {
                 setStatus(ctx.rightStatus, t('Installerer {pkg}…', { pkg: _pkg }));
-                await ctx.py.runPythonAsync('import micropip as _mp\nawait _mp.install(' + JSON.stringify(_pkg) + ')');
+                // find_spec sjekker MODULNAVNET; installasjonen må bruke
+                // PyPI-navnet (aliastabellen over — sdmx→sdmx1 m.fl.).
+                await ctx.py.runPythonAsync('import micropip as _mp\nawait _mp.install(' + JSON.stringify(PYPI_ALIAS[_pkg] || _pkg) + ')');
               }
             } catch (e) { console.warn('micropip install', _pkg, e); }
           }
@@ -9234,6 +9236,12 @@ json.dumps(out)
       return pkgs;
     }
 
+    // Modulnavn → PyPI-navn der de spriker (auto-install bruker ellers
+    // modulnavnet som pip-navn 1:1). Målt 2026-08-04 (spike, docs/2026-08-
+    // spike-wbgapi-sdmx1.md): `import sdmx` prøvde å installere «sdmx» —
+    // pakken heter sdmx1. Klassikerne bs4/PIL/yaml/skimage samme klasse.
+    var PYPI_ALIAS = { sdmx: 'sdmx1', bs4: 'beautifulsoup4', PIL: 'pillow',
+                       yaml: 'pyyaml', skimage: 'scikit-image' };
     function extractPythonImports(src) {
       var pkgs = [], seen = {};
       var re = /^\s*(?:import|from)\s+([A-Za-z0-9_]+)/gm, m;

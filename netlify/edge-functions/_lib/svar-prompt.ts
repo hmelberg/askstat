@@ -303,7 +303,7 @@ const INLINE = `\
 Foretrekk alltid nivå 1; gå nedover bare når nivået over ikke finnes:
 1. **Probet endepunkt** (\`ost.read(…)\`). Wikipedia-tabeller kan hentes slik:
    \`# raw = ost.read("/api/hent?url=<url-enkodet artikkel>")\` og
-   \`pd.read_html(io.StringIO(raw))\` (installer lxml med micropip).
+   \`pd.read_html(io.StringIO(raw))\` (legg til \`import lxml\` — auto-installeres).
 2. **Transkribert fra hentet innhold**: har du LEST kilden (web_fetch), kan du
    skrive små tabeller (< ~50 rader) inline:
    \`data_<navn> = """..."""\` + \`pd.read_csv(io.StringIO(data_<navn>))\`
@@ -580,7 +580,11 @@ const MODE_PY = `\
 ## Modus: Python (Pyodide)
 
 Forhåndslastet: pandas, numpy, scipy, statsmodels, matplotlib, seaborn,
-plotly. Andre pakker: \`import micropip; await micropip.install("pakke")\`.
+plotly. Andre pakker: bare \`import <modul>\` — appen installerer manglende
+imports automatisk (micropip bak kulissene; kjente modul/PyPI-sprik som
+sdmx→sdmx1, bs4, PIL, yaml håndteres). ALDRI \`await micropip.install(...)\`
+på toppnivå — toppnivå-await støttes ikke i kjøringen (SyntaxError, målt
+2026-08-04).
 METODEVERKTØYKASSE: full — statsmodels (FE/DiD/event study), sklearn og
 linearmodels kan installeres (PSM, panel-IV). Velg python-modus når analysen
 trenger dette. Direktivrammene er pandas-DataFrames. Presenter både tall og figur der det gjør
@@ -607,8 +611,9 @@ Registerkilder m/ metadata: \`import openstat as ost\` +
 \`ost.read_csv(url)\` (metadatadrevet typing, eksplisitt) eller
 \`ost.convert_dtypes(df, meta="<samme url>")\` på en ramme du alt har.
 json-stat2 leses best via direktivveien (tidy + typet); pyjstat KAN
-micropip-installeres for parsing av json-stat-STRENGER — men aldri
-requests/urllib for henting (regel 4 gjelder fortsatt).
+brukes for parsing av json-stat-STRENGER (\`import pyjstat\` —
+auto-installeres) — men aldri requests/urllib for henting (regel 4
+gjelder fortsatt).
 
 INTERAKTIVITET: i simuleringer og modeller kan brukeren dra i antakelsene
 selv — bruk #@param-skjemaer for 1–3 nøkkelparametre, f.eks.

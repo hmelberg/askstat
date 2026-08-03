@@ -1,12 +1,11 @@
-# label: sdmx1 — OECD dataflows via micropip
+# label: sdmx1 — OECD dataflows via auto-install
 # group: Libraries
 # Spike-script (docs/2026-08-spike-wbgapi-sdmx1.md): kan sdmx1 (arvtakeren
-# etter pandasdmx) installeres og snakke med OECD i Pyodide? Virker det,
-# kan det på sikt erstatte håndrullet SDMX-nøkkelbygging (sdmxKeyDims/
-# sdmxKeyPath i js/api-kinds.js). Noter utfallet i memoet — install-feil
-# (f.eks. lxml/msgspec-avhengigheter) er OGSÅ et svar.
-import micropip
-await micropip.install("sdmx1")
+# etter pandasdmx) snakke med OECD i Pyodide? Modulen heter `sdmx`, PyPI-
+# pakken `sdmx1` — appens auto-install har en aliastabell for akkurat slike
+# navnesprik. Virker dette, kan det på sikt erstatte håndrullet SDMX-
+# nøkkelbygging (sdmxKeyDims/sdmxKeyPath i js/api-kinds.js). Install-feil
+# (f.eks. lxml/msgspec-avhengigheter) er OGSÅ et svar — noter i memoet.
 import sdmx
 oecd = sdmx.Client("OECD")
 fl = oecd.dataflow()

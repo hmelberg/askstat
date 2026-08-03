@@ -477,8 +477,8 @@ budsjettmodell med eksplisitt fortrengning kan snu svaret.`;
 const DEPTH_UTFORSK_STANDARD = `\
 ## Dybde: STANDARD (hurtig)
 
-ÉN enkel modell, 1–3 nøkkelparametre. Budsjett: ≤ 2 web_search, ≤ 1
-web_fetch, ≤ 3 run_code-kjøringer. Standard reduserer AMBISJON, ALDRI
+ÉN enkel modell, 1–3 nøkkelparametre. Budsjett: ≤ 3 web_search, ≤ 2
+web_fetch, ≤ 4 run_code-kjøringer. Standard reduserer AMBISJON, ALDRI
 ÆRLIGHET: gate-tabellen, verdipremiss-regelen og footeren gjelder UENDRET.`;
 
 const DEPTH_UTFORSK_DEEP = `\

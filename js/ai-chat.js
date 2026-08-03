@@ -38,7 +38,7 @@
          'aiThread','aiInput','aiSendFastBtn','aiSendV2Btn','aiSendWebBtn','aiAbortBtn',
          'aiIncludeScript',
          'aiSettingsBackdrop','aiCfgAnthropicKey','aiCfgSave','aiCfgCancel',
-         'aiCfgByokStored','aiCfgByokRemove','aiCfgSourceKeys',
+         'aiCfgByokStored','aiCfgByokRemove','aiCfgSourceKeys','aiCfgDataPrefs',
          'aiCfgProviderType','aiCfgProviderFields','aiCfgProviderUrl','aiCfgProviderModel','aiCfgLlmKey',
          'sidebarRight','sidebarOpenTab','scriptInput'
         ].forEach(id => { dom[id] = $(id); });
@@ -684,6 +684,10 @@
               mode: mode,
               depth: params.depth || 'standard',
               available_keys: (window.Keys ? window.Keys.registered() : []),
+              preferences: (function () {
+                try { return localStorage.getItem('md_ask_prefs') || undefined; }
+                catch (e) { return undefined; }
+              })(),
               script: params.scriptContext || undefined,
               resume: resume || undefined,
               run_result: runResult == null ? undefined : runResult,
@@ -1311,6 +1315,7 @@
         if (dom.aiCfgProviderUrl) dom.aiCfgProviderUrl.value = (provRaw && provRaw.base_url) || '';
         if (dom.aiCfgProviderModel) dom.aiCfgProviderModel.value = (provRaw && provRaw.model) || '';
         if (dom.aiCfgLlmKey) dom.aiCfgLlmKey.value = '';
+        if (dom.aiCfgDataPrefs) { try { dom.aiCfgDataPrefs.value = localStorage.getItem('md_ask_prefs') || ''; } catch (e) {} }
         syncProviderFields();
         dom.aiSettingsBackdrop.classList.add('open');
       }
@@ -1326,6 +1331,13 @@
             var v = inp.value.trim();
             if (v) window.Keys.set(inp.dataset.sourceKeyId, v);
           });
+        }
+        if (dom.aiCfgDataPrefs) {
+          try {
+            var dp = dom.aiCfgDataPrefs.value.trim().slice(0, 2000);
+            if (dp) localStorage.setItem('md_ask_prefs', dp);
+            else localStorage.removeItem('md_ask_prefs');
+          } catch (e) {}
         }
         if (dom.aiCfgProviderType) {
           var ptype = dom.aiCfgProviderType.value;

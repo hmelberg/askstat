@@ -15,6 +15,21 @@ export function coerceDepth(d: unknown): Depth {
   return d === "deep" ? "deep" : "standard";
 }
 
+export function coercePreferences(p: unknown): string {
+  return typeof p === "string" ? p.trim().slice(0, 2000) : "";
+}
+
+function renderPreferencesBlock(prefs: string): string {
+  if (!prefs) return "";
+  return `## Brukerens datapreferanser (overstyrer standardvalg)
+
+Brukeren har lagret varige instrukser for datasøk og kildevalg. De har
+forrang over landrutingen og registerets standardvalg — men opphever ALDRI
+ærlighetsreglene (probe-✅, fabrikasjonsvern, budsjettene):
+
+${prefs}`;
+}
+
 // Ruter fra /api/ask-ruter. "språk" når aldri hit (besvares av ruteren).
 export type AskRoute = "beregning" | "data" | "oppslag" | "utforsk";
 
@@ -332,6 +347,22 @@ Let etter data i denne rekkefølgen:
    dette utvalget finnes.
 Kataloger i failed-listen svarte ikke — nevn det om det er relevant for
 svaret, eller søk dem målrettet med search_catalog.`;
+
+const ROUTING = `\
+## Landruting (standardvalg — brukerens preferanser har forrang)
+
+Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
+- **Norge**: ssb først (offisiell statistikk); fhi for helse/registerdata.
+  Kjente hull: ungdoms-rusdata bor hos FHI/Ungdata, ikke SSB; rente/valuta
+  hos norgesbank.
+- **Norden**: dst (Danmark), scb (Sverige), statfin (Finland) — samme
+  tabellfamilie som SSB, men agentur-lokale tabell-id-er (søk per kilde).
+- **EU/regionalt (NUTS)**: eurostat — Norge er med i de fleste datasett.
+- **Global makro/tidsserier**: dbnomics først (IMF/OECD/BIS/ILO m.fl. bak
+  én kontrakt), worldbank for utviklingsindikatorer, oecd for OECD-land.
+- **Hverdagsspråklige tverrlandssammenligninger**: owid (åpen GET-CSV).
+Angir brukerens datapreferanser et standardland/-region eller foretrukne
+kilder, har DE forrang over denne tabellen.`;
 
 const KODEBOK = `\
 ## Kodebok (survey-/individ-/forskningsdata)
@@ -668,7 +699,7 @@ export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean; depth?: Depth },
+  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown },
 ): string {
   const depth = opts?.depth ?? "standard";
   if (route === "beregning") {
@@ -680,9 +711,11 @@ export function buildSvarSystem(
   if (route === "oppslag") {
     return [INTRO_LOOKUP, RUN].join("\n\n");
   }
-  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], META_SEARCH, KODEBOK, RUN, PARTIAL];
+  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], ROUTING, META_SEARCH, KODEBOK, RUN, PARTIAL];
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
+  const prefBlock = renderPreferencesBlock(coercePreferences(opts?.preferences));
+  if (prefBlock) blocks.push(prefBlock);
   return blocks.join("\n\n");
 }
 

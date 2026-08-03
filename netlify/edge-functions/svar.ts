@@ -29,6 +29,7 @@ interface RequestBody {
   depth?: string;
   script?: string;
   available_keys?: unknown;
+  preferences?: unknown;
   provider?: unknown;
   resume?: ResumeBody;
   run_result?: string;
@@ -146,7 +147,7 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const memoryUrls = provider ? provider.webSearch === "none" : false;
-  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth });
+  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth, preferences: body.preferences });
 
   const probed: { url: string; ok: boolean; cors: boolean; viaProxy: boolean }[] = [];
   if (body.resume && Array.isArray(body.resume.probed)) {

@@ -300,6 +300,12 @@
       <div id="aiCfgSourceKeys" style="margin-bottom:18px;"></div>
 
       <div style="margin-bottom:18px;">
+        <label for="aiCfgDataPrefs" data-i18n>Datapreferanser (valgfritt)</label>
+        <textarea id="aiCfgDataPrefs" rows="3" maxlength="2000" placeholder="F.eks.: standardland Norge; foretrekk SSB og Eurostat; oppgi alltid kilde-URL"></textarea>
+        <div class="ai-modal-help" data-i18n>Varige instrukser for datasøk og kildevalg i Ask. Sendes med hvert spørsmål og overstyrer appens standardvalg.</div>
+      </div>
+
+      <div style="margin-bottom:18px;">
         <label for="aiCfgProviderType" data-i18n>AI-leverandør</label>
         <select id="aiCfgProviderType">
           <option value="anthropic" data-i18n>Anthropic (standard)</option>

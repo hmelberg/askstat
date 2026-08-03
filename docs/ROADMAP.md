@@ -554,11 +554,12 @@ prøve fra PyPI eller GitHub. Nivåene:
       **SPIKE (2) KJØRT 2026-08-04 — kjennelse i
       `docs/2026-08-spike-wbgapi-sdmx1.md`:** mekanikken virker (auto-install
       + requests/urllib3 via JSPI; sdmx1 mot OECD = full pass, 1540
-      dataflows), men adopsjon er PER-BIBLIOTEK: wbgapi er ubrukelig
-      browser-side (dens obligatoriske metadata-kall treffer WBs
-      ikke-CORS-endepunkt `/v2/en/sources/...` — CORS gjelder per ENDEPUNKT,
-      ikke per vert, og bibliotekets URL-valg kan ikke styres). Transport er
-      altså ikke lenger argumentet mot biblioteker — endepunktKONTROLL er.
+      dataflows), men adopsjon er PER-BIBLIOTEK: wbgapi dør som den
+      står på WBs ikke-CORS-endepunkt `/v2/.../sources/...concepts` (CORS
+      gjelder per ENDEPUNKT, ikke per vert) — men er LØSBAR (verifisert:
+      `wb.endpoint`-override + prefix-rewrite `/api/wb/*` → full pass).
+      Transport er ikke lenger argumentet mot biblioteker — skillet er
+      KONFIGURERBART endepunkt (wbgapi/sdmx1: løsbar) vs. hardkodet.
       Oppfølging verdt eget løp: sdmx1 som SDMX-motor (kan pensjonere
       sdmxKeyDims/sdmxKeyPath hvis ECB/NB-strukturendepunktene er like
       CORS-åpne som OECDs — mål fra prod-origin). Spiken avdekket og fikset

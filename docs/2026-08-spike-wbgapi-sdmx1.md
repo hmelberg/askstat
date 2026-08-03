@@ -38,7 +38,7 @@ print("SDMX1 OK, antall dataflows:", len(fl.dataflow))
 | Script | Install ok? | Nettkall ok? | Resultat/feilmelding |
 |--------|-------------|--------------|----------------------|
 | 1 requests | (forhåndsinstallert) | JA i Chromium; NEI i Hans' nettleser | Stakken VIRKER ende-til-ende (bevist av script 3 i Chromium: JSPI-vei, `send_jspi_request`). Hans' nettleser ga «NetworkError when attempting to fetch resource» på ALT (Firefox-ordlyd — trolig ETP/utvidelse/nettleservalg, IKKE appen: samme origin ga 200 på ren fetch i Chromium). Åpent: identifiser Hans' nettleser + re-test fra prod. |
-| 2 wbgapi   | JA (auto-install) | NEI — WBs egen skyld | ROTÅRSAK FUNNET (Chromium-konsoll): wbgapis FØRSTE interne kall er metadata-endepunktet `/v2/en/sources/2/concepts` — som IKKE sender ACAO-header, mens dataendepunktene (`/v2/country/...`) er CORS-åpne (målt 200 samme økt). Per-endepunkt-CORS-splitt på samme vert (Eurostat-katalog-mønsteret fra Workbench-utredningen). Biblioteket dør på sitt eget URL-valg og kan ikke pekes mot /api/hent → wbgapi er UBRUKELIG browser-side uten requests-nivå proxy-shim. (Første forsøk m/ `await micropip.install` ga SyntaxError — harness-funn 1 under.) |
+| 2 wbgapi   | JA (auto-install) | NEI — WBs egen skyld | ROTÅRSAK FUNNET (Chromium-konsoll): wbgapis FØRSTE interne kall er metadata-endepunktet `/v2/en/sources/2/concepts` — som IKKE sender ACAO-header, mens dataendepunktene (`/v2/country/...`) er CORS-åpne (målt 200 samme økt). Per-endepunkt-CORS-splitt på samme vert (Eurostat-katalog-mønsteret fra Workbench-utredningen). MEN (Hans' innvending 2026-08-04, verifisert empirisk samme kveld): `wbgapi.endpoint` er en modul-global — med en Netlify prefix-rewrite (`/api/wb/* → https://api.worldbank.org/v2/:splat`, status 200 = same-origin) og `wb.endpoint = origin + "/api/wb"` gikk NØYAKTIG samme DataFrame-kall til FULL PASS i Chromium: NOR/SWE 2015–2022, form (2, 8). Løsbar-klassen, ikke ubrukelig-klassen. (Første forsøk m/ `await micropip.install` ga SyntaxError — harness-funn 1 under.) |
 | 3 sdmx1    | JA (PYPI_ALIAS sdmx→sdmx1) | **JA — FULL PASS (Chromium, localhost)** | `SDMX1 OK, antall dataflows: 1540` — install, JSPI-fetch mot sdmx.oecd.org, full SDMX-ML-parse. Kun kosmetiske stderr-advarsler (forward references, deprecation provider=→agency_id). OECDs REST-flate er gjennomgående CORS-åpen — derfor virker biblioteket der wbgapi ikke gjør det. I Hans' nettleser: samme NetworkError som alt annet (nettleser-spesifikt). |
 
 ## Harness-funn underveis (2026-08-04, fikset samme dag)
@@ -61,9 +61,10 @@ print("SDMX1 OK, antall dataflows:", len(fl.dataflow))
 - [x] **NYANSERT — mekanikken virker, adopsjon er per-bibliotek:**
       **(a)** for selve stakken: auto-install + requests/urllib3 via JSPI +
       full XML-parse virker (sdmx1 mot OECD: 1540 dataflows, full pass).
-      **(b)** for wbgapi spesifikt: ubrukelig browser-side — dens
-      obligatoriske metadata-kall treffer et ikke-CORS-endepunkt hos WB, og
-      bibliotekets interne URL-valg kan ikke rutes via /api/hent.
+      **(b)** for wbgapi spesifikt: dør på WBs ikke-CORS metadata-endepunkt
+      SOM DEN STÅR, men er i LØSBAR-klassen: `wb.endpoint`-override + en
+      prefix-rewrite ga full pass (verifisert). Skillet som består er
+      KONFIGURERBART endepunkt (wbgapi, sdmx1) vs. hardkodet.
 
 Begrunnelse (2026-08-04, målt i Chromium på localhost:8899 + Hans' kjøringer):
 1. Transportlaget er IKKE lenger argumentet mot biblioteker — JSPI +
@@ -75,9 +76,11 @@ Begrunnelse (2026-08-04, målt i Chromium på localhost:8899 + Hans' kjøringer)
    (OECD/ECB/NB) — kan pensjonere håndrullet nøkkelbygging
    (sdmxKeyDims/sdmxKeyPath) HVIS kildenes strukturendepunkter er like
    CORS-åpne som OECDs (må måles per kilde, fra prod-origin).
-3. Videre oppfølging (fase 3+, valgfri): requests-nivå proxy-shim
-   (ROADMAP-retning 1b) ville gjort wbgapi-klassen brukbar — policy-
-   diskusjonen fra ROADMAP gjelder uendret.
+3. Videre oppfølging (fase 3+, valgfri): per-kilde PREFIX-REWRITES
+   (`/api/wb/*` m.fl., 4 linjer netlify.toml per kilde) gjør
+   konfigurerbart-endepunkt-biblioteker brukbare — verifisert for wbgapi.
+   Mer generelt requests-nivå-shim (ROADMAP-retning 1b) er fortsatt
+   alternativet for hardkodede biblioteker.
 4. Uavklart bihøst: Hans' nettleser blokkerer ALLE cross-origin-fetch fra
    localhost (Firefox-ordlyd i feilene) — identifiser nettleser/utvidelse
    og re-test fra ask.melberg.app etter push. Påvirker ikke kjennelsen

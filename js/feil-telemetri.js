@@ -12,6 +12,17 @@
 
   function klipp(s, n) { return String(s == null ? '' : s).slice(0, n); }
 
+  // UTF-8-byte-lengde, ikke UTF-16 .length — Anvil-siden teller bytes, og
+  // norsk tekst (æøå) kan gjøre .length-basert taking løgnaktig trygt.
+  function byteLengde(s) {
+    try { return new TextEncoder().encode(s).length; } catch (e) { return s.length; }
+  }
+
+  // Maskerer nøkkelaktige query-parametre i feiltekster FØR klipp — feil fra
+  // datakilder (fred m.fl.) kan ekko URL-er med api_key= i klartekst.
+  var NOKKEL_RE = /\b(api_?key|apikey|token|key|access_token)=([^&\s"']+)/gi;
+  function maskerNokler(s) { return String(s == null ? '' : s).replace(NOKKEL_RE, '$1=***'); }
+
   // Ren og node-testbar. deps.scrub injiseres i test; produksjon bruker
   // DataDirectives.scrubKeys (aldri nøkler i telemetri — husregel).
   function byggFeilrapport(inn, deps) {
@@ -31,16 +42,16 @@
       tolkning: klipp(inn.tolkning, 2000),
       runs: (inn.runs || []).map(function (r) {
         return { script: klipp(scrub(r.script), MAX_SCRIPT_CHARS),
-                 error: klipp(r.error, MAX_ERROR_CHARS) };
+                 error: klipp(maskerNokler(r.error), MAX_ERROR_CHARS) };
       }),
-      flow_error: klipp(inn.flow_error, MAX_ERROR_CHARS) || undefined,
+      flow_error: klipp(maskerNokler(inn.flow_error), MAX_ERROR_CHARS) || undefined,
       final_ok: !!inn.final_ok,
       probed_sources: (inn.probed_sources || []).slice(0, 60),
       provider_type: inn.provider_type || 'anthropic',
     };
     // Størrelsestak: dropp ELDSTE runs til payloaden er under taket —
     // metadata + nyeste feil er mer verdt enn komplett scripthistorikk.
-    while (JSON.stringify(rapport).length > MAX_PAYLOAD_BYTES && rapport.runs.length) {
+    while (byteLengde(JSON.stringify(rapport)) > MAX_PAYLOAD_BYTES && rapport.runs.length) {
       rapport.runs.shift();
     }
     return rapport;

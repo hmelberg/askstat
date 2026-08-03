@@ -862,7 +862,10 @@
         }
         sendTelemetri(null);
       } catch (e) {
-        if (e && e.name === 'AbortError') { progressLine('Stopped.'); archiveStatus(); }
+        if (e && e.name === 'AbortError') {
+          progressLine('Stopped.'); archiveStatus();
+          if (feilRuns.length) sendTelemetri(null);
+        }
         else {
           sendTelemetri((e && e.message) ? e.message : String(e));
           showAnswer('✗ ' + ((e && e.message) ? e.message : String(e)) +

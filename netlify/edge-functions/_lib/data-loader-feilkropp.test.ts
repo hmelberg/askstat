@@ -32,3 +32,16 @@ Deno.test("prefikset for pxweb-400-oversettelsen består", async () => {
     throw new Error("prefikset «HTTP 400 for x » mangler: " + (err && err.message));
   }
 });
+
+Deno.test("tomt worldbank-uttrekk kaster i stedet for å binde tom ramme", async () => {
+  DL._resetCacheForTests();
+  const registry = [{ id: "worldbank", navn: "WB", utgiver: "WB", tillit: "etablert",
+    tilgang: "rest", kind: "worldbank", base_url: "https://api.worldbank.org/v2/", cors: true }];
+  const fetchImpl = (() => Promise.resolve(new Response(
+    JSON.stringify([{ page: 1, pages: 1, total: 0 }, []]),
+    { status: 200, headers: { "content-type": "application/json" } }))) as typeof fetch;
+  await assertRejects(
+    () => DL.resolveAndFetchLoads('# x = worldbank.read("country/NOR/indicator/SP.POP.TOTL")',
+      { fetchImpl, registry }),
+    Error, "TOMT");
+});

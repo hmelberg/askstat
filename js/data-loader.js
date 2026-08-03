@@ -56,6 +56,18 @@
     return new Error(prefiks + (kropp ? ' — oppstrøms svar: ' + kropp : ''));
   }
 
+  // Tomt-uttrekk-vakt (spec 2026-08-03 §fase 2.4): HTTP 200 med bare header
+  // er den stille SDMX/PxWeb-feilklassen (filtre ignorert/feil koder) —
+  // kast handlingsrettet i stedet for å binde en tom ramme videre.
+  function assertHarDatarader(csvText, alias) {
+    var rader = String(csvText || '').split('\n').filter(function (l) { return l.trim(); });
+    if (rader.length < 2) {
+      throw new Error('«' + alias + '»: uttrekket kom TOMT tilbake (0 datarader) — ' +
+        'sjekk filtre/dekning (koder, år, land); slakk én dimensjon og prøv igjen');
+    }
+    return csvText;
+  }
+
   // Brukernøkler (spec 2026-07-23): en kilde med auth.user i registeret krever
   // registrert nøkkel (js/keys.js). Nøkkelen sendes KUN som X-Source-Key til
   // /api/hent (som injiserer etter plasseringsregelen, vertsbundet) — den
@@ -362,7 +374,7 @@
         // Typet kanonisk vei (plan 2026-07-27): CSV-en mister typesystemet
         // json-stat2 bærer — typemeta følger med SEPARAT så Pyodide-preamblet
         // kan gjenreise det (Categorical i kildens orden, tidsregelen, attrs).
-        return { alias: item.alias, bytes: new TextEncoder().encode(csvPx),
+        return { alias: item.alias, bytes: new TextEncoder().encode(assertHarDatarader(csvPx, item.alias)),
                  format: 'csv', table: item.table, kind: 'pxweb',
                  typemeta: PX.typeMetaFromJsonStat(dsPx) };
       }
@@ -440,6 +452,7 @@
           }
           csvText = PXc.columnsToCsv(dcols);
         }
+        csvText = assertHarDatarader(csvText, item.alias);
         return { alias: item.alias, bytes: new TextEncoder().encode(csvText),
                  format: 'csv', table: item.table, kind: item.kind };
       }

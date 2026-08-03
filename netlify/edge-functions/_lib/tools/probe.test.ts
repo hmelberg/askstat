@@ -129,6 +129,26 @@ Deno.test("probe: ikke-sdmx URL får ikke sdmx-Accept (uendret oppførsel)", asy
   assertEquals(sett[0]["Accept"], undefined);
 });
 
+// --- Tomt-uttrekk-vakt (spec 2026-08-03 §fase 2.4) ---
+
+Deno.test("probe flagger CSV med 0 datarader", async () => {
+  const r = await probeUrl("https://kilde.example/tom.csv", {
+    fetchImpl: fakeFetch("kol1,kol2\n", { "content-type": "text/csv", "access-control-allow-origin": "*" }),
+  });
+  if (!r.ok || !r.note?.includes("0 DATARADER")) {
+    throw new Error("forventet 0 DATARADER-note, fikk: " + JSON.stringify(r));
+  }
+});
+
+Deno.test("probe flagger tom JSON-array", async () => {
+  const r = await probeUrl("https://kilde.example/tom.json", {
+    fetchImpl: fakeFetch("[]", { "content-type": "application/json" }),
+  });
+  if (!r.ok || !r.note?.includes("0 DATARADER")) {
+    throw new Error("forventet 0 DATARADER-note, fikk: " + JSON.stringify(r));
+  }
+});
+
 Deno.test("probe: XML-svar rapporteres som XML, ikke som én gigantisk CSV-kolonne", async () => {
   // Målt live: 85 000 tegn SDMX-ML havnet i ÉN columns-oppføring rett inn i
   // modellens kontekst, med ok:true og note «CSV» — verre enn en ærlig feil.

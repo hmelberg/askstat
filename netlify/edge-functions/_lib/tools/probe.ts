@@ -98,6 +98,10 @@ function inferSchema(text: string, contentType: string): {
       if (json && typeof json === "object" && !Array.isArray(json) && json.dimension) {
         return { columns: Object.keys(json.dimension), sampleRows: [], note: "JSON-stat" };
       }
+      if (Array.isArray(json) && json.length === 0) {
+        return { columns: [], sampleRows: [],
+          note: "JSON-array — 0 DATARADER: tomt uttrekk; sjekk filtre/dekning" };
+      }
       if (Array.isArray(json) && json.length && typeof json[0] === "object") {
         return {
           columns: Object.keys(json[0]),
@@ -117,7 +121,12 @@ function inferSchema(text: string, contentType: string): {
   if (!lines.length) return { columns: [], sampleRows: [], note: "tomt svar" };
   const sep = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ";" : ",";
   const split = (l: string) => l.split(sep).map((c) => c.replace(/^"|"$/g, "").trim());
-  return { columns: split(lines[0]), sampleRows: lines.slice(1).map(split), note: `CSV (skilletegn '${sep}')` };
+  const dataRows = lines.slice(1);
+  const tomNote = dataRows.length === 0
+    ? " — 0 DATARADER: HTTP 200 men tomt uttrekk; sjekk filtre/dekning (koder, år, land) før du bygger scriptet"
+    : "";
+  return { columns: split(lines[0]), sampleRows: dataRows.map(split),
+    note: `CSV (skilletegn '${sep}')${tomNote}` };
 }
 
 /** Best-effort: probe reads a byte-capped prefix, so JSON may be cut off. */

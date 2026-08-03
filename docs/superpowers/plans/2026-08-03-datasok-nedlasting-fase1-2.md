@@ -930,6 +930,8 @@ const registry = parseRegistry(JSON.parse(await Deno.readTextFile(
 // grammatikk-FORMEN testes, ikke plassholderne.
 function normaliser(linje: string): string | null {
   let s = linje.trim();
+  const hash = s.indexOf("# ");
+  if (!s.startsWith("#") && hash > 0) s = s.slice(hash);  // «table_metadata(...) → # s = …»-formen
   if (!s.startsWith("#")) return null;
   if (s.includes("<")) return null;
   s = s.replace(/,\s*(years|countries|indicators|regions|filters)=…/g, "");
@@ -1009,6 +1011,8 @@ Deno.test("direktiveksemplene i systemprompten parser mot ekte register", () => 
 
 Run: `cd netlify/edge-functions && deno test --allow-all _lib/tools/hints-parse.test.ts`
 To utfall: (a) grønt → hintene er konsistente i dag, vakten står; (b) rødt → testen har funnet en EKTE hint/grammatikk-drift à la august. Da fikses HINTET (eller normaliser-funksjonen hvis det er en legitim plassholderform testen ikke kjenner) — aldri grammatikk-koden — til grønt. Dokumenter eventuelle funn i commit-meldingen.
+
+Kjente kandidater testen trolig feller: eurostat-hintet (catalogs/eurostat.ts) har prose på selve direktivlinjen — grammatikken avviser etterfølgende tekst etter `)` — og `filters={…}`-plassholderen. Fiks i så fall hintet: flytt prosen til en egen linje i how_to_read (etter `\n`), og bruk et konkret filters-eksempel (f.eks. `filters={"geo": "NO"}`).
 
 - [ ] **Step 4: Hele suiten**
 

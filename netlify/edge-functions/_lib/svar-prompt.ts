@@ -57,10 +57,10 @@ Budsjett og ambisjon:
 
 | Ressurs | Budsjett |
 | --- | --- |
-| Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 4 totalt |
-| web_search | ≤ 2 |
-| web_fetch | ≤ 1 |
-| run_code | ≤ 3 kjøringer |
+| Klientverktøykall (katalog/metadata/probe/litteratur) | ≤ 8 totalt |
+| web_search | ≤ 3 |
+| web_fetch | ≤ 2 |
+| run_code | ≤ 4 kjøringer |
 | Kilder | ÉN er nok (to kun ved eksplisitt sammenligning) |
 | Metode | enkleste troverdige; dropp heterogenitet og sekundæranalyser |
 | Svartekst | kort — funn, én figur, forbehold |
@@ -760,7 +760,7 @@ export function buildRouteToolDefs(
 ): unknown[] {
   const hosted = opts?.hostedWeb !== false;
   const uses = depth === "standard"
-    ? { search: 2, fetch: 1, fetchTokens: 15_000 }
+    ? { search: 3, fetch: 2, fetchTokens: 15_000 }
     : { search: 5, fetch: 5, fetchTokens: 30_000 };
   const web = hosted
     ? [
@@ -777,11 +777,12 @@ export function buildRouteToolDefs(
 // Klientverktøy-taket per dybde (håndheves i runAgenticStream via
 // maxClientToolCalls) — samme tall som DEPTH-tabellene lover modellen.
 export function depthClientToolCalls(depth: Depth): number {
-  return depth === "standard" ? 4 : 12;
+  return depth === "standard" ? 8 : 12;
 }
 
+// run_code-kjøringer: begge dybder får samme tak (4).
 export function depthRunCodeCalls(depth: Depth): number {
-  return depth === "standard" ? 3 : 4;
+  return 4;
 }
 
 export function questionTurn(question: string, script?: string): string {

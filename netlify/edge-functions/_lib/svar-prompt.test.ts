@@ -62,8 +62,8 @@ Deno.test("buildRouteToolDefs: data har katalogverktøy + run_code + hostede web
   assert(names.includes("search_catalog") && names.includes("probe") && names.includes("run_code"));
   const ws = defs.find((d) => d.name === "web_search");
   const wf = defs.find((d) => d.name === "web_fetch");
-  assertEquals(ws?.max_uses, 2);
-  assertEquals(wf?.max_uses, 1);
+  assertEquals(ws?.max_uses, 3);
+  assertEquals(wf?.max_uses, 2);
   assertEquals(wf?.max_content_tokens, 15_000);
 });
 
@@ -73,9 +73,9 @@ Deno.test("buildRouteToolDefs: hostedWeb:false dropper webverktøyene", () => {
 });
 
 Deno.test("budsjetter per dybde", () => {
-  assertEquals(depthClientToolCalls("standard"), 4);
+  assertEquals(depthClientToolCalls("standard"), 8);
   assertEquals(depthClientToolCalls("deep"), 12);
-  assertEquals(depthRunCodeCalls("standard"), 3);
+  assertEquals(depthRunCodeCalls("standard"), 4);
   assertEquals(depthRunCodeCalls("deep"), 4);
 });
 
@@ -143,7 +143,7 @@ Deno.test("buildRouteToolDefs(utforsk): run_code + web m/ budsjett, ingen katalo
   assert(names.includes("run_code"));
   assert(names.includes("web_search") && names.includes("web_fetch"));
   assert(!names.includes("search_datasets") && !names.includes("search_catalog") && !names.includes("probe"));
-  assertEquals(defs.find((d) => d.name === "web_search")?.max_uses, 2);
+  assertEquals(defs.find((d) => d.name === "web_search")?.max_uses, 3);
 });
 
 Deno.test("RUN-fellesregler: definisjonssprik + feilruting i alle pipeline-ruter", () => {

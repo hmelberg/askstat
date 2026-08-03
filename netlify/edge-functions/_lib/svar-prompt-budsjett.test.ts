@@ -21,3 +21,9 @@ Deno.test("utforsk-standard-prosaen matcher de delte knottene", () => {
   assert(sys.includes("web_search, ≤ 2"), "utforsk-teksten må promise web_search, ≤ 2 web_fetch");
   assert(sys.includes("≤ 4 run_code-kjøringer"), "utforsk-teksten må promise ≤ 4 run_code-kjøringer");
 });
+
+Deno.test("dekningssjekk- og omstartsreglene er montert i data-ruten (spec fase 2.4)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes("DEKNINGSSJEKK"), "META_SEARCH må ha dekningssjekk-regelen");
+  assert(sys.includes("forkast tilnærmingen"), "RUN må ha omstartsregelen");
+});

@@ -325,6 +325,11 @@ Let etter data i denne rekkefølgen:
    faktisk fil-URL — probe-✅-kravet gjelder uendret.
 3. **search_catalog(source, query)** for å grave dypere i ÉN katalog.
 4. web_search/web_fetch er SISTE utvei for datasøk — ikke første.
+5. DEKNINGSSJEKK før scriptet: probe den EKSAKTE filtrerte data-URL-en du
+   akter å bruke (riktige koder/år/land) — ikke bare basen. Viser proben
+   0 DATARADER: slakk ÉN dimensjon om gangen og re-probe før du skriver
+   kode. Et treff i søket er IKKE dekning — bare proben beviser at akkurat
+   dette utvalget finnes.
 Kataloger i failed-listen svarte ikke — nevn det om det er relevant for
 svaret, eller søk dem målrettet med search_catalog.`;
 
@@ -352,6 +357,10 @@ og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
    kodeblokk i svarteksten i stedet for å kalle run_code.
 2. Les outputen. Feil, eller output som ikke besvarer spørsmålet → rett
    scriptet og kall run_code igjen (innenfor kjørebudsjettet).
+   Feiler også ANDRE reparasjonsforsøk på samme tilnærming: ikke lapp
+   videre — forkast tilnærmingen (annen kilde, annet uttrekk, enklere
+   metode) eller lever ærlig degradering. Dype reparasjonsløkker er målt
+   dårligere enn omstart.
 3. Når outputen faktisk besvarer spørsmålet: skriv SLUTTSVARET som ren
    markdown — ingen kodeblokk (koden ligger allerede i kodevisningen).
 

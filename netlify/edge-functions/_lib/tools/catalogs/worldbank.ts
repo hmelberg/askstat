@@ -29,8 +29,8 @@ export async function worldbankSearch(
     geo: "global",
     access: "open",
     how_to_read:
-      `table_metadata('worldbank', '${i.id}') → # x = worldbank.read("country/all/indicator/${i.id}")` +
-      ` (land som ISO3 adskilt med ; i stedet for all; years= filtrerer)`,
+      `table_metadata('worldbank', '${i.id}') → # x = worldbank.read("country/all/indicator/${i.id}")\n` +
+      `land som ISO3 adskilt med ; i stedet for all; years= filtrerer`,
   }));
 }
 

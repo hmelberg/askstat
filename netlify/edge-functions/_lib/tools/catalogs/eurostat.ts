@@ -26,6 +26,7 @@ export async function eurostatSearch(
     geo: "EU/EFTA",
     access: "open",
     how_to_read:
-      `# e = eurostat.read("${t.code}", filters={…}, years=…) — kildens egne parametre (geo, unit, …) i filters={}; probe før bruk`,
+      `# e = eurostat.read("${t.code}", filters={"geo": "NO"}, years=…)\n` +
+      `kildens egne parametre (geo, unit, …) går i filters={}; probe før bruk`,
   }));
 }

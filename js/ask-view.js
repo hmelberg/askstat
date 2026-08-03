@@ -721,10 +721,30 @@
       var onAbort = function () { ctrl.abort(); };
       abortBtn.addEventListener('click', onAbort);
       var uiLang = (window.M2PY_LANG === 'en') ? 'en' : 'no';
+      var feilRuns = [];
+      var lastSources = [];
+      var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
+      function sendTelemetri(flowError) {
+        if (!window.FeilTelemetri) return;
+        if (!feilRuns.length && !flowError) return;
+        window.FeilTelemetri.sendFeilrapport({
+          version: window.M2PY_VERSION || '',
+          ui_lang: uiLang,
+          mode: currentAskMode(),
+          route: route.rute,
+          depth: askDepth(),
+          question: question,
+          tolkning: route.tolkning,
+          runs: feilRuns,
+          flow_error: flowError || undefined,
+          final_ok: lastRunOk,
+          probed_sources: lastSources,
+          provider_type: (window.mdAiProviderConfig && window.mdAiProviderConfig() || {}).type || 'anthropic',
+        });
+      }
       try {
         // 1) Ruter (uendret): rute + operasjonell tolkning.
         progressLine('Interpreting the question …');
-        var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
         try {
           var resp = await fetch('/api/ask-ruter', {
             method: 'POST',
@@ -796,10 +816,13 @@
               progressLine('Running the code …');
               var r = await window.mdAskExecuteScript(prefix + script, ctrl.signal);
               lastRunOk = r.ok;
+              if (!r.ok) feilRuns.push({ script: prefix + script, error: r.result });
               return r.result;
             },
           },
         });
+
+        lastSources = (res.sources || []).map(function (s) { return s.url; });
 
         // 4) Sluttsvaret er allerede strømmet inn — arkiver prosess-sporet,
         //    vis kilder, og monter levende output ved vellykket kjøring.
@@ -837,10 +860,14 @@
           renderSources(res.sources);
           maybeRenderMath(res.markdown);
         }
+        sendTelemetri(null);
       } catch (e) {
         if (e && e.name === 'AbortError') { progressLine('Stopped.'); archiveStatus(); }
-        else showAnswer('✗ ' + ((e && e.message) ? e.message : String(e)) +
-          '\n\nThis is usually a transient stream error — try asking again.', 'Error', true);
+        else {
+          sendTelemetri((e && e.message) ? e.message : String(e));
+          showAnswer('✗ ' + ((e && e.message) ? e.message : String(e)) +
+            '\n\nThis is usually a transient stream error — try asking again.', 'Error', true);
+        }
       } finally {
         abortBtn.removeEventListener('click', onAbort);
         abortBtn.style.display = 'none';

@@ -364,6 +364,21 @@
       "group": null
     },
     {
+      "file": "python/lib01_requests_api.txt",
+      "label": "requests — direct API call",
+      "group": "Libraries"
+    },
+    {
+      "file": "python/lib02_wbgapi.txt",
+      "label": "wbgapi — World Bank via micropip",
+      "group": "Libraries"
+    },
+    {
+      "file": "python/lib03_sdmx1.txt",
+      "label": "sdmx1 — OECD dataflows via micropip",
+      "group": "Libraries"
+    },
+    {
       "file": "python/py01_pandas_basics.txt",
       "label": "pandas — basics",
       "group": null

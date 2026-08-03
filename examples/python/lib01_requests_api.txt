@@ -1,0 +1,10 @@
+# label: requests — direct API call
+# group: Libraries
+# Spike-script (docs/2026-08-spike-wbgapi-sdmx1.md): virker requests i det
+# hele tatt i vår Pyodide (urllib3 ≥2.2 sin Emscripten-backend)? Noter
+# utfallet i memoet. NB: EVAL-regel 4 forbyr requests i GENERERTE script —
+# dette er et manuelt eksperiment, ikke et mønster for ask-svar.
+import requests, sys
+print("python:", sys.version)
+r = requests.get("https://api.worldbank.org/v2/country/NOR/indicator/SP.POP.TOTL?format=json&per_page=3")
+print("requests OK:", r.status_code, r.json()[0].get("total"))

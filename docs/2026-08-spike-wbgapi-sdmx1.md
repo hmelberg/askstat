@@ -1,7 +1,9 @@
 # Spike: wbgapi/sdmx1 i Pyodide (ROADMAP «DSL vs. LLM-vaner» pkt 2)
 
-**Hvordan:** åpne https://ask.melberg.app/?view=editor (python-modus) og kjør
-scriptene under ETT AV GANGEN med Kjør-knappen. Noter utfall i tabellen.
+**Hvordan:** åpne https://ask.melberg.app/?view=editor (python-modus). De tre
+scriptene ligger i EKSEMPELMENYEN under gruppa «Libraries»
+(examples/python/lib01–lib03) — velg dem derfra og trykk Kjør, ETT AV GANGEN
+(de er også gjengitt under). Noter utfall i tabellen.
 (Manuelt spike-script — EVAL-regel 4 gjelder GENERERTE script, ikke dette.)
 
 ## Script 1 — virker requests i det hele tatt?

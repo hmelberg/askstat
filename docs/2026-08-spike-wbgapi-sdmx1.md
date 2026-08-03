@@ -38,7 +38,7 @@ print("SDMX1 OK, antall dataflows:", len(fl.dataflow))
 | Script | Install ok? | Nettkall ok? | Resultat/feilmelding |
 |--------|-------------|--------------|----------------------|
 | 1 requests | (forhåndsinstallert) | NEI (localhost:8899, 2026-08-04) | Emscripten-backenden ER aktiv (`urllib3/contrib/emscripten/connection.py`), men selve browserkallet feilet: `ProtocolError('Connection aborted.', HTTPException('NetworkError when attempting to fetch resource.'))` → requests.ConnectionError. Åpent: sync-XHR-spesifikt eller localhost-origin (CORS/CSP/SW)? Se diagnose-script under; må re-testes fra ask.melberg.app etter push. |
-| 2 wbgapi   | —       | —            | Første forsøk (2026-08-04, m/ `await micropip.install`): `SyntaxError: 'await' outside function` — HARNESS-FUNN, se under. Re-test med nytt script (ren `import wbgapi`, auto-install) gjenstår. |
+| 2 wbgapi   | JA (auto-install virket etter fiks) | NEI (localhost, 2026-08-04) | Kjøring 2 etter harness-fiksene: wbgapi installert + kjørte (traceback når helt inn i wbgapi/data.py), urllib3 valgte JSPI-veien (`send_jspi_request`) — men selve browser-fetchen rejecter: `TypeError: NetworkError when attempting to fetch resource`. SAMME nettverkslag-feil som script 1; SW er sjekket og frikjent (rører ikke cross-origin). Diskriminator: fetch-enlinjeren i konsollen. Første forsøk (m/ `await micropip.install`) ga SyntaxError — harness-funn 1 under. |
 | 3 sdmx1    | —       | —            | Samme SyntaxError som script 2 (toppnivå-await). Re-test med nytt script (`import sdmx` + PYPI_ALIAS sdmx→sdmx1) gjenstår. |
 
 ## Harness-funn underveis (2026-08-04, fikset samme dag)

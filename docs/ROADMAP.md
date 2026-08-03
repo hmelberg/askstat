@@ -551,6 +551,20 @@ prøve fra PyPI eller GitHub. Nivåene:
       irreduserbare kjerne (de 5 proxy/nøkkelkildene + POST) — liten nok flate
       til at vanen slutter å slåss.
 
+      **SPIKE (2) KJØRT 2026-08-04 — kjennelse i
+      `docs/2026-08-spike-wbgapi-sdmx1.md`:** mekanikken virker (auto-install
+      + requests/urllib3 via JSPI; sdmx1 mot OECD = full pass, 1540
+      dataflows), men adopsjon er PER-BIBLIOTEK: wbgapi er ubrukelig
+      browser-side (dens obligatoriske metadata-kall treffer WBs
+      ikke-CORS-endepunkt `/v2/en/sources/...` — CORS gjelder per ENDEPUNKT,
+      ikke per vert, og bibliotekets URL-valg kan ikke styres). Transport er
+      altså ikke lenger argumentet mot biblioteker — endepunktKONTROLL er.
+      Oppfølging verdt eget løp: sdmx1 som SDMX-motor (kan pensjonere
+      sdmxKeyDims/sdmxKeyPath hvis ECB/NB-strukturendepunktene er like
+      CORS-åpne som OECDs — mål fra prod-origin). Spiken avdekket og fikset
+      dessuten to harness-feil (toppnivå-await-SyntaxError som MODE_PY selv
+      lærte bort; PyPI-navnesprik i auto-install → PYPI_ALIAS).
+
       **Kostnaden som må veies: MODUS-ASYMMETRI.** Python-bibliotek gjør
       ingenting for r/duckdb/brython/micropython. Direktivlaget er i dag det
       ENESTE som oppfører seg likt i alle sju motorene — den uniformiteten er

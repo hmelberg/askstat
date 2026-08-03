@@ -37,9 +37,9 @@ print("SDMX1 OK, antall dataflows:", len(fl.dataflow))
 
 | Script | Install ok? | Nettkall ok? | Resultat/feilmelding |
 |--------|-------------|--------------|----------------------|
-| 1 requests | (forhåndsinstallert) | NEI (localhost:8899, 2026-08-04) | Emscripten-backenden ER aktiv (`urllib3/contrib/emscripten/connection.py`), men selve browserkallet feilet: `ProtocolError('Connection aborted.', HTTPException('NetworkError when attempting to fetch resource.'))` → requests.ConnectionError. Åpent: sync-XHR-spesifikt eller localhost-origin (CORS/CSP/SW)? Se diagnose-script under; må re-testes fra ask.melberg.app etter push. |
-| 2 wbgapi   | JA (auto-install virket etter fiks) | NEI (localhost, 2026-08-04) | Kjøring 2 etter harness-fiksene: wbgapi installert + kjørte (traceback når helt inn i wbgapi/data.py), urllib3 valgte JSPI-veien (`send_jspi_request`) — men selve browser-fetchen rejecter: `TypeError: NetworkError when attempting to fetch resource`. SAMME nettverkslag-feil som script 1; SW er sjekket og frikjent (rører ikke cross-origin). Diskriminator: fetch-enlinjeren i konsollen. Første forsøk (m/ `await micropip.install`) ga SyntaxError — harness-funn 1 under. |
-| 3 sdmx1    | —       | —            | Samme SyntaxError som script 2 (toppnivå-await). Re-test med nytt script (`import sdmx` + PYPI_ALIAS sdmx→sdmx1) gjenstår. |
+| 1 requests | (forhåndsinstallert) | JA i Chromium; NEI i Hans' nettleser | Stakken VIRKER ende-til-ende (bevist av script 3 i Chromium: JSPI-vei, `send_jspi_request`). Hans' nettleser ga «NetworkError when attempting to fetch resource» på ALT (Firefox-ordlyd — trolig ETP/utvidelse/nettleservalg, IKKE appen: samme origin ga 200 på ren fetch i Chromium). Åpent: identifiser Hans' nettleser + re-test fra prod. |
+| 2 wbgapi   | JA (auto-install) | NEI — WBs egen skyld | ROTÅRSAK FUNNET (Chromium-konsoll): wbgapis FØRSTE interne kall er metadata-endepunktet `/v2/en/sources/2/concepts` — som IKKE sender ACAO-header, mens dataendepunktene (`/v2/country/...`) er CORS-åpne (målt 200 samme økt). Per-endepunkt-CORS-splitt på samme vert (Eurostat-katalog-mønsteret fra Workbench-utredningen). Biblioteket dør på sitt eget URL-valg og kan ikke pekes mot /api/hent → wbgapi er UBRUKELIG browser-side uten requests-nivå proxy-shim. (Første forsøk m/ `await micropip.install` ga SyntaxError — harness-funn 1 under.) |
+| 3 sdmx1    | JA (PYPI_ALIAS sdmx→sdmx1) | **JA — FULL PASS (Chromium, localhost)** | `SDMX1 OK, antall dataflows: 1540` — install, JSPI-fetch mot sdmx.oecd.org, full SDMX-ML-parse. Kun kosmetiske stderr-advarsler (forward references, deprecation provider=→agency_id). OECDs REST-flate er gjennomgående CORS-åpen — derfor virker biblioteket der wbgapi ikke gjør det. I Hans' nettleser: samme NetworkError som alt annet (nettleser-spesifikt). |
 
 ## Harness-funn underveis (2026-08-04, fikset samme dag)
 
@@ -58,9 +58,27 @@ print("SDMX1 OK, antall dataflows:", len(fl.dataflow))
 
 ## Kjennelse
 
-- [ ] **(a) virker rent** → egen oppfølging: prompt-tillatelse i python-modus;
-      vurder å pensjonere håndrullet SDMX-nøkkelbygging (eget løp).
-- [ ] **(b) virker ikke** → ROADMAP-punktet «DSL vs. LLM-vaner» pkt 2 lukkes
-      med denne evidensen; `ost` beholder dagens omfang.
+- [x] **NYANSERT — mekanikken virker, adopsjon er per-bibliotek:**
+      **(a)** for selve stakken: auto-install + requests/urllib3 via JSPI +
+      full XML-parse virker (sdmx1 mot OECD: 1540 dataflows, full pass).
+      **(b)** for wbgapi spesifikt: ubrukelig browser-side — dens
+      obligatoriske metadata-kall treffer et ikke-CORS-endepunkt hos WB, og
+      bibliotekets interne URL-valg kan ikke rutes via /api/hent.
 
-Begrunnelse: <fyll inn etter kjøring>
+Begrunnelse (2026-08-04, målt i Chromium på localhost:8899 + Hans' kjøringer):
+1. Transportlaget er IKKE lenger argumentet mot biblioteker — JSPI +
+   urllib3-emscripten leverer. Argumentet som STÅR er kontroll over
+   ENDEPUNKTVALG: biblioteker velger sine egne URL-er, og CORS gjelder per
+   endepunkt, ikke per vert. `ost`/adapterne velger CORS-verifiserte
+   endepunkter; det kan ikke et bibliotek instrueres til.
+2. Oppfølging verdt et eget løp: **sdmx1 som motor for SDMX-familien**
+   (OECD/ECB/NB) — kan pensjonere håndrullet nøkkelbygging
+   (sdmxKeyDims/sdmxKeyPath) HVIS kildenes strukturendepunkter er like
+   CORS-åpne som OECDs (må måles per kilde, fra prod-origin).
+3. Videre oppfølging (fase 3+, valgfri): requests-nivå proxy-shim
+   (ROADMAP-retning 1b) ville gjort wbgapi-klassen brukbar — policy-
+   diskusjonen fra ROADMAP gjelder uendret.
+4. Uavklart bihøst: Hans' nettleser blokkerer ALLE cross-origin-fetch fra
+   localhost (Firefox-ordlyd i feilene) — identifiser nettleser/utvidelse
+   og re-test fra ask.melberg.app etter push. Påvirker ikke kjennelsen
+   (Chromium-målingene er kontrollen).

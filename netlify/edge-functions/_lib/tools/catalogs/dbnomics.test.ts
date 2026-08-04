@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { dbnomicsMetadata, dbnomicsSearch } from "./dbnomics.ts";
+import { dbnomicsMetadata, dbnomicsSearch, ferskhet } from "./dbnomics.ts";
 
 const HIT = { code: "DSD_EAG@DF_X", name: "Educational attainment", provider_code: "OECD", provider_name: "OECD", nb_series: 893103 };
 
@@ -115,4 +115,47 @@ Deno.test("dbnomicsMetadata: find= søker fram verdikoder i lange lister", async
   assertEquals(land.verdier.some((v) => v.code === "NOR"), true, "find skal grave fram NOR");
   // Kort liste tømmes ikke av find (ellers mister modellen obligatoriske koder)
   assertEquals(dims.find((d) => d.kode === "freq")!.verdier.length, 1);
+});
+
+// --- ferskhet (2026-08-04, målt: OECD-speilet hos DBnomics frosset siden
+// 2024-10 mens Eurostat/ECB er ferske — ferskhet varierer per produsent-speil
+// og må SYNES i verktøysvarene, ikke antas) ---
+
+Deno.test("ferskhet: gammel indeksering gir varsel, fersk gjør ikke, manglende tolereres", () => {
+  const nå = new Date("2026-08-04T00:00:00Z");
+  const gammel = ferskhet("2024-10-31T09:51:20.215Z", nå)!;
+  assertEquals(gammel.tekst, "sist indeksert 2024-10");
+  assert(gammel.varsel !== undefined && gammel.varsel.includes("henge etter"));
+  const fersk = ferskhet("2026-06-13T07:06:19.814Z", nå)!;
+  assertEquals(fersk.tekst, "sist indeksert 2026-06");
+  assertEquals(fersk.varsel, undefined);
+  assertEquals(ferskhet(undefined, nå), null);
+  assertEquals(ferskhet("tøys", nå), null);
+});
+
+Deno.test("dbnomicsSearch: indexed_at inn i description, varsel når gammelt", async () => {
+  const fetchImpl = ((_: string | URL | Request) =>
+    Promise.resolve(new Response(JSON.stringify({ results: { docs: [
+      { code: "KEI", name: "Key indicators", provider_code: "OECD", provider_name: "OECD",
+        nb_series: 10, indexed_at: "2024-10-31T09:51:20.215Z" },
+      { code: "une_rt_m", name: "Unemployment monthly", provider_code: "Eurostat", provider_name: "Eurostat",
+        nb_series: 5, indexed_at: "2026-06-13T07:06:19.814Z" },
+    ] } }), { status: 200 }))) as typeof fetch;
+  const hits = await dbnomicsSearch("unemployment", fetchImpl);
+  assert(hits[0].description!.includes("sist indeksert 2024-10"));
+  assert(hits[0].description!.includes("henge etter"));
+  assert(hits[1].description!.includes("sist indeksert 2026-06"));
+  assert(!hits[1].description!.includes("henge etter"));
+});
+
+Deno.test("dbnomicsMetadata: indeksert-felt + ferskhetsvarsel når gammelt", async () => {
+  const fetchImpl = ((_: string | URL | Request) =>
+    Promise.resolve(new Response(JSON.stringify({ datasets: { docs: [{
+      code: "KEI", name: "Key indicators", provider_code: "OECD", provider_name: "OECD",
+      nb_series: 10, indexed_at: "2024-10-31T09:51:20.215Z",
+      dimensions_codes_order: [], dimensions_labels: {}, dimensions_values_labels: {},
+    }], num_found: 1 } }), { status: 200 }))) as typeof fetch;
+  const meta = await dbnomicsMetadata("OECD/KEI", fetchImpl);
+  assertEquals(meta.indeksert, "sist indeksert 2024-10");
+  assert(String(meta.ferskhetsvarsel).includes("henge etter"));
 });

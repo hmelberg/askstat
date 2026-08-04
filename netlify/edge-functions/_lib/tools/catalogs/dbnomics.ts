@@ -25,7 +25,30 @@ function pickDimValues(
   };
 }
 
-interface DbnDoc { code: string; name: string; provider_code: string; provider_name: string; nb_series?: number }
+interface DbnDoc { code: string; name: string; provider_code: string; provider_name: string; nb_series?: number; indexed_at?: string }
+
+// Ferskhet (2026-08-04, målt): per-produsent-speilene hos DBnomics kan henge
+// etter kilden — OECD-speilet har vært frosset siden 2024-10 (OECDs
+// API-omlegging brakk henteren) mens Eurostat/ECB indekseres løpende.
+// indexed_at følger gratis med i både søke- og datasettsvar; vis den, og
+// varsle når speilet er over ett år gammelt. nå injiseres i test.
+const FERSK_GRENSE_DAGER = 365;
+
+export function ferskhet(
+  indexedAt: string | undefined,
+  nå: Date = new Date(),
+): { tekst: string; varsel?: string } | null {
+  if (!indexedAt) return null;
+  const d = new Date(indexedAt);
+  if (isNaN(d.getTime())) return null;
+  const tekst = `sist indeksert ${indexedAt.slice(0, 7)}`;
+  const alderDager = (nå.getTime() - d.getTime()) / 86_400_000;
+  if (alderDager > FERSK_GRENSE_DAGER) {
+    return { tekst, varsel: "⚠ speilet kan henge etter kilden (" + tekst +
+      ") — sjekk siste periode i uttrekket, eller velg et ferskere datasett" };
+  }
+  return { tekst };
+}
 
 async function runSearch(q: string, fetchImpl: typeof fetch): Promise<DbnDoc[]> {
   const resp = await fetchImpl(`${SEARCH}?q=${encodeURIComponent(q)}&limit=${MAX}`);
@@ -50,7 +73,11 @@ export async function dbnomicsSearch(
     source: "dbnomics",
     id: `${d.provider_code}/${d.code}`,
     title: d.name,
-    description: `${d.provider_name}${d.nb_series ? ` — ${d.nb_series} serier` : ""}`,
+    description: (() => {
+      const f = ferskhet(d.indexed_at);
+      return `${d.provider_name}${d.nb_series ? ` — ${d.nb_series} serier` : ""}` +
+        (f ? `; ${f.tekst}` : "") + (f?.varsel ? ` — ${f.varsel}` : "");
+    })(),
     access: "open",
     how_to_read:
       `table_metadata('dbnomics', '${d.provider_code}/${d.code}') → ` +
@@ -117,11 +144,17 @@ export async function dbnomicsMetadata(
   const eksempel = forste?.verdier[0]
     ? `filters={"${forste.kode}": "${forste.verdier[0].code}"}`
     : 'filters={"<dimensjon>": "<kode>"}';
-  return {
+  const ut: Record<string, unknown> = {
     ref,
     navn: doc.name,
     dimensjoner,
     lesing: `# d = dbnomics.read("${ref}", ${eksempel}) — filtrer ALLTID; ` +
       `API-et leverer maks 1000 serier per kall`,
   };
+  const f = ferskhet(doc.indexed_at as string | undefined);
+  if (f) {
+    ut.indeksert = f.tekst;
+    if (f.varsel) ut.ferskhetsvarsel = f.varsel;
+  }
+  return ut;
 }

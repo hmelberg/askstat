@@ -242,11 +242,26 @@
   // fortsatt inkluderer «all». Utelatelsen mister derfor ikke
   // skrivefeil-vernet for «all», bare det tilfeldige treffet på ekte
   // kildeparametre.
+  //
+  // Fix (kodegjennomgang 2026-08-04, runde 1, Medium): rå redigeringsavstand
+  // ≤ 2 fanger IKKE entallsformen av «countries» — «country» -> «countries»
+  // er 1 substitusjon (y->i) + 2 innskudd (e,s) = avstand 3, over grensa.
+  // Uten dette vernet foldet «country="NOR"» STILLE inn i
+  // filters.country — for eurostat blir det et ?country=NOR-parameter som
+  // API-et stille IGNORERER (nøyaktig SDMX-fellen-klassen: et felt som ser
+  // ut som det virker, men ikke oversettes verifiserbart). «year»/
+  // «region»/«indicator» -> «years»/«regions»/«indicators» er alle
+  // regelrette entall+s (avstand 1) og var derfor allerede dekket av
+  // redigeringsavstand-sjekken over — men +s-regelen skrives ut eksplisitt
+  // her likevel, for symmetri og for å ikke stole på at avstand-1 alltid
+  // holder om en kanonisk nøkkel endres i fremtiden.
   function isCanonTypo(name) {
     var low = String(name).toLowerCase(), keys = Object.keys(CANON_KEYS);
     for (var i = 0; i < keys.length; i++) {
       if (keys[i] === 'all') continue;
       if (editDistance(keys[i], low) <= 2) return true;
+      if (low + 's' === keys[i]) return true;
+      if (low.replace(/y$/, 'ies') === keys[i]) return true;
     }
     return false;
   }

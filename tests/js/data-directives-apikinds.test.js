@@ -143,6 +143,40 @@ test('nær-treff på kanonisk nøkkel gir fortsatt suggest-feil', () => {
   assert.ok(p.errors.length >= 1 && /years/.test(p.errors[0]));
 });
 
+// Kodegjennomgang 2026-08-04 (runde 1, Medium): entallsformer med
+// uregelmessig flertall («country» -> «countries») har rå redigeringsavstand
+// 3 (y->i-substitusjon + e/s-innskudd) — over ≤2-grensa. Uten et eksplisitt
+// entall→flertall-vern ville «country="NOR"» foldet STILLE inn i
+// filters.country, som eurostat-API-et ignorerer (SDMX-fellen-klassen).
+test('entallsform av en kanonisk nøkkel («country») feiler høylytt med flertallsforslag, folder IKKE til filters', () => {
+  const p = DD.parse('# e = eurostat.read("x", country="NOR")');
+  assert.ok(p.errors.length >= 1 && /«countries»/.test(p.errors[0]), p.errors[0]);
+  // «country» skal IKKE havne i canonical.filters — den loude parse-feilen over er
+  // vernet; sjekk i tillegg at den ikke smugler seg inn som et stille URL-parameter
+  // (parse().errors er den autoritative kanalen — resolve() vet ikke om parse-feil,
+  // så et resolve-forsøk på et script MED parse-feil er utenfor normal appflyt, men
+  // vi sjekker likevel at «country» ikke er med i den bygde URL-en).
+  const r = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", country="NOR")');
+  assert.ok(!r.url || !r.url.includes('country=NOR'), r.url);
+});
+
+test('entallsform av en kanonisk nøkkel («year») feiler høylytt med flertallsforslag', () => {
+  const p = DD.parse('# e = eurostat.read("x", year="2020")');
+  assert.ok(p.errors.length >= 1 && /«years»/.test(p.errors[0]), p.errors[0]);
+});
+
+// Regresjon: entall→flertall-regelen skal IKKE bli en ny falsk positiv for
+// ekte kildeparametre (unit er ikke entall av noen kanonisk nøkkel).
+test('entall→flertall-regelen gir ingen ny falsk positiv: «unit» folder fortsatt til filters', () => {
+  const r = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", unit="KWH")');
+  assert.equal(r.error, undefined);
+  assert.ok(r.url.includes('unit=KWH'), r.url);
+});
+
 // Selvsjekk (2026-08-04): «all» er 3 tegn — kort nok til at ekte
 // kildedimensjoner havner innenfor rå redigeringsavstand 2 av det REN
 // TILFELDIG (age~all=2, adj~all=2), uten noen semantisk likhet med «all».

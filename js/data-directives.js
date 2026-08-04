@@ -220,10 +220,52 @@
     return String(v).split(/[\s,]+/).filter(Boolean);
   }
 
+  // vane-myking 2026-08-04 (spec docs/superpowers/specs/2026-08-04-vane-
+  // myking-design.md §3): nær-treff for GATING (skal denne kwarg-en fortsatt
+  // få suggest-feilen, eller folde inn i filters?) sjekkes KUN mot de
+  // kanoniske nøklene, med RÅ (ikke lengdenormalisert) redigeringsavstand
+  // ≤ 2. suggest() under (lengdenormalisert, PLAIN_KEYS+CANON_KEYS) brukes
+  // fortsatt til selve hint-teksten når vi VET det blir en feil — men den
+  // kan IKKE gate folding: kildens egne dimensjonsnavn havner ofte
+  // tilfeldig nær et PLAIN_KEYS-ord i redigeringsavstand (målt: «siec» er 2
+  // fra «exec», «unit» er innenfor suggest()s 0.7-brøkterskel til
+  // «countries») uten at det er en skrivefeil av det ordet.
+  // «all» er BEVISST utelatt fra denne skanningen: den er den eneste
+  // kanoniske nøkkelen kort nok (3 tegn) til at ekte, hyppig brukte
+  // dimensjonsnavn havner innenfor redigeringsavstand 2 REN TILFELDIG —
+  // målt: «age» (SSB/Eurostat/SDMX-alder, en av de aller vanligste
+  // dimensjonene) og «adj» (sesongjustering) er begge avstand 2 fra «all»
+  // uten å ligne semantisk. Ingen kwarg med en literal STRENG-/tall-/liste-
+  // verdi er en plausibel «all=True»-skrivefeil uansett (all tar en boolsk
+  // verdi) — og et ikke-literalt all-forsøk (f.eks. «al=True») treffer
+  // likevel suggest()s brede sjekk i feilteksten under, siden den
+  // fortsatt inkluderer «all». Utelatelsen mister derfor ikke
+  // skrivefeil-vernet for «all», bare det tilfeldige treffet på ekte
+  // kildeparametre.
+  function isCanonTypo(name) {
+    var low = String(name).toLowerCase(), keys = Object.keys(CANON_KEYS);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] === 'all') continue;
+      if (editDistance(keys[i], low) <= 2) return true;
+    }
+    return false;
+  }
+
+  function isLiteralFilterValue(v) {
+    return typeof v === 'string' || typeof v === 'number' ||
+           Object.prototype.toString.call(v) === '[object Array]';
+  }
+
   // kwargs -> dagens options-form (uendret for resolve()).
   function optionsFromKwargs(kwargs, errors, lineNo) {
     var opts = {}, canonical = null;
     function canon() { return (canonical = canonical || (opts.canonical = {})); }
+    // Løse kwargs (vane-myking) og eksplisitt filters={...} samles hver for
+    // seg og flettes ETTER løkka — uavhengig av rekkefølgen de sto i på
+    // linja, ellers ville f.eks. «geo="NO", filters={...}» eller
+    // «filters={...}, geo="NO"» oppført seg ulikt (sistnevnte ville stille
+    // overskrevet/blitt overskrevet av førstnevnte).
+    var hasExplicitFilters = false, explicitFilters = null, looseFilters = null;
     Object.keys(kwargs || {}).forEach(function (name) {
       var v = kwargs[name];
       if (PLAIN_KEYS[name]) {
@@ -253,13 +295,35 @@
           errors.push('linje ' + lineNo + ': «filters» må være en dict — filters={"k": "v"}');
           return;
         }
-        canon().filters = v; return;
+        hasExplicitFilters = true; explicitFilters = v; return;
       }
       if (name === 'all') { if (v) canon().all = true; return; }
+      // vane-myking 2026-08-04: kildens egne parametre aksepteres og
+      // oversettes — verifiseringen bor i lasterlaget (SDMX-introspeksjon,
+      // dbnomics-dimensjonskrav), som før.
+      if (!isCanonTypo(name) && isLiteralFilterValue(v)) {
+        looseFilters = looseFilters || {};
+        looseFilters[name] = v;
+        return;
+      }
       var s = suggest(name);
       errors.push('linje ' + lineNo + ': ukjent argument «' + name + '»' +
                   (s ? ' — mente du «' + s + '»?' : ''));
     });
+    if (hasExplicitFilters || looseFilters) {
+      var merged = {}, loose = looseFilters || {};
+      Object.keys(loose).forEach(function (k) { merged[k] = loose[k]; });
+      if (hasExplicitFilters) {
+        Object.keys(explicitFilters).forEach(function (k) {
+          if (has(loose, k)) {
+            errors.push('linje ' + lineNo + ': «' + k + '» er angitt to steder — som eget argument og i filters={...} — velg én form');
+            return;
+          }
+          merged[k] = explicitFilters[k];
+        });
+      }
+      canon().filters = merged;
+    }
     return opts;
   }
 

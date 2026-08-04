@@ -123,6 +123,57 @@ test('pxweb kanonisk: years lukket → eksplisitt liste, åpen start → from();
   assert.ok(land.error, 'countries skal feile for pxweb');
 });
 
+// ── vane-myking (spec 2026-08-04): ukjente kwargs som ikke er kanonisk,
+// plain eller et nær-treff mot en kanonisk nøkkel folder inn i
+// canonical.filters — kildens egne parametre (geo, unit, siec, …) trenger
+// ikke lenger filters={}-innpakningen. Nær-treff mot kanoniske nøkler
+// (skrivefeil) skal FORTSATT gi suggest-feilen, ikke bli en filters-
+// oppføring. ────────────────────────────────────────────────────────────
+
+test('ukjente kwargs blir filters-oppføringer (vane-myking)', () => {
+  const r = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("nrg_pc_202", geo="NO", unit="KWH")');
+  assert.equal(r.error, undefined);
+  assert.ok(r.url.includes('geo=NO') && r.url.includes('unit=KWH'));   // eurostat: filters → params
+});
+
+test('nær-treff på kanonisk nøkkel gir fortsatt suggest-feil', () => {
+  const p = DD.parse('# e = eurostat.read("x", yeras="2020")');
+  assert.ok(p.errors.length >= 1 && /years/.test(p.errors[0]));
+});
+
+// Selvsjekk (2026-08-04): «all» er 3 tegn — kort nok til at ekte
+// kildedimensjoner havner innenfor rå redigeringsavstand 2 av det REN
+// TILFELDIG (age~all=2, adj~all=2), uten noen semantisk likhet med «all».
+// isCanonTypo() utelater «all» fra skanningen nettopp derfor — denne
+// testen låser at den vanligste av dem (alder) ikke blir blokkert fra
+// filters-fallet.
+test('vane-myking: «age» (kort, tilfeldig nær «all») folder likevel til filters, ikke suggest-feil', () => {
+  const r = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", age="Y15-64")');
+  assert.equal(r.error, undefined);
+  assert.ok(r.url.includes('age=Y15-64'), r.url);
+});
+
+test('kwarg + eksplisitt filters flettes; kollisjon feiler høylytt', () => {
+  const ok = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", geo="NO", filters={"unit": "KWH"})');
+  assert.ok(ok.url.includes('geo=NO') && ok.url.includes('unit=KWH'));
+  const kollisjon = DD.parse('# e = eurostat.read("x", geo="NO", filters={"geo": "SE"})');
+  assert.ok(kollisjon.errors.length >= 1);
+});
+
+test('vane-myking: løs kwarg på sdmx-kilde havner i needsSdmxKey.filters (introspeksjonen i lasterlaget uendret)', () => {
+  const item = resolveOne(
+    '# o = ost.connect("https://sdmx.oecd.org/public/rest/data", kind="oecd")\n' +
+    '# le = o.read("OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE", freq="A")');
+  assert.ok(!item.error, item.error);
+  assert.deepEqual(item.needsSdmxKey.filters, { freq: 'A' });
+});
+
 test('sdmx kanonisk: years → startPeriod/endPeriod; countries/filters → needsSdmxKey', () => {
   const bare = resolveOne(
     '# o = ost.connect("https://sdmx.oecd.org/public/rest/data", kind="oecd")\n' +

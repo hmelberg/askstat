@@ -45,3 +45,17 @@ Deno.test("tomt worldbank-uttrekk kaster i stedet for å binde tom ramme", async
       { fetchImpl, registry }),
     Error, "TOMT");
 });
+
+Deno.test("fetchRawUrl: CSV med 0 datarader kaster (OWID-slug-feil-klassen)", async () => {
+  const fetchImpl = (() => Promise.resolve(new Response("entity,year,value\n",
+    { status: 200, headers: { "content-type": "text/csv" } }))) as typeof fetch;
+  await assertRejects(() => DL.fetchRawUrl("https://owid.example/x.csv", { fetchImpl }),
+    Error, "TOMT");
+});
+
+Deno.test("fetchRawUrl: én-linjes ikke-CSV kaster IKKE", async () => {
+  const fetchImpl = (() => Promise.resolve(new Response("{\"a\":1}",
+    { status: 200, headers: { "content-type": "application/json" } }))) as typeof fetch;
+  const r = await DL.fetchRawUrl("https://api.example/x", { fetchImpl });
+  if (!r.bytes.length) throw new Error("skulle levert bytes");
+});

@@ -167,6 +167,19 @@
     }
     assertNotTruncated(resp, url);
     var buf = await resp.arrayBuffer();
+    // Tomt-vakt for bro-veien (spec fase 3 / sluttreview F4): OWID-hintets
+    // vei er ren pd.read_csv(url) — en feilslått slug/filter gir header-only
+    // CSV som ellers ville blitt en stille tom ramme. KUN csv (content-type
+    // eller .csv-endelse) vaktes — json/html/parquet har legitime én-linjers.
+    var ct = (resp.headers.get('content-type') || '').toLowerCase();
+    if (ct.indexOf('csv') >= 0 || /\.csv(\?|$)/.test(url)) {
+      var prefiks = new TextDecoder().decode(buf.slice(0, 2048));
+      var rader = prefiks.split('\n').filter(function (l) { return l.trim(); });
+      if (rader.length < 2) {
+        throw new Error('«' + url + '»: uttrekket kom TOMT tilbake (0 datarader) — ' +
+          'sjekk slug/filtre (land- og tidsparametre) før ny kjøring');
+      }
+    }
     return { bytes: new Uint8Array(buf), contentType: resp.headers.get('content-type') || '' };
   }
 

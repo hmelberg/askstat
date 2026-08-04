@@ -270,11 +270,11 @@ Deno.test("fetchRawUrl: TypeError (CORS/nettverk) faller tilbake på proxy", asy
   const fetchImpl = (u: string) => {
     calls.push(u);
     if (u.indexOf("/api/hent?") === 0)
-      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/csv" } }));
+      return Promise.resolve(new Response("x,y\n1,2\n", { status: 200, headers: { "content-type": "text/csv" } }));
     return Promise.reject(new TypeError("Failed to fetch"));
   };
   const out = await DL.fetchRawUrl("https://cors-stengt.example/d.csv", { fetchImpl });
-  assertEquals(new TextDecoder().decode(out.bytes), "ok");
+  assertEquals(new TextDecoder().decode(out.bytes), "x,y\n1,2\n");
   assertEquals(calls[1].indexOf("/api/hent?url="), 0);
 });
 
@@ -286,7 +286,7 @@ Deno.test("fetchRawUrl: proxy-fallback sender auth-headere (S5)", async () => {
   const fetchImpl = (u: string, init?: RequestInit) => {
     if (u.indexOf("/api/hent?") === 0) {
       seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
-      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/csv" } }));
+      return Promise.resolve(new Response("a,b\n1,2\n", { status: 200, headers: { "content-type": "text/csv" } }));
     }
     return Promise.reject(new TypeError("Failed to fetch"));
   };

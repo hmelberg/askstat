@@ -128,7 +128,7 @@ export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []):
   const lines = reg.map((s) => {
     const bits = [`${s.tilgang}, base ${s.base_url}`];
     if (isSearchableSource(s)) bits.push("søkbar via search_catalog");
-    if (s.guide) bits.push("kildeguide følger med første search_catalog/table_metadata-svar");
+    if (s.guide) bits.push("kildeguide følger med første search_catalog/table_metadata-svar (også ved feil)");
     if (s.auth?.user && s.auth.valgfri) {
       bits.push(userKeys.includes(s.id)
         ? "brukernøkkel valgfri (registrert) → hentes alltid via /api/hent"

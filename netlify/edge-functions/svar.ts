@@ -4,7 +4,7 @@
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
-import { makeGuideAttacher } from "./_lib/source-guides.ts";
+import { makeGuideAttacher, medGuideVedFeil } from "./_lib/source-guides.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
 import { coerceScope, searchDatasets } from "./_lib/tools/search-datasets.ts";
@@ -172,22 +172,29 @@ export default async (request: Request): Promise<Response> => {
       ));
     }
     if (name === "search_catalog" && registry) {
-      const hits = await searchCatalog(String(input.source ?? ""), String(input.query ?? ""), { registry, origin });
-      // searchCatalog svarer med en ARRAY (CatalogHit[]) — JSON.stringify på
-      // en array dropper stille alle ikke-indekserte egenskaper, så et
-      // guide-felt satt direkte på arrayen ville aldri nådd modellen. Pakk
-      // derfor inn i et objekt (samme "hits"-konvensjon som
-      // SearchDatasetsResult) FØR attach, uansett om kilden har guide.
-      const r: Record<string, unknown> = { hits };
-      await attachGuide(String(input.source ?? ""), r);
+      const sourceId = String(input.source ?? "");
+      // medGuideVedFeil: fn() kaster for kilder uten søkeadapter (f.eks.
+      // eurostat/ipums) — fanges der og omgjøres til {feil, guide} NÅR
+      // kilden har guide:true, ellers kastes uendret (se source-guides.ts).
+      const r = await medGuideVedFeil(sourceId, registry, attachGuide, async () => {
+        const hits = await searchCatalog(sourceId, String(input.query ?? ""), { registry, origin });
+        // searchCatalog svarer med en ARRAY (CatalogHit[]) — JSON.stringify på
+        // en array dropper stille alle ikke-indekserte egenskaper, så et
+        // guide-felt satt direkte på arrayen ville aldri nådd modellen. Pakk
+        // derfor inn i et objekt (samme "hits"-konvensjon som
+        // SearchDatasetsResult) FØR attach, uansett om kilden har guide.
+        return { hits };
+      });
       return JSON.stringify(r);
     }
     if (name === "table_metadata" && registry) {
-      const r = await tableMetadata(String(input.source ?? ""), String(input.table_id ?? ""), {
-        registry,
-        find: typeof input.find === "string" && input.find.trim() ? input.find : undefined,
-      }) as Record<string, unknown>;
-      await attachGuide(String(input.source ?? ""), r);
+      const sourceId = String(input.source ?? "");
+      const r = await medGuideVedFeil(sourceId, registry, attachGuide, async () => {
+        return await tableMetadata(sourceId, String(input.table_id ?? ""), {
+          registry,
+          find: typeof input.find === "string" && input.find.trim() ? input.find : undefined,
+        }) as Record<string, unknown>;
+      });
       return JSON.stringify(r);
     }
     if (name === "probe") {

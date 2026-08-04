@@ -4,6 +4,7 @@ import { findSource, SDMX_STRUCTURE_ACCEPT, SDMX_XML_SOURCES, type DataSource } 
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
 import { worldbankMetadata } from "./catalogs/worldbank.ts";
 import { dbnomicsMetadata } from "./catalogs/dbnomics.ts";
+import { dcCoverage } from "./catalogs/datacommons.ts";
 
 export interface TableVariable {
   code: string;
@@ -60,9 +61,20 @@ export async function tableMetadata(
   tableId: string,
   deps: { registry: DataSource[]; fetchImpl?: typeof fetch; find?: string },
 ): Promise<TableMeta> {
+  const f = deps.fetchImpl ?? fetch;
+  // Data Commons har (ennå) INGEN oppføring i data-sources.json — Task 8
+  // legger den registerbaserte nedlastingsveien inn. findSource ville
+  // kastet "ukjent kilde" før dekningssjekken fikk kjøre i det hele tatt,
+  // så denne grenen dispatcher på sourceId FØR registeroppslaget. Det gjør
+  // også table_metadata brukbart for 'datacommons' akkurat fra det
+  // tidspunktet søkearmen (dcSearch, Task 6) begynner å foreslå kilden.
+  if (sourceId === "datacommons") {
+    const apiKey = Deno.env.get("DATACOMMONS_API_KEY");
+    if (!apiKey) throw new Error("datacommons krever site-nøkkel — sett DATACOMMONS_API_KEY");
+    return dcCoverage(tableId, apiKey, deps.find, f) as unknown as Promise<TableMeta>;
+  }
   const src = findSource(deps.registry, sourceId);
   if (!src) throw new Error(`ukjent kilde '${sourceId}'`);
-  const f = deps.fetchImpl ?? fetch;
   switch (src.tilgang) {
     case "pxweb": return pxwebMetadata(src, tableId, f, deps.find);
     case "sdmx": return sdmxMetadata(src, tableId, f, deps.find);

@@ -1,6 +1,6 @@
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { pickValues, tableMetadata } from "./table-metadata.ts";
-import { parseRegistry } from "../registry.ts";
+import { findSource, parseRegistry } from "../registry.ts";
 import type { DataSource } from "../registry.ts";
 
 const REG = parseRegistry([
@@ -346,4 +346,138 @@ Deno.test("dbnomicsMetadata: gir dimensjonsKODER + verdikoder (grunnlaget for fi
   assertEquals(dims[0].verdier[0], { code: "NOR", label: "Norway" });
   // lesing-hintet skal vise filters=-veien, ikke serie-masken
   assertEquals(String(m.lesing).includes("filters="), true);
+});
+
+// ---------------------------------------------------------------------------
+// Task 7: Data Commons-dekningssjekk. datacommons har INGEN registeroppføring
+// (Task 8 legger den til) — REG under er den SAMME registry-instansen brukt
+// i pxweb-testene over og har bevisst ingen 'datacommons'-kilde, for å bevise
+// at dispatchen treffer FØR findSource-oppslaget.
+// Responsform: docs.datacommons.org/api/rest/v2/observation (se kommentaren
+// i catalogs/datacommons.ts) — byVariable[<dcid>].byEntity[<entity>].
+// orderedFacets[], med fasettmetadata (importName/unit) i et eget
+// facets-kart. Live-verifisering med ekte nøkkel er UTESTÅENDE (Task 11).
+
+function dcObservationFetch(
+  orderedFacets: { facetId: string; latestDate?: string; earliestDate?: string; obsCount?: number }[],
+  facetsMeta: Record<string, { importName?: string; unit?: string }>,
+): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const u = new URL(String(input));
+    assertEquals(u.pathname, "/v2/observation");
+    assert(u.searchParams.get("key"), "key-param skal være med");
+    const dcid = u.searchParams.get("variable.dcids")!;
+    const entity = u.searchParams.get("entity.dcids")!;
+    assertEquals(u.searchParams.get("date"), "LATEST");
+    assertEquals(u.searchParams.getAll("select").sort(), ["date", "entity", "facet", "value", "variable"]);
+    const body = {
+      byVariable: { [dcid]: { byEntity: { [entity]: { orderedFacets } } } },
+      facets: facetsMeta,
+    };
+    return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+  }) as unknown as typeof fetch;
+}
+
+Deno.test("dispatch: datacommons trigges FØR registeroppslaget (REG har ingen 'datacommons'-kilde)", () => {
+  assertEquals(findSource(REG, "datacommons"), null);
+});
+
+Deno.test("datacommons: mangler DATACOMMONS_API_KEY → kaster norsk feil", async () => {
+  const had = Deno.env.get("DATACOMMONS_API_KEY");
+  if (had !== undefined) Deno.env.delete("DATACOMMONS_API_KEY"); // defensivt — testen forutsetter fravær
+  try {
+    await assertRejects(
+      () => tableMetadata("datacommons", "Count_Person", { registry: REG, find: "NOR" }),
+      Error,
+      "DATACOMMONS_API_KEY",
+    );
+  } finally {
+    if (had !== undefined) Deno.env.set("DATACOMMONS_API_KEY", had);
+  }
+});
+
+Deno.test("datacommons: to fasetter (WB, OECD) vises BEGGE m/ kilde — aldri velges stille", async () => {
+  Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
+  try {
+    const f = dcObservationFetch(
+      [
+        { facetId: "83.112", latestDate: "2022" },
+        { facetId: "83.1", latestDate: "2023" },
+      ],
+      {
+        "83.112": { importName: "World Bank WDI", unit: "USDollar" },
+        "83.1": { importName: "OECD", unit: "USDollar" },
+      },
+    );
+    const meta = await tableMetadata("datacommons", "SomeStatVar", { registry: REG, fetchImpl: f, find: "NOR" });
+    assertEquals(meta.source, "datacommons");
+    assertEquals(meta.id, "SomeStatVar");
+    const dekning = meta.dekning as {
+      entity: string; siste_dato: string | null; antall_fasetter: number;
+      fasetter: { kilde: string; enhet?: string }[];
+    }[];
+    assertEquals(dekning.length, 1);
+    assertEquals(dekning[0].entity, "country/NOR");
+    assertEquals(dekning[0].antall_fasetter, 2);
+    const kilder = dekning[0].fasetter.map((x) => x.kilde).sort();
+    assertEquals(kilder, ["OECD", "World Bank WDI"]);          // BEGGE, ikke bare én
+    assertEquals(dekning[0].siste_dato, "2023");                // seneste av de to fasettene
+    assert(String(meta.råd).length > 0);
+    assert(String(meta.råd).includes("2 fasetter"), String(meta.råd));
+  } finally {
+    Deno.env.delete("DATACOMMONS_API_KEY");
+  }
+});
+
+Deno.test("datacommons: ingen observasjoner → dekning tom + høylytt råd (0,9999997-uten-data-fellen)", async () => {
+  Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
+  try {
+    const f = dcObservationFetch([], {});
+    const meta = await tableMetadata("datacommons", "Count_TobaccoUser", { registry: REG, fetchImpl: f, find: "NOR" });
+    assertEquals(meta.dekning, []);
+    const råd = String(meta.råd);
+    assert(råd.includes("INGEN observasjoner"), råd);
+    assert(råd.includes("velg en annen variabel"), råd);
+  } finally {
+    Deno.env.delete("DATACOMMONS_API_KEY");
+  }
+});
+
+Deno.test("datacommons: uten find → råd ber om find=<landkode>, INGEN API-kall", async () => {
+  Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
+  try {
+    let called = false;
+    const f = (() => {
+      called = true;
+      return Promise.reject(new Error("skal ikke kalles uten find"));
+    }) as unknown as typeof fetch;
+    const meta = await tableMetadata("datacommons", "Count_Person", { registry: REG, fetchImpl: f });
+    assertEquals(meta.dekning, []);
+    assert(String(meta.råd).includes("angi find=<landkode>"), String(meta.råd));
+    assertEquals(called, false);
+  } finally {
+    Deno.env.delete("DATACOMMONS_API_KEY");
+  }
+});
+
+Deno.test("datacommons: find → country/<KODE>, ISO3 og ISO2 begge uppercased", async () => {
+  Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
+  try {
+    let seenEntity = "";
+    const f = ((input: string | URL | Request) => {
+      const u = new URL(String(input));
+      seenEntity = u.searchParams.get("entity.dcids") ?? "";
+      const dcid = u.searchParams.get("variable.dcids")!;
+      const body = { byVariable: { [dcid]: { byEntity: { [seenEntity]: { orderedFacets: [] } } } }, facets: {} };
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as unknown as typeof fetch;
+
+    await tableMetadata("datacommons", "X", { registry: REG, fetchImpl: f, find: "nor" });
+    assertEquals(seenEntity, "country/NOR");                    // ISO3, lower→upper
+
+    await tableMetadata("datacommons", "X", { registry: REG, fetchImpl: f, find: "no" });
+    assertEquals(seenEntity, "country/NO");                     // ISO2, uppercased uendret (ingen ISO2→ISO3-konvertering)
+  } finally {
+    Deno.env.delete("DATACOMMONS_API_KEY");
+  }
 });

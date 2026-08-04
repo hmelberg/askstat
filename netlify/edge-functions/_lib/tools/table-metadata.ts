@@ -62,12 +62,15 @@ export async function tableMetadata(
   deps: { registry: DataSource[]; fetchImpl?: typeof fetch; find?: string },
 ): Promise<TableMeta> {
   const f = deps.fetchImpl ?? fetch;
-  // Data Commons har (ennå) INGEN oppføring i data-sources.json — Task 8
-  // legger den registerbaserte nedlastingsveien inn. findSource ville
-  // kastet "ukjent kilde" før dekningssjekken fikk kjøre i det hele tatt,
-  // så denne grenen dispatcher på sourceId FØR registeroppslaget. Det gjør
-  // også table_metadata brukbart for 'datacommons' akkurat fra det
-  // tidspunktet søkearmen (dcSearch, Task 6) begynner å foreslå kilden.
+  // Data Commons HAR en oppføring i data-sources.json (Task 8) — denne
+  // grenen dispatcher likevel FORTSATT på sourceId FØR registeroppslaget,
+  // bevisst, ikke et hull: dcCoverage() returnerer en EGEN returform
+  // (dekning/råd, ikke TableMeta-skjemaet med variables/queryUrlTemplate —
+  // samme mønster som worldbankMetadata/dbnomicsMetadata under), og
+  // DATACOMMONS_API_KEY-sjekken hører hjemme her, ikke i
+  // findSource/registry.ts. Rekkefølgen gjør også table_metadata brukbart
+  // for 'datacommons' uavhengig av om søkearmen (dcSearch, Task 6) er aktiv
+  // i akkurat dette miljøet (den er selv env-gated, se hints-parse.test.ts).
   if (sourceId === "datacommons") {
     const apiKey = Deno.env.get("DATACOMMONS_API_KEY");
     if (!apiKey) throw new Error("datacommons krever site-nøkkel — sett DATACOMMONS_API_KEY");

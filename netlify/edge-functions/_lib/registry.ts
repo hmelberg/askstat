@@ -147,3 +147,21 @@ export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []):
   });
   return `## Kilderegister (kuratert)\n\n${lines.join("\n")}`;
 }
+
+/** Kilder synlige i registerblokka i PROMPTEN (renderRegistryBlock-input) —
+ *  filtrerer datacommons ut når DATACOMMONS_API_KEY mangler i miljøet: samme
+ *  stille-fraværende-prinsippet som søkearmen (Task 6, dcSearch registreres
+ *  KUN med nøkkelen til stede). Uten dette var kilden synlig-men-502 —
+ *  modellen fikk se den i registeret og kunne bygge et svar rundt en kilde
+ *  som garantert feiler serverside («Nøkkel for datacommons er ikke
+ *  konfigurert», hent-core.ts). Ren funksjon (tar nøkkel-status som
+ *  parameter i stedet for å lese Deno.env selv) — kalleren (svar.ts) sjekker
+ *  miljøet; dette holder funksjonen node/deno-testbar uten env-oppsett.
+ *  Rører ALDRI reg selv — kun listen SENDT til renderRegistryBlock. Den fulle
+ *  reg-arrayen brukes fortsatt uendret til verktøy-dispatch/searchDatasets
+ *  (table_metadata sin egen DATACOMMONS_API_KEY-sjekk er uendret og kaster
+ *  sin egen norske feil om modellen likevel prøver). */
+export function synligeKilder(reg: DataSource[], harDcNokkel: boolean): DataSource[] {
+  if (harDcNokkel) return reg;
+  return reg.filter((s) => s.id !== "datacommons");
+}

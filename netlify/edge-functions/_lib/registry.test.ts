@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   clearRegistryCache, findSource, isSearchableSource, loadRegistry, parseRegistry,
-  renderRegistryBlock, sourceForUrl, type DataSource,
+  renderRegistryBlock, sourceForUrl, synligeKilder, type DataSource,
 } from "./registry.ts";
 
 const VALID = [{
@@ -157,4 +157,33 @@ Deno.test("isSearchableSource: ecb blir søkbar etter XML-støtte (SDMX_XML_SOUR
       base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
   ]);
   assertEquals(isSearchableSource(reg[0]), true);
+});
+
+Deno.test("synligeKilder: filtrerer datacommons ut av PROMPT-lista uten nøkkel, lar andre kilder stå", () => {
+  const reg = parseRegistry([
+    { id: "datacommons", navn: "Google Data Commons", utgiver: "Google", tillit: "etablert",
+      tilgang: "rest", kind: "datacommons", base_url: "https://api.datacommons.org/v2/", cors: true,
+      auth: { type: "api_key", env: "DATACOMMONS_API_KEY", plassering: "query:key" } },
+    VALID[0],
+  ]) as DataSource[];
+  const uten = synligeKilder(reg, false);
+  assertEquals(uten.map((s) => s.id), ["ssb"]);
+});
+
+Deno.test("synligeKilder: med nøkkel — datacommons blir stående, reg uendret (samme array)", () => {
+  const reg = parseRegistry([
+    { id: "datacommons", navn: "Google Data Commons", utgiver: "Google", tillit: "etablert",
+      tilgang: "rest", kind: "datacommons", base_url: "https://api.datacommons.org/v2/", cors: true,
+      auth: { type: "api_key", env: "DATACOMMONS_API_KEY", plassering: "query:key" } },
+    VALID[0],
+  ]) as DataSource[];
+  const med = synligeKilder(reg, true);
+  assertEquals(med, reg);
+  assertEquals(med.map((s) => s.id), ["datacommons", "ssb"]);
+});
+
+Deno.test("synligeKilder: uten datacommons i registeret — no-op uansett nøkkel-status", () => {
+  const reg = parseRegistry([VALID[0]]) as DataSource[];
+  assertEquals(synligeKilder(reg, false), reg);
+  assertEquals(synligeKilder(reg, true), reg);
 });

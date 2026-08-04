@@ -477,7 +477,11 @@
           // (variable/entity/date/value/facet_kilde — flerfasett-valget er
           // ALLTID synlig i facet_kilde, se dcColumns). years() filtreres
           // klient-side som dbnomics over (API-et har ingen tidsvindu-param).
-          var dcj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dcObservationUrl(item.url) }))).buf));
+          // item.table = dcid-en (resolve() setter den til restPath) —
+          // sendes EKSPLISITT til dcObservationUrl (code review 2026-08-04:
+          // å gjette dcid-en ut av url ved siste urlsegment rev dcid-er MED
+          // egen skråstrek, f.eks. "dc/hlxvn1t8b9bhh", i to).
+          var dcj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dcObservationUrl(item.url, item.table) }))).buf));
           var dccols = AK.dcColumns(dcj);
           if (item.clientYears) dccols = filterClientYears(dccols, 'date', item.clientYears);
           csvText = PXc.columnsToCsv(dccols);

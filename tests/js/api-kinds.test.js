@@ -139,3 +139,60 @@ test('sdmxFallbackUrl: format=csvdata legges på, eksisterende format strippes',
   assert.equal(AK.sdmxFallbackUrl('https://x/data/EXR/all'),
     'https://x/data/EXR/all?format=csvdata');
 });
+
+// ── datacommons (spec fase 3c, task 8 fix-runde 1): dcObservationUrl tar
+// dcid-en EKSPLISITT (item.table) i stedet for å gjette den ut av url ved
+// siste urlsegment — en dcid med EGEN skråstrek (dc/hlxvn1t8b9bhh,
+// sdg/SI_POV_DAY1, dc/topic/…) ville ellers blitt revet i to (code review
+// 2026-08-04, målt: «https://…/v2/dc/hlxvn1t8b9bhh» ga dcid «hlxvn1t8b9bhh»
+// og feil root, en villedende TOMT/HTTP-feil for brukeren). ────────────────
+
+test('dcObservationUrl: enkel dcid (uten skråstrek) — variable.dcids + date=all + select-listen + bevart query', () => {
+  const url = AK.dcObservationUrl('https://api.datacommons.org/v2/Count_Person?entity.dcids=country/NOR', 'Count_Person');
+  assert.equal(url,
+    'https://api.datacommons.org/v2/observation?variable.dcids=Count_Person&date=all&' +
+    'select=entity&select=variable&select=date&select=value&select=facet&entity.dcids=country/NOR');
+});
+
+test('dcObservationUrl: dcid MED skråstrek (dc/hlxvn1t8b9bhh) — root strippes eksakt, variable.dcids url-enkodet', () => {
+  const url = AK.dcObservationUrl(
+    'https://api.datacommons.org/v2/dc/hlxvn1t8b9bhh?entity.dcids=country/NOR', 'dc/hlxvn1t8b9bhh');
+  assert.equal(url,
+    'https://api.datacommons.org/v2/observation?variable.dcids=dc%2Fhlxvn1t8b9bhh&date=all&' +
+    'select=entity&select=variable&select=date&select=value&select=facet&entity.dcids=country/NOR');
+});
+
+test('dcObservationUrl: flerleddet dcid (sdg/SI_POV_DAY1) — samme regel, ingen url() uten query', () => {
+  const url = AK.dcObservationUrl('https://api.datacommons.org/v2/sdg/SI_POV_DAY1', 'sdg/SI_POV_DAY1');
+  assert.equal(url,
+    'https://api.datacommons.org/v2/observation?variable.dcids=sdg%2FSI_POV_DAY1&date=all&' +
+    'select=entity&select=variable&select=date&select=value&select=facet');
+});
+
+test('dcColumns: orderedFacets[0] er verdi-raden; facet_kilde navngir kilden på HVER rad (også med kun én fasett)', () => {
+  const doc = {
+    byVariable: { Count_Person: { byEntity: { 'country/NOR': { orderedFacets: [
+      { facetId: 'f1', observations: [{ date: '2020', value: 5000000 }, { date: '2021', value: 5100000 }] },
+      { facetId: 'f2', observations: [{ date: '2020', value: 4990000 }] },
+    ] } } } },
+    facets: { f1: { importName: 'World Bank' }, f2: { importName: 'OECD' } },
+  };
+  const cols = AK.dcColumns(doc);
+  assert.deepEqual(Object.keys(cols), ['variable', 'entity', 'date', 'value', 'facet_kilde']);
+  assert.equal(cols.value.length, 2, 'kun orderedFacets[0]-radene');
+  assert.deepEqual(cols.facet_kilde, ['World Bank', 'World Bank']);
+  assert.deepEqual(cols.date, ['2020', '2021']);
+});
+
+test('dcColumns: manglende facet-navn faller tilbake til facetId, så "ukjent kilde"', () => {
+  const cols = AK.dcColumns({
+    byVariable: { X: { byEntity: { E: { orderedFacets: [{ facetId: 'f9', observations: [{ date: '2020', value: 1 }] }] } } } },
+    facets: {},
+  });
+  assert.equal(cols.facet_kilde[0], 'f9');
+  const utenFacetId = AK.dcColumns({
+    byVariable: { X: { byEntity: { E: { orderedFacets: [{ observations: [{ date: '2020', value: 1 }] }] } } } },
+    facets: {},
+  });
+  assert.equal(utenFacetId.facet_kilde[0], 'ukjent kilde');
+});

@@ -176,12 +176,25 @@
   // date=all: years() oversettes IKKE til et date-vindu (ingen slikt
   // parameter finnes) — hele serien hentes, og filtreres klient-side
   // (item.clientYears), som dbnomics.
-  function dcObservationUrl(url) {
+  //
+  // dcid MÅ sendes eksplisitt (kalleren har den allerede — item.table,
+  // satt av resolve() til restPath) i stedet for gjettet ut av url ved
+  // lastIndexOf('/'): dcid-er har OFTE egen skråstrek (dc/hlxvn1t8b9bhh,
+  // sdg/SI_POV_DAY1, dc/topic/…), og et siste-segment-kutt ville revet
+  // dcid-en i to og sendt en HALV variable.dcids-verdi til API-et — feil
+  // uten noe synlig signal (villedende TOMT/HTTP-feil, målt i code review
+  // 2026-08-04). Strip det EKSAKTE dcid-suffikset fra url sin base i
+  // stedet for å anta ett urlsegment.
+  // variable.dcids-verdien url-enkodes (encodeURIComponent) — dcid-en er
+  // rå (dc/hlxvn1t8b9bhh), men SOM query-verdi skal skråstreken være
+  // prosent-enkodet (%2F), ikke literal.
+  function dcObservationUrl(url, dcid) {
     var u = splitUrl(url);
-    var slash = u.base.lastIndexOf('/');
-    var root = u.base.slice(0, slash + 1);      // ".../v2/"
-    var dcid = u.base.slice(slash + 1);         // stien = statvar-dcid-en
-    var params = ['variable.dcids=' + dcid, 'date=all',
+    var d = String(dcid || '');
+    var root = u.base;
+    if (d && root.slice(-d.length) === d) root = root.slice(0, root.length - d.length);
+    if (root.charAt(root.length - 1) !== '/') root += '/';   // defensivt: garanterer gyldig skjøt selv om suffikset ikke matchet
+    var params = ['variable.dcids=' + encodeURIComponent(d), 'date=all',
                    'select=entity', 'select=variable', 'select=date', 'select=value', 'select=facet'];
     if (u.query) params.push(u.query);          // entity.dcids=… (translateCanonical)
     return root + 'observation?' + params.join('&');

@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-07-29-samlet-ask-pipeline-design.md
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
-import { loadRegistry, renderRegistryBlock } from "./_lib/registry.ts";
+import { loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
 import { makeGuideAttacher } from "./_lib/source-guides.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
@@ -143,7 +143,12 @@ export default async (request: Request): Promise<Response> => {
         .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))
         .slice(0, 20)
       : [];
-    registryBlock = renderRegistryBlock(registry, availableKeys);
+    // synligeKilder: datacommons ute av PROMPT-blokka uten nøkkel — samme
+    // stille-fraværende-prinsipp som søkearmen (Task 6). `registry` selv
+    // (brukt til verktøy-dispatch/searchDatasets under) er UENDRET — kun
+    // listen som faktisk sendes til renderRegistryBlock er filtrert.
+    const harDcNokkel = !!Deno.env.get("DATACOMMONS_API_KEY");
+    registryBlock = renderRegistryBlock(synligeKilder(registry, harDcNokkel), availableKeys);
   }
 
   const memoryUrls = provider ? provider.webSearch === "none" : false;

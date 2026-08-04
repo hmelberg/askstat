@@ -57,13 +57,17 @@ function hentDirektivlinjer(tekst: string): string[] {
 // search-datasets.ts KUN når Deno.env.get("DATACOMMONS_API_KEY") finnes —
 // i dette testmiljøet er nøkkelen ikke satt, så armen er fraværende og dens
 // how_to_read-hint («table_metadata('datacommons', …) → # x =
-// datacommons.read(…)») blir ALDRI øvd av testen under. To ting må begge på
-// plass før det hullet tettes: (1) DATACOMMONS_API_KEY i CI-miljøet (Task 5-
-// checkpoint, venter på Hans), OG (2) et "datacommons"-oppslag i det ekte
-// kilderegisteret (Task 8) — uten det ville resolve() uansett feile med
-// "ukjent kilde", siden hint-formen (# x = datacommons.read(...)) forutsetter
-// et registrert kind. Se datacommons.test.ts for at hintets EGEN grammatikk
-// (table_metadata FØR .read, riktig kildenavn) er dekket isolert.
+// datacommons.read(…)») blir ALDRI øvd av testen under. Task 8 la til
+// "datacommons"-oppføringen i det ekte kilderegisteret OG kind-sti-landingen
+// (translateCanonical/resolve() i data-directives.js, dcObservationUrl/
+// dcColumns i api-kinds.js, kind-grenen i data-loader.js) — hintets FORM
+// parser nå mot det ekte registeret (verifisert direkte, uten env-gating, i
+// tests/js/data-directives-apikinds.test.js). Det gjenstående hullet her er
+// derfor BARE miljønøkkelen: DATACOMMONS_API_KEY i CI-miljøet (Task 5-
+// checkpoint, venter på Hans) — når den kommer, trigges armen og denne
+// testen øver hintet av seg selv, ingen kodeendring nødvendig. Se
+// datacommons.test.ts for at hintets EGEN grammatikk (table_metadata FØR
+// .read, riktig kildenavn) er dekket isolert, uavhengig av env.
 Deno.test("alle search_datasets-hint parser mot ekte register", async () => {
   const ssbSok = registry.find((s) => s.id === "ssb")?.sok_endepunkt ?? "";
   const fetchImpl = ((input: string | URL | Request) => {

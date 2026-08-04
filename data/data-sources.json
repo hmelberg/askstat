@@ -94,8 +94,8 @@
       "Entity/Code (land)",
       "Year"
     ],
-    "sporrings_url_mal": "https://ourworldindata.org/grapher/{slug}.csv",
-    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk"
+    "sporrings_url_mal": "https://ourworldindata.org/grapher/{slug}.csv?csvType=filtered",
+    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; UTEN csvType=filtered IGNORERES country=/time= STILLE — svaret blir byte-likt hele datasettet (målt 2026-08-04); note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk"
   },
   {
     "id": "fred",

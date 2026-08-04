@@ -6,3 +6,4 @@
 - filters-verdier kan være lister; years= filtreres klient-side etter henting.
 - Treffer spørringen >1000 serier feiler lasteren med råd — snevre inn med flere filters-dimensjoner.
 - IMF/BIS/ILO/FRED med flere nås HER uten egne nøkler — foretrekk dbnomics framfor kildens eget API når begge finnes.
+- Flere serier i ÉN spørring: legg `align_periods=1` rett i sti-argumentet (ikke i filters=, som bare tar dimensions=) — DBnomics joiner seriene server-side på felles perioder (spec §3a).

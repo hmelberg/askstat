@@ -53,21 +53,21 @@ function hentDirektivlinjer(tekst: string): string[] {
   return ut;
 }
 
-// BEVISST HULL (Task 6, datacommons-søkearmen): dcSearch registreres i
-// search-datasets.ts KUN når Deno.env.get("DATACOMMONS_API_KEY") finnes —
-// i dette testmiljøet er nøkkelen ikke satt, så armen er fraværende og dens
-// how_to_read-hint («table_metadata('datacommons', …) → # x =
-// datacommons.read(…)») blir ALDRI øvd av testen under. Task 8 la til
-// "datacommons"-oppføringen i det ekte kilderegisteret OG kind-sti-landingen
-// (translateCanonical/resolve() i data-directives.js, dcObservationUrl/
-// dcColumns i api-kinds.js, kind-grenen i data-loader.js) — hintets FORM
-// parser nå mot det ekte registeret (verifisert direkte, uten env-gating, i
-// tests/js/data-directives-apikinds.test.js). Det gjenstående hullet her er
-// derfor BARE miljønøkkelen: DATACOMMONS_API_KEY i CI-miljøet (Task 5-
-// checkpoint, venter på Hans) — når den kommer, trigges armen og denne
-// testen øver hintet av seg selv, ingen kodeendring nødvendig. Se
-// datacommons.test.ts for at hintets EGEN grammatikk (table_metadata FØR
-// .read, riktig kildenavn) er dekket isolert, uavhengig av env.
+// ENV-BETINGET ARM (Task 6, datacommons-søkearmen): dcSearch registreres i
+// search-datasets.ts KUN når Deno.env.get("DATACOMMONS_API_KEY") finnes.
+// Nøkkelen kan nå stå i brukerens .env/skall (fikset 2026-08-04 — testpakken
+// gikk rød når den gjorde) — derfor MÅ fetchImpl under svare på en
+// api.datacommons.org/…/resolve-URL uansett om nøkkelen er satt: uten
+// nøkkel registreres armen aldri (resolve-grenen øves da rett og slett
+// ikke); MED nøkkel gir resolve-grenen et treff i stedet for 404/failed, og
+// dc-hintets direktivlinje («table_metadata('datacommons', …) → # x =
+// datacommons.read(…)») blir normalisert og PARSET av assertParser under —
+// den SKAL parse, for "datacommons"-oppføringen finnes i det ekte
+// kilderegisteret (Task 8: translateCanonical/resolve() i
+// data-directives.js, dcObservationUrl/dcColumns i api-kinds.js, kind-
+// grenen i data-loader.js). Se datacommons.test.ts for at hintets EGEN
+// grammatikk (table_metadata FØR .read, riktig kildenavn) er dekket
+// isolert, uavhengig av env.
 Deno.test("alle search_datasets-hint parser mot ekte register", async () => {
   const ssbSok = registry.find((s) => s.id === "ssb")?.sok_endepunkt ?? "";
   const fetchImpl = ((input: string | URL | Request) => {
@@ -96,6 +96,16 @@ Deno.test("alle search_datasets-hint parser mot ekte register", async () => {
     if (url.includes("api.db.nomics.world")) {
       return svar({ results: { docs: [{ code: "WEO:latest", name: "World Economic Outlook",
         provider_code: "IMF", provider_name: "IMF", nb_series: 5 }] } });
+    }
+    // dc-armen (kun registrert når DATACOMMONS_API_KEY finnes, se buildCatalogs
+    // i search-datasets.ts) kaller v2/resolve — svar med et treff over
+    // score-terskelen slik at armen lykkes i stedet for å havne i failed.
+    if (url.includes("api.datacommons.org") && url.includes("resolve")) {
+      return svar({ entities: [{ node: "q", candidates: [{
+        dcid: "UnemploymentRate_Person",
+        metadata: { score: "0.9900" },
+        typeOf: ["StatisticalVariable"],
+      }] }] });
     }
     return Promise.resolve(new Response("not found", { status: 404 }));
   }) as typeof fetch;

@@ -106,7 +106,12 @@ export async function dcCoverage(
       source: "datacommons",
       id: dcid,
       dekning: [],
-      råd: "angi find=<landkode> (ISO2/ISO3, f.eks. 'NOR') for å sjekke dekning før lasting",
+      // KUN ISO3 nevnes her (sluttreview 2026-08-04): en ISO2-kode gir
+      // country/NO, som Data Commons ikke har observasjoner for — modellen
+      // ville sett "INGEN observasjoner" og trodd variabelen manglet data,
+      // når problemet i virkeligheten var landkode-formen. entityFromFind
+      // AVVISER ikke ISO2 (se JSDoc over) — bare rådet slutter å invitere til det.
+      råd: "angi find=<landkode> (ISO3, f.eks. 'NOR') for å sjekke dekning før lasting",
     };
   }
   const entity = entityFromFind(kode);

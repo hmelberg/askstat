@@ -36,6 +36,6 @@ export async function owidSearch(
     how_to_read:
       `Åpen GET-CSV — ren pandas (INTET direktiv):\n` +
       `df = pd.read_csv("https://ourworldindata.org/grapher/${c.slug}.csv?useColumnShortNames=true&csvType=filtered&country=NOR~SWE&time=2000..2024")\n` +
-      `country=NOR~SWE (~ skiller land), time=2000..2024 eller time=latest; probe URL-en før bruk`,
+      `country=NOR~SWE (~ skiller land), time=2000..2024 eller time=latest; utelat country=/time= helt for ALLE land/hele historien (hele datasettet blir da svaret); probe URL-en før bruk`,
   }));
 }

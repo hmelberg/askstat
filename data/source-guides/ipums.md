@@ -21,6 +21,12 @@ ALDRI med nøkkelen selv i URL-en eller JSON-en.
 - `meps` — Medical Expenditure Panel Survey (USA, helseutgifter, panel)
 - `ipumsi` — IPUMS International (folketellinger/surveys, mange land)
 
+**Nordisk dekning (spec §3d):** IPUMS Internationals nordiske utvalg er
+HISTORISKE folketellinger (enkeltår, ikke løpende) — et KOMPLEMENT til,
+ikke en erstatning for, registerdata (ssb/fhi). Bruk ssb/fhi for aktuelle
+norske tall; IPUMS for folketellingsbaserte tidsserier eller tverrlands
+mikrodata der registerkilder ikke dekker.
+
 Base `https://api.ipums.org/`, ALLE kall tar `version=2`.
 
 ## Den TILSTANDSLØSE flyten (fire steg, i rekkefølge)
@@ -61,8 +67,12 @@ last ned `downloadLinks.data.url` via samme proxy:
 
 `downloadLinks.data.url` ligger ofte på en ANNEN vert enn `api.ipums.org`
 (tidsbegrenset nedlastingslenke) — nøkkelen injiseres da IKKE (host
-matcher ikke `base_url`), men lenken er normalt selvstendig gyldig uten
-nøkkel. Feiler nedlastingen: ikke fabriker innhold — gå videre til steg 3.
+matcher ikke `base_url`). Hvorvidt denne lenken faktisk KREVER nøkkel er
+IKKE verifisert (ingen live-test er kjørt mot en ekte tidsbegrenset
+lenke) — bruk `/api/hent`-ruten uansett: den injiserer nøkkelen når
+verten matcher `base_url` og er en ren no-op ellers, så det er aldri
+feil å gå via den. Feiler nedlastingen: ikke fabriker innhold — gå videre
+til steg 3.
 
 ### 3. Ingen treff → send inn en NY extract (POST GET-innpakket)
 

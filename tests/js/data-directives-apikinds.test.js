@@ -269,3 +269,68 @@ test('registerkonsistens: enhver tilgang==="pxweb"-oppføring i data/data-source
   const utenKind = sources.filter((s) => s.tilgang === 'pxweb' && s.kind !== 'pxweb').map((s) => s.id);
   assert.deepEqual(utenKind, [], 'pxweb-oppføringer uten kind: "pxweb": ' + utenKind.join(', '));
 });
+
+// ── datacommons (spec fase 3c, task 8): kanonisk vokabular for Data Commons'
+// observation-API. countries()/filters={"entity": …} → entity.dcids-params
+// (den ENESTE geografi-parameteren API-et forstår); indicators()/regions()
+// har ingen oversettelse (dcid-en ER "indikatoren", i stien); years() er
+// klient-side som dbnomics (API-et har ingen tidsvindu-parameter). ─────────
+
+test('datacommons kanonisk: countries → entity.dcids-params (flere = flere)', () => {
+  const item = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", countries=["NOR", "SWE"])');
+  assert.ok(!item.error, item.error);
+  assert.ok(/entity\.dcids=country\/NOR/.test(item.url), item.url);
+  assert.ok(/entity\.dcids=country\/SWE/.test(item.url), item.url);
+  assert.equal(item.table, 'Count_Person');
+});
+
+test('datacommons kanonisk: indicators()/regions() → hard feil med countries()/filters-hint', () => {
+  const ind = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", indicators=["Count_Person"])');
+  assert.ok(/countries\(\)/.test(ind.error) && /filters=/.test(ind.error), ind.error);
+  const reg = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", regions=["03"])');
+  assert.ok(/countries\(\)/.test(reg.error) && /filters=/.test(reg.error), reg.error);
+});
+
+test('datacommons kanonisk: years → klient-filter (clientYears), som dbnomics', () => {
+  const item = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", countries=["NOR"], years="2010:2024")');
+  assert.ok(!item.error, item.error);
+  assert.deepEqual(item.clientYears, { from: '2010', to: '2024' });
+});
+
+test('datacommons kanonisk: filters={"entity": [...]} → entity.dcids-params (dcid-er direkte, ingen country/-prefiks)', () => {
+  const item = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", filters={"entity": ["geoId/06"]})');
+  assert.ok(!item.error, item.error);
+  assert.ok(/entity\.dcids=geoId\/06/.test(item.url), item.url);
+});
+
+test('datacommons kanonisk: ukjent filters-nøkkel → hard feil (bare "entity" er gyldig)', () => {
+  const item = resolveOne(
+    '# dc = ost.connect("https://api.datacommons.org/v2", kind="datacommons")\n' +
+    '# x = dc.read("Count_Person", filters={"foo": "bar"})');
+  assert.ok(item.error && /entity/.test(item.error), item.error);
+});
+
+test('resolve av «# x = datacommons.read(…)» mot registeroppføringen: auto-connect, kind, url, viaProxy (auth) riktige', () => {
+  const registry = [{
+    id: 'datacommons', navn: 'Google Data Commons', utgiver: 'Google', tillit: 'etablert',
+    tilgang: 'rest', kind: 'datacommons', base_url: 'https://api.datacommons.org/v2/', cors: true,
+    auth: { type: 'api_key', env: 'DATACOMMONS_API_KEY', plassering: 'query:key' },
+    guide: true, quirks: 'søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden',
+  }];
+  const item = resolveOne('# x = datacommons.read("Count_Person", countries=["NOR"])', registry);
+  assert.ok(!item.error, item.error);
+  assert.equal(item.kind, 'datacommons');
+  assert.equal(item.viaProxy, true, 'auth i registeret skal gi viaProxy=true automatisk (nøkkelen når aldri klienten)');
+  assert.equal(item.url, 'https://api.datacommons.org/v2/Count_Person?entity.dcids=country/NOR');
+  assert.equal(item.table, 'Count_Person');
+});

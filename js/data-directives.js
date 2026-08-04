@@ -122,6 +122,27 @@
       if (y) out.clientYears = { from: y.from, to: y.to };   // filtreres klient-side etter flatening
       return out;
     }
+    if (kind === 'datacommons') {
+      // Data Commons observation-API (spec fase 3c): entity.dcids er den
+      // ENESTE geografi-parameteren API-et forstår — «indikatoren» ER
+      // dcid-en i ressurstien (som hos worldbank/dbnomics er en sti-del),
+      // så indicators()/regions() har ingen oversettelse (hard feil, som
+      // dbnomics' countries()). countries() og filters={"entity": […]} er
+      // to veier til SAMME parameter (ISO3-landkode vs. vilkårlig dcid,
+      // f.eks. delstat/fylke) — begge bygger entity.dcids-params.
+      if (c.indicators || c.regions) return { error: 'indicators()/regions() støttes ikke for datacommons — bruk countries() eller filters={"entity": [...]} med dcid-er' };
+      (c.countries || []).forEach(function (code) { params.push('entity.dcids=country/' + String(code).toUpperCase()); });
+      if (c.filters) {
+        var dcBad = Object.keys(c.filters).filter(function (k) { return k !== 'entity'; });
+        if (dcBad.length) return { error: 'filters(' + dcBad[0] + '=…) støttes ikke for datacommons — bare filters={"entity": [...]} (liste av dcid-er)' };
+        var dcEnts = isArr(c.filters.entity) ? c.filters.entity : [c.filters.entity];
+        dcEnts.forEach(function (e) { params.push('entity.dcids=' + e); });
+      }
+      // years(): API-et har ingen tidsvindu-parameter — samme klient-side
+      // filtrering som dbnomics (hele serien hentes, årene siles etterpå).
+      if (y) out.clientYears = { from: y.from, to: y.to };
+      return out;
+    }
     return out;
   }
 
@@ -569,7 +590,7 @@
       // pxweb (spec 2026-07-24-pxweb-sources-design §2) og api-kinds (spec
       // 2026-07-25-api-kinds-design §2): «stien» er tabell-id/ressurssti
       // (evt. med kildens query bak ?); lastelaget bygger data-URL-ene selv.
-      if (kind === 'pxweb' || kind === 'eurostat' || kind === 'sdmx' || kind === 'dbnomics' || kind === 'worldbank') {
+      if (kind === 'pxweb' || kind === 'eurostat' || kind === 'sdmx' || kind === 'dbnomics' || kind === 'worldbank' || kind === 'datacommons') {
         // Kanonisk vokabular (spec §3): oversett FØR sti-kravet — worldbank
         // kan syntetisere stien fra indicators()/countries().
         var qi0 = rest.indexOf('?');
@@ -587,7 +608,8 @@
           error: '«' + l.alias + '»: ' + kind + '-kilder krever en ressurssti — «# ' + l.alias + ' = ' + head + '.read("<sti>")» (f.eks. ' +
             (kind === 'worldbank' ? 'country/NOR/indicator/NY.GDP.MKTP.CD' :
              kind === 'dbnomics' ? 'IMF/WEO:latest/NOR.NGDP_RPCH' :
-             kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' : '<tabellid>') + ')' };
+             kind === 'sdmx' ? 'EXR/D.USD.EUR.SP00.A' :
+             kind === 'datacommons' ? 'Count_Person' : '<tabellid>') + ')' };
         // pxweb v2: tabellressursen bor under tables/<id> — direktivstien er
         // bare tabell-id-en (regresjon fra v2-beta→v2-migreringen 2026-07-25:
         // base_url mistet tables/-segmentet; målt 404 uten, 200 med).

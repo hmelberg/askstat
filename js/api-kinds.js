@@ -13,7 +13,8 @@
   // Kildenavn → protokoll-kind. Protokollnavnene er gyldige selv (for kilder
   // utenfor registeret); ukjente navn → null (ikke vår kind).
   var ALIAS = { oecd: 'sdmx', ecb: 'sdmx', norgesbank: 'sdmx', imf: 'sdmx',
-                sdmx: 'sdmx', dbnomics: 'dbnomics', worldbank: 'worldbank' };
+                sdmx: 'sdmx', dbnomics: 'dbnomics', worldbank: 'worldbank',
+                datacommons: 'datacommons' };
   function kindAlias(name) { return ALIAS[String(name || '').toLowerCase()] || null; }
 
   // Forsøk 1 for sdmx-datahenting (spec §0: virker hos OECD og NB; labels=id
@@ -166,12 +167,66 @@
     return cols;
   }
 
+  // ── datacommons (spec fase 3c): resolve() bygger item.url som
+  // base+<dcid>+?entity.dcids=…-parametre (samme "logisk sti"-mønster som
+  // worldbank/sdmx over) — API-et har INGEN ressurs der; alt går via
+  // v2/observation med dcid-en som variable.dcids=-spørreparameter. Denne
+  // bygger om item.url til den ekte observation-ressursen rett før
+  // fetchBytes, akkurat som dbnomicsDataUrl/worldbankDataUrl over.
+  // date=all: years() oversettes IKKE til et date-vindu (ingen slikt
+  // parameter finnes) — hele serien hentes, og filtreres klient-side
+  // (item.clientYears), som dbnomics.
+  function dcObservationUrl(url) {
+    var u = splitUrl(url);
+    var slash = u.base.lastIndexOf('/');
+    var root = u.base.slice(0, slash + 1);      // ".../v2/"
+    var dcid = u.base.slice(slash + 1);         // stien = statvar-dcid-en
+    var params = ['variable.dcids=' + dcid, 'date=all',
+                   'select=entity', 'select=variable', 'select=date', 'select=value', 'select=facet'];
+    if (u.query) params.push(u.query);          // entity.dcids=… (translateCanonical)
+    return root + 'observation?' + params.join('&');
+  }
+
+  // byVariable/byEntity/orderedFacets → langt format (spec fase 3c,
+  // multi-fasett-regelen fra dcCoverage/table_metadata): samme
+  // StatisticalVariable+entity kan ha FLERE fasetter (ulike primærkilder,
+  // f.eks. Verdensbanken vs. OECD, ofte ulike tall). Verdi-raden er ALLTID
+  // orderedFacets[0] (samme prioritering API-et selv gir), men valget skal
+  // ALDRI være stille — facet_kilde navngir kilden på HVER rad, også når
+  // det bare finnes én fasett (symmetrisk med dcCoverage sin "1 fasett …
+  // klar til lasting"-melding i table-metadata.ts).
+  function dcColumns(doc) {
+    var byVariable = (doc || {}).byVariable || {};
+    var facetsMeta = (doc || {}).facets || {};
+    var cols = { variable: [], entity: [], date: [], value: [], facet_kilde: [] };
+    Object.keys(byVariable).forEach(function (varId) {
+      var byEntity = (byVariable[varId] || {}).byEntity || {};
+      Object.keys(byEntity).forEach(function (entityId) {
+        var orderedFacets = (byEntity[entityId] || {}).orderedFacets || [];
+        if (!orderedFacets.length) return;
+        var chosen = orderedFacets[0];
+        var meta = facetsMeta[chosen.facetId || ''] || {};
+        var kilde = meta.importName || chosen.facetId || 'ukjent kilde';
+        (chosen.observations || []).forEach(function (o) {
+          cols.variable.push(varId);
+          cols.entity.push(entityId);
+          cols.date.push(o.date || '');
+          var v = o.value;
+          cols.value.push(v === undefined || v === null ? null : v);
+          cols.facet_kilde.push(kilde);
+        });
+      });
+    });
+    return cols;
+  }
+
   var api = { kindAlias: kindAlias, SDMX_ACCEPT: SDMX_ACCEPT,
               sdmxKeyDims: sdmxKeyDims, sdmxKeyPath: sdmxKeyPath,
               dbnomicsDataUrl: dbnomicsDataUrl, dbnomicsColumns: dbnomicsColumns,
               sdmxNeedsFallback: sdmxNeedsFallback, sdmxFallbackUrl: sdmxFallbackUrl,
               worldbankDataUrl: worldbankDataUrl, worldbankPageUrl: worldbankPageUrl,
-              worldbankMeta: worldbankMeta, worldbankColumns: worldbankColumns };
+              worldbankMeta: worldbankMeta, worldbankColumns: worldbankColumns,
+              dcObservationUrl: dcObservationUrl, dcColumns: dcColumns };
   global.ApiKinds = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

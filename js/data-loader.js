@@ -68,6 +68,26 @@
     return csvText;
   }
 
+  // years()-klientfilter (spec fase 3c: "reuses the dbnomics filter code
+  // path") — dbnomics og datacommons har BEGGE ingen tidsvindu-parameter i
+  // API-et; hele serien hentes, og årene siles her, etter flatening. Delt av
+  // begge kind-grenene under (dbnomics: dateCol='period', datacommons:
+  // dateCol='date') så oversettelsen ikke kan drifte fra hverandre.
+  function filterClientYears(cols, dateCol, cy) {
+    var keep = cols[dateCol].map(function (d) {
+      var yr = parseInt(String(d).slice(0, 4), 10);
+      if (!isNaN(yr)) {
+        if (cy.from && yr < parseInt(cy.from, 10)) return false;
+        if (cy.to && yr > parseInt(cy.to, 10)) return false;
+      }
+      return true;
+    });
+    Object.keys(cols).forEach(function (col) {
+      cols[col] = cols[col].filter(function (_, i) { return keep[i]; });
+    });
+    return cols;
+  }
+
   // Brukernøkler (spec 2026-07-23): en kilde med auth.user i registeret krever
   // registrert nøkkel (js/keys.js). Nøkkelen sendes KUN som X-Source-Key til
   // /api/hent (som injiserer etter plasseringsregelen, vertsbundet) — den
@@ -394,9 +414,10 @@
       // API-kinds (spec 2026-07-25-api-kinds-design §1): sdmx = CSV rett fra
       // API-et (Accept-vei m/ format=csvdata-fallback — ECB 406-er på Accept,
       // og 3.0-filtre ignoreres STILLE av 2.1-API-er, så vi sender aldri
-      // uverifiserte parametre); worldbank/dbnomics = JSON → flatener → CSV.
-      // Samme leveranseform som pxweb: CSV-bytes, alle konsumenter uendret.
-      if (item.kind === 'sdmx' || item.kind === 'worldbank' || item.kind === 'dbnomics') {
+      // uverifiserte parametre); worldbank/dbnomics/datacommons = JSON →
+      // flatener → CSV. Samme leveranseform som pxweb: CSV-bytes, alle
+      // konsumenter uendret.
+      if (item.kind === 'sdmx' || item.kind === 'worldbank' || item.kind === 'dbnomics' || item.kind === 'datacommons') {
         var AK = global.ApiKinds, PXc = global.PxWeb;
         if (!AK || !PXc) throw new Error('ApiKinds/PxWeb-modulen mangler (js/api-kinds.js må lastes før data-loader.js)');
         // Accept-vei m/format=csvdata-fallback — delt av datahenting og
@@ -444,26 +465,22 @@
             wbDocs.push(JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.worldbankPageUrl(item.url, wp) }))).buf)));
           }
           csvText = PXc.columnsToCsv(AK.worldbankColumns(wbDocs));
-        } else {
+        } else if (item.kind === 'dbnomics') {
           var dj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dbnomicsDataUrl(item.url) }))).buf));
           var dcols = AK.dbnomicsColumns(dj);
-          if (item.clientYears) {
-            // years() for dbnomics: API-et har ikke tidsvindu-parametre —
-            // filtrer klient-side (trygt: vi holder alle radene, spec §3).
-            var cy = item.clientYears;
-            var keep = dcols.period.map(function (p) {
-              var yr = parseInt(String(p).slice(0, 4), 10);
-              if (!isNaN(yr)) {
-                if (cy.from && yr < parseInt(cy.from, 10)) return false;
-                if (cy.to && yr > parseInt(cy.to, 10)) return false;
-              }
-              return true;
-            });
-            Object.keys(dcols).forEach(function (col) {
-              dcols[col] = dcols[col].filter(function (_, i) { return keep[i]; });
-            });
-          }
+          // years() for dbnomics: API-et har ikke tidsvindu-parametre —
+          // filtrer klient-side (trygt: vi holder alle radene, spec §3).
+          if (item.clientYears) dcols = filterClientYears(dcols, 'period', item.clientYears);
           csvText = PXc.columnsToCsv(dcols);
+        } else {
+          // datacommons (spec fase 3c): observation-JSON → langt format
+          // (variable/entity/date/value/facet_kilde — flerfasett-valget er
+          // ALLTID synlig i facet_kilde, se dcColumns). years() filtreres
+          // klient-side som dbnomics over (API-et har ingen tidsvindu-param).
+          var dcj = JSON.parse(new TextDecoder().decode((await fetchBytes(Object.assign({}, item, { url: AK.dcObservationUrl(item.url) }))).buf));
+          var dccols = AK.dcColumns(dcj);
+          if (item.clientYears) dccols = filterClientYears(dccols, 'date', item.clientYears);
+          csvText = PXc.columnsToCsv(dccols);
         }
         csvText = assertHarDatarader(csvText, item.alias);
         return { alias: item.alias, bytes: new TextEncoder().encode(csvText),

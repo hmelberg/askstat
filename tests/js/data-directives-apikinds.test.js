@@ -180,7 +180,7 @@ test('entall→flertall-regelen gir ingen ny falsk positiv: «unit» folder fort
 // Selvsjekk (2026-08-04): «all» er 3 tegn — kort nok til at ekte
 // kildedimensjoner havner innenfor rå redigeringsavstand 2 av det REN
 // TILFELDIG (age~all=2, adj~all=2), uten noen semantisk likhet med «all».
-// isCanonTypo() utelater «all» fra skanningen nettopp derfor — denne
+// isKeyTypo() utelater «all» fra CANON_KEYS-skanningen nettopp derfor — denne
 // testen låser at den vanligste av dem (alder) ikke blir blokkert fra
 // filters-fallet.
 test('vane-myking: «age» (kort, tilfeldig nær «all») folder likevel til filters, ikke suggest-feil', () => {
@@ -189,6 +189,39 @@ test('vane-myking: «age» (kort, tilfeldig nær «all») folder likevel til fil
     '# e = eu.read("x", age="Y15-64")');
   assert.equal(r.error, undefined);
   assert.ok(r.url.includes('age=Y15-64'), r.url);
+});
+
+// Kodegjennomgang 2026-08-04 (runde 2/final, Medium): isKeyTypo() sjekket kun
+// CANON_KEYS — en skrivefeil på en PLAIN_KEYS-nøkkel (kind/exec/cache/secret_key)
+// foldet STILLE inn i filters, og selve kind()-oppsettet gikk tapt (verre enn en
+// vanlig filters-miss: HELE kildeoversettelsen faller bort for en ikke-
+// registerkilde). isKeyTypo() sjekker nå PLAIN_KEYS også, men med strengere
+// terskel (avstand ≤ 1, ikke ≤ 2 som for CANON_KEYS) — bredere terskel ville
+// blokkert ekte kildeparametre som «siec» (avstand 2 fra «exec»).
+test('skrivefeil på en PLAIN_KEYS-nøkkel («kinds») feiler høylytt med «kind»-forslag, folder IKKE til filters', () => {
+  const p = DD.parse('# e = ost.connect("https://x", kinds="pxweb")');
+  assert.ok(p.errors.length >= 1 && /«kind»/.test(p.errors[0]), JSON.stringify(p.errors));
+});
+
+test('skrivefeil på en PLAIN_KEYS-nøkkel («kache») feiler høylytt med «cache»-forslag', () => {
+  const p = DD.parse('# e = ost.read("https://x/d.csv", kache="30m")');
+  assert.ok(p.errors.length >= 1 && /«cache»/.test(p.errors[0]), JSON.stringify(p.errors));
+});
+
+// Regresjon: den strengere PLAIN_KEYS-terskelen (≤1) skal IKKE bli en ny falsk
+// positiv for ekte kildeparametre som «unit»/«age» (begge allerede dekket av
+// tidligere runder — låst her igjen eksplisitt for denne fiksen).
+test('PLAIN_KEYS-terskelen gir ingen ny falsk positiv: «unit» og «age» folder fortsatt til filters', () => {
+  const unit = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", unit="KWH")');
+  assert.equal(unit.error, undefined);
+  assert.ok(unit.url.includes('unit=KWH'), unit.url);
+  const age = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", age="Y15-64")');
+  assert.equal(age.error, undefined);
+  assert.ok(age.url.includes('age=Y15-64'), age.url);
 });
 
 test('kwarg + eksplisitt filters flettes; kollisjon feiler høylytt', () => {

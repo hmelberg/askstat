@@ -230,7 +230,7 @@
   // tilfeldig nær et PLAIN_KEYS-ord i redigeringsavstand (målt: «siec» er 2
   // fra «exec», «unit» er innenfor suggest()s 0.7-brøkterskel til
   // «countries») uten at det er en skrivefeil av det ordet.
-  // «all» er BEVISST utelatt fra denne skanningen: den er den eneste
+  // «all» er BEVISST utelatt fra CANON_KEYS-skanningen: den er den eneste
   // kanoniske nøkkelen kort nok (3 tegn) til at ekte, hyppig brukte
   // dimensjonsnavn havner innenfor redigeringsavstand 2 REN TILFELDIG —
   // målt: «age» (SSB/Eurostat/SDMX-alder, en av de aller vanligste
@@ -255,13 +255,35 @@
   // redigeringsavstand-sjekken over — men +s-regelen skrives ut eksplisitt
   // her likevel, for symmetri og for å ikke stole på at avstand-1 alltid
   // holder om en kanonisk nøkkel endres i fremtiden.
-  function isCanonTypo(name) {
-    var low = String(name).toLowerCase(), keys = Object.keys(CANON_KEYS);
-    for (var i = 0; i < keys.length; i++) {
-      if (keys[i] === 'all') continue;
-      if (editDistance(keys[i], low) <= 2) return true;
-      if (low + 's' === keys[i]) return true;
-      if (low.replace(/y$/, 'ies') === keys[i]) return true;
+  //
+  // Fix (kodegjennomgang 2026-08-04, runde 2/final, Medium): funksjonen
+  // sjekket KUN CANON_KEYS — skrivefeil på en PLAIN_KEYS-nøkkel
+  // (kinds="pxweb", kimd="pxweb", kache="30m") foldet STILLE inn i
+  // filters, og selve kind()/cache()-oppsettet gikk tapt (en ikke-
+  // registerkilde med kinds= mister HELE pxweb-oversettelsen — verre enn
+  // en vanlig filters-miss, siden hele kildetolkningen faller bort).
+  // PLAIN_KEYS sjekkes derfor også, men med en STRENGERE terskel
+  // (avstand ≤ 1, ikke ≤ 2): PLAIN_KEYS-ordene (exec/kind/cache) er korte
+  // nok (3-4 tegn) til at ≤ 2 ville fanget for mange ekte kildeparametre
+  // (målt: «siec» er avstand 2 fra «exec»; det skal FORTSATT folde til
+  // filters). Målt trygt ved avstand ≤ 1: «kinds»/«kimd» -> «kind» (1),
+  // «kache» -> «cache» (1) blokkeres; «siec»/«unit»/«age»/«adj»/«s_adj»/
+  // «indic»/«freq» m.fl. har ingen ≤ 1-treff mot secret_key/exec/kind/
+  // cache og folder fortsatt til filters. `secret_key` er selv unntatt fra
+  // sjekken (checkKey/parseArgs gjør navnet SVÆRT bevisst valgt av
+  // brukeren — det finnes ingen kort kildeparameter som er en plausibel
+  // avstand-1-nabo av et 10-tegns sammensatt ord).
+  function isKeyTypo(name) {
+    var low = String(name).toLowerCase(), canonKeys = Object.keys(CANON_KEYS);
+    for (var i = 0; i < canonKeys.length; i++) {
+      if (canonKeys[i] === 'all') continue;
+      if (editDistance(canonKeys[i], low) <= 2) return true;
+      if (low + 's' === canonKeys[i]) return true;
+      if (low.replace(/y$/, 'ies') === canonKeys[i]) return true;
+    }
+    var plainKeys = Object.keys(PLAIN_KEYS);
+    for (var j = 0; j < plainKeys.length; j++) {
+      if (editDistance(plainKeys[j], low) <= 1) return true;
     }
     return false;
   }
@@ -316,7 +338,7 @@
       // vane-myking 2026-08-04: kildens egne parametre aksepteres og
       // oversettes — verifiseringen bor i lasterlaget (SDMX-introspeksjon,
       // dbnomics-dimensjonskrav), som før.
-      if (!isCanonTypo(name) && isLiteralFilterValue(v)) {
+      if (!isKeyTypo(name) && isLiteralFilterValue(v)) {
         looseFilters = looseFilters || {};
         looseFilters[name] = v;
         return;

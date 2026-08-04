@@ -304,5 +304,22 @@
     },
     "guide": true,
     "quirks": "søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden"
+  },
+  {
+    "id": "ipums",
+    "navn": "IPUMS (NHIS/MEPS/International)",
+    "utgiver": "IPUMS / University of Minnesota",
+    "tillit": "etablert",
+    "tilgang": "rest",
+    "base_url": "https://api.ipums.org/",
+    "cors": false,
+    "auth": {
+      "type": "api_key",
+      "user": true,
+      "plassering": "header:Authorization"
+    },
+    "guide": true,
+    "nokkel_hint": "gratis konto på ipums.org → API key",
+    "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres"
   }
 ]

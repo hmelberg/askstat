@@ -361,6 +361,10 @@ Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
 - **Global makro/tidsserier**: dbnomics først (IMF/OECD/BIS/ILO m.fl. bak
   én kontrakt), worldbank for utviklingsindikatorer, oecd for OECD-land.
 - **Hverdagsspråklige tverrlandssammenligninger**: owid (åpen GET-CSV).
+- **DATATYPE styrer scope:** individ-/mikrodata (survey, personnivå,
+  registerhendelser) → search_datasets scope='research' + ipums-guiden
+  (helse-surveys NHIS/MEPS, internasjonale folketellinger); aggregert/
+  makro (rater, indekser, tidsserier) → scope='stats'; usikker → 'all'.
 - **Flere kilder dekker spørsmålet?** Velg den med ENKLEST spørremodell:
   worldbank/owid (ren indikator-/slug-URL) FØR eurostat/oecd
   (dimensjonskoder som må treffes) for enkle indikatorer. Geografisk

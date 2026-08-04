@@ -44,3 +44,13 @@ Deno.test("filtrerRunCode: fjerner kun run_code, og kun ved stenging", () => {
   assert(!stengte.some((t) => t.name === "run_code"));
   assert(stengte.some((t) => t.name === "search_datasets"));
 });
+
+Deno.test("filtrerRunCode: beregning-ruten (kun run_code) forblir UFILTRERT ved stenging — aldri tom liste", () => {
+  const tools = buildRouteToolDefs("beregning", "standard") as { name?: string }[];
+  assertEquals(tools.length, 1);
+  const ved0 = filtrerRunCode(tools, 0) as { name?: string }[];
+  const ved2 = filtrerRunCode(tools, 2) as { name?: string }[];
+  assertEquals(ved0.length, 1);
+  assertEquals(ved2.length, 1);
+  assert(ved2.some((t) => t.name === "run_code"));
+});

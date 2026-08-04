@@ -25,8 +25,9 @@ Fasit fra run-disiplinrunden: instruksjoner flytter ikke dette; mekanikken må.
   ren polering.
 - **Badge: TRESTEGS.** Ok → som i dag; alt feilet → dagens røde advarsel;
   feilet-etter-suksess → mild, presis note (nøytral styling, ikke -warn):
-  «⚠ Siste poleringsforsøk feilet — tallene bygger på en tidligere
-  vellykket kjøring».
+  «⚠ Last polish run failed — the numbers come from an earlier successful
+  run» (engelsk per ask-visningens språkkonvensjon — UI-teksten i
+  ask-view.js er engelsk-først, Hans 2026-07-29).
 - **Arkitektur: A — orkestrert i `svar.ts`** (ikke inne i løkke-filene):
   provider-agnostisk, `anthropic.ts` urørt, alt testbart som rene funksjoner.
 - Gjelder ALLE ruter med run_code og BEGGE dybder (uniform semantikk;
@@ -58,9 +59,17 @@ egen nøkkel (HMAC står på roadmap uendret).
    sluttsvaret nå. Ny run_code-kjøring KUN hvis outputen faktisk ikke
    besvarer spørsmålet; etter neste vellykkede kjøring stenges run_code.]»
 3. `run_ok_calls >= 2`: verktøylista for påfølgende hops bygges UTEN
-   run_code (filter på navn over `buildRouteToolDefs`-resultatet).
-   Kjørebudsjettene (`depthRunCodeCalls` m.m.) er uendret — de forblir
-   taket for FEILENDE kjøringer (reparasjon).
+   run_code (filter på navn over `buildRouteToolDefs`-resultatet), UNNTATT
+   når run_code er eneste verktøy i ruta (beregning) — da forblir lista
+   ufiltrert, for API-et avviser en tom `tools`-liste når historikken har
+   tool_use-blokker (se `filtrerRunCode`). Kjørebudsjettene
+   (`depthRunCodeCalls` m.m.) er uendret — de forblir taket for FEILENDE
+   kjøringer (reparasjon).
+
+**Akseptert kostnad — cache-invalidering:** verktøylista ligger FØR system
+i Anthropic sitt prompt-cache-prefiks; å droppe run_code ved andre suksess
+invaliderer dermed cache-prefikset for resten av løpet. Akseptert, ikke
+optimalisert i denne runden.
 
 **Rene funksjoner** i ny liten `_lib/run-disiplin.ts` (testbare uten
 handler): `klassifiserRunResult(s) -> "ok" | "feil"`,
@@ -97,7 +106,14 @@ Testlåses som de andre prompt-reglene.
   feil (aldri falsk suksess-stopp).
 - Manglende/ugyldig `run_ok_calls` i resume → 0 (aldri kast; en mistet
   teller gir bare mildere oppførsel).
-- Verktøyfjerningen kan aldri fjerne annet enn run_code (navnefilter).
+- Verktøyfjerningen kan aldri fjerne annet enn run_code (navnefilter), og
+  aldri tømme lista helt (se `filtrerRunCode`/beregning-unntaket over).
+- Kjent stale-klient-vindu: en nettleser med gammel cachet `js/ai-chat.js`
+  (fra før dette laget) echoer ikke `run_ok_calls` tilbake i resume, så
+  `coerceRunOkCalls` faller til 0 hvert hop — det gir påminnelsen etter
+  HVER suksess og aldri selve stengingen (mild degradering, by design);
+  vinduet lukkes når klient-cachen ruller (hard reload / ny fane løser det
+  umiddelbart).
 
 ## Testing
 

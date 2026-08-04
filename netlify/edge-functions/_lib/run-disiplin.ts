@@ -27,5 +27,11 @@ export function medPaaminnelse(runResult: string): string {
 
 export function filtrerRunCode(tools: unknown[], runOkCalls: number): unknown[] {
   if (!skalStengeRunCode(runOkCalls)) return tools;
-  return tools.filter((t) => (t as { name?: string }).name !== "run_code");
+  const filtrert = tools.filter((t) => (t as { name?: string }).name !== "run_code");
+  // beregning-ruten har KUN run_code i verktøylista (buildRouteToolDefs) —
+  // filtrering ville tømt den, og Anthropic-API-et avviser meldinger med
+  // tool_use-blokker når `tools` er tom/mangler. Stengingsmekanismen hoppes
+  // derfor STILLE over her (run_code blir stående); kjørebudsjettet
+  // (depthRunCodeCalls) er fortsatt taket for feilende reparasjonsforsøk.
+  return filtrert.length > 0 ? filtrert : tools;
 }

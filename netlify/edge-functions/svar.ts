@@ -239,6 +239,11 @@ export default async (request: Request): Promise<Response> => {
     continueExtra: () => ({ probed, run_ok_calls: runOkCalls }),
   };
   const providerDeps = { timeoutMs: 180_000, retries: 1 };
+  // filtrerRunCode (run-disiplin.ts): dropper run_code fra `tools` ved
+  // run_ok_calls>=2, unntatt der run_code er eneste verktøy (beregning) —
+  // se kommentar der. Verktøylista ligger FØR system i Anthropic sitt
+  // cache-prefiks, så denne endringen invaliderer prompt-cachen for resten
+  // av løpet — akseptert kostnad (spec §Mekanisme 1), ikke optimalisert her.
   let inner: ReadableStream<Uint8Array>;
   if (provider && provider.type === "openai-compat") {
     inner = runProviderAgenticStream({

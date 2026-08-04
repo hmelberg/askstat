@@ -869,7 +869,7 @@
               // lyktes — mild, nøytral note (ikke rød): plassholdere har
               // ingen pålitelig output å peke på, strip til klammetekst.
               showAnswer(stripRefs(res.markdown),
-                '⚠ Siste poleringsforsøk feilet — tallene bygger på en tidligere vellykket kjøring', false);
+                '⚠ Last polish run failed — the numbers come from an earlier successful run', false);
               renderSources(res.sources);
               maybeRenderMath(res.markdown);
               break;

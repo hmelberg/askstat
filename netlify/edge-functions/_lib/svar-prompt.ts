@@ -182,11 +182,10 @@ co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")  # åpen GET-tab
 
 Linje 2-3 er registerveien (kanonisk vokabular, INGEN connect-linje — id-en
 i registeret er aliaset); linje 4 er proxy-formen —
-KUN ved målt cors:false eller nøkkel/POST. NB: en direktivlinje tåler INGEN
-etterfølgende kommentar etter \`)\` — parseren avviser den (målt feilklasse
-2026-07-28); forklaringer står i prosa eller i koden under, aldri på
-direktivlinja. Alias-navnet skal heller ALDRI være \`ost\` (skygger
-inngangspunktet).
+KUN ved målt cors:false eller nøkkel/POST. NB: tekst etter avsluttende \`)\`
+ignoreres av parseren — men hold direktivlinjer rene; forklaringer hører i
+prosa/kode, aldri på direktivlinja. Alias-navnet skal heller ALDRI være
+\`ost\` (skygger inngangspunktet).
 
 - \`# <alias> = ost.connect("<base-url|register-id>")\` — kobler til en kilde.
   For en kilde SOM STÅR I REGISTERET er connect-linja valgfri: skriv
@@ -215,10 +214,9 @@ inngangspunktet).
   mot /api/hent.
 - KRAV: direktivlinjer er IKKE Python. Grammatikken er lukket: ingen variabler
   i argumenter (unntatt kildenavn), ingen uttrykk, ingen f-strenger, ingen
-  aritmetikk, ingen etterfølgende kommentar på linja. Argumenter er navngitte
-  literaler: \`years="2000:2009"\`, \`countries=["NOR","SWE"]\`,
-  \`filters={"na_item": "B1GQ"}\`, \`kind="pxweb"\`. Gammel syntaks
-  (\`# read <url> as <navn>\`, \`key(ask)\`, \`# require\`) finnes ikke lenger og
+  aritmetikk. Argumenter er navngitte literaler: \`years="2000:2009"\`,
+  \`countries=["NOR","SWE"]\`, \`filters={"na_item": "B1GQ"}\`, \`kind="pxweb"\`.
+  Gammel syntaks (\`# read <url> as <navn>\`, \`key(ask)\`, \`# require\`) finnes ikke lenger og
   gir feilmelding. Trenger du en DYNAMISK bygget URL: det er vanlig kode (regel 7), aldri en
   direktivlinje.
 - KRAV: merk en kilde «probe-verifisert» BARE når probe faktisk returnerte

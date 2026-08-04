@@ -220,7 +220,16 @@
             return { error: 'ukjent verb «ost.' + verb + '» — gyldige: connect, read, create, use' };
           }
           var pr = parseArgs(body, call[0].length);
-          if (skipWs(body, pr.pos) < body.length) fail('uventet tekst etter «)»');
+          // Juli-feilklassen (målt 2026-07-28): modeller legger ofte til en
+          // forklarende hale ETTER kallets avsluttende «)» («# e =
+          // eurostat.read("x")  # forklaring», «… ) — kilde: X»). pr.pos
+          // peker allerede på det BALANSERTE endepunktet — parseArgs har
+          // konsumert nøstede strenger/lister/dicter korrekt (en «)» inni en
+          // strengverdi/etikett teller ALDRI som kallets lukkeparentes, se
+          // parseString/parseSeq over) — så alt fra der og ut er en hale å
+          // IGNORERE, ikke en syntaksfeil. En linje uten noen balansert «)»
+          // når aldri hit: parseArgs kaster «mangler «)»» over i stedet, og
+          // den oppførselen er uendret.
           return { form: 'call', target: target, recv: recv, verb: verb,
                    args: pr.args, kwargs: pr.kwargs, raw: raw.trim() };
         }

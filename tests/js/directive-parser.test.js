@@ -3,7 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert');
 require('../../js/directive-parser.js');
+require('../../js/data-directives.js');
 const DP = globalThis.DirectiveParser;
+const DD = globalThis.DataDirectives;
 
 function lit(s) { return DP.parseLiteral(s, 0).value; }
 
@@ -259,4 +261,68 @@ test('parseLine: += virker også for tuppel- og dict-verdier', () => {
   const r = DP.parseLine('# meta.iris.link += {"https://a": "A"}');
   assert.equal(r.augment, true);
   assert.deepEqual(r.value, { 'https://a': 'A' });
+});
+
+// Juli-feilklassen (målt 2026-07-28): modeller la ofte til en forklarende
+// hale ETTER kallets avsluttende «)» («# e = eurostat.read("x")  # forklaring»,
+// «… ) — kilde: X»). Parseren hardfeilet på halen («uventet tekst etter «)»»)
+// i stedet for å ignorere den. Halen kan inneholde «#», «—», ord — alt etter
+// SISTE balanserte «)» på linja ignoreres. parseArgs' returnerte pos er
+// allerede det balanserte endepunktet (strenger/nøstede lister/dicter er
+// konsumert riktig der), så stripping = ikke lenger feile på resten.
+test('parseLine: kall tåler en etterfølgende kommentar etter avsluttende )', () => {
+  const r1 = DP.parseLine('# e = eurostat.read("nrg_pc_202")  # åpen GET, probet');
+  assert.equal(r1.form, 'call');
+  assert.equal(r1.recv, 'eurostat');
+  assert.equal(r1.verb, 'read');
+  assert.deepEqual(r1.args, ['nrg_pc_202']);
+
+  const r2 = DP.parseLine('# o = oecd.read("A,B@C", years="2020:2024") — kilde: OECD');
+  assert.equal(r2.form, 'call');
+  assert.deepEqual(r2.kwargs, { years: '2020:2024' });
+});
+
+// Balansering: en «)» INNI en strengverdi (typisk en etikett) er ikke
+// kallets avsluttende parentes. parseLiteral/parseString er sitat-bevisste,
+// så den ekte lukkeparentesen finnes korrekt, og halen etter DEN strippes.
+test('parseLine: ) inni en strengverdi forveksles ikke med kallets avsluttende )', () => {
+  const r = DP.parseLine(
+    '# g = worldbank.read(indicators=["NY.GDP.MKTP.CD (current US$)"])  # kilde: WB');
+  assert.equal(r.form, 'call');
+  assert.deepEqual(r.kwargs, { indicators: ['NY.GDP.MKTP.CD (current US$)'] });
+});
+
+// Ingen balansert avsluttende «)» på linja: uendret oppførsel (fortsatt feil).
+test('parseLine: uten avsluttende ) er oppførselen uendret', () => {
+  const r = DP.parseLine('# x = ssb.read("05839"  # halvferdig');
+  assert.ok(r.error, 'skal fortsatt feile uten balansert )');
+});
+
+// -- og // markørene deler samme parseLine-vei som # — ingen markørspesifikk
+// logikk skiller dem, så toleransen gjelder likt for R/duckdb/JS-kommentarer.
+test('parseLine: -- og // markører tåler også etterfølgende kommentar etter )', () => {
+  ['--', '//'].forEach((mk) => {
+    const r = DP.parseLine(mk + ' d = ost.read("https://x/d.csv")  ' + mk + ' merknad');
+    assert.equal(r.form, 'call', 'markør ' + mk);
+  });
+});
+
+// DD.parse (data-directives.js): samme toleranse på det nivået brukeren og
+// AI-tolken faktisk ser — loads[].target og options.canonical bygges likt
+// som uten halen.
+test('DD.parse: direktivlinje med etterfølgende kommentar parses som om halen ikke fantes', () => {
+  const p1 = DD.parse('# e = eurostat.read("nrg_pc_202")  # åpen GET, probet');
+  assert.equal(p1.errors.length, 0);
+  assert.equal(p1.loads.length, 1);
+  assert.equal(p1.loads[0].target, 'eurostat/nrg_pc_202');
+
+  const p2 = DD.parse('# o = oecd.read("A,B@C", years="2020:2024") — kilde: OECD');
+  assert.equal(p2.errors.length, 0);
+  assert.equal(p2.loads.length, 1);
+  assert.equal(p2.loads[0].options.canonical.years.from, '2020');
+
+  // Uten sluttparentes: uendret (fortsatt feil/ikke-direktiv som før).
+  const p3 = DD.parse('# x = ssb.read("05839"  # halvferdig');
+  assert.equal(p3.loads.length, 0);
+  assert.equal(p3.errors.length, 1);
 });

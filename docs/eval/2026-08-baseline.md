@@ -67,3 +67,27 @@ B. **Enklest-kilde-regel i ROUTING:** dekker flere kilder spørsmålet, velg
    enkle indikatorer).
 C. Deretter: la telemetrien samle organiske feil før mer bygging; fase 3
    som planlagt.
+
+
+---
+
+# Stikkprøver ETTER run-disiplin + enklest-kilde-reglene (2026-08-04, 8f2d4db)
+
+| # | Midtveis | Stikkprøve m/nye regler | Endring |
+|---|---|---|---|
+| 4 | 147 s, 4/4, FEIL-badge | **86 s, PASS uten badge, figur** — og RIKTIG tall: 7,9 % (VB 2022), verifisert mot spike-fasiten (wbgapi: NOR 2022 = 7,91). Baselinens «10,2 % (2022)» var et STILLE GALT tall ingen fanget. | klart bedre |
+| 12 | 153 s, 4/4, uferdig (eurostat-koder) | 127 s, 4/4, badge — men svar LEVERT fra kjøring 2s output (data inne; siste polerings-kjøringer feilet) | delvis bedre |
+
+## Konklusjon etter tre målerunder
+
+1. **A+B-reglene ga målbar bedring** på begge re-testede spørsmål (tid,
+   utfall, og i Q4s tilfelle KORREKTHET).
+2. **Fyll-taket-mønsteret består** (4/4 i alle datatunge kjøringer, alle tre
+   rundene). Modellen bruker restbudsjett til «polering» (ny figur-kjøring)
+   selv når svaret foreligger — og når SISTE kjøring feiler, settes
+   advarsels-badgen selv om en TIDLIGERE kjøring ga dataene (Q12).
+   Dette er ikke lenger et prompt-problem: kandidattiltak er løkke-nivå
+   («svar-klart → stopp»-signal; badge-logikk som ser på beste, ikke siste,
+   kjøring) — eget spor, ikke fase 3.
+3. Videre måling bør nå skje via TELEMETRIEN (organiske feil) i stedet for
+   flere kostbare evalrunder.

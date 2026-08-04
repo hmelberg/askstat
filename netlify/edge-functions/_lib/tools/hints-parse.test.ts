@@ -75,6 +75,9 @@ Deno.test("alle search_datasets-hint parser mot ekte register", async () => {
     if (url.includes("/data/eurostat-catalog.json")) {
       return svar({ tables: [{ code: "hlth_sha11_hf", title: "Health spending", start: "2000", end: "2024" }] });
     }
+    if (url.includes("/data/owid-catalog.json")) {
+      return svar({ charts: [{ slug: "life-expectancy", title: "Health life expectancy", subtitle: null }] });
+    }
     if (url.includes("api.db.nomics.world")) {
       return svar({ results: { docs: [{ code: "WEO:latest", name: "World Economic Outlook",
         provider_code: "IMF", provider_name: "IMF", nb_series: 5 }] } });

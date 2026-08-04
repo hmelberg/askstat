@@ -8,6 +8,7 @@ import { eurostatSearch } from "./catalogs/eurostat.ts";
 import { dbnomicsSearch } from "./catalogs/dbnomics.ts";
 import { dataciteSearch } from "./catalogs/datacite.ts";
 import { dataeuropaSearch } from "./catalogs/dataeuropa.ts";
+import { owidSearch } from "./catalogs/owid.ts";
 
 export type SearchScope = "stats" | "research" | "all";
 
@@ -68,6 +69,7 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
     oecd: viaSearchCatalog("oecd", query, deps, (id) =>
       `table_metadata('oecd', '${id}') → # o = oecd.read("${id}", years=…, countries=…)`),
     apd: viaSearchCatalog("apd", query, deps, () => `probe URL-en fra treffet før bruk`),
+    owid: () => owidSearch(query, deps.origin, f),
   };
   const research: Record<string, () => Promise<DatasetHit[]>> = {
     datacite: () => dataciteSearch(query, f),

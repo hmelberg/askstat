@@ -47,3 +47,25 @@ Deno.test("dbnomics-armen har hevet tak (ryggrad, spec fase 3a)", async () => {
   assertEquals(res.hits.filter((h) => h.source === "dbnomics").length, 6);
   assertEquals(res.hits.filter((h) => h.source === "worldbank").length, 4);
 });
+
+Deno.test("datacommons-armen er stille fraværende uten DATACOMMONS_API_KEY (ekte buildCatalogs, ingen _catalogsForTest)", async () => {
+  // Forutsetning for at testen faktisk tester noe: nøkkelen skal IKKE stå i
+  // miljøet her (Task 5-checkpoint venter på Hans). Blir den satt i CI
+  // senere blir denne påstanden feil av GOD grunn — se hints-parse.test.ts
+  // sin kommentar om samme env-betingede hull.
+  assertEquals(
+    Deno.env.get("DATACOMMONS_API_KEY"),
+    undefined,
+    "testen forutsetter ingen DATACOMMONS_API_KEY i miljøet — se Task 6-rapporten",
+  );
+  const failFetch = (() =>
+    Promise.resolve(new Response("nope", { status: 404 }))) as unknown as typeof fetch;
+  // Ingen _catalogsForTest: dette går via den EKTE buildCatalogs, slik at vi
+  // faktisk øver på env-grenen (`if (dcKey) stats.datacommons = …`) i stedet
+  // for å teste en mock som aldri ville hatt en datacommons-nøkkel uansett.
+  const res = await searchDatasets("population", "stats", {
+    registry: [], origin: "https://x.example", fetchImpl: failFetch,
+  });
+  assertEquals(res.hits.some((h) => h.source === "datacommons"), false);
+  assertEquals(res.failed.includes("datacommons"), false, "fraværende arm skal ALDRI havne i failed-listen");
+});

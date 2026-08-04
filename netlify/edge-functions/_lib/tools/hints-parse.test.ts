@@ -53,6 +53,17 @@ function hentDirektivlinjer(tekst: string): string[] {
   return ut;
 }
 
+// BEVISST HULL (Task 6, datacommons-søkearmen): dcSearch registreres i
+// search-datasets.ts KUN når Deno.env.get("DATACOMMONS_API_KEY") finnes —
+// i dette testmiljøet er nøkkelen ikke satt, så armen er fraværende og dens
+// how_to_read-hint («table_metadata('datacommons', …) → # x =
+// datacommons.read(…)») blir ALDRI øvd av testen under. To ting må begge på
+// plass før det hullet tettes: (1) DATACOMMONS_API_KEY i CI-miljøet (Task 5-
+// checkpoint, venter på Hans), OG (2) et "datacommons"-oppslag i det ekte
+// kilderegisteret (Task 8) — uten det ville resolve() uansett feile med
+// "ukjent kilde", siden hint-formen (# x = datacommons.read(...)) forutsetter
+// et registrert kind. Se datacommons.test.ts for at hintets EGEN grammatikk
+// (table_metadata FØR .read, riktig kildenavn) er dekket isolert.
 Deno.test("alle search_datasets-hint parser mot ekte register", async () => {
   const ssbSok = registry.find((s) => s.id === "ssb")?.sok_endepunkt ?? "";
   const fetchImpl = ((input: string | URL | Request) => {

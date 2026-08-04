@@ -9,6 +9,7 @@ import { dbnomicsSearch } from "./catalogs/dbnomics.ts";
 import { dataciteSearch } from "./catalogs/datacite.ts";
 import { dataeuropaSearch } from "./catalogs/dataeuropa.ts";
 import { owidSearch } from "./catalogs/owid.ts";
+import { dcSearch } from "./catalogs/datacommons.ts";
 
 export type SearchScope = "stats" | "research" | "all";
 
@@ -71,6 +72,14 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
     apd: viaSearchCatalog("apd", query, deps, () => `probe URL-en fra treffet før bruk`),
     owid: () => owidSearch(query, deps.origin, f),
   };
+  // Data Commons: env-betinget arm (Task 5-checkpoint, DATACOMMONS_API_KEY
+  // ennå ikke satt globalt). Uten nøkkel skal armen være STILLE FRAVÆRENDE —
+  // aldri i failed-listen, aldri i hits — så vi registrerer den kun når
+  // nøkkelen finnes, i stedet for å registrere den og la den feile.
+  // buildCatalogs har ingen egen env-tilgang i Deps; enklest er å lese
+  // Deno.env direkte her (samme mønster som auth.ts).
+  const dcKey = Deno.env.get("DATACOMMONS_API_KEY");
+  if (dcKey) stats.datacommons = () => dcSearch(query, dcKey, f);
   const research: Record<string, () => Promise<DatasetHit[]>> = {
     datacite: () => dataciteSearch(query, f),
     dataeuropa: () => dataeuropaSearch(query, f),

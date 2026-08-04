@@ -551,6 +551,14 @@ prøve fra PyPI eller GitHub. Nivåene:
       irreduserbare kjerne (de 5 proxy/nøkkelkildene + POST) — liten nok flate
       til at vanen slutter å slåss.
 
+      **RETNING 2 («vane-myking») GJENNOMFØRT 2026-08-05** (spec+plan
+      2026-08-04-vane-myking, commits t.o.m. 926414e): patch_urllib ved boot
+      (aldri patch_all — målt nedgradering) + ærlig regel 4; parser-toleranse
+      for hale etter `)`; ukjente kwargs → filters m/typo-vakter (entall+
+      plain-keys); Eurostat-metadata-adapter m/befolkede koder; + liste-
+      filters-fiksen verifiseringen fant. FULL A1-myking (requests-anbefaling)
+      og sdmx1-motoren venter på feilrate-tagging i Anvil-feilrapportene.
+
       **SPIKE (2) KJØRT 2026-08-04 — kjennelse i
       `docs/2026-08-spike-wbgapi-sdmx1.md`:** mekanikken virker (auto-install
       + requests/urllib3 via JSPI; sdmx1 mot OECD = full pass, 1540

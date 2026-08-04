@@ -151,3 +151,29 @@ tall observert. **Fyll-taket-mønsteret er BRUTT på lette/middels spørsmål**
 Løkke-nivå-sporet er dermed LEVERT og målt. Gjenstående kjente kostnader
 (dokumentert i spec): cache-prefiks-invalidering ved stenging;
 stale-klient-vindu til nettleser-cachen ruller.
+
+
+---
+
+# Vane-myking-måling (2026-08-05, 926414e)
+
+Ledighetsspørsmålet (EN) i to løp mot fersk lokal edge:
+
+1. **Eurostat-tvunget** (preferansefelt): adapteren øvd gjennom ekte edge —
+   metadata ×2 m/befolkede koder, find=Iceland→IS, 3,4 MB-parse ok. Løpet
+   AVSLØRTE en lastebug eldre enn hele datasøk-innsatsen: liste-verdier i
+   filters ble komma-slått (`geo=DK,FI,...`) → Eurostat-API-et svarer
+   STILLE TOMT. Fikset (én param per verdi) + testlåst; end-to-end m/ekte
+   fetch: 5 land × 2025 = 60 rader t.o.m. 2025-12.
+2. **Normalvei** (etter fiks): 124 s, 4 runs, INGEN badge, figur, INGEN
+   TLS-runde — svar: Finland 10,3 % (juni 2026, «updated by Eurostat 31
+   July 2026»). Ferskhetsproblemet fra 2026-08-04 (des-2023-tall) er borte.
+
+Suksesskriterier: TLS-runde ✓ (0), ferske tall ✓ (2026-06), metadata-blind
+tom-runde ✓ (adapter + liste-fiks verifisert). «≤ 3 kjøringer» ikke nådd på
+normalveien (4) — E5-klassen bruker fortsatt taket, men leverer nå komplett.
+
+Retning 2-pakken dermed levert og målt: patch_urllib (TLS-klassen død),
+parser-toleranse + kwargs→filters (vanefriksjon fjernet, typo-vakter
+beholdt/utvidet), Eurostat-adapter m/befolkede koder (blindflyging tettet),
++ verifiserings-funnet liste-fiksen.

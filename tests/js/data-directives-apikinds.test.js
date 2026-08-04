@@ -233,6 +233,24 @@ test('kwarg + eksplisitt filters flettes; kollisjon feiler høylytt', () => {
   assert.ok(kollisjon.errors.length >= 1);
 });
 
+// Kodegjennomgang 2026-08-05 (fix-runde 3, MÅLT lastebug): en liste-verdi i
+// filters ble JS-toString'et til ÉN komma-param (geo=DK,FI,IS,NO,SE) —
+// Eurostat statistics-API-et svarer STILLE TOMT (value:{}) på komma-formen,
+// mens repetert form (geo=DK&geo=FI&…) gir data (36 verdier målt live via
+// ledighets-verifiseringen, der modellen ba om 5 land). Låser at
+// translateCanonical nå bygger ÉN param per listeverdi, samme mønster som
+// countries()/regions()-håndteringen — og at en skalarverdi i SAMME
+// filters-dict fortsatt blir én enkelt param (ingen regresjon).
+test('vane-myking: liste-verdi i filters (eurostat) blir én param PER verdi, ikke komma-join', () => {
+  const r = resolveOne(
+    '# eu = ost.connect("https://x", kind="eurostat")\n' +
+    '# e = eu.read("x", filters={"geo": ["DK", "FI"], "s_adj": "SA"})');
+  assert.ok(!r.error, r.error);
+  assert.ok(r.url.includes('geo=DK') && r.url.includes('geo=FI'), r.url);
+  assert.ok(!r.url.includes('DK,FI'), r.url);   // den MÅLT-tomme komma-formen
+  assert.ok(r.url.includes('s_adj=SA'), r.url);   // skalarverdi uendret
+});
+
 test('vane-myking: løs kwarg på sdmx-kilde havner i needsSdmxKey.filters (introspeksjonen i lasterlaget uendret)', () => {
   const item = resolveOne(
     '# o = ost.connect("https://sdmx.oecd.org/public/rest/data", kind="oecd")\n' +

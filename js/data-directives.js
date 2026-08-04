@@ -55,6 +55,15 @@
       // date=a:b — åpne ender fylles med 1900/2100 (probet 2026-07-25: WB
       // godtar fremtidsår og leverer t.o.m. siste tilgjengelige).
       if (y) params.push('date=' + (y.from || '1900') + ':' + (y.to || '2100'));
+      // Fix round 3 (kodegjennomgang 2026-08-05): IKKE endret her, kun
+      // vurdert — WB sine kjente filters-parametre (mrv=, gapfill=,
+      // frequency= m.fl.) er alle skalarer i den offisielle API-
+      // dokumentasjonen; det finnes ingen kjent WB-parameter der en
+      // repeat-per-verdi- eller komma-liste-form gir mening (i motsetning
+      // til Eurostats geo=, der API-et har BEGGE former, men bare den ene
+      // virker — se eurostat-grenen under). Uten en MÅLT liste-brukstilfelle
+      // for WB latt jeg denne linja stå — endres først når et konkret
+      // filters={"<param>": [...]}-behov måles mot WB.
       Object.keys(c.filters || {}).forEach(function (k) { params.push(k + '=' + c.filters[k]); });
       return out;
     }
@@ -63,7 +72,20 @@
       (c.countries || []).concat(c.regions || []).forEach(function (g) { params.push('geo=' + g); });
       if (y && y.from) params.push('sinceTimePeriod=' + y.from);
       if (y && y.to) params.push('untilTimePeriod=' + y.to);
-      Object.keys(c.filters || {}).forEach(function (k) { params.push(k + '=' + c.filters[k]); });
+      // Fix round 3 (kodegjennomgang 2026-08-05, MÅLT bug): en liste-verdi i
+      // filters (f.eks. filters={"geo": ["DK","FI","IS","NO","SE"]}) ble
+      // JS-toString'et til ÉN komma-param (geo=DK,FI,IS,NO,SE av
+      // k+'='+c.filters[k]) — Eurostat statistics-API-et svarer STILLE TOMT
+      // (value:{}) på komma-formen, mens repetert form (geo=DK&geo=FI&…) gir
+      // data (36 verdier målt live). Dette var årsaken til «eurostat
+      // directive returned empty» i ledighets-verifiseringen (5 land bedt
+      // om via filters). Samme mønster som countries()/regions() to linjer
+      // over: én param PER verdi for liste-verdier; skalarverdier uendret.
+      Object.keys(c.filters || {}).forEach(function (k) {
+        var fv = c.filters[k];
+        if (isArr(fv)) fv.forEach(function (one) { params.push(k + '=' + one); });
+        else params.push(k + '=' + fv);
+      });
       return out;
     }
     if (kind === 'pxweb') {

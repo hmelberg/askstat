@@ -22,6 +22,10 @@ export const CATALOG_TIMEOUT_MS = 2_500;
 export const MAX_PER_CATALOG = 4;
 export const MAX_TOTAL = 15;
 
+// Per-arm-tak: dbnomics er den internasjonale ryggraden (spec fase 3a) og
+// skal ikke begraves av round-robin-flettingen. Andre armer: MAX_PER_CATALOG.
+export const CATALOG_CAP: Record<string, number> = { dbnomics: 6 };
+
 export function coerceScope(s: unknown): SearchScope {
   return s === "research" || s === "all" ? s : "stats";
 }
@@ -98,7 +102,7 @@ export async function searchDatasets(
   const failed: string[] = [];
   const perCatalog: DatasetHit[][] = [];
   settled.forEach((s, i) => {
-    if (s.status === "fulfilled") perCatalog.push(s.value.slice(0, MAX_PER_CATALOG));
+    if (s.status === "fulfilled") perCatalog.push(s.value.slice(0, CATALOG_CAP[names[i]] ?? MAX_PER_CATALOG));
     else failed.push(names[i]);
   });
   // Round-robin-fletting: bevarer hver katalogs egen rangering, sprer kilder.

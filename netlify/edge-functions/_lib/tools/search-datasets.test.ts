@@ -32,3 +32,18 @@ Deno.test("searchDatasets: fletter m/diversitet (maks 4 per katalog, 15 totalt),
   assertEquals(res.hits[1].id, "b-1");
   assert(res.hits.length <= 15);
 });
+
+Deno.test("dbnomics-armen har hevet tak (ryggrad, spec fase 3a)", async () => {
+  const hit_fn = (i: number) => ({ source: "dbnomics", id: "D" + i, title: "t" + i,
+    access: "open" as const, how_to_read: "x" });
+  const res = await searchDatasets("q", "stats", {
+    registry: [], origin: "https://x.example",
+    _catalogsForTest: {
+      dbnomics: () => Promise.resolve(Array.from({ length: 8 }, (_, i) => hit_fn(i))),
+      worldbank: () => Promise.resolve(Array.from({ length: 8 }, (_, i) =>
+        ({ ...hit_fn(i), source: "worldbank" }))),
+    },
+  });
+  assertEquals(res.hits.filter((h) => h.source === "dbnomics").length, 6);
+  assertEquals(res.hits.filter((h) => h.source === "worldbank").length, 4);
+});

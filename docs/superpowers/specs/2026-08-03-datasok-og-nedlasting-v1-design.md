@@ -169,6 +169,19 @@ ops-forutsetning: registreres én gang i Netlify):
   worldbank-flateneren). Rutingblokka er ærlig om rollen: resolver og
   tverrlands-demografi/helse-basics — **aldri** kilden for nordiske detaljer.
 
+### 3x. Datatype-ruting (mikro vs. aggregert — lagt til 2026-08-04, Hans)
+
+Modellen klassifiserer allerede per søkekall via `scope` (målt i baseline
+Q11: valgte selv 'research' for individnivå-spørsmål). IKKE noe hardt
+forhåndsstempel i ruteren (fryser feilklassifiseringer; parallell-viftingen
+gjør dobbeltsøk nesten gratis — gevinsten er presisjon, ikke fart). I stedet:
+- DATATYPE-linje i rutingblokka når IPUMS lander: individ-/mikrodata →
+  scope='research' + IPUMS/DataCite; aggregert/makro → scope='stats';
+  usikker → 'all'.
+- Brukerstyring i tekst dekkes av preferansefeltet (fase 2, levert).
+- UI-velger (Auto/Mikro/Aggregert-chip): UTSATT — telemetrien viser om
+  scope-bommer faktisk forekommer; bygges kun ved målt behov.
+
 ### 3d. IPUMS (sist, timeboks, egen form)
 
 - Registeroppføring med `auth: {user: true}` — nøkkelen er *brukerens* (gratis

@@ -19,6 +19,13 @@ proveniens-blokk (`# ══ ask ══ …`) øverst.
 | 10 | Skriv et dikt om statistikk | språk | «Ikke verifisert»-merking |
 | 11 | Finn forskningsdata om helse og inntekt på individnivå | data | research-/all-scope-søk; DataCite-treff m/ærlig access-merking; INGEN fabrikkerte fil-URL-er; gjerne ærlig «krever søknad/landingsside» |
 | 12 | Hvilke EU-land bruker størst andel av BNP på helse? Bruk Eurostat eller Verdensbanken. | data | besvares via katalogsøk UTEN web_search; < 90 s; kilde+år oppgitt |
+| 13 | Har forventet levealder i verden økt de siste 50 årene? | data | OWID-katalog hentet, pandas-redigering, figur i output-panelet |
+| 14 | Sammenlign befolkningsveksten i Norge og Sverige siste 20 år | data | DC ELLER SSB/SCB via katalog; hvis DC: dekningssjekk synlig i sporet |
+| 15 | Hvordan har IMFs vekstanslag for Norge endret seg? | data | DBnomics WEO:latest-katalog hentet, tidsrekke plottet |
+| 16 | Finn amerikanske surveydata om helseforsikring på individnivå | data | IPUMS-guide følges; ærlig «extract sendt inn» eller tilgangsinfo (PASS selv om ikke lastet ned) |
+| 17 | Hvor mange enhjørninger finnes per fylke? | data | ærlig prosa om ikke-tilgjengelighet, INGEN oppdiktede tall |
+
+**Etter-måling (spec §Testing):** Består av baseline-spørsmålene (4, 5, 6, 11, 12) + fase 3-spørsmålene (13, 14, 15, 16, 17).
 
 Feilhåndtering (kjøres i tillegg):
 - Avbryt midt i en kjøring → «Avbrutt», ingen svar-kort.

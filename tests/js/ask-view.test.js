@@ -146,3 +146,13 @@ test('planRefResolution: først-vinner, ukjent droppes', () => {
      { ref: 'fig:9', action: 'drop-unknown' },
      { ref: 'table:1', action: 'resolve' }]);
 });
+
+test('badgeFor: tre tilstander', () => {
+  assert.equal(askView.badgeFor([true]), 'ok');
+  assert.equal(askView.badgeFor([false, true]), 'ok');
+  assert.equal(askView.badgeFor([true, false]), 'feilet-etter-suksess');
+  assert.equal(askView.badgeFor([true, true, false, false]), 'feilet-etter-suksess');
+  assert.equal(askView.badgeFor([false]), 'feilet');
+  assert.equal(askView.badgeFor([false, false]), 'feilet');
+  assert.equal(askView.badgeFor([]), 'ok');   // konvensjon; kalleren når aldri hit (ranAny-gate)
+});

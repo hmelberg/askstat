@@ -48,6 +48,15 @@
   // Dybde for /api/svar: 'standard' er default; velges på split-knappen.
   function coerceAskDepth(v) { return v === 'deep' ? 'deep' : 'standard'; }
 
+  // Trestegs-badge (spec 2026-08-04-lokke-niva): siste kjøring bestemmer
+  // suksessveien, men en feilet POLERING etter en vellykket kjøring skal
+  // ikke stemple svaret rødt (M-Q12-klassen) — mild note i stedet.
+  function badgeFor(runHistory) {
+    var h = runHistory || [];
+    if (!h.length || h[h.length - 1]) return 'ok';
+    return h.indexOf(true) >= 0 ? 'feilet-etter-suksess' : 'feilet';
+  }
+
   /* ── Output-referanser (spec 2026-07-31-ask-svar-referanser): svaret
      peker på levende output-noder. Ren halvdel her (node-testet);
      DOM-resolveren lenger ned. ─────────────────────────────────────── */
@@ -722,6 +731,7 @@
       abortBtn.addEventListener('click', onAbort);
       var uiLang = (window.M2PY_LANG === 'en') ? 'en' : 'no';
       var feilRuns = [];
+      var runHistory = [];
       var lastSources = [];
       var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
       function sendTelemetri(flowError) {
@@ -816,6 +826,7 @@
               progressLine('Running the code …');
               var r = await window.mdAskExecuteScript(prefix + script, ctrl.signal);
               lastRunOk = r.ok;
+              runHistory.push(r.ok);
               if (!r.ok) feilRuns.push({ script: prefix + script, error: r.result });
               return r.result;
             },
@@ -826,31 +837,52 @@
 
         // 4) Sluttsvaret er allerede strømmet inn — arkiver prosess-sporet,
         //    vis kilder, og monter levende output ved vellykket kjøring.
-        if (lastRunOk) {
-          showAnswer(res.markdown, null, false);
-          renderSources(res.sources);
-          // Kuratert svar (spec 2026-07-31): plassholdere → levende noder.
-          // ≥1 resolvet → resten bak «Full output»-folden; 0 → dagens
-          // synlige mount (trygg degradering når modellen ignorerer
-          // kontrakten).
-          if (resolveAnswerRefs() > 0) {
-            mountFullOutput();
-            startReResolveObserver();
-          } else {
-            mountLiveOutput();
+        // Trestegs-badge (spec 2026-08-04-lokke-niva): badgeFor ser på HELE
+        // kjøringshistorikken, ikke bare siste kjøring — en feilet
+        // POLERING etter en vellykket kjøring skal ikke stemple svaret
+        // rødt (M-Q12-klassen). runHistory er alltid ikke-tom her (ranAny
+        // gate: onRunCode har kjørt minst én gang), så badgeFor sitt
+        // 'ok'-for-tom-liste-tilfelle nås aldri i denne grenen.
+        if (ranAny) {
+          switch (badgeFor(runHistory)) {
+            case 'ok':
+              showAnswer(res.markdown, null, false);
+              renderSources(res.sources);
+              // Kuratert svar (spec 2026-07-31): plassholdere → levende noder.
+              // ≥1 resolvet → resten bak «Full output»-folden; 0 → dagens
+              // synlige mount (trygg degradering når modellen ignorerer
+              // kontrakten).
+              if (resolveAnswerRefs() > 0) {
+                mountFullOutput();
+                startReResolveObserver();
+              } else {
+                mountLiveOutput();
+              }
+              // Sikkerhetsnett (spec §Feilhåndtering): modellen kan sette
+              // plassholderen uten blanke linjer rundt → blir stående rå i
+              // et <p> resolveAnswerRefs aldri så.
+              sweepUnresolvedRefs();
+              maybeRenderMath(res.markdown);
+              break;
+            case 'feilet-etter-suksess':
+              // Siste kjøring (poleringen) feilet, men en tidligere kjøring
+              // lyktes — mild, nøytral note (ikke rød): plassholdere har
+              // ingen pålitelig output å peke på, strip til klammetekst.
+              showAnswer(stripRefs(res.markdown),
+                '⚠ Siste poleringsforsøk feilet — tallene bygger på en tidligere vellykket kjøring', false);
+              renderSources(res.sources);
+              maybeRenderMath(res.markdown);
+              break;
+            case 'feilet':
+            default:
+              // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig
+              // output å peke på: strip til klammetekst.
+              showAnswer(stripRefs(res.markdown),
+                '⚠ The code did not run successfully — treat numbers with caution', true);
+              renderSources(res.sources);
+              maybeRenderMath(res.markdown);
+              break;
           }
-          // Sikkerhetsnett (spec §Feilhåndtering): modellen kan sette
-          // plassholderen uten blanke linjer rundt → blir stående rå i et
-          // <p> resolveAnswerRefs aldri så.
-          sweepUnresolvedRefs();
-          maybeRenderMath(res.markdown);
-        } else if (ranAny) {
-          // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig
-          // output å peke på: strip til klammetekst.
-          showAnswer(stripRefs(res.markdown),
-            '⚠ The code did not run successfully — treat numbers with caution', true);
-          renderSources(res.sources);
-          maybeRenderMath(res.markdown);
         } else {
           showAnswer(stripRefs(res.markdown),
             res.sources && res.sources.length
@@ -897,6 +929,7 @@
       parseAskRoute: parseAskRoute,
       buildAskProvenance: buildAskProvenance,
       coerceAskDepth: coerceAskDepth,
+      badgeFor: badgeFor,
       assignRefs: assignRefs,
       formatOutputsManifest: formatOutputsManifest,
       stripRefs: stripRefs,

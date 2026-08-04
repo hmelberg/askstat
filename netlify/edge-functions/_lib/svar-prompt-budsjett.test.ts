@@ -55,3 +55,11 @@ Deno.test("RUN forklarer svar-klart-stopp-mekanikken (Løkke-nivå Task 2, 2026-
   const sys = buildSvarSystem("data", "python", "");
   assert(sys.includes("stenges run_code-verktøyet"), "RUN må forklare at run_code stenges etter suksess #2");
 });
+
+Deno.test("direktivvariabel-persistens og harmoniserte-rater-regelen er montert (målt 2026-08-04)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes("overlever IKKE mellom kjøringer"),
+    "RUN må si at direktivvariabler ikke overlever kjøringer");
+  assert(sys.includes("Harmoniserte tverrlandsrater"),
+    "ROUTING/enklest-kilde må sende harmoniserte rater til dbnomics først");
+});

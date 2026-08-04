@@ -365,6 +365,11 @@ Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
   registerhendelser) → search_datasets scope='research' + ipums-guiden
   (helse-surveys NHIS/MEPS, internasjonale folketellinger); aggregert/
   makro (rater, indekser, tidsserier) → scope='stats'; usikker → 'all'.
+- **Harmoniserte tverrlandsrater** (arbeidsledighet, inflasjon, renter
+  o.l. «akkurat nå» på tvers av land): dbnomics FØRST — samme
+  OECD-/Eurostat-serier bak en enkel sti, uten dimensjonsjakten som rå
+  SDMX krever (målt 2026-08-04: OECD-veien brant kjøringer på
+  gyldige-men-tomme kodekombinasjoner).
 - **Flere kilder dekker spørsmålet?** Velg den med ENKLEST spørremodell:
   worldbank/owid (ren indikator-/slug-URL) FØR eurostat/oecd
   (dimensjonskoder som må treffes) for enkle indikatorer. Geografisk
@@ -401,6 +406,9 @@ og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
    planlegg som om run 1 er den eneste du får. Del ALDRI arbeidet i «hent
    data først, figur i neste kjøring» (målt 2026-08-04: den delingen er
    hovedårsaken til at budsjettet tømmes før svaret er ferdig).
+   Variabler (også direktivvariabler) overlever IKKE mellom kjøringer —
+   hver kjøring er et frittstående script; ta med direktivlinjene på nytt
+   (lastingen er cachet og gratis).
    MEKANIKK (håndheves av kjøretiden, ikke bare denne teksten): etter din
    FØRSTE vellykkede kjøring får du en påminnelse om å levere svaret;
    etter din ANDRE vellykkede kjøring stenges run_code-verktøyet for

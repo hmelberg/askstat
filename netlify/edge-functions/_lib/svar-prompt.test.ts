@@ -40,7 +40,10 @@ Deno.test("buildSvarSystem(oppslag): minimal — websøk-krav, ingen register", 
   const s = buildSvarSystem("oppslag", "python", "REGISTERBLOKK-MARKØR");
   assert(s.includes("kilde-URL"));
   assert(!s.includes("REGISTERBLOKK-MARKØR"));
-  assert(s.length < 4000);
+  // Størrelsesvakt: RUN-blokka (delt med oppslag) har vokst med tre MÅLTE
+  // regler i august (run-disiplin, svar-klart-stopp, variabel-persistens) —
+  // taket justert 4000→4600 den 2026-08-04, fortsatt en bevisst brems.
+  assert(s.length < 4600);
 });
 
 Deno.test("buildSvarSystem: svarformatet sier ingen kodeblokk i sluttsvaret", () => {

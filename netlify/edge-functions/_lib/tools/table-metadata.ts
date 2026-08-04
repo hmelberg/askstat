@@ -16,6 +16,9 @@ export interface TableVariable {
   // filtrert spørring — SSB 400-er ellers, målt 2026-07-31). Utelates for
   // adaptere der metadataene ikke bærer informasjonen — aldri gjett.
   mandatory?: boolean;
+  // sdmx: true når verdilisten er filtrert til koder som FAKTISK har data i
+  // kuben (availableconstraint) — se sdmxAvailability. Utelates ellers.
+  kun_befolkede?: boolean;
 }
 
 export interface TableMeta {
@@ -24,6 +27,10 @@ export interface TableMeta {
   title: string;
   variables: TableVariable[];
   queryUrlTemplate?: string;
+  // sdmx: satt når availability-berikelsen lyktes — forklarer modellen at
+  // verdilistene alt er dekningsfiltrert (målt 2026-08-04: uten dette valgte
+  // modellen gyldige-men-tomme kodekombinasjoner og brant kjøringer).
+  tilgjengelighet?: string;
   // worldbank/dbnomics-adapterne (Task 5) returnerer en frittstående
   // Record<string, unknown> — ikke det variabel/kode-formede TableMeta-skjemaet
   // (de har ingen dimensjons-katalog å hente). Indekssignaturen gjør TableMeta
@@ -234,6 +241,37 @@ function asArray<T>(v: T | T[] | undefined): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
+// availableconstraint (SDMX 2.1): hvilke koder som FAKTISK er befolket i
+// kuben — kodelistene alene lyver ved gyldige-men-tomme kombinasjoner (målt
+// 2026-08-04 mot OECD DF_IALFS_UNE_M: CL_MEASURE hadde UNE_LF+UNE_LF_M, kun
+// UNE_LF_M befolket; «ADJUSTMENT-koden NOR» fantes ikke). Best effort: alle
+// feil → null, metadataene leveres ufiltrert som før.
+async function sdmxAvailability(
+  src: DataSource,
+  agencyID: string,
+  dataflowId: string,
+  f: typeof fetch,
+  accept: string,
+): Promise<Map<string, Set<string>> | null> {
+  try {
+    const url = `${src.base_url.replace(/data\/$/, "")}availableconstraint/${agencyID},${dataflowId}`;
+    const res = await f(url, { headers: { Accept: accept, "Accept-Language": "en" } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const kv = json?.data?.contentConstraints?.[0]?.cubeRegions?.[0]?.keyValues;
+    if (!Array.isArray(kv) || !kv.length) return null;
+    const ut = new Map<string, Set<string>>();
+    for (const k of kv as { id?: string; values?: unknown[] }[]) {
+      if (typeof k.id === "string" && Array.isArray(k.values) && k.values.length) {
+        ut.set(k.id, new Set(k.values.map(String)));
+      }
+    }
+    return ut.size ? ut : null;
+  } catch {
+    return null;
+  }
+}
+
 async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetch, find?: string): Promise<TableMeta> {
   const accept = SDMX_STRUCTURE_ACCEPT[src.id];
   if (!accept) {
@@ -267,18 +305,26 @@ async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetc
     return (cl?.codes as Record<string, unknown>[] | undefined) ?? [];
   };
 
+  const befolket = await sdmxAvailability(src, agencyID, dataflowId, f, accept);
+
   const variables: TableVariable[] = [
     ...plainDims.map((d) => {
+      const dimId = String(d.id ?? "");
       const codes = codesFor(d);
-      const allValues = codes.map((c) => ({ code: String(c.id ?? ""), label: String(c.name ?? c.id ?? "") }));
+      let allValues = codes.map((c) => ({ code: String(c.id ?? ""), label: String(c.name ?? c.id ?? "") }));
+      const bef = befolket?.get(dimId);
+      const filtrert = !!bef && allValues.some((v) => bef.has(v.code));
+      if (filtrert) allValues = allValues.filter((v) => bef!.has(v.code));
       const { values, valuesTruncated } = pickValues(allValues, find);
-      return {
-        code: String(d.id ?? ""),
-        label: String(d.id ?? ""), // ingen egen "name" utover concept-referansen — koden ER labelen
+      const ut: TableVariable = {
+        code: dimId,
+        label: dimId, // ingen egen "name" utover concept-referansen — koden ER labelen
         time: false,
         values,
         valuesTruncated,
       };
+      if (filtrert) ut.kun_befolkede = true;
+      return ut;
     }),
     ...timeDims.map((d) => ({
       code: String(d.id ?? ""),
@@ -288,7 +334,13 @@ async function sdmxMetadata(src: DataSource, dataflowKey: string, f: typeof fetc
       valuesTruncated: false,
     })),
   ];
-  return { source: src.id, id: dataflowKey, title: String(dsd.name ?? dataflowKey), variables };
+  const meta: TableMeta = { source: src.id, id: dataflowKey, title: String(dsd.name ?? dataflowKey), variables };
+  if (befolket) {
+    meta.tilgjengelighet = "verdilistene er filtrert til koder som FAKTISK har data i denne kuben " +
+      "(availableconstraint) — en dimensjon med én verdi settes til den verdien; " +
+      "velg aldri koder utenfor listene";
+  }
+  return meta;
 }
 
 async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch, find?: string): Promise<TableMeta> {

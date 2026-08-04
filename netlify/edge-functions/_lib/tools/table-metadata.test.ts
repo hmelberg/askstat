@@ -17,6 +17,8 @@ const REG = parseRegistry([
     kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
   { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
+  { id: "oecd", navn: "OECD", utgiver: "OECD", tillit: "offisiell",
+    tilgang: "sdmx", kind: "sdmx", base_url: "https://sdmx.oecd.org/public/rest/data/", cors: true },
   { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
 ]);
@@ -505,4 +507,84 @@ Deno.test("datacommons: find → country/<KODE>, ISO3 og ISO2 begge uppercased",
   } finally {
     Deno.env.delete("DATACOMMONS_API_KEY");
   }
+});
+
+// --- sdmx availability-berikelse (2026-08-04, målt mot OECD DF_IALFS_UNE_M:
+// kodelistene viste UNE_LF+UNE_LF_M m.fl., men kun UNE_LF_M var BEFOLKET —
+// modellen brant kjøringer på gyldige-men-tomme kombinasjoner) ---
+
+const OECD_UNE_DSD_FIXTURE = {
+  data: {
+    dataStructures: [{
+      name: "Monthly unemployment",
+      dataStructureComponents: {
+        dimensionList: {
+          dimensions: [
+            { id: "MEASURE", localRepresentation: { enumeration: "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_MEASURE(1.0)" } },
+            { id: "ADJUSTMENT", localRepresentation: { enumeration: "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_ADJ(1.0)" } },
+          ],
+          timeDimensions: [{ id: "TIME_PERIOD" }],
+        },
+      },
+    }],
+    codelists: [
+      { id: "CL_MEASURE", codes: [{ id: "UNE_LF", name: "Unemployment (annual)" }, { id: "UNE_LF_M", name: "Unemployment (monthly)" }] },
+      { id: "CL_ADJ", codes: [{ id: "N", name: "Not adjusted" }, { id: "Y", name: "Adjusted" }, { id: "W", name: "Working day adjusted" }] },
+    ],
+  },
+};
+
+const OECD_UNE_AVAIL_FIXTURE = {
+  data: {
+    contentConstraints: [{
+      cubeRegions: [{
+        keyValues: [
+          { id: "MEASURE", values: ["UNE_LF_M"] },
+          { id: "ADJUSTMENT", values: ["N", "Y"] },
+          { id: "TIME_PERIOD", values: [] },
+        ],
+      }],
+    }],
+  },
+};
+
+function fetchPerUrl(svar: Record<string, unknown | number>): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    for (const [del, payload] of Object.entries(svar)) {
+      if (url.includes(del)) {
+        if (typeof payload === "number") return Promise.resolve(new Response("feil", { status: payload }));
+        return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+      }
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("sdmx metadata: availability filtrerer verdiene til befolkede koder", async () => {
+  const fetchImpl = fetchPerUrl({
+    "availableconstraint": OECD_UNE_AVAIL_FIXTURE,
+    "dataflow/OECD.SDD.TPS/DSD_LFS%40DF_IALFS_UNE_M": OECD_UNE_DSD_FIXTURE,
+    "dataflow/OECD.SDD.TPS/DSD_LFS@DF_IALFS_UNE_M": OECD_UNE_DSD_FIXTURE,
+  });
+  const meta = await tableMetadata("oecd", "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M", { registry: REG, fetchImpl });
+  const measure = meta.variables.find((v) => v.code === "MEASURE")!;
+  assertEquals(measure.values, [{ code: "UNE_LF_M", label: "Unemployment (monthly)" }]);
+  assertEquals(measure.kun_befolkede, true);
+  const adj = meta.variables.find((v) => v.code === "ADJUSTMENT")!;
+  assertEquals(adj.values.map((v) => v.code), ["N", "Y"]);
+  const time = meta.variables.find((v) => v.code === "TIME_PERIOD")!;
+  assertEquals(time.values, []);   // tidsdimensjonen røres ikke
+  assertEquals(typeof meta.tilgjengelighet, "string");
+});
+
+Deno.test("sdmx metadata: availability-feil → ufiltrert fallback, ingen kast", async () => {
+  const fetchImpl = fetchPerUrl({
+    "availableconstraint": 500,
+    "dataflow/OECD.SDD.TPS/DSD_LFS": OECD_UNE_DSD_FIXTURE,
+  });
+  const meta = await tableMetadata("oecd", "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M", { registry: REG, fetchImpl });
+  const measure = meta.variables.find((v) => v.code === "MEASURE")!;
+  assertEquals(measure.values.length, 2);   // begge koder — ufiltrert
+  assertEquals(meta.tilgjengelighet, undefined);
 });

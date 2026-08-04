@@ -25,3 +25,45 @@ dybde standard, python-modus. Data-rute-settet fra ask-evalsett.md.
    mangler er at første script treffer.
 
 Etter-måling: kjør samme fem spørsmål etter fase 3 (spec §Testing).
+
+
+---
+
+# Midtveis-måling ETTER fase 2 (2026-08-04, samme oppsett, ny kode dc186ef)
+
+| # | Baseline (tak 3) | Midtveis (tak 4) | Endring |
+|---|---|---|---|
+| 4 | 211 s, 3/3, PASS m/slitasje | 147 s, **4/4, FEIL-badge** (fikk data, budsjett ut før figur) | tid ↓, utfall ↓ |
+| 5 | 83 s, 3/3, ÆRLIG FEIL (OECD-404) | 132 s, **4/4**, websøk-fallback ga kildebasert svar; metadata×2+probe×1 brukt | utfall ↑ (svar levert), fortsatt tomt |
+| 6 | 162 s, 3/3, PASS+figur | **73 s**, 4/4, PASS+figur, riktige tall | tid HALVERT |
+| 12 | 87 s, 3/3, PASS (worldbank) | 153 s, **4/4**, uferdig — Eurostat icha11-koder; tomt-uttrekk-vakten fyrte og modellen resonnerte riktig om årsaken, men budsjettet tok slutt | utfall ↓ |
+| 11 | 70 s, 0, PASS | 95 s, 0, PASS (research-scope korrekt) | ~uendret |
+
+## Analyse
+
+1. **Budsjett-metning består: «work expands».** 3-tak ga 3/3; 4-tak gir 4/4.
+   Run-budsjettet brukes som ARBEIDSPLAN (hent data i én kjøring, figur i
+   neste, patch i neste) — ikke som reparasjonsreserve etter ETT komplett
+   script. Budsjettheving var feil medisin alene; run-DISIPLIN er neste.
+2. **Vaktene virker målbart:** tomt-uttrekk-vakten fanget stille-tomt
+   Eurostat-uttrekk (M-Q12, modellen navngir årsaken); metadata/prober
+   brukes (M-Q5) men ikke konsekvent (M-Q4: 0 prober).
+3. **ROUTING kan feilstyre mot vanskeligere kilder:** M-Q12 valgte eurostat
+   (EU→eurostat-regelen) der baseline valgte worldbank og PASSERTE — enklest
+   spørremodell bør trumfe geografisk «riktighet» når flere kilder dekker
+   spørsmålet.
+4. **Telemetri-e2e bekreftet i forbifarten:** M-Q4s feilede løp produserte
+   ekte feilrapporter til Anvil (første organiske rader).
+5. Forbehold: n=1 per spørsmål, høy modellvarians — men taket-fylles-mønsteret
+   er konsistent over alle 8 datatunge målinger (4+4).
+
+## Anbefalte neste grep (små, prompt-nivå)
+
+A. **Run-disiplinregel i RUN-blokka:** run 1 SKAL være komplett
+   (last+analyse+figur i ett script); kjørebudsjettet er REPARASJONER, ikke
+   arbeidsdeling; ved tomt-uttrekk: table_metadata(find=) FØR ny kjøring.
+B. **Enklest-kilde-regel i ROUTING:** dekker flere kilder spørsmålet, velg
+   den med enklest spørremodell (worldbank/owid før eurostat/oecd for
+   enkle indikatorer).
+C. Deretter: la telemetrien samle organiske feil før mer bygging; fase 3
+   som planlagt.

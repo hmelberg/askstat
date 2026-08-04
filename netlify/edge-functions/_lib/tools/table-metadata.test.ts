@@ -443,6 +443,31 @@ Deno.test("datacommons: ingen observasjoner → dekning tom + høylytt råd (0,9
   }
 });
 
+// Fix-runde 2 (live-verifisert 2026-08-04): den EKTE tom-dekning-formen fra
+// v2/observation er byEntity[<entity>] som et TOMT OBJEKT — INGEN
+// orderedFacets-nøkkel i det hele tatt (ikke bare orderedFacets: [], som
+// testen over dekker via dcObservationFetch-helperen). ?? []-mønsteret i
+// dcCoverage (catalogs/datacommons.ts) må dekke BEGGE former.
+Deno.test("datacommons: byEntity[<entity>] tomt objekt (INGEN orderedFacets-nøkkel, ekte live-form) → samme 'ingen observasjoner'", async () => {
+  Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
+  try {
+    const f = ((input: string | URL | Request) => {
+      const u = new URL(String(input));
+      const dcid = u.searchParams.get("variable.dcids")!;
+      const entity = u.searchParams.get("entity.dcids")!;
+      const body = { byVariable: { [dcid]: { byEntity: { [entity]: {} } } }, facets: {} };
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as unknown as typeof fetch;
+    const meta = await tableMetadata("datacommons", "LifeExpectancy_Person", { registry: REG, fetchImpl: f, find: "NOR" });
+    assertEquals(meta.dekning, []);
+    const råd = String(meta.råd);
+    assert(råd.includes("INGEN observasjoner"), råd);
+    assert(råd.includes("velg en annen variabel"), råd);
+  } finally {
+    Deno.env.delete("DATACOMMONS_API_KEY");
+  }
+});
+
 Deno.test("datacommons: uten find → råd ber om find=<landkode>, INGEN API-kall", async () => {
   Deno.env.set("DATACOMMONS_API_KEY", "TESTKEY");
   try {

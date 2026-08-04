@@ -173,9 +173,18 @@
   // v2/observation med dcid-en som variable.dcids=-spørreparameter. Denne
   // bygger om item.url til den ekte observation-ressursen rett før
   // fetchBytes, akkurat som dbnomicsDataUrl/worldbankDataUrl over.
-  // date=all: years() oversettes IKKE til et date-vindu (ingen slikt
-  // parameter finnes) — hele serien hentes, og filtreres klient-side
-  // (item.clientYears), som dbnomics.
+  //
+  // INGEN date-parameter (fix-runde 2, live-verifisert 2026-08-04 mot
+  // v2/observation for LifeExpectancy_Person@country/NOR): «date=all» —
+  // den DOKUMENTERTE formen for "hele serien" — svarer FAKTISK TOMT
+  // (`byEntity: {"country/NOR": {}}`, ingen orderedFacets) live, mens å
+  // UTELATE date-parameteren helt gir den fulle serien (1960-2023 for
+  // eksempelet). «date=LATEST» (brukt av dcCoverage/Task 7) virker som
+  // dokumentert. Årsak ukjent (mulig API-avvik fra dokumentasjonen) — men
+  // funnet er utvetydig: å sende date=all ville gjort ALLE
+  // datacommons.read()-uttrekk TOMME i prod. years() filtreres uansett
+  // klient-side (item.clientYears), som dbnomics — vi trengte aldri et
+  // date-vindu fra API-et i utgangspunktet.
   //
   // dcid MÅ sendes eksplisitt (kalleren har den allerede — item.table,
   // satt av resolve() til restPath) i stedet for gjettet ut av url ved
@@ -194,7 +203,7 @@
     var root = u.base;
     if (d && root.slice(-d.length) === d) root = root.slice(0, root.length - d.length);
     if (root.charAt(root.length - 1) !== '/') root += '/';   // defensivt: garanterer gyldig skjøt selv om suffikset ikke matchet
-    var params = ['variable.dcids=' + encodeURIComponent(d), 'date=all',
+    var params = ['variable.dcids=' + encodeURIComponent(d),
                    'select=entity', 'select=variable', 'select=date', 'select=value', 'select=facet'];
     if (u.query) params.push(u.query);          // entity.dcids=… (translateCanonical)
     return root + 'observation?' + params.join('&');

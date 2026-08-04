@@ -147,25 +147,26 @@ test('sdmxFallbackUrl: format=csvdata legges på, eksisterende format strippes',
 // 2026-08-04, målt: «https://…/v2/dc/hlxvn1t8b9bhh» ga dcid «hlxvn1t8b9bhh»
 // og feil root, en villedende TOMT/HTTP-feil for brukeren). ────────────────
 
-test('dcObservationUrl: enkel dcid (uten skråstrek) — variable.dcids + date=all + select-listen + bevart query', () => {
+test('dcObservationUrl: enkel dcid (uten skråstrek) — variable.dcids + select-listen + bevart query, INGEN date-param', () => {
   const url = AK.dcObservationUrl('https://api.datacommons.org/v2/Count_Person?entity.dcids=country/NOR', 'Count_Person');
   assert.equal(url,
-    'https://api.datacommons.org/v2/observation?variable.dcids=Count_Person&date=all&' +
+    'https://api.datacommons.org/v2/observation?variable.dcids=Count_Person&' +
     'select=entity&select=variable&select=date&select=value&select=facet&entity.dcids=country/NOR');
+  assert.ok(!/[?&]date=/.test(url), 'date=all svarer TOMT live (fix-runde 2, 2026-08-04) — date-parameteren skal ALDRI være med');
 });
 
-test('dcObservationUrl: dcid MED skråstrek (dc/hlxvn1t8b9bhh) — root strippes eksakt, variable.dcids url-enkodet', () => {
+test('dcObservationUrl: dcid MED skråstrek (dc/hlxvn1t8b9bhh) — root strippes eksakt, variable.dcids url-enkodet, ingen date-param', () => {
   const url = AK.dcObservationUrl(
     'https://api.datacommons.org/v2/dc/hlxvn1t8b9bhh?entity.dcids=country/NOR', 'dc/hlxvn1t8b9bhh');
   assert.equal(url,
-    'https://api.datacommons.org/v2/observation?variable.dcids=dc%2Fhlxvn1t8b9bhh&date=all&' +
+    'https://api.datacommons.org/v2/observation?variable.dcids=dc%2Fhlxvn1t8b9bhh&' +
     'select=entity&select=variable&select=date&select=value&select=facet&entity.dcids=country/NOR');
 });
 
-test('dcObservationUrl: flerleddet dcid (sdg/SI_POV_DAY1) — samme regel, ingen url() uten query', () => {
+test('dcObservationUrl: flerleddet dcid (sdg/SI_POV_DAY1) — samme regel, ingen url() uten query, ingen date-param', () => {
   const url = AK.dcObservationUrl('https://api.datacommons.org/v2/sdg/SI_POV_DAY1', 'sdg/SI_POV_DAY1');
   assert.equal(url,
-    'https://api.datacommons.org/v2/observation?variable.dcids=sdg%2FSI_POV_DAY1&date=all&' +
+    'https://api.datacommons.org/v2/observation?variable.dcids=sdg%2FSI_POV_DAY1&' +
     'select=entity&select=variable&select=date&select=value&select=facet');
 });
 
@@ -195,4 +196,19 @@ test('dcColumns: manglende facet-navn faller tilbake til facetId, så "ukjent ki
     facets: {},
   });
   assert.equal(utenFacetId.facet_kilde[0], 'ukjent kilde');
+});
+
+// Fix-runde 2 (live-verifisert 2026-08-04): den EKTE tom-dekning-formen fra
+// API-et er byEntity[<entity>] som et TOMT objekt — INGEN orderedFacets-
+// nøkkel i det hele tatt (ikke bare en tom array). ?? []/|| []-mønsteret må
+// dekke BEGGE former; denne testen bekrefter den mest overraskende av de to
+// (nøkkelen mangler helt, i motsetning til den allerede dekkede
+// orderedFacets:[]-formen over/i table-metadata.test.ts).
+test('dcColumns: byEntity[<entity>] tomt objekt (INGEN orderedFacets-nøkkel, ekte live-form) → 0 rader, ingen kast', () => {
+  const cols = AK.dcColumns({
+    byVariable: { LifeExpectancy_Person: { byEntity: { 'country/NOR': {} } } },
+    facets: {},
+  });
+  assert.deepEqual(Object.keys(cols), ['variable', 'entity', 'date', 'value', 'facet_kilde']);
+  assert.equal(cols.value.length, 0);
 });

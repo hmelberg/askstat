@@ -6,7 +6,14 @@ import { DC_SCORE_THRESHOLD, dcSearch } from "./datacommons.ts";
 // GET /v2/resolve?key=…&nodes=<fritekst>&resolver=indicator →
 //   { entities: [{ node, candidates: [{ dcid, metadata: { score: "0.xxxx", sentence }, typeOf: [...] }] }] }
 // OBS: score er en STRENG i den dokumenterte responsen, ikke et tall.
-function resolveFetch(candidates: { dcid: string; score: string; sentence?: string; typeOf?: string[] }[]): typeof fetch {
+// typeOf: undefined (felt ikke gitt i testkallet) -> defaulter til
+// ["StatisticalVariable"] (bakoverkompatibelt med eksisterende tester som
+// ikke bryr seg om typeOf). typeOf: null -> feltet er HELT FRAVÆRENDE i
+// mock-responsen (den ekte "ingen typeOf-info"-formen, fix-runde 2) —
+// skiller seg fra typeOf: [] (feltet TIL STEDE, men tomt).
+function resolveFetch(
+  candidates: { dcid: string; score: string; sentence?: string; typeOf?: string[] | null }[],
+): typeof fetch {
   return ((url: string) => {
     const u = new URL(String(url));
     assertEquals(u.pathname, "/v2/resolve");
@@ -16,11 +23,11 @@ function resolveFetch(candidates: { dcid: string; score: string; sentence?: stri
     const body = {
       entities: [{
         node: u.searchParams.get("nodes"),
-        candidates: candidates.map((c) => ({
-          dcid: c.dcid,
-          metadata: { score: c.score, sentence: c.sentence },
-          typeOf: c.typeOf ?? ["StatisticalVariable"],
-        })),
+        candidates: candidates.map((c) => {
+          const entry: Record<string, unknown> = { dcid: c.dcid, metadata: { score: c.score, sentence: c.sentence } };
+          if (c.typeOf !== null) entry.typeOf = c.typeOf ?? ["StatisticalVariable"];
+          return entry;
+        }),
       }],
     };
     return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
@@ -94,4 +101,38 @@ Deno.test("dcSearch: tom entities/candidates → tom liste (ikke kast)", async (
 Deno.test("dcSearch: HTTP-feil kaster (arm-nivå — søkes ikke stille i seg selv, kun fravær-uten-nøkkel er stille)", async () => {
   const f = (() => Promise.resolve(new Response("nope", { status: 500 }))) as unknown as typeof fetch;
   await assertRejects(() => dcSearch("q", "TESTKEY", f));
+});
+
+// ── typeOf-filter (fix-runde 2, live-verifisert 2026-08-04): resolve-svar
+// inneholder OGSÅ Topic-noder (dc/topic/UnemploymentRate…) blant kandidatene
+// — ikke lastbare med datacommons.read(). Behold kun StatisticalVariable;
+// kandidater UTEN typeOf-felt beholdes konservativt. ───────────────────────
+
+Deno.test("dcSearch: Topic-node over terskelen filtreres ut, StatisticalVariable beholdes", async () => {
+  const f = resolveFetch([
+    { dcid: "UnemploymentRate_Topic", score: "0.99", typeOf: ["Topic"] },
+    { dcid: "UnemploymentRate_Person", score: "0.98", typeOf: ["StatisticalVariable"] },
+  ]);
+  const hits = await dcSearch("unemployment rate", "TESTKEY", f);
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "UnemploymentRate_Person");
+});
+
+Deno.test("dcSearch: kandidat UTEN typeOf-felt i det hele tatt beholdes (konservativt)", async () => {
+  const f = resolveFetch([{ dcid: "X", score: "0.99", typeOf: null }]);
+  const hits = await dcSearch("q", "TESTKEY", f);
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "X");
+});
+
+Deno.test("dcSearch: kandidat med typeOf=[] (til stede, men tomt) filtreres ut — skiller seg fra typeOf-felt fraværende", async () => {
+  const f = resolveFetch([{ dcid: "X", score: "0.99", typeOf: [] }]);
+  const hits = await dcSearch("q", "TESTKEY", f);
+  assertEquals(hits.length, 0);
+});
+
+Deno.test("dcSearch: kun Topic-treff → tom liste, ikke kast", async () => {
+  const f = resolveFetch([{ dcid: "SomeTopic", score: "0.99", typeOf: ["Topic"] }]);
+  const hits = await dcSearch("q", "TESTKEY", f);
+  assertEquals(hits, []);
 });

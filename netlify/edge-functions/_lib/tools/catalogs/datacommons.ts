@@ -176,6 +176,15 @@ export async function dcSearch(
   const scored = candidates
     .map((c) => ({ c, score: parseFloat(c.metadata?.score ?? "0") }))
     .filter(({ score }) => score >= DC_SCORE_THRESHOLD)
+    // typeOf-filter (fix-runde 2, live-verifisert 2026-08-04): resolver=
+    // indicator er ment å gi StatisticalVariable-treff (se kommentaren over),
+    // men live-svar inneholder OGSÅ Topic-noder (dc/topic/UnemploymentRate…)
+    // blant kandidatene — disse er IKKE lastbare med datacommons.read()
+    // (ingen observasjoner, andre dcid-form). Behold KUN kandidater der
+    // typeOf inkluderer "StatisticalVariable"; kandidater UTEN typeOf-felt
+    // beholdes (konservativt — vi vet ikke at de IKKE er variabler, og
+    // dekningssjekken i table_metadata fanger opp resten uansett).
+    .filter(({ c }) => !c.typeOf || c.typeOf.includes("StatisticalVariable"))
     .slice(0, MAX);
   return scored.map(({ c, score }) => ({
     source: "datacommons",

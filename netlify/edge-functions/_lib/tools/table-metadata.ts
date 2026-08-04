@@ -100,6 +100,14 @@ export async function tableMetadata(
         // verdier (weo-country: 196), og uten søk faller landkoden utenfor
         // taket — da kan modellen ikke bygge filters= (målt live 2026-08-01).
         case "dbnomics": return dbnomicsMetadata(tableId, f, deps.find) as unknown as Promise<TableMeta>;
+        // eurostat: tilgang="rest" (IKKE "sdmx" — se registeret), men
+        // strukturen bak base_url ER SDMX 2.1 XML (målt 2026-08-04, se
+        // eurostatMetadata under). Egen gren, ikke sdmxMetadata/ecbMetadata,
+        // fordi verken SDMX_STRUCTURE_ACCEPT (JSON) eller SDMX_XML_SOURCES
+        // (ECBs mes:/str:-navnerom) passer — Eurostat har EGNE
+        // navnerom-prefikser (m:/s:/c:) og en annen references-verdi
+        // (descendants, ikke all — se kommentaren i eurostatMetadata).
+        case "eurostat": return eurostatMetadata(src, tableId, f, deps.find);
         default:
           throw new Error(
             `table_metadata støtter ikke '${sourceId}' ennå — bruk probe på data-URL-en for å se kolonner`,
@@ -239,6 +247,18 @@ function xmlText(v: unknown): string {
 function asArray<T>(v: T | T[] | undefined): T[] {
   if (v === undefined) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+// Eurostats <c:Name xml:lang="…"> gjentas PER SPRÅK på samme element (en/de/fr
+// målt 2026-08-04 på s:Code-nivå) — fast-xml-parser gir da en ARRAY, ikke ett
+// objekt slik ECB-fixturen (kun ett språk) lot xmlText() anta. Plukker "en",
+// faller ellers tilbake til første oppføring (eller ren streng/tekst-node).
+function xmlName(v: unknown, lang = "en"): string {
+  if (v == null) return "";
+  const arr = Array.isArray(v) ? v : [v];
+  const match = arr.find((n) =>
+    n && typeof n === "object" && (n as Record<string, unknown>)["xml:lang"] === lang);
+  return xmlText(match ?? arr[0]);
 }
 
 // availableconstraint (SDMX 2.1): hvilke koder som FAKTISK er befolket i
@@ -391,4 +411,148 @@ async function ecbMetadata(src: DataSource, dataflowKey: string, f: typeof fetch
     })),
   ];
   return { source: src.id, id: dataflowKey, title: xmlText(dsd["com:Name"]) || dataflowKey, variables };
+}
+
+// Eurostat sin dissemination-API oppgir kun ÉN agency i praksis — katalogen
+// (catalogs/eurostat.ts) gir tableId UTEN agency-prefiks (f.eks. "ei_lmhr_m",
+// ikke "ESTAT,ei_lmhr_m" slik sdmx-grenens dataflowKey er), så agencyen kan
+// ikke leses ut av tableId slik sdmxMetadata/ecbMetadata gjør. Dokumentert
+// konstant, ikke gjettet — verifisert 2026-08-04 (curl mot ei_lmhr_m).
+const EUROSTAT_AGENCY = "ESTAT";
+
+// Eurostats SDMX 2.1-strukturrot ligger under en ANNEN sti enn
+// data-endepunktet (statistics/1.0/data/ → sdmx/2.1/) — IKKE et rent
+// data/$-kutt slik sdmxMetadata/ecbMetadata bruker for ECB/OECD/Norges Bank
+// (der base_url selv ender i "…/data/" og strukturroten er "…/"-delen foran).
+// Regex-erstatningen under er likevel en DERIVASJON fra registerets base_url
+// (verifisert 2026-08-04: base_url ender nettopp i "statistics/1.0/data/") —
+// aldri en frittstående host. Kaster hvis formen skulle endre seg, i stedet
+// for å stille bygge en gal URL mot en host registeret ikke lenger sier.
+function eurostatStructRoot(src: DataSource): string {
+  const root = src.base_url.replace(/statistics\/1\.0\/data\/?$/, "sdmx/2.1/");
+  if (root === src.base_url) {
+    throw new Error(`eurostat base_url har uventet form (forventet …/statistics/1.0/data/): ${src.base_url}`);
+  }
+  return root;
+}
+
+// contentconstraint (Eurostats XML-ekvivalent til sdmxAvailability): hvilke
+// koder som FAKTISK er befolket. Målt 2026-08-04 mot ei_lmhr_m:
+// <s:Constraints><s:ContentConstraint><s:CubeRegion include="true">
+//   <c:KeyValue id="s_adj"><c:Value>NSA</c:Value><c:Value>SA</c:Value></c:KeyValue>
+//   …
+// — id-ene på KeyValue er de EKSAKTE dimensjons-idene (små bokstaver for
+// vanlige dimensjoner, TIME_PERIOD stor), samme streng som s:Dimension/
+// s:TimeDimension sin id — ingen case-normalisering nødvendig. Best effort:
+// alle feil (HTTP, parse, tom struktur) → null, ALDRI kast — metadataene
+// leveres da ufiltrert, samme kontrakt som sdmxAvailability.
+async function eurostatAvailability(
+  structRoot: string,
+  tableId: string,
+  f: typeof fetch,
+): Promise<Map<string, Set<string>> | null> {
+  try {
+    const url = `${structRoot}contentconstraint/${EUROSTAT_AGENCY}/${tableId}`;
+    const res = await f(url, { headers: { Accept: "application/xml" } });
+    if (!res.ok) return null;
+    const xml = await res.text();
+    const doc = xmlParser.parse(xml);
+    const structures = doc?.["m:Structure"]?.["m:Structures"];
+    const constraints = asArray(structures?.["s:Constraints"]?.["s:ContentConstraint"]) as Record<string, unknown>[];
+    // Tar FØRSTE constraint/cube-region, samme forenkling som sdmxAvailability
+    // (cubeRegions?.[0]) — målt: ei_lmhr_m har nøyaktig én ContentConstraint
+    // med én CubeRegion (include="true"). Datasett med flere/ekskluderende
+    // regioner dekkes ikke — best effort, ikke en fullstendig CubeRegion-tolk.
+    const cubeRegion = constraints[0]?.["s:CubeRegion"] as Record<string, unknown> | undefined;
+    const keyValues = asArray(cubeRegion?.["c:KeyValue"]) as Record<string, unknown>[];
+    if (!keyValues.length) return null;
+    const ut = new Map<string, Set<string>>();
+    for (const kv of keyValues) {
+      const id = String(kv.id ?? "");
+      const vals = asArray(kv["c:Value"]).map((v) => xmlText(v)).filter(Boolean);
+      if (id && vals.length) ut.set(id, new Set(vals));
+    }
+    return ut.size ? ut : null;
+  } catch {
+    return null;
+  }
+}
+
+// eurostatMetadata: SDMX 2.1 XML, samme mønster som ecbMetadata (fast-xml-parser,
+// asArray/xmlText) MEN med Eurostats MÅLTE navnerom/element-former (2026-08-04,
+// curl mot ei_lmhr_m — se task-4-report.md for full logg):
+//   - Navnerom-prefikser er m:/s:/c: — IKKE ECBs mes:/str:/com:.
+//   - dataflow-endepunktet AVVISER references=all (400 ERR_GEN_FLOW_REFERENCES:
+//     «må være None, Children, Descendants»). references=children gir
+//     Dataflow+DataStructure MEN INGEN kodelister; references=descendants gir
+//     BEGGE i ETT kall — valgt (fewest calls: 1 kall mot N kodeliste-kall).
+//   - <Ref> selv er UTEN navnerom-prefiks, som hos ECB.
+//   - <s:Code>/<s:Dataflow>/<s:DataStructure> sin <c:Name xml:lang="…"> kan
+//     gjenta seg PER SPRÅK — fast-xml-parser gir da en ARRAY (se xmlName()).
+async function eurostatMetadata(src: DataSource, tableId: string, f: typeof fetch, find?: string): Promise<TableMeta> {
+  const structRoot = eurostatStructRoot(src);
+  const url = `${structRoot}dataflow/${EUROSTAT_AGENCY}/${tableId}?references=descendants`;
+  const res = await f(url, { headers: { Accept: "application/xml" } });
+  if (!res.ok) throw new Error(`eurostat metadata for ${tableId} feilet: HTTP ${res.status}`);
+  const xml = await res.text();
+  const doc = xmlParser.parse(xml);
+  const structures = doc?.["m:Structure"]?.["m:Structures"];
+  const dsds = asArray(structures?.["s:DataStructures"]?.["s:DataStructure"]) as Record<string, unknown>[];
+  const dsd = dsds[0];
+  if (!dsd) throw new Error(`fant ingen datastruktur for ${tableId}`);
+  const dataflows = asArray(structures?.["s:Dataflows"]?.["s:Dataflow"]) as Record<string, unknown>[];
+  const codelists = asArray(structures?.["s:Codelists"]?.["s:Codelist"]) as Record<string, unknown>[];
+  const dimList = (dsd["s:DataStructureComponents"] as Record<string, unknown> | undefined)?.["s:DimensionList"] as Record<string, unknown> | undefined ?? {};
+  const plainDims = asArray(dimList["s:Dimension"]) as Record<string, unknown>[];
+  const timeDims = asArray(dimList["s:TimeDimension"]) as Record<string, unknown>[];
+
+  const codesFor = (d: Record<string, unknown>) => {
+    const localRep = d["s:LocalRepresentation"] as Record<string, unknown> | undefined;
+    const enumeration = localRep?.["s:Enumeration"] as Record<string, unknown> | undefined;
+    const ref = enumeration?.Ref as Record<string, unknown> | undefined;
+    const clId = ref?.id;
+    const cl = codelists.find((c) => c.id === clId);
+    return asArray(cl?.["s:Code"]) as Record<string, unknown>[];
+  };
+
+  const befolket = await eurostatAvailability(structRoot, tableId, f);
+
+  const variables: TableVariable[] = [
+    ...plainDims.map((d) => {
+      const dimId = String(d.id ?? "");
+      const codes = codesFor(d);
+      let allValues = codes.map((c) => ({ code: String(c.id ?? ""), label: xmlName(c["c:Name"]) || String(c.id ?? "") }));
+      const bef = befolket?.get(dimId);
+      const filtrert = !!bef && allValues.some((v) => bef.has(v.code));
+      if (filtrert) allValues = allValues.filter((v) => bef!.has(v.code));
+      const { values, valuesTruncated } = pickValues(allValues, find);
+      const ut: TableVariable = {
+        code: dimId,
+        label: dimId,
+        time: false,
+        values,
+        valuesTruncated,
+      };
+      if (filtrert) ut.kun_befolkede = true;
+      return ut;
+    }),
+    ...timeDims.map((d) => ({
+      code: String(d.id ?? ""),
+      label: String(d.id ?? ""),
+      time: true,
+      values: [] as { code: string; label: string }[],
+      valuesTruncated: false,
+    })),
+  ];
+  // Dataflow-navnet ("Unemployment rate (%) - monthly data") er langt mer
+  // lesbart enn DSD-navnet (typisk bare "<ID> data structure") — foretrekkes,
+  // med DSD-navn og til slutt tableId som fallback.
+  const title = xmlName(dataflows[0]?.["c:Name"]) || xmlName(dsd["c:Name"]) || tableId;
+  const meta: TableMeta = { source: src.id, id: tableId, title, variables };
+  if (befolket) {
+    meta.tilgjengelighet = "verdilistene er filtrert til koder som FAKTISK har data i denne kuben " +
+      "(contentconstraint) — en dimensjon med én verdi settes til den verdien; " +
+      "velg aldri koder utenfor listene";
+  }
+  return meta;
 }

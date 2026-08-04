@@ -25,8 +25,14 @@ export async function eurostatSearch(
     time: t.start && t.end ? `${t.start}–${t.end}` : undefined,
     geo: "EU/EFTA",
     access: "open",
+    // Task 4 (2026-08-04): eurostatMetadata finnes nå (table-metadata.ts) —
+    // hintet peker dit FØR .read(), samme "table_metadata(...) → # x = …"-form
+    // som dbnomics/worldbank (prosa på EGEN linje, se worldbank-hintet over —
+    // ikke etter ) på samme linje). probe-henvisningen er fjernet: den var
+    // riktig FØR adapteren fantes (kind uten table_metadata-støtte, se
+    // source-guides.ts sin medGuideVedFeil-kommentar), men er misvisende nå.
     how_to_read:
-      `# e = eurostat.read("${t.code}", filters={"geo": "NO"}, years=…)\n` +
-      `kildens egne parametre (geo, unit, …) går i filters={}; probe før bruk`,
+      `table_metadata('eurostat', '${t.code}') → # e = eurostat.read("${t.code}", filters={"geo": "NO"}, years=…)\n` +
+      `kildens egne parametre (geo, unit, s_adj, indic, …) går i filters={}; kodene kommer fra table_metadata, ikke gjett`,
   }));
 }

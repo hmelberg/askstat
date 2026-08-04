@@ -25,10 +25,13 @@ export type GuideAttacher = ReturnType<typeof makeGuideAttacher>;
 
 /** Kildens løfte i registerblokka («kildeguide følger med [...] også ved
  *  feil») holdt for søkbare/metadata-adaptere, men var USANT for kilder uten
- *  søk-/metadata-adapter (eurostat: kind uten adapter i search-catalog.ts/
- *  table-metadata.ts; ipums: ingen adapter i det hele tatt) — begge har
- *  guide:true, men fn() KASTER alltid der, så attachGuide (kun kalt på
- *  suksessveien i svar.ts) ble aldri nådd. Denne wrapperen fanger kastet,
+ *  søk-/metadata-adapter — historisk eurostat (kind uten adapter i
+ *  search-catalog.ts/table-metadata.ts, FØR Task 4/2026-08-04 la til
+ *  eurostatMetadata — eurostat går nå suksessveien under, se
+ *  table-metadata.test.ts) og fortsatt ipums (ingen adapter i det hele
+ *  tatt). Begge har guide:true, men fn() KASTER alltid for kilder uten
+ *  adapter, så attachGuide (kun kalt på suksessveien i svar.ts) ble aldri
+ *  nådd. Denne wrapperen fanger kastet,
  *  bygger et {feil, guide}-svar (norsk feiltekst BEVART ordrett) og forsøker
  *  å feste guiden på DET objektet i stedet. To vakter mot å love noe vi ikke
  *  kan holde: (1) kilden må selv ha guide:true — ellers er det ingen guide å

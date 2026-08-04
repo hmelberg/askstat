@@ -21,6 +21,12 @@ const REG = parseRegistry([
     tilgang: "sdmx", kind: "sdmx", base_url: "https://sdmx.oecd.org/public/rest/data/", cors: true },
   { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
+  // Ekte form fra data-sources.json (uendret her): tilgang="rest" (IKKE
+  // "sdmx") + kind="eurostat" — dispatchen treffer derfor default-grenen i
+  // tableMetadata og videre på src.kind, ikke src.tilgang.
+  { id: "eurostat", navn: "Eurostat (dissemination API)", utgiver: "Eurostat", tillit: "offisiell",
+    tilgang: "rest", kind: "eurostat",
+    base_url: "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/", cors: true },
 ]);
 
 // PxWebApi v2 /tables/{id}/metadata shape (subset): JSON-stat2-like dimensions
@@ -587,4 +593,151 @@ Deno.test("sdmx metadata: availability-feil → ufiltrert fallback, ingen kast",
   const measure = meta.variables.find((v) => v.code === "MEASURE")!;
   assertEquals(measure.values.length, 2);   // begge koder — ufiltrert
   assertEquals(meta.tilgjengelighet, undefined);
+});
+
+// --- eurostat adapter (XML, Task 4 — vane-myking) ---------------------------
+// Målt 2026-08-04 mot ei_lmhr_m (curl, se task-4-report.md for full logg):
+//   - dataflow-endepunktet svarer 400 på references=all («ERR_GEN_FLOW_
+//     REFERENCES: … må være None, Children, Descendants») — ECBs ?references=all
+//     virker IKKE her. references=children gir Dataflow+DataStructure MEN
+//     ingen kodelister; references=descendants gir BEGGE (7 kodelister for
+//     ei_lmhr_m, inkl. GEO) i ETT kall (3.4 MB, mest GEO) — valgt form: FÆREST
+//     kall (1) slår minst-payload (children + N kodeliste-kall).
+//   - Navnerom er m:/s:/c: (IKKE ECBs mes:/str:/com:) — <Ref> selv er UTEN
+//     prefiks, som hos ECB.
+//   - <s:Code>-elementer har FLERE <c:Name xml:lang="…"> (en/de/fr) —
+//     fast-xml-parser gir da en ARRAY, ikke ett objekt (ECB-fixturen testet
+//     kun ETT språk og fanget ikke dette). xmlName() under plukker "en",
+//     ellers første.
+//   - contentconstraint/ESTAT/<kode> (case-insensitivt) svarer 200 med
+//     <s:CubeRegion include="true"><c:KeyValue id="s_adj"><c:Value>NSA</c:Value>
+//     …</c:KeyValue>…</s:CubeRegion> — id-ene er de EKSAKTE dimensjons-idene
+//     (små bokstaver: freq/unit/s_adj/indic/geo, TIME_PERIOD stor).
+
+const EUROSTAT_DSD_XML = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DF1</m:ID></m:Header><m:Structures>` +
+  `<s:Dataflows><s:Dataflow id="EI_LMHR_M" agencyID="ESTAT" version="1.0"><c:Name xml:lang="en">Unemployment rate (%) - monthly data</c:Name><s:Structure><Ref id="EI_LMHR_M" version="1.0" agencyID="ESTAT" package="datastructure" class="DataStructure"/></s:Structure></s:Dataflow></s:Dataflows>` +
+  `<s:Codelists>` +
+  `<s:Codelist agencyID="ESTAT" id="S_ADJ" version="1.0"><c:Name xml:lang="en">Seasonal adjustment</c:Name>` +
+  `<s:Code id="NSA"><c:Name xml:lang="en">Unadjusted data</c:Name><c:Name xml:lang="de">Unbereinigte Daten</c:Name></s:Code>` +
+  `<s:Code id="SA"><c:Name xml:lang="en">Seasonally adjusted data</c:Name><c:Name xml:lang="de">Saisonbereinigte Daten</c:Name></s:Code>` +
+  `<s:Code id="CA"><c:Name xml:lang="en">Calendar adjusted data</c:Name></s:Code>` +
+  `</s:Codelist>` +
+  `<s:Codelist agencyID="ESTAT" id="INDIC" version="1.0"><c:Name xml:lang="en">Indicator</c:Name>` +
+  `<s:Code id="LM-UN-T-TOT"><c:Name xml:lang="en">Unemployment, total</c:Name></s:Code>` +
+  `<s:Code id="LM-UN-M-TOT"><c:Name xml:lang="en">Unemployment, males</c:Name></s:Code>` +
+  `</s:Codelist>` +
+  `</s:Codelists>` +
+  `<s:DataStructures><s:DataStructure agencyID="ESTAT" id="EI_LMHR_M" version="1.0"><c:Name xml:lang="en">EI_LMHR_M data structure</c:Name><s:DataStructureComponents><s:DimensionList>` +
+  `<s:Dimension id="s_adj" position="1"><s:LocalRepresentation><s:Enumeration><Ref agencyID="ESTAT" class="Codelist" id="S_ADJ" package="codelist" version="1.0"/></s:Enumeration></s:LocalRepresentation></s:Dimension>` +
+  `<s:Dimension id="indic" position="2"><s:LocalRepresentation><s:Enumeration><Ref agencyID="ESTAT" class="Codelist" id="INDIC" package="codelist" version="1.0"/></s:Enumeration></s:LocalRepresentation></s:Dimension>` +
+  `<s:TimeDimension id="TIME_PERIOD" position="3"/>` +
+  `</s:DimensionList></s:DataStructureComponents></s:DataStructure></s:DataStructures>` +
+  `</m:Structures></m:Structure>`;
+
+// contentconstraint: befolker 2 av 3 s_adj-koder (NSA, SA — CA er ALDRI
+// rapportert); indic er BEVISST utelatt fra KeyValues (best-effort skal la
+// dimensjoner UTEN treff i constraint stå ufiltrert, ikke tømme dem).
+const EUROSTAT_CC_XML = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DS1</m:ID></m:Header><m:Structures><s:Constraints><s:ContentConstraint agencyID="ESTAT" id="EI_LMHR_M" version="1.0"><c:Name xml:lang="en">Cube description for dataflow EI_LMHR_M</c:Name><s:CubeRegion include="true"><c:KeyValue id="s_adj"><c:Value>NSA</c:Value><c:Value>SA</c:Value></c:KeyValue><c:KeyValue id="TIME_PERIOD"><c:Value>1983-01</c:Value><c:Value>2026-06</c:Value></c:KeyValue></s:CubeRegion></s:ContentConstraint></s:Constraints></m:Structures></m:Structure>`;
+
+function fakeEurostatFetch(
+  dsdXml: string,
+  ccXml: string | number,
+  capture: string[] = [],
+): typeof fetch {
+  return ((input: string | URL | Request) => {
+    const url = String(input);
+    capture.push(url);
+    if (url.includes("contentconstraint")) {
+      if (typeof ccXml === "number") return Promise.resolve(new Response("feil", { status: ccXml }));
+      return Promise.resolve(new Response(ccXml, { status: 200 }));
+    }
+    if (url.includes("dataflow")) return Promise.resolve(new Response(dsdXml, { status: 200 }));
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+}
+
+Deno.test("eurostat metadata: dispatch treffer (kind='eurostat', tilgang='rest') og strukturroten er utledet fra base_url", async () => {
+  const calls: string[] = [];
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML, calls),
+  });
+  assertEquals(meta.source, "eurostat");
+  // statistics/1.0/data/ → sdmx/2.1/ (IKKE bare data/$-kutt som ECB/OECD/NB —
+  // se eurostatStructRoot-kommentaren i table-metadata.ts)
+  assertEquals(calls[0], "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/dataflow/ESTAT/EI_LMHR_M?references=descendants");
+});
+
+Deno.test("eurostat metadata: dimensjoner+koder ut, tidsdimensjon tom, flerspråklig c:Name → 'en' plukkes", async () => {
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML),
+  });
+  assertEquals(meta.title, "Unemployment rate (%) - monthly data");
+  const sadj = meta.variables.find((v) => v.code === "s_adj")!;
+  // NSA/SA har BÅDE en+de c:Name (array hos fast-xml-parser) — CA har kun en.
+  // Uten xmlName()-håndtering av arrayet ville label blitt "" eller kastet.
+  assertEquals(sadj.values.find((v) => v.code === "NSA")?.label, "Unadjusted data");
+  const time = meta.variables.find((v) => v.code === "TIME_PERIOD")!;
+  assertEquals(time.time, true);
+  assertEquals(time.values, []);   // tidsdimensjonen røres aldri av filteret
+});
+
+Deno.test("eurostat metadata: contentconstraint filtrerer til befolkede koder + kun_befolkede; dimensjon UTEN treff i constraint står ufiltrert", async () => {
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML),
+  });
+  const sadj = meta.variables.find((v) => v.code === "s_adj")!;
+  assertEquals(sadj.values.map((v) => v.code).sort(), ["NSA", "SA"]);   // CA UTE
+  assertEquals(sadj.kun_befolkede, true);
+  const indic = meta.variables.find((v) => v.code === "indic")!;
+  assertEquals(indic.values.length, 2);          // indic har ingen KeyValue i CC → ufiltrert
+  assertEquals(indic.kun_befolkede, undefined);
+  assertEquals(typeof meta.tilgjengelighet, "string");
+});
+
+Deno.test("eurostat metadata: contentconstraint feiler (500) → ufiltrert fallback for ALLE dimensjoner, ingen kast", async () => {
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, 500),
+  });
+  const sadj = meta.variables.find((v) => v.code === "s_adj")!;
+  assertEquals(sadj.values.length, 3);           // alle tre, ufiltrert
+  assertEquals(sadj.kun_befolkede, undefined);
+  assertEquals(meta.tilgjengelighet, undefined);
+});
+
+Deno.test("eurostat metadata: find= tømmer IKKE en kort, ufiltrert liste (samme pickValues-kontrakt som andre adaptere)", async () => {
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML),
+    find: "helt-urelatert-søkeord",
+  });
+  // indic (2 koder, IKKE befolkningsfiltrert — ingen KeyValue for indic i CC)
+  // skal IKKE tømmes av et find som ikke treffer noen av kodene — samme regel
+  // som ecb/pxweb: find slår kun inn på lister lengre enn MAX_VALUES (40).
+  const indic = meta.variables.find((v) => v.code === "indic")!;
+  assertEquals(indic.values.length, 2);
+  assertEquals(indic.valuesTruncated, false);
+});
+
+Deno.test("eurostat metadata: find= filtrerer en LANG kodeliste (>MAX_VALUES) til treff", async () => {
+  // Bygg en DSD med én dimensjon som har 45 koder — find skal filtrere DENNE,
+  // i motsetning til testen over (kort liste, urørt av find).
+  const manyCodes = Array.from({ length: 45 }, (_, i) => `<s:Code id="G${i}"><c:Name xml:lang="en">Geo ${i}</c:Name></s:Code>`).join("");
+  const dsd = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DF2</m:ID></m:Header><m:Structures>` +
+    `<s:Dataflows><s:Dataflow id="X" agencyID="ESTAT" version="1.0"><c:Name xml:lang="en">Test</c:Name><s:Structure><Ref id="X" version="1.0" agencyID="ESTAT" package="datastructure" class="DataStructure"/></s:Structure></s:Dataflow></s:Dataflows>` +
+    `<s:Codelists><s:Codelist agencyID="ESTAT" id="GEO" version="1.0">${manyCodes}<s:Code id="NO"><c:Name xml:lang="en">Norway</c:Name></s:Code></s:Codelist></s:Codelists>` +
+    `<s:DataStructures><s:DataStructure agencyID="ESTAT" id="X" version="1.0"><c:Name xml:lang="en">X</c:Name><s:DataStructureComponents><s:DimensionList>` +
+    `<s:Dimension id="geo" position="1"><s:LocalRepresentation><s:Enumeration><Ref agencyID="ESTAT" class="Codelist" id="GEO" package="codelist" version="1.0"/></s:Enumeration></s:LocalRepresentation></s:Dimension>` +
+    `<s:TimeDimension id="TIME_PERIOD" position="2"/>` +
+    `</s:DimensionList></s:DataStructureComponents></s:DataStructure></s:DataStructures></m:Structures></m:Structure>`;
+  const meta = await tableMetadata("eurostat", "X", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(dsd, 404),   // ingen constraint-treff i det hele tatt → 404
+    find: "norway",
+  });
+  const geo = meta.variables.find((v) => v.code === "geo")!;
+  assertEquals(geo.values, [{ code: "NO", label: "Norway" }]);
 });

@@ -37,3 +37,10 @@ Deno.test("MODE_PY lærer aldri bort toppnivå-await micropip (målt SyntaxError
   assert(sys.includes("ALDRI `await micropip.install(...)`"),
     "MODE_PY må forby toppnivå-await eksplisitt");
 });
+
+Deno.test("run-disiplin- og enklest-kilde-reglene er montert (målt 2026-08-04)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes("REPARASJONSRESERVE"), "RUN må si at budsjettet er reparasjonsreserve, ikke arbeidsplan");
+  assert(sys.includes("table_metadata(find=…) FØRST"), "RUN må kreve kodeoppslag før ny kjøring ved tomt uttrekk");
+  assert(sys.includes("ENKLEST spørremodell"), "ROUTING må ha enklest-kilde-regelen");
+});

@@ -361,6 +361,12 @@ Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
 - **Global makro/tidsserier**: dbnomics først (IMF/OECD/BIS/ILO m.fl. bak
   én kontrakt), worldbank for utviklingsindikatorer, oecd for OECD-land.
 - **Hverdagsspråklige tverrlandssammenligninger**: owid (åpen GET-CSV).
+- **Flere kilder dekker spørsmålet?** Velg den med ENKLEST spørremodell:
+  worldbank/owid (ren indikator-/slug-URL) FØR eurostat/oecd
+  (dimensjonskoder som må treffes) for enkle indikatorer. Geografisk
+  «riktig» kilde trumfes av kilden som gir riktig svar på FØRSTE forsøk
+  (målt 2026-08-04: eurostat-dimensjonsjakt brant budsjettet der
+  worldbank svarte rett).
 Angir brukerens datapreferanser et standardland/-region eller foretrukne
 kilder, har DE forrang over denne tabellen.`;
 
@@ -386,8 +392,16 @@ og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
 
 1. Skriv HELE scriptet og kall run_code med det. ALDRI legg scriptet som
    kodeblokk i svarteksten i stedet for å kalle run_code.
+   FØRSTE kjøring skal være KOMPLETT: lasting + analyse + figur i ETT
+   script. Kjørebudsjettet er en REPARASJONSRESERVE, ikke en arbeidsplan —
+   planlegg som om run 1 er den eneste du får. Del ALDRI arbeidet i «hent
+   data først, figur i neste kjøring» (målt 2026-08-04: den delingen er
+   hovedårsaken til at budsjettet tømmes før svaret er ferdig).
 2. Les outputen. Feil, eller output som ikke besvarer spørsmålet → rett
    scriptet og kall run_code igjen (innenfor kjørebudsjettet).
+   TOMT uttrekk (0 datarader)? IKKE gjett nye koder i en ny kjøring —
+   sjekk kodene med table_metadata(find=…) FØRST, og bruk så én korrigert,
+   komplett kjøring.
    Feiler også ANDRE reparasjonsforsøk på samme tilnærming: ikke lapp
    videre — forkast tilnærmingen (annen kilde, annet uttrekk, enklere
    metode) eller lever ærlig degradering. Dype reparasjonsløkker er målt

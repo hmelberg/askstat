@@ -236,6 +236,29 @@ function sdmxCodelistIdFromUrn(urn: string): string | null {
 
 const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
 
+// Fix-runde 1 (code review 2026-08-04): fast-xml-parser sin DEFAULT
+// (parseTagValue:true) tallkonverterer ELEMENT-TEKST — <c:Value>01011000</c:Value>
+// blir tallet 1011000 (LEDENDE NULL MISTET, ikke bare "streng vs tall").
+// Målt direkte: parseTagValue:true → [1011000, 2020, "TOTAL"] (typeof
+// number, number, string); parseTagValue:false → ["01011000","2020","TOTAL"]
+// (alle strenger, byte-like). Et String(v)-plaster ETTERPÅ er IKKE nok —
+// skaden (tapt ledende null) er allerede gjort før String() ser verdien;
+// CN8/PRODCOM/kommune-kode-aktige koder ville korrumpert stille. Egen
+// parser-instans BRUKES KUN for contentconstraint-dokumentet (eurostatAvailability
+// under) — der er <c:Value>-ELEMENTTEKST selve datamodellen (kodeverdiene
+// vi matcher mot). DSD/kodeliste-parsingen (delt xmlParser over, brukt av
+// eurostatMetadata/ecbMetadata/sdmxMetadata) trenger IKKE samme fiks: koden
+// (TableVariable.code, det feltet spørringer bygges fra) leser vi ALLTID fra
+// <s:Code id="…">-ATTRIBUTTET, aldri elementteksten — og attributt-parsing
+// er default parseAttributeValue:false (streng uendret) i BEGGE
+// parser-instansene. <c:Name>-elementteksten (menneskelesbar LABEL, ikke
+// kode) kunne i prinsippet tallkonverteres på samme vis, men xmlText()
+// returnerer "" for en ren number (ikke streng, ikke {#text}-objekt) —
+// utfallet blir da label-fallback til koden selv (`|| String(c.id ?? "")`),
+// IKKE en korrumpert kode. Ufarlig kosmetisk degradering, ikke datafeil —
+// derfor ingen ccXmlParser-lignende fiks nødvendig på DSD-siden.
+const ccXmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", parseTagValue: false });
+
 function xmlText(v: unknown): string {
   if (typeof v === "string") return v;
   if (v && typeof v === "object" && "#text" in (v as Record<string, unknown>)) {
@@ -444,19 +467,27 @@ function eurostatStructRoot(src: DataSource): string {
 // — id-ene på KeyValue er de EKSAKTE dimensjons-idene (små bokstaver for
 // vanlige dimensjoner, TIME_PERIOD stor), samme streng som s:Dimension/
 // s:TimeDimension sin id — ingen case-normalisering nødvendig. Best effort:
-// alle feil (HTTP, parse, tom struktur) → null, ALDRI kast — metadataene
-// leveres da ufiltrert, samme kontrakt som sdmxAvailability.
+// alle feil (HTTP, parse, tom struktur, timeout) → null, ALDRI kast —
+// metadataene leveres da ufiltrert, samme kontrakt som sdmxAvailability.
 async function eurostatAvailability(
   structRoot: string,
   tableId: string,
   f: typeof fetch,
 ): Promise<Map<string, Set<string>> | null> {
   try {
-    const url = `${structRoot}contentconstraint/${EUROSTAT_AGENCY}/${tableId}`;
-    const res = await f(url, { headers: { Accept: "application/xml" } });
+    const url = `${structRoot}contentconstraint/${EUROSTAT_AGENCY}/${encodeURIComponent(tableId)}`;
+    // AbortSignal.timeout: samme vakt-idé som fetchGuarded (ssrf.ts) og
+    // fetchWithRetry (anthropic.ts) — her er kortformen nok siden HELE kallet
+    // uansett er innkapslet i try/catch under: en abort er bare én av flere
+    // feilklasser som allerede faller ned til best-effort-null.
+    const res = await f(url, { headers: { Accept: "application/xml" }, signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return null;
     const xml = await res.text();
-    const doc = xmlParser.parse(xml);
+    // ccXmlParser (parseTagValue:false) — IKKE den delte xmlParser — se
+    // kommentaren ved ccXmlParser sin deklarasjon: <c:Value>-elementteksten
+    // ER kodeverdien vi matcher mot, og default-parseren mister ledende
+    // nuller (01011000 → 1011000).
+    const doc = ccXmlParser.parse(xml);
     const structures = doc?.["m:Structure"]?.["m:Structures"];
     const constraints = asArray(structures?.["s:Constraints"]?.["s:ContentConstraint"]) as Record<string, unknown>[];
     // Tar FØRSTE constraint/cube-region, samme forenkling som sdmxAvailability
@@ -464,11 +495,21 @@ async function eurostatAvailability(
     // med én CubeRegion (include="true"). Datasett med flere/ekskluderende
     // regioner dekkes ikke — best effort, ikke en fullstendig CubeRegion-tolk.
     const cubeRegion = constraints[0]?.["s:CubeRegion"] as Record<string, unknown> | undefined;
+    // include="false" er en EKSKLUSJONS-region (KeyValues lister koder som
+    // IKKE er befolket) — å behandle den som en inklusjonsliste ville
+    // INVERTERT filteret (holdt kun de sjeldne/tomme kodene, filtrert bort
+    // resten). Ikke målt på noe ekte Eurostat-datasett (ei_lmhr_m har
+    // include="true"), men SDMX 2.1 tillater det — best effort: gi opp
+    // (ufiltrert fallback) i stedet for å gjette retningen.
+    if (String(cubeRegion?.include) === "false") return null;
     const keyValues = asArray(cubeRegion?.["c:KeyValue"]) as Record<string, unknown>[];
     if (!keyValues.length) return null;
     const ut = new Map<string, Set<string>>();
     for (const kv of keyValues) {
       const id = String(kv.id ?? "");
+      // xmlText(v) her er nå TRYGT — ccXmlParser garanterer at v enten er en
+      // ren streng (vanlig tilfelle) eller en tom/whitespace-node, ALDRI et
+      // number pga. parseTagValue:false. filter(Boolean) fjerner tomme.
       const vals = asArray(kv["c:Value"]).map((v) => xmlText(v)).filter(Boolean);
       if (id && vals.length) ut.set(id, new Set(vals));
     }
@@ -491,8 +532,23 @@ async function eurostatAvailability(
 //     gjenta seg PER SPRÅK — fast-xml-parser gir da en ARRAY (se xmlName()).
 async function eurostatMetadata(src: DataSource, tableId: string, f: typeof fetch, find?: string): Promise<TableMeta> {
   const structRoot = eurostatStructRoot(src);
-  const url = `${structRoot}dataflow/${EUROSTAT_AGENCY}/${tableId}?references=descendants`;
-  const res = await f(url, { headers: { Accept: "application/xml" } });
+  const url = `${structRoot}dataflow/${EUROSTAT_AGENCY}/${encodeURIComponent(tableId)}?references=descendants`;
+  // AbortSignal.timeout: descendants-svaret er STORT (3.4 MB for ei_lmhr_m,
+  // GEO-kodelisten dominerer — se task-4-report.md) og kan i verste fall
+  // henge lenge. Dette kallet er IKKE best-effort (i motsetning til
+  // eurostatAvailability under, som fanger alt til null) — det MÅ lykkes for
+  // at table_metadata skal ha noe å returnere, så en timeout skal gi en
+  // ÆRLIG, lesbar norsk feil (fanges videre til {feil,guide} av
+  // medGuideVedFeil i svar.ts) i stedet for en kryptisk AbortError-tekst.
+  let res: Response;
+  try {
+    res = await f(url, { headers: { Accept: "application/xml" }, signal: AbortSignal.timeout(20_000) });
+  } catch (e) {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      throw new Error(`eurostat-strukturen svarte ikke innen 20 s for ${tableId}`);
+    }
+    throw e;
+  }
   if (!res.ok) throw new Error(`eurostat metadata for ${tableId} feilet: HTTP ${res.status}`);
   const xml = await res.text();
   const doc = xmlParser.parse(xml);
@@ -506,6 +562,16 @@ async function eurostatMetadata(src: DataSource, tableId: string, f: typeof fetc
   const plainDims = asArray(dimList["s:Dimension"]) as Record<string, unknown>[];
   const timeDims = asArray(dimList["s:TimeDimension"]) as Record<string, unknown>[];
 
+  // ECB-paritet, bevisst: matcher KUN på Ref.id, ikke agencyID/version (Ref
+  // bærer begge — se Ref-elementet i EUROSTAT_DSD_XML-fixturen). ecbMetadata
+  // (over) gjør nøyaktig det samme. For ETT dataflow-kall (references=
+  // descendants) er alle kodelistene som følger med hentet FOR nettopp denne
+  // DSD-en, så et id-kollisjon på tvers av agency/versjon er ikke målt/
+  // forventet i praksis — men hvis Eurostat noensinne skulle levere to
+  // kodelister med samme id under forskjellig agency/versjon i samme svar,
+  // ville denne oppslaget stille valgt den FØRSTE (Array.find), ikke
+  // nødvendigvis den Ref faktisk peker på. Ikke fikset her (samme
+  // begrensning som ecbMetadata har hatt uendret siden Task 1).
   const codesFor = (d: Record<string, unknown>) => {
     const localRep = d["s:LocalRepresentation"] as Record<string, unknown> | undefined;
     const enumeration = localRep?.["s:Enumeration"] as Record<string, unknown> | undefined;

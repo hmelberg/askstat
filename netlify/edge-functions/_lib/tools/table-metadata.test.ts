@@ -741,3 +741,88 @@ Deno.test("eurostat metadata: find= filtrerer en LANG kodeliste (>MAX_VALUES) ti
   const geo = meta.variables.find((v) => v.code === "geo")!;
   assertEquals(geo.values, [{ code: "NO", label: "Norway" }]);
 });
+
+// --- eurostat fix-runde 1 (code review 2026-08-04) --------------------------
+
+// Medium: fast-xml-parser sin default (parseTagValue:true) tallkonverterer
+// <c:Value>-ELEMENTTEKST — "01011000" ble tallet 1011000 (LEDENDE NULL TAPT),
+// "2020" ble tallet 2020 (typeof number). xmlText() returnerer "" for et rent
+// number (verken streng eller {#text}-objekt), så BEGGE ble filtrert vekk av
+// .filter(Boolean) FØR fiksen — kun "TOTAL" (aldri tall-aktig) ville overlevd
+// i befolket-settet, mens kun_befolkede:true løy om at lista var komplett.
+const LEADING_ZERO_DSD_XML = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DF3</m:ID></m:Header><m:Structures>` +
+  `<s:Dataflows><s:Dataflow id="Y" agencyID="ESTAT" version="1.0"><c:Name xml:lang="en">Y</c:Name><s:Structure><Ref id="Y" version="1.0" agencyID="ESTAT" package="datastructure" class="DataStructure"/></s:Structure></s:Dataflow></s:Dataflows>` +
+  `<s:Codelists><s:Codelist agencyID="ESTAT" id="PROD" version="1.0">` +
+  `<s:Code id="01011000"><c:Name xml:lang="en">Live bovine animals</c:Name></s:Code>` +
+  `<s:Code id="2020"><c:Name xml:lang="en">Year-like code</c:Name></s:Code>` +
+  `<s:Code id="TOTAL"><c:Name xml:lang="en">Total</c:Name></s:Code>` +
+  `</s:Codelist></s:Codelists>` +
+  `<s:DataStructures><s:DataStructure agencyID="ESTAT" id="Y" version="1.0"><c:Name xml:lang="en">Y</c:Name><s:DataStructureComponents><s:DimensionList>` +
+  `<s:Dimension id="prod" position="1"><s:LocalRepresentation><s:Enumeration><Ref agencyID="ESTAT" class="Codelist" id="PROD" package="codelist" version="1.0"/></s:Enumeration></s:LocalRepresentation></s:Dimension>` +
+  `<s:TimeDimension id="TIME_PERIOD" position="2"/>` +
+  `</s:DimensionList></s:DataStructureComponents></s:DataStructure></s:DataStructures></m:Structures></m:Structure>`;
+
+const LEADING_ZERO_CC_XML = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DS3</m:ID></m:Header><m:Structures><s:Constraints><s:ContentConstraint agencyID="ESTAT" id="Y" version="1.0"><c:Name xml:lang="en">Cube description for dataflow Y</c:Name><s:CubeRegion include="true"><c:KeyValue id="prod"><c:Value>01011000</c:Value><c:Value>2020</c:Value><c:Value>TOTAL</c:Value></c:KeyValue></s:CubeRegion></s:ContentConstraint></s:Constraints></m:Structures></m:Structure>`;
+
+Deno.test("eurostat metadata: contentconstraint bevarer ledende null og numeriske koder BYTE-LIKT (parseTagValue-fellen, fix-runde 1)", async () => {
+  const meta = await tableMetadata("eurostat", "Y", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(LEADING_ZERO_DSD_XML, LEADING_ZERO_CC_XML),
+  });
+  const prod = meta.variables.find((v) => v.code === "prod")!;
+  // ALLE tre skal overleve — hverken "01011000" (ledende null) eller "2020"
+  // (tallformet) skal droppes stille slik de gjorde før parseTagValue:false.
+  assertEquals(prod.values.map((v) => v.code).sort(), ["01011000", "2020", "TOTAL"]);
+  assertEquals(prod.kun_befolkede, true);
+});
+
+// Low: en include="false"-CubeRegion er en EKSKLUSJONSLISTE (KeyValues
+// lister koder som IKKE er befolket) — å tolke den som inklusjon ville
+// INVERTERT filteret. Best effort: gi opp (ufiltrert fallback), ikke gjett.
+const EXCLUSION_CC_XML = `<?xml version='1.0' encoding='UTF-8'?><m:Structure xmlns:m="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message" xmlns:s="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:c="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"><m:Header><m:ID>DS4</m:ID></m:Header><m:Structures><s:Constraints><s:ContentConstraint agencyID="ESTAT" id="EI_LMHR_M" version="1.0"><c:Name xml:lang="en">Excluded codes</c:Name><s:CubeRegion include="false"><c:KeyValue id="s_adj"><c:Value>CA</c:Value></c:KeyValue></s:CubeRegion></s:ContentConstraint></s:Constraints></m:Structures></m:Structure>`;
+
+Deno.test("eurostat metadata: CubeRegion include='false' (eksklusjon) → ufiltrert fallback, ingen inversjon, ingen kast", async () => {
+  const meta = await tableMetadata("eurostat", "EI_LMHR_M", {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EXCLUSION_CC_XML),
+  });
+  const sadj = meta.variables.find((v) => v.code === "s_adj")!;
+  // Uten guarden ville s_adj blitt filtrert til KUN "CA" (den ekskluderte
+  // koden) — stikk motsatt av riktig svar. Med guarden: alle tre, ufiltrert.
+  assertEquals(sadj.values.length, 3);
+  assertEquals(sadj.kun_befolkede, undefined);
+  assertEquals(meta.tilgjengelighet, undefined);
+});
+
+Deno.test("eurostat metadata: descendants-kallet timer ut → ærlig norsk feil (fanges av medGuideVedFeil, ikke rå AbortError)", async () => {
+  const timeoutFetch = ((input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("dataflow")) {
+      const err = new DOMException("signal timed out", "TimeoutError");
+      return Promise.reject(err);
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as typeof fetch;
+  let threw = "";
+  try {
+    await tableMetadata("eurostat", "EI_LMHR_M", { registry: REG, fetchImpl: timeoutFetch });
+  } catch (e) {
+    threw = String(e);
+  }
+  assertEquals(threw.includes("svarte ikke innen 20 s"), true, threw);
+  assertEquals(threw.includes("EI_LMHR_M"), true, threw);
+});
+
+Deno.test("eurostat metadata: tableId URL-enkodes i BEGGE kall (dataflow og contentconstraint)", async () => {
+  const calls: string[] = [];
+  // Ingen ekte Eurostat-kode inneholder mellomrom — brukes her KUN for å bevise
+  // at encodeURIComponent faktisk kjører (worldbankMetadata-mønsteret), ikke
+  // fordi det er en realistisk table_id.
+  const weird = "ei lmhr_m";
+  await tableMetadata("eurostat", weird, {
+    registry: REG,
+    fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML, calls),
+  });
+  assertEquals(calls.some((u) => u.includes("dataflow/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
+  assertEquals(calls.some((u) => u.includes("contentconstraint/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
+});

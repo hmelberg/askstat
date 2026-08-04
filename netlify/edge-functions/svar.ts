@@ -20,8 +20,9 @@ import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { runProviderAgenticStream } from "./_lib/providers/agentic.ts";
 import { makeOpenAiCompatTurn } from "./_lib/providers/openai-compat.ts";
 import { makeOpenAiResponsesTurn } from "./_lib/providers/openai-responses.ts";
+import { coerceRunOkCalls, filtrerRunCode, klassifiserRunResult, medPaaminnelse } from "./_lib/run-disiplin.ts";
 
-interface ResumeBody { state?: AgenticResumeState; probed?: unknown; }
+interface ResumeBody { state?: AgenticResumeState; probed?: unknown; run_ok_calls?: unknown; }
 interface RequestBody {
   question?: string;
   route?: string;
@@ -107,6 +108,16 @@ export default async (request: Request): Promise<Response> => {
   const runResult = typeof body.run_result === "string"
     ? body.run_result.slice(0, 30_000)
     : undefined;
+
+  // Run-disiplin (spec 2026-08-04-lokke-niva): suksess-teller i resume-
+  // SIDEKANALEN (probed-mønsteret — løkka er uvitende). Påminnelse på
+  // suksess-hop #1; run_code filtreres fra verktøylistene fra suksess #2.
+  let runOkCalls = coerceRunOkCalls(body.resume?.run_ok_calls);
+  let runResultTilLopet = runResult;
+  if (runResult !== undefined && klassifiserRunResult(runResult) === "ok") {
+    runOkCalls += 1;
+    if (runOkCalls === 1) runResultTilLopet = medPaaminnelse(runResult);
+  }
 
   const provider = parseProviderConfig(body.provider, request);
   if (provider && "error" in provider) return provider.error;
@@ -223,27 +234,27 @@ export default async (request: Request): Promise<Response> => {
     maxClientToolCalls: depthClientToolCalls(depth),
     clientTools: ["run_code"],
     maxRunCode: depthRunCodeCalls(depth),
-    runResult,
+    runResult: runResultTilLopet,
     resume: resumeState,
-    continueExtra: () => ({ probed }),
+    continueExtra: () => ({ probed, run_ok_calls: runOkCalls }),
   };
   const providerDeps = { timeoutMs: 180_000, retries: 1 };
   let inner: ReadableStream<Uint8Array>;
   if (provider && provider.type === "openai-compat") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiCompatTurn(provider),
-      tools: buildRouteToolDefs(route, depth, { hostedWeb: false }),
+      tools: filtrerRunCode(buildRouteToolDefs(route, depth, { hostedWeb: false }), runOkCalls),
     });
   } else if (provider && provider.type === "openai-responses") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiResponsesTurn(provider),
-      tools: buildRouteToolDefs(route, depth, { hostedWeb: false }),
+      tools: filtrerRunCode(buildRouteToolDefs(route, depth, { hostedWeb: false }), runOkCalls),
     });
   } else {
     inner = runAgenticStream({
       ...commonOpts,
       apiKey, model,
-      tools: buildRouteToolDefs(route, depth),
+      tools: filtrerRunCode(buildRouteToolDefs(route, depth), runOkCalls),
       turnsPerCall: 8,
       cacheTtl: "1h",
       apiBase: provider?.type === "anthropic-compat" ? provider.baseUrl : undefined,

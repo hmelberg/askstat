@@ -24,3 +24,8 @@ export function skalStengeRunCode(runOkCalls: number): boolean {
 export function medPaaminnelse(runResult: string): string {
   return runResult + "\n\n" + PAAMINNELSE;
 }
+
+export function filtrerRunCode(tools: unknown[], runOkCalls: number): unknown[] {
+  if (!skalStengeRunCode(runOkCalls)) return tools;
+  return tools.filter((t) => (t as { name?: string }).name !== "run_code");
+}

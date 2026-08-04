@@ -659,7 +659,9 @@
       //   turn_discard {}           — deltas so far were an intermediate
       //                               (tool-calling) turn; archive them
       //   run_code {script}         — run client-side, re-POST resume + run_result
-      //   continue {state, probed}  — server turn budget spent; re-POST resume
+      //   continue {state, probed, run_ok_calls} — server turn budget spent;
+      //                               re-POST resume (run_ok_calls: run-disiplin
+      //                               sidekanal-teller, see svar.ts)
       //   sources {sources: [...]}  — deterministic probe manifest
       //   text {text}               — whole-answer chunk (custom-provider path)
       //   done {usage} / error {message}
@@ -705,7 +707,7 @@
 
           var cont = null, pendingRun = null;
           await consumeSse(resp, function (ev) {
-            if (ev.type === 'continue') { cont = { state: ev.state, probed: ev.probed }; return; }
+            if (ev.type === 'continue') { cont = { state: ev.state, probed: ev.probed, run_ok_calls: ev.run_ok_calls }; return; }
             if (ev.type === 'run_code') { pendingRun = ev.script || ''; return; }
             if (ev.type === 'delta' || ev.type === 'text') {
               buffer += ev.text;

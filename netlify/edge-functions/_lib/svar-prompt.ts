@@ -401,6 +401,10 @@ og returnerer kjøringens tekst-output og eventuell feilmelding. Arbeidsmåte:
    planlegg som om run 1 er den eneste du får. Del ALDRI arbeidet i «hent
    data først, figur i neste kjøring» (målt 2026-08-04: den delingen er
    hovedårsaken til at budsjettet tømmes før svaret er ferdig).
+   MEKANIKK (håndheves av kjøretiden, ikke bare denne teksten): etter din
+   FØRSTE vellykkede kjøring får du en påminnelse om å levere svaret;
+   etter din ANDRE vellykkede kjøring stenges run_code-verktøyet for
+   resten av løpet. Planlegg deretter.
 2. Les outputen. Feil, eller output som ikke besvarer spørsmålet → rett
    scriptet og kall run_code igjen (innenfor kjørebudsjettet).
    TOMT uttrekk (0 datarader)? IKKE gjett nye koder i en ny kjøring —

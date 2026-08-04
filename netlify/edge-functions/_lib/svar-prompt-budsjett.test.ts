@@ -50,3 +50,8 @@ Deno.test("ROUTING har DATATYPE-blokken og nevner ipums (F3 Task 9)", () => {
   assert(sys.includes("DATATYPE styrer scope"), "ROUTING må ha DATATYPE-blokken");
   assert(sys.includes("ipums"), "ROUTING/DATATYPE må nevne ipums-guiden");
 });
+
+Deno.test("RUN forklarer svar-klart-stopp-mekanikken (Løkke-nivå Task 2, 2026-08-04)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes("stenges run_code-verktøyet"), "RUN må forklare at run_code stenges etter suksess #2");
+});

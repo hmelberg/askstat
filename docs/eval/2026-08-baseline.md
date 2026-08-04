@@ -131,3 +131,23 @@ tall observert. **Fyll-taket-mønsteret er BRUTT på lette/middels spørsmål**
    tidspress) fyller fortsatt taket.
 3. Neste evalrunde bør ha E17-klassen (tvetydige/umulige spørsmål) med
    eksplisitt verifiseringskrav for omtolkede svar.
+
+
+---
+
+# Løkke-nivå-måling (2026-08-04, 88dec15 — svar-klart-stopp + trestegs-badge)
+
+| # | Etter fase 3 | Med løkke-nivå | Vurdering |
+|---|---|---|---|
+| E4 | 45 s / 1 run / PASS | 54 s / **1 run** / PASS + figur | Uendret godt (1 run bekreftet stabilt). NB: svaret oppga 9,4 % (2023) mot forrige rundes 7,9 % (2022) — kilde-/årsvarians (WB-serien er revidert og 2023-tall er kommet til), ikke målt som feil. |
+| E5 | 108 s / 4 runs / «budsjett oppbrukt før figur», ingen figur | 115 s / **3 runs** / **PASS + figur + rent svar** | FØRSTE E5-kjøring under taket noensinne, med ferdig figur. Suksesskriteriet «ikke dårligere» er overoppfylt. |
+
+- Feilet-etter-suksess-tilstanden oppsto ikke naturlig i målingen (ingen
+  badges) — mekanisme 2 er testdekket (badgeFor + kontraktvakt), venter på
+  organisk forekomst via telemetrien.
+- Suksesskriteriene fra spec §Testing: (a) ingen kjøringer etter andre
+  suksess observert; (b) E4 1 run; (c) E5 bedre, ikke dårligere. ✓
+
+Løkke-nivå-sporet er dermed LEVERT og målt. Gjenstående kjente kostnader
+(dokumentert i spec): cache-prefiks-invalidering ved stenging;
+stale-klient-vindu til nettleser-cachen ruller.

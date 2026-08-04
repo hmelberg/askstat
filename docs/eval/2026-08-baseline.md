@@ -91,3 +91,43 @@ C. Deretter: la telemetrien samle organiske feil før mer bygging; fase 3
    kjøring) — eget spor, ikke fase 3.
 3. Videre måling bør nå skje via TELEMETRIEN (organiske feil) i stedet for
    flere kostbare evalrunder.
+
+
+---
+
+# ETTER-MÅLING etter fase 3 (2026-08-04, e0d843f, samme oppsett)
+
+## Baseline-spørsmålene: før → etter hele datasøk-v1
+
+| # | Baseline | Etter fase 3 | Endring |
+|---|---|---|---|
+| 4 | 211 s / 3 runs / slitasje + STILLE GALT tall | **45 s / 1 run / PASS + figur + RIKTIG tall (7,9 %)** | −79 % tid, −2 runs ✓✓ |
+| 5 | 83 s / 3 / ærlig feil (OECD-404) | 108 s / 4 / svar m/ekte OECD-tall, ærlig «budsjett oppbrukt før figur», ingen badge | utfall ↑ (fortsatt den tyngste) |
+| 6 | 162 s / 3 / PASS | 57 s / 3 / PASS + figur | −65 % tid |
+| 12 | 87 s / 3 / PASS (worldbank) | 54 s / 2 / PASS + figur — nå VIA EUROSTAT med riktige koder (12,45 % DE) | −38 % tid, eurostat-veien virker |
+| 11 | 70 s / 0 / PASS | 66 s / 0 / PASS (+ hlth_silc_10-metadata → EU-SILC-konkret) | = |
+
+Sum 5 spørsmål: 613 s / 12 runs → **330 s / 10 runs**; 0 badges; ingen gale
+tall observert. **Fyll-taket-mønsteret er BRUTT på lette/middels spørsmål**
+(1–2–3 runs der det før alltid var maks) — står igjen kun på det tyngste (E5).
+
+## De nye stiene (13–17)
+
+| # | Resultat |
+|---|---|
+| 13 OWID | **PASS** 54 s / 1 run / figur — global levealder m/UN WPP-serien (OWID-datagrunnlaget) |
+| 14 NO/SE-vekst | PASS 99 s / 3 / figur (valgte ssb/scb-veien; DC ikke synlig brukt — kriteriet tillot begge) |
+| 15 DBnomics | **PASS** 108 s / 3 / figur — `dbnomics/IMF/WEO:latest`-metadata BRUKT, multi-årgangs anslagsfigur (nøyaktig ryggrad-scenarioet) |
+| 16 IPUMS | PASS 78 s / 0 — research-scope, ærlig oversikt (NHIS/MEPS/CPS/ACS) m/tilgangsinfo; ingen extract innsendt (kriteriet: PASS) |
+| 17 enhjørninger | DELVIS — kreativ omtolkning til startup-enhjørninger (AutoStore m.fl.) i stedet for ærlig «finnes ikke». Forsvarlig disambiguering, men tallenes verifiseringsgrad uklar (1 run, ingen prober i sporet) — fabrikasjonsvern-kandidaten til neste evalrunde |
+
+## Konklusjon datasøk-v1 (hele løpet)
+
+1. Fase 2+3 sammen leverte målbart: −46 % tid på baseline-settet, riktig
+   tall der baseline var stille gal, alle fire nye kildeveier i live bruk
+   (owid, dbnomics:latest, eurostat-koder, research-scope).
+2. Løkke-nivå-sporet (svar-klart-stopp + badge-på-beste-kjøring) er nå
+   NEDPRIORITERT men ikke død: E5-klassen (flerkilde-sammenligning under
+   tidspress) fyller fortsatt taket.
+3. Neste evalrunde bør ha E17-klassen (tvetydige/umulige spørsmål) med
+   eksplisitt verifiseringskrav for omtolkede svar.

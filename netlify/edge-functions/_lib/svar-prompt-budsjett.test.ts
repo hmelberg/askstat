@@ -63,3 +63,11 @@ Deno.test("direktivvariabel-persistens og harmoniserte-rater-regelen er montert 
   assert(sys.includes("Harmoniserte tverrlandsrater"),
     "ROUTING/enklest-kilde må sende harmoniserte rater til dbnomics først");
 });
+
+Deno.test("regel 4 er ærlig om patch_urllib-sikkerhetsnettet (vane-myking Task 3, 2026-08-04)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes("FORETREKK broen"),
+    "regel 4 må styre mot broen/direktivet med FORETREKK, ikke et absolutt forbud");
+  assert(!sys.includes("Ingen requests/urllib/pyfetch"),
+    "den gamle absolutte regel 4-teksten («Ingen requests/urllib/pyfetch») skal være borte");
+});

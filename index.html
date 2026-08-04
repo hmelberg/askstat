@@ -10364,6 +10364,20 @@ json.dumps(out)
           'import logging\nlogging.getLogger("micropip").setLevel(logging.WARNING)\n'
         );
       } catch (e) { console.warn('micropip log level:', e); }
+      // Vane-myking (spec 2026-08-04): stdlib urllib virker ikke nativt i
+      // wasm (RuntimeError: TLS not supported — målt). patch_urllib gjør
+      // den fungerende som SIKKERHETSNETT for modell-/bibliotekskode.
+      // ALDRI patch_all: den nedgraderer requests fra native urllib3-JSPI
+      // til sync XHR (målt 2026-08-04). Best effort — aldri blokker boot.
+      // Denne funksjonen kjører NØYAKTIG én gang per tolk-oppstart
+      // (memoisert bak __pyodidePromise, se loadPyodideAndM2py) — "Kjør"
+      // gjenbruker samme WASM-instans og patcher aldri på nytt.
+      try {
+        await pyodide.loadPackage('pyodide-http').catch(async function () {
+          await pyodide.runPythonAsync('import micropip as _mp\nawait _mp.install("pyodide-http")');
+        });
+        await pyodide.runPythonAsync('import pyodide_http\npyodide_http.patch_urllib()');
+      } catch (e) { console.warn('patch_urllib hoppet over:', e); }
       // plotly er PyPI (ikke bundlet) og importeres inne i figurkommandoer i m2py.py
       // — auto-install i run-handler ser ikke disse, så vi installerer eager.
       // matplotlib, lifelines og linearmodels prefetches i bakgrunn etter Ready (B2).

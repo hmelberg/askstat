@@ -114,21 +114,27 @@ så connect-linja er valgfri. Men en read UTEN ressurssti FEILER —
 målt 2026-07-29: kostet tre reparasjonsrunder). Eller les JSON-en
 DIREKTE (`jsonlite::fromJSON` i R; i Python: parse `json.loads` av en
 probe-verifisert cors:true-GET via broens `pd.read_json` når formen er flat)
-— ALDRI urllib/requests-kode (målt feilklasse 2026-07-28, «JSON-API-hullet»).
+— urllib/requests-kode her ga en målt feilklasse 2026-07-28 («JSON-API-
+hullet»): broen/direktivet foretrekkes (regel 4).
 
 EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
 1. `<alias>.read()` tar det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) OG kildens EGNE parametre direkte som kwargs (geo, siec, unit, currency, …) — `eurostat.read("nrg_pc_202", geo="NO")` tolkes som `filters={"geo": "NO"}`. `filters={...}` er fortsatt den eksplisitte formen (bruk den når flere parametre skal stå samlet, eller ved kollisjon med et kwarg-navn). Skrivefeil på en KANONISK nøkkel (`yeras=`) gir fortsatt en høylytt feil med forslag — det er bare ukjente/kildeegne navn som blir filters. SDMX-tid: skriv `years="2021:2025"` — ALDRI `startPeriod=`/`endPeriod=` som kwargs (de oversettes FRA years=).
 2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff eller table_metadata ER verifisering — kun probe-verktøyets ✅ teller.
 3. PxWeb-parametre presist: wildcard er `*` (ALDRI «ALL»); `stub=` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med `top(n)` eller eksplisitt liste.
-4. Ingen requests/urllib/pyfetch — heller ikke som FALLBACK i try/except. Feiler direktivlinja, si det i svaret.
+4. FORETREKK broen og direktivene for datahenting: pd.read_csv(url)/direktiv
+   gir proxy-fallback ved CORS, forståelige feil, tomt-vakter og at kilden
+   havner i kildelisten. requests og urllib VIRKER teknisk (urllib via
+   sikkerhetsnett-patch), men gir deg INGENTING av dette — bruk dem kun når
+   et bibliotek krever det, og oppgi da kilde-URL-en eksplisitt i svaret.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv `pd.read_csv(url, ...)` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
 7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-
    grammatikken tar dem ALDRI (literal-only) — skriv VANLIG KODE med
    `pd.read_csv(url)`/`read.csv(url)` direkte (broen håndterer også
    dynamiske URL-er); ved målt cors:false pakkes URL-en i `/api/hent?url=`
-   I KODEN. ALDRI urllib/requests (regel 4 gjelder), og ALDRI «simuler
-   innlasting»-kode — koden skal HENTE, ikke late som.
+   I KODEN. Foretrekk broen fremfor urllib/requests her også (regel 4
+   gjelder), og ALDRI «simuler innlasting»-kode — koden skal HENTE, ikke
+   late som.
 8. SDMX-RESSURSSTI (OECD/ECB/Norges Bank, målt live 2026-08-01): flowRef-en
    er KOMMA-form — `<agency>,<dataflow>` (`oecd.read("OECD.SDD.TPS,DSD_X@DF_Y",
    years=…, countries=…)`). Slash-formen 404-er hos OECD («Could not find
@@ -344,8 +350,8 @@ Registerkilder m/ metadata: `import openstat as ost` +
 `ost.convert_dtypes(df, meta="<samme url>")` på en ramme du alt har.
 json-stat2 leses best via direktivveien (tidy + typet); pyjstat KAN
 brukes for parsing av json-stat-STRENGER (`import pyjstat` —
-auto-installeres) — men aldri requests/urllib for henting (regel 4
-gjelder fortsatt).
+auto-installeres) — foretrekk likevel broen/direktivet fremfor
+requests/urllib for selve HENTINGEN (regel 4 gjelder fortsatt).
 
 INTERAKTIVITET: i simuleringer og modeller kan brukeren dra i antakelsene
 selv — bruk #@param-skjemaer for 1–3 nøkkelparametre, f.eks.
@@ -686,6 +692,18 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-04 (vane-myking Task 3)
+
+Regel 4 (EVAL-REGLER) omskrevet fra absolutt forbud til ærlig preferanse:
+`pyodide_http.patch_urllib()` kjøres nå ved Pyodide-boot (sikkerhetsnett,
+KUN patch_urllib — patch_all nedgraderer requests' urllib3-adapter, målt),
+så `urllib.request` teknisk sett VIRKER i python-modus. Regel 4 sier nå
+FORETREKK broen/direktivet (proxy-fallback, kildeliste, tomt-vakter —
+urllib/requests gir ingen av delene) i stedet for å påstå urllib ikke
+virker. De tre andre stedene som nevnte urllib/requests absolutt
+(JSON-API-avsnittet, EVAL-regel 7, pyjstat-avsnittet) peker nå til regel 4
+i stedet for å gjenta forbudet.
 
 ### 2026-08-01
 

@@ -47,12 +47,17 @@ direktefiler).
 
 ## Handling som trengs fra Hans
 
-1. **Skaff `CENSUS_API_KEY`** (gratis: api.census.gov/data/key_signup.html)
-   og legg den i Netlify-miljøet — før det er census usynlig i prompten.
-2. **Sjekk at `FRED_API_KEY` faktisk står i Netlify-miljøet** — etter
-   synligeKilder-generaliseringen skjules fred hvis den mangler.
-3. ESS: vurder å registrere en egen ESS-bruker-ID og legge den i en pakke/
-   profil for uttesting (ID-en er en sporings-ID, ikke en hemmelighet).
+1. **`CENSUS_API_KEY`: AKTIVER nøkkelen** via lenken i Census' e-post —
+   nøkkelen Hans la i .env 2026-08-06 svarer 302 → invalid_key.html
+   (uaktivert). Etter aktivering: legg den i Netlify-miljøet
+   (`netlify env:set CENSUS_API_KEY …`) — til da er census usynlig i
+   prompten (synligeKilder).
+2. **`FRED_API_KEY` står IKKE i Netlify-miljøet** (verifisert 2026-08-06:
+   prod har kun DATACOMMONS_API_KEY + ESS_API_KEY) — fred er dermed nå
+   skjult fra prompten i prod. Sett nøkkelen hvis fred skal tilbake.
+3. ~~ESS-bruker-ID~~ GJORT 2026-08-06: `ESS_API_KEY` satt i Netlify-miljøet
+   og injiseres som userId av /api/hent (auth i registeret); full
+   nedlasting prod-smoket OK (32,4 MB ess11-csv via ask.melberg.app).
 
 ## Evaluering — det som IKKE ble default, og hvorfor
 

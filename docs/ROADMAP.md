@@ -216,8 +216,13 @@ katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
 - [ ] **Dateno som eksplisitt bredde-fallback** — nøkkel finnes i miljøet,
       men kvoten er 500 kall/mnd: aldri default-arm; alltid med
       catalog_type-filter. Egen statsdb-under-API verdt en titt.
-- [ ] `CENSUS_API_KEY` i Netlify-miljøet (census er stille fraværende til
-      den finnes); verifiser samtidig at `FRED_API_KEY` faktisk er satt.
+- [ ] `CENSUS_API_KEY`: Hans' nøkkel (2026-08-06) er UAKTIVERT (302 →
+      invalid_key.html) — aktiver via e-postlenken, sett så i
+      Netlify-miljøet (census er stille fraværende til da).
+- [ ] `FRED_API_KEY` mangler i Netlify-miljøet (verifisert 2026-08-06) —
+      fred er nå skjult fra prompten i prod; sett nøkkelen ved behov.
+- [x] ESS: `ESS_API_KEY` i Netlify + auth i registeret (query:userId,
+      injiseres av /api/hent) — prod-smoket 2026-08-06 (32,4 MB ess11-csv).
 - [ ] ROUTING-blokka i svar-prompten: kort ess/census/nchs-linje under
       «DATATYPE styrer scope» når bruken har satt seg.
 - [ ] UKDS-pakkeinnhold kan genereres maskinelt fra deres åpne OAI-PMH

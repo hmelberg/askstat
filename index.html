@@ -194,6 +194,14 @@
               </button>
               <div class="ask-pop-menu" id="askProfileMenu" hidden></div>
             </div>
+            <div class="ask-picker-wrap">
+              <button type="button" class="ask-pill-btn" id="askPackBtn" title="Source pack — preferred data sources for a country or topic. Click to choose.">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span id="askPackLabel">International</span>
+                <svg class="ask-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="ask-pop-menu" id="askPackMenu" hidden></div>
+            </div>
           </div>
           <div class="ask-tools-right">
             <button type="button" class="ask-stop-btn" id="askAbortBtn" style="display:none" title="Stop" aria-label="Stop">
@@ -395,7 +403,11 @@
         <input type="text" id="profileName" maxlength="60">
         <label for="profileText">Text added to every ask</label>
         <textarea id="profileText" rows="7" maxlength="8000"></textarea>
-        <div class="ai-modal-help"><span id="profileCount">0</span> / 8000</div>
+        <div class="ai-modal-help"><span id="profileCount">0</span> / 8000 — Markdown is supported</div>
+        <details id="profilePreviewWrap">
+          <summary>Preview</summary>
+          <div id="profilePreview" class="ask-md-preview"></div>
+        </details>
       </div>
       <div class="ai-modal-actions">
         <button type="button" class="ai-modal-btn" id="profileNewBtn">New profile</button>

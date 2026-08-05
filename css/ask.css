@@ -113,7 +113,12 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 
 .ask-pop-menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 60;
   background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
-  padding: 6px; min-width: 240px; box-shadow: 0 8px 28px rgba(0,0,0,.18); }
+  padding: 6px; min-width: 240px; box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  max-height: 55vh; overflow-y: auto; }
+/* Markdown-preview i profil-/pakkemodalene */
+.ask-md-preview { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+  margin-top: 6px; font-size: 13px; max-height: 240px; overflow-y: auto; }
+.ask-md-preview :first-child { margin-top: 0; }
 .ask-pop-menu[hidden] { display: none; }
 .ask-pop-menu button { display: flex; align-items: center; gap: 8px; width: 100%;
   text-align: left; background: none; border: none; border-radius: 8px;

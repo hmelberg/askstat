@@ -261,6 +261,18 @@
         delBtn.hidden = true;
       }
       textEl.addEventListener('input', function () { countEl.textContent = String(textEl.value.length); });
+      // Markdown-preview (spec 2026-08-05 §2): rendres ved åpning av folden —
+      // ask-viewens delte rendrer; tom hvis den (mot formodning) mangler.
+      var prevWrap = document.getElementById('profilePreviewWrap');
+      var prevEl = document.getElementById('profilePreview');
+      if (prevWrap && prevEl) {
+        var renderPreview = function () {
+          if (!prevWrap.open) return;
+          prevEl.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(textEl.value) : '';
+        };
+        prevWrap.addEventListener('toggle', renderPreview);
+        textEl.addEventListener('input', renderPreview);
+      }
       newBtn.addEventListener('click', function () { openEdit('NY'); });
       saveBtn.addEventListener('click', function () {
         if (editingId === 'NY') {

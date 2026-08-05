@@ -194,6 +194,82 @@
     global.Packs = makePacks(global.localStorage, fetch.bind(global), global.Profiles);
   }
 
+  // ---- DOM: velger-pille i input-kortet (samme anatomi som profilvelgeren).
+  if (typeof document !== 'undefined' && document.getElementById) {
+    var initPacksUi = function () {
+      var P = global.Packs;
+      var Prof = global.Profiles;
+      var pickBtn = document.getElementById('askPackBtn');
+      var pickLabel = document.getElementById('askPackLabel');
+      var pickMenu = document.getElementById('askPackMenu');
+      if (!P || !Prof || !pickBtn || !pickMenu) return;
+
+      function renderPicker() {
+        if (!pickLabel) return;
+        var st = Prof.packState();
+        // Aldri-usynlig-kravet: auto-valg merkes eksplisitt i pilla.
+        pickLabel.textContent = st.id
+          ? P.displayName(st.id) + (st.auto ? ' (auto)' : '')
+          : 'International';
+      }
+      function pickItem(text, checked, onPick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        var check = document.createElement('span');
+        check.className = 'ask-pop-check';
+        check.textContent = checked ? '✓' : '';
+        var nm = document.createElement('span');
+        nm.textContent = text;
+        b.appendChild(check);
+        b.appendChild(nm);
+        b.addEventListener('click', function () {
+          pickMenu.hidden = true;
+          onPick();
+        });
+        pickMenu.appendChild(b);
+      }
+      function sep() {
+        var d = document.createElement('div');
+        d.className = 'ask-pop-sep';
+        pickMenu.appendChild(d);
+      }
+      function renderMenu() {
+        pickMenu.innerHTML = '';
+        var st = Prof.packState();
+        pickItem('International default', !st.id, function () { Prof.setPack(null); });
+        var entries = P.list();
+        var groups = ['builtin', 'imported', 'country'];
+        groups.forEach(function (g) {
+          var inGroup = entries.filter(function (e) { return e.group === g; });
+          if (!inGroup.length) return;
+          sep();
+          inGroup.forEach(function (e) {
+            pickItem(e.name, st.id === e.id, function () {
+              Prof.setPack(e.id);
+              P.ensureCurrent();
+            });
+          });
+        });
+      }
+      pickBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (pickMenu.hidden) renderMenu();
+        pickMenu.hidden = !pickMenu.hidden;
+      });
+      document.addEventListener('click', function (e) {
+        if (!pickMenu.hidden && !pickMenu.contains(e.target)) pickMenu.hidden = true;
+      });
+      Prof.onChange(function () { renderPicker(); });
+      // Boot: last katalog, auto-forslag fra locale, preload gjeldende tekst.
+      P.boot((typeof navigator !== 'undefined' && navigator.language) || '')
+        .then(renderPicker)
+        .catch(function () { renderPicker(); });
+      renderPicker();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPacksUi);
+    else initPacksUi();
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makePacks: makePacks };
   }

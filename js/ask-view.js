@@ -564,6 +564,9 @@
     if (document.documentElement.classList.contains('ask-view')) view.hidden = false;
 
     var md = window.markdownit ? window.markdownit({ breaks: true, linkify: true }) : null;
+    // Delt markdown-rendrer for profil-/pakke-forhåndsvisning (spec 2026-08-05
+    // §2: markdown i profiler er offisielt). Ren md.render — ingen mattemaskering.
+    window.mdAskMarkdown = function (s) { return md ? md.render(String(s || '')) : ''; };
     var input = document.getElementById('askInput');
     var sendBtn = document.getElementById('askSendBtn');
     var abortBtn = document.getElementById('askAbortBtn');
@@ -957,6 +960,11 @@
         // Aktiv profil skal aldri usynlig forme svar (spec §Fase 1b) —
         // linjen arkiveres til Details sammen med resten av prosess-sporet.
         if (activeProfile) progressLine('Profile applied: ' + activeProfile.name);
+        // Kildepakke skal heller aldri usynlig forme svar (spec 2026-08-05 §2).
+        var packSt = (window.Profiles && window.Profiles.packState) ? window.Profiles.packState() : null;
+        if (packSt && packSt.id && window.Packs) {
+          progressLine('Pack applied: ' + window.Packs.displayName(packSt.id) + (packSt.auto ? ' (auto)' : ''));
+        }
 
         // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).
         if (route.rute === 'språk') {

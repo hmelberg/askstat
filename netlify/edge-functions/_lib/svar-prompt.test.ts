@@ -11,10 +11,11 @@ Deno.test("coerceRoute: ukjent → data", () => {
   assertEquals(coerceRoute(undefined), "data");
 });
 
-Deno.test("coerceDepth: standard er default", () => {
+Deno.test("coerceDepth: deep er default (deep-only-runden)", () => {
   assertEquals(coerceDepth("deep"), "deep");
-  assertEquals(coerceDepth("fast"), "standard");
-  assertEquals(coerceDepth(undefined), "standard");
+  assertEquals(coerceDepth("standard"), "standard");
+  assertEquals(coerceDepth("fast"), "deep");
+  assertEquals(coerceDepth(undefined), "deep");
 });
 
 Deno.test("buildSvarSystem(beregning): run_code + modus, INGEN register/EVAL/ost/Omforming", () => {

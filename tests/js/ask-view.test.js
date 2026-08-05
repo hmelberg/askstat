@@ -96,13 +96,6 @@ test('buildAskProvenance: duckdb bruker --, ikke echo-direktiv, flerlinje flates
   assert.ok(!s.includes('show_commands'));
 });
 
-test('coerceAskDepth: deep er default, kun eksplisitt standard er standard', () => {
-  assert.equal(askView.coerceAskDepth('deep'), 'deep');
-  assert.equal(askView.coerceAskDepth('standard'), 'standard');
-  assert.equal(askView.coerceAskDepth('fast'), 'deep');
-  assert.equal(askView.coerceAskDepth(null), 'deep');
-});
-
 test('assignRefs: nummerering per klasse i dokumentrekkefølge', () => {
   const refs = askView.assignRefs([
     { kind: 'plotly' }, { kind: 'table' }, { kind: 'png' },

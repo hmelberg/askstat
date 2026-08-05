@@ -45,10 +45,6 @@
     return lines.join('\n') + '\n\n';
   }
 
-  // Dybde for /api/svar: 'deep' er default (Hans 2026-08-05); 'standard'
-  // kun ved eksplisitt valg på split-knappen.
-  function coerceAskDepth(v) { return v === 'standard' ? 'standard' : 'deep'; }
-
   // Trestegs-badge (spec 2026-08-04-lokke-niva): siste kjøring bestemmer
   // suksessveien, men en feilet POLERING etter en vellykket kjøring skal
   // ikke stemple svaret rødt (M-Q12-klassen) — mild note i stedet.
@@ -608,34 +604,9 @@
       });
     }
 
-    var LS_ASK_DEPTH = 'md_ask_depth';
-    function askDepth() {
-      try { return coerceAskDepth(localStorage.getItem(LS_ASK_DEPTH)); } catch (e) { return 'standard'; }
-    }
-    var depthBtn = document.getElementById('askDepthBtn');
-    var depthMenu = document.getElementById('askDepthMenu');
-    var depthLabel = document.getElementById('askDepthLabel');
-    function syncDepthUi() {
-      var d = askDepth();
-      // Layout-runden 2026-08-05: dybden vises i egen velger-pille (som
-      // Claudes modellvelger) — send-knappen er en ren ikonknapp.
-      if (depthLabel) depthLabel.textContent = d === 'deep' ? 'Deep' : 'Standard';
-      depthMenu.querySelectorAll('button[data-depth]').forEach(function (b) {
-        b.classList.toggle('active', b.dataset.depth === d);
-      });
-    }
-    depthBtn.addEventListener('click', function (e) { e.stopPropagation(); depthMenu.hidden = !depthMenu.hidden; });
-    document.addEventListener('click', function (e) {
-      if (!depthMenu.hidden && !depthMenu.contains(e.target) && e.target !== depthBtn) depthMenu.hidden = true;
-    });
-    depthMenu.addEventListener('click', function (e) {
-      var b = e.target.closest('button[data-depth]');
-      if (!b) return;
-      try { localStorage.setItem(LS_ASK_DEPTH, b.dataset.depth); } catch (_) {}
-      depthMenu.hidden = true;
-      syncDepthUi();
-    });
-    syncDepthUi();
+    // Deep-only (spec 2026-08-05-sprak-pakker-deling §1): dybdevelgeren er
+    // fjernet; feltet beholdes i payload/historikk/telemetri som konstant.
+    function askDepth() { return 'deep'; }
 
     // Kollapsbar sidebar (layout-runden 2026-08-05): full ↔ tynn ikonskinne,
     // valget huskes per nettleser (md_ask_sidebar).
@@ -1165,7 +1136,6 @@
     module.exports = {
       parseAskRoute: parseAskRoute,
       buildAskProvenance: buildAskProvenance,
-      coerceAskDepth: coerceAskDepth,
       badgeFor: badgeFor,
       buildHistoryEntry: buildHistoryEntry,
       assignRefs: assignRefs,

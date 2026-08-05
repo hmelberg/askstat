@@ -684,7 +684,7 @@
               question: params.question,
               route: params.route,
               mode: mode,
-              depth: params.depth || 'standard',
+              depth: params.depth || 'deep',
               available_keys: (window.Keys ? window.Keys.registered() : []),
               // Konto-runden fase 1: preferences = aktiv PROFILS tekst
               // (js/profiles.js erstatter md_ask_prefs; seedes ved oppstart).

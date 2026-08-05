@@ -12,7 +12,9 @@ export function coerceDataMode(m: unknown): DataMode {
 export type Depth = "standard" | "deep";
 
 export function coerceDepth(d: unknown): Depth {
-  return d === "deep" ? "deep" : "standard";
+  // Deep-only-runden 2026-08-05: dybdevelgeren er fjernet i UI-et; 'standard'
+  // aksepteres fortsatt eksplisitt (gamle klienter), alt annet er deep.
+  return d === "standard" ? "standard" : "deep";
 }
 
 export function coercePreferences(p: unknown): string {

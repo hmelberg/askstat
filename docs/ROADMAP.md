@@ -218,8 +218,8 @@ katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
       catalog_type-filter. Egen statsdb-under-API verdt en titt.
 - [x] `CENSUS_API_KEY`: aktivert 2026-08-06 (propagering ~2 min), satt i
       Netlify + prod-smoket (2 893 PUMS-rader via /api/hent-injeksjon).
-- [ ] `FRED_API_KEY` mangler i Netlify-miljøet (verifisert 2026-08-06) —
-      fred er nå skjult fra prompten i prod; sett nøkkelen ved behov.
+- [x] `FRED_API_KEY`: satt i Netlify 2026-08-06 (nøkkel live-verifisert
+      mot UNRATE) — fred synlig i prompten igjen; prod-smoket.
 - [x] ESS: `ESS_API_KEY` i Netlify + auth i registeret (query:userId,
       injiseres av /api/hent) — prod-smoket 2026-08-06 (32,4 MB ess11-csv).
 - [ ] ROUTING-blokka i svar-prompten: kort ess/census/nchs-linje under

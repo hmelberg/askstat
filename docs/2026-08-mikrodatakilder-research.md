@@ -51,9 +51,8 @@ direktefiler).
    ~2 min), satt i Netlify-miljøet og prod-smoket via
    ask.melberg.app/api/hent (2 893 PUMS-rader m/ server-side
    nøkkelinjeksjon).
-2. **`FRED_API_KEY` står IKKE i Netlify-miljøet** (verifisert 2026-08-06:
-   prod har kun DATACOMMONS_API_KEY + ESS_API_KEY) — fred er dermed nå
-   skjult fra prompten i prod. Sett nøkkelen hvis fred skal tilbake.
+2. ~~FRED_API_KEY~~ GJORT 2026-08-06: nøkkel live-verifisert (UNRATE) og
+   satt i Netlify-miljøet — fred synlig i prompten igjen; prod-smoket.
 3. ~~ESS-bruker-ID~~ GJORT 2026-08-06: `ESS_API_KEY` satt i Netlify-miljøet
    og injiseres som userId av /api/hent (auth i registeret); full
    nedlasting prod-smoket OK (32,4 MB ess11-csv via ask.melberg.app).

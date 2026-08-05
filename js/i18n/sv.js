@@ -132,4 +132,5 @@ window.M2PY_I18N.sv = {
   "Shared packs": "Delade paket",
   "View/Import shared packs…": "Visa/importera delade paket …",
   "by {author}, updated {updated}": "av {author}, uppdaterad {updated}",
+  "Open menu": "Öppna menyn",
 };

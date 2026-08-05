@@ -133,4 +133,5 @@ window.M2PY_I18N.pt = {
   "Shared packs": "Pacotes partilhados",
   "View/Import shared packs…": "Ver/importar pacotes partilhados …",
   "by {author}, updated {updated}": "por {author}, atualizado {updated}",
+  "Open menu": "Abrir o menu",
 };

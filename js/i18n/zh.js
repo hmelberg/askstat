@@ -132,4 +132,5 @@ window.M2PY_I18N.zh = {
   "Shared packs": "共享的包",
   "View/Import shared packs…": "查看/导入共享的包 …",
   "by {author}, updated {updated}": "作者 {author}，更新于 {updated}",
+  "Open menu": "打开菜单",
 };

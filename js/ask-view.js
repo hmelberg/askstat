@@ -611,6 +611,26 @@
     // fjernet; feltet beholdes i payload/historikk/telemetri som konstant.
     function askDepth() { return 'deep'; }
 
+    // Mobil-skuff (spec 2026-08-05 §6): hamburger åpner sidebaren som overlay;
+    // backdrop-klikk og sidebar-valg lukker.
+    var drawerBtn = document.getElementById('askDrawerBtn');
+    var drawerBackdrop = document.getElementById('askDrawerBackdrop');
+    var sidebarForDrawer = document.getElementById('askSidebar');
+    function closeDrawer() {
+      if (sidebarForDrawer) sidebarForDrawer.classList.remove('open');
+      if (drawerBackdrop) drawerBackdrop.classList.remove('open');
+    }
+    if (drawerBtn && sidebarForDrawer) {
+      drawerBtn.addEventListener('click', function () {
+        sidebarForDrawer.classList.add('open');
+        if (drawerBackdrop) drawerBackdrop.classList.add('open');
+      });
+      if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+      sidebarForDrawer.addEventListener('click', function (e) {
+        if (e.target.closest('.ask-side-btn, .ask-history-item')) closeDrawer();
+      });
+    }
+
     // Why AskStat?-modalen (copy-runden 2026-08-05): to innganger — sidebar-
     // knappen og lenkelinja under taglinen.
     var aboutBackdrop = document.getElementById('askAboutBackdrop');

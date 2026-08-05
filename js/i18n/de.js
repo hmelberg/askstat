@@ -132,4 +132,5 @@ window.M2PY_I18N.de = {
   "Shared packs": "Geteilte Pakete",
   "View/Import shared packs…": "Geteilte Pakete ansehen/importieren …",
   "by {author}, updated {updated}": "von {author}, aktualisiert {updated}",
+  "Open menu": "Menü öffnen",
 };

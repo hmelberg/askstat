@@ -132,4 +132,5 @@ window.M2PY_I18N.fi = {
   "Shared packs": "Jaetut paketit",
   "View/Import shared packs…": "Selaa/tuo jaettuja paketteja …",
   "by {author}, updated {updated}": "tekijä {author}, päivitetty {updated}",
+  "Open menu": "Avaa valikko",
 };

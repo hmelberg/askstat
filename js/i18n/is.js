@@ -132,4 +132,5 @@ window.M2PY_I18N.is = {
   "Shared packs": "Deildir pakkar",
   "View/Import shared packs…": "Skoða/flytja inn deilda pakka …",
   "by {author}, updated {updated}": "eftir {author}, uppfært {updated}",
+  "Open menu": "Opna valmynd",
 };

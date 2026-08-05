@@ -132,4 +132,5 @@ window.M2PY_I18N.da = {
   "Shared packs": "Delte pakker",
   "View/Import shared packs…": "Se/importér delte pakker …",
   "by {author}, updated {updated}": "af {author}, opdateret {updated}",
+  "Open menu": "Åbn menuen",
 };

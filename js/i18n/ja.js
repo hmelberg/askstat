@@ -132,4 +132,5 @@ window.M2PY_I18N.ja = {
   "Shared packs": "共有パック",
   "View/Import shared packs…": "共有パックを見る/インポート …",
   "by {author}, updated {updated}": "作成者 {author}、更新 {updated}",
+  "Open menu": "メニューを開く",
 };

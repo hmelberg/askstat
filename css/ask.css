@@ -76,7 +76,26 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-menu button { display: block; width: 100%; text-align: left; background: none;
   border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer; color: inherit; font-size: 13px; }
 .ask-menu button:hover { background: rgba(127,127,127,.14); }
-@media (max-width: 720px) { .ask-sidebar { display: none; } }
+/* Mobil (spec 2026-08-05-sprak-pakker-deling §6): sidebaren var display:none
+   uten noen inngang — nå fixed skuff bak hamburger i en slank mobiltopplinje. */
+.ask-mobile-top { display: none; }
+@media (max-width: 720px) {
+  .ask-sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 320;
+    width: 280px; flex: none; transform: translateX(-100%);
+    transition: transform .2s ease; background: var(--sidebar-bg);
+    box-shadow: 4px 0 24px rgba(0,0,0,.25);
+  }
+  .ask-sidebar.open { transform: none; }
+  .ask-drawer-backdrop { position: fixed; inset: 0; z-index: 310;
+    background: rgba(0,0,0,.35); display: none; }
+  .ask-drawer-backdrop.open { display: block; }
+  .ask-mobile-top { display: flex; align-items: center; gap: 10px;
+    padding: 8px 4px 0; }
+  .ask-mobile-top .ask-brand { font-weight: 600; }
+  .ask-title { margin-top: 3vh; font-size: 24px; }
+  .ask-main { padding: 0 14px 20px; }
+}
 
 /* ── Main column: sentrert, Claude-bredde ────────────────────────────── */
 .ask-main { flex: 1; padding: 20px 32px 32px; min-width: 0; min-height: 0; overflow-y: auto; }
@@ -105,8 +124,8 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   color: inherit; padding: 6px 6px 10px; min-height: 52px; max-height: 220px;
   overflow-y: auto; }
 .ask-input:focus { outline: none; }
-.ask-input-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ask-tools-left { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ask-input-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ask-tools-left { display: flex; align-items: center; gap: 4px; min-width: 0; flex-wrap: wrap; }
 .ask-tools-right { display: flex; align-items: center; gap: 6px; }
 
 /* Pillevelgere (profil = «modellvelgeren», dybde ved siden av). */

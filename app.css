@@ -1168,7 +1168,8 @@
     .ai-modal-backdrop.open { display: flex; }
     .ai-modal {
       background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
-      padding: 18px 20px; min-width: 380px; max-width: 90vw; color: var(--text);
+      padding: 18px 20px; min-width: min(380px, 92vw); max-width: 90vw; color: var(--text);
+      max-height: 85vh; overflow-y: auto;
       box-shadow: 0 12px 40px rgba(0,0,0,0.3);
     }
     .ai-modal h3 { margin: 0 0 12px 0; font-size: 15px; }

@@ -330,8 +330,13 @@
     "tilgang": "rest",
     "base_url": "https://api.ess.sikt.no/",
     "cors": false,
+    "auth": {
+      "type": "api_key",
+      "env": "ESS_API_KEY",
+      "plassering": "query:userId"
+    },
     "guide": true,
-    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI via åpen REST-API; krever gratis ESS-bruker-ID som userId-queryparam (sporings-ID, IKKE en hemmelighet) — se guiden"
+    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden"
   },
   {
     "id": "census",

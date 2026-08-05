@@ -1,59 +1,55 @@
 # ESS — European Social Survey (kildeguide, survey-mikrodata via åpen REST-API)
 
-kilde: api.ess.sikt.no (OpenAPI på /docs/openapi), verifisert live 2026-08-06
+kilde: api.ess.sikt.no/docs (OpenAPI), full nedlastingsflyt verifisert live 2026-08-06
 
 ## Hva dette er
 
 Europas viktigste holdnings-/velferdssurvey: ~30 land (inkl. Norge), 11
 runder 2002–2023, personnivå. Sterke moduler om helse, velferdsstat,
 tillit, subjektiv livskvalitet. Data leveres per FIL-DOI (én fil per
-runde/utgave), format parquet (default!), csv, sav eller dta.
+runde/utgave), format parquet (default), csv, sav eller dta.
 
-## Ingen adapter — proxy-formen direkte
+## Ingen adapter — proxy-formen direkte, nøkkelen injiseres
 
 ESS har ingen `kind` i registeret → ingen kanonisk `ess.read(...)`.
-API-et sender ingen CORS-headere, så ALT går via `/api/hent`:
+API-et sender ingen CORS-headere, og site-nøkkelen (`ESS_API_KEY` — en
+ESS-bruker-ID Sikt selv dokumenterer som sporings-ID, ikke autentisering)
+injiseres av `/api/hent` som `userId`-queryparam for alt mot verten
+`api.ess.sikt.no`. Ta ALDRI med userId selv — bare bruk proxy-formen:
 
 ```
-# navn = ost.read("/api/hent?url=<url-enkodet mål>")
+# navn = ost.read("/api/hent?url=<url-enkodet mål UTEN userId>")
 ```
-
-## Bruker-ID (IKKE en hemmelighet, IKKE en nøkkel)
-
-Nedlastingskallet krever `userId=<uuid>` som queryparam. Dokumentert av
-Sikt som «not for authentication — used to track usage statistics», men
-den VALIDERES: ugyldig ID gir 400 med kode 205 («Error registering
-download. Is the user ID valid?») — verifisert live 2026-08-06. Brukeren
-skaffer ID-en med én gratis e-postregistrering på ess.sikt.no.
-
-- ID-en er en sporings-ID — det er OK at den står i URL-en.
-- Har brukeren ikke oppgitt ESS-bruker-ID (i profilen/pakken/spørsmålet):
-  IKKE gjett en UUID. Si ærlig at gratis registrering på ess.sikt.no
-  trengs, og tilby aggregerte fallbacks (eurostat/owid/dbnomics) i mellomtiden.
 
 ## Endepunktet (ett)
 
 ```
 GET https://api.ess.sikt.no/v1/data/dataFile/{doiPrefix}/{doiSuffix}
-    ?userId=<uuid>&fileFormat=csv|parquet|sav|dta[&recodeMissingValues=true]
+    ?fileFormat=csv|parquet|sav|dta[&recodeMissingValues=true]
 ```
 
-- DOI-er er på FIL-nivå, prefix `10.21338`, suffix som `ess11e01_0`
-  (= ESS runde 11, hovedfil, utgave 01_0). Mønster: `ess{runde}e{utgave}`.
-- `recodeMissingValues=true` rekoder ESS' spesialkoder (66/77/88/99-familien)
-  til ekte missing — bruk den, ellers MÅ du selv håndtere kodene (se under).
+- DOI-er er på FIL-nivå: prefix `10.21338`, suffix som `ess11e01_0`
+  (= ESS runde 11, hovedfil, utgave 01_0; mønster `ess{runde}e{utgave}`).
+  Studie-DOI-er (NSD-ESS10-2020-typen) virker IKKE her.
+- `recodeMissingValues=true` rekoder ESS' missing-koder (66/77/88/99-
+  familien) til ekte missing — bruk den, ellers MÅ du filtrere kodene selv.
+- Suksess = **307-redirect** til en signert Azure-fil-URL (~1 time
+  gyldig) — proxyen følger redirecten; ikke gjenbruk den signerte URL-en
+  senere, gjør heller et nytt kall.
 - Svært store filer er ekskludert fra API-et (dokumentert); kumulative
   flerlandsfiler kan mangle — degrader da til per-runde-filer.
 
-Eksempel (runde 11, csv):
+Verifisert live 2026-08-06 (ekte bruker-ID): runde 11-csv = 200 via
+307-redirect, **32,4 MB**, kolonner `name, essround, edition, proddate,
+idno, cntry, dweight, pweight, nwspol, …` — inntil ~30 MB csv er OK i
+appen, men foretrekk `fileFormat=parquet` (mindre og typet). Ugyldig/
+manglende userId gir 400 med kode 205.
+
+Eksempel (runde 11, csv, missing rekodet):
 
 ```
-# ess11 = ost.read("/api/hent?url=https%3A%2F%2Fapi.ess.sikt.no%2Fv1%2Fdata%2FdataFile%2F10.21338%2Fess11e01_0%3FuserId%3D<BRUKER-ID>%26fileFormat%3Dcsv%26recodeMissingValues%3Dtrue")
+# ess11 = ost.read("/api/hent?url=https%3A%2F%2Fapi.ess.sikt.no%2Fv1%2Fdata%2FdataFile%2F10.21338%2Fess11e01_0%3FfileFormat%3Dcsv%26recodeMissingValues%3Dtrue")
 ```
-
-UVERIFISERT (krever gyldig bruker-ID): selve 200-nedlastingen og eksakt
-filstørrelse per runde er ikke live-testet — 400-valideringen beviser at
-endepunkt og parameterform er riktige. Probe før du bygger svaret, som alltid.
 
 ## Finn DOI-suffikser og variabler
 
@@ -65,15 +61,17 @@ Registeret har ingen søkbar ESS-katalog. Finn runde/fil og variabelnavn via:
 
 Vanlige variabler: `cntry` (ISO2), `essround`, `agea` (alder), `gndr`,
 `health` (egenvurdert helse, 1=very good … 5=very bad), `happy` (0–10),
-`stflife` (0–10), analysevekter `anweight` (post-stratifisering, bruk denne),
-`dweight`, `pspwght`, `pweight`.
+`stflife` (0–10), analysevekt `anweight` (bruk denne; også `dweight`,
+`pspwght`, `pweight`).
 
 ## Analyseregler (survey)
 
 - Bruk `anweight` for populasjonsestimater; si i svaret om tall er vektet.
-- Uten `recodeMissingValues=true`: koder som 66/77/88/99 (og 6666/7777/…)
-  er refusal/don't know/not applicable — filtrer FØR beregning.
+- Uten `recodeMissingValues=true`: 66/77/88/99-koder (og 6666/7777/…) er
+  refusal/don't know/not applicable — filtrer FØR beregning.
 - Sammenlign land KUN innen samme runde med mindre spørsmålet gjelder trend.
+- Last én runde av gangen (filene er ~30 MB) og bruk `usecols` når
+  spørsmålet tillater det.
 
 ## Etikk
 

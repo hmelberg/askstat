@@ -76,6 +76,11 @@ ACS1 PUMS) gir label + verdikart per variabel (f.eks. `SCHL`: `24` =
 - Uten `CENSUS_API_KEY` i miljøet feiler datakall via `/api/hent` med
   klar feilmelding — metadata går fortsatt direkte (CORS-åpent). Si da
   ærlig at nøkkelen mangler i miljøet; ikke bygg svaret på kilden.
+- **Nøkkel-aktiveringsfella (verifisert 2026-08-06):** en fersk nøkkel
+  som IKKE er aktivert via lenken i Census' e-post gir 302 →
+  `invalid_key.html` med header `X-DataWebAPI-KeyError: 1` — samme
+  symptom som manglende nøkkel. Ser du dette: nøkkelen må aktiveres,
+  ikke re-genereres.
 
 ## Etikk
 

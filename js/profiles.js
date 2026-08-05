@@ -1,0 +1,114 @@
+// js/profiles.js — profiler: navngitte prompt-tekster som automatisk legges
+// til hvert spørsmål (spec 2026-08-05-konto-runden §Fase 1b). Lagringsdel +
+// modal/chip-UI (DOM-delen bak document-guard). ERSTATTER md_ask_prefs —
+// eksisterende verdi seedes som første profil ved oppstart. Aktiv profils
+// tekst leses av ai-chat.js via Profiles.activeText() → preferences-feltet.
+(function (global) {
+  'use strict';
+  var LS = 'md_profiles';
+  var LEGACY = 'md_ask_prefs';
+  var NAME_MAX = 60;
+  var TEXT_MAX = 8000;
+
+  function makeProfiles(storage, opts) {
+    var now = (opts && opts.now) || function () { return new Date().toISOString(); };
+    var newId = (opts && opts.newId) || function () {
+      return (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    };
+    var listeners = [];
+    function fire() {
+      listeners.forEach(function (cb) { try { cb(); } catch (e) {} });
+    }
+    function readDoc() {
+      try {
+        var doc = JSON.parse(storage.getItem(LS) || 'null');
+        if (doc && doc.v === 1 && doc.profiles && typeof doc.profiles === 'object') return doc;
+      } catch (e) {}
+      return { v: 1, active: null, updated: '', profiles: {} };
+    }
+    function writeDoc(doc) {
+      doc.updated = now();
+      try { storage.setItem(LS, JSON.stringify(doc)); } catch (e) {}
+      fire();
+    }
+    function clampName(s) { return String(s || 'Untitled').trim().slice(0, NAME_MAX) || 'Untitled'; }
+    function clampText(s) { return String(s == null ? '' : s).slice(0, TEXT_MAX); }
+    return {
+      NAME_MAX: NAME_MAX,
+      TEXT_MAX: TEXT_MAX,
+      list: function () {
+        var doc = readDoc();
+        return Object.keys(doc.profiles).map(function (id) {
+          return Object.assign({ id: id }, doc.profiles[id]);
+        }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+      },
+      get: function (id) {
+        var doc = readDoc();
+        return doc.profiles[id] ? Object.assign({ id: id }, doc.profiles[id]) : null;
+      },
+      create: function (name, text) {
+        var doc = readDoc();
+        var id = newId();
+        doc.profiles[id] = { name: clampName(name), text: clampText(text), updated: now() };
+        writeDoc(doc);
+        return id;
+      },
+      update: function (id, fields) {
+        var doc = readDoc();
+        if (!doc.profiles[id]) return;
+        if (fields && 'name' in fields) doc.profiles[id].name = clampName(fields.name);
+        if (fields && 'text' in fields) doc.profiles[id].text = clampText(fields.text);
+        doc.profiles[id].updated = now();
+        writeDoc(doc);
+      },
+      remove: function (id) {
+        var doc = readDoc();
+        delete doc.profiles[id];
+        if (doc.active === id) doc.active = null;
+        writeDoc(doc);
+      },
+      setActive: function (id) {
+        var doc = readDoc();
+        if (id !== null && !doc.profiles[id]) return;
+        doc.active = id;
+        writeDoc(doc);
+      },
+      active: function () {
+        var doc = readDoc();
+        if (!doc.active || !doc.profiles[doc.active]) return null;
+        return Object.assign({ id: doc.active }, doc.profiles[doc.active]);
+      },
+      activeText: function () {
+        var doc = readDoc();
+        var p = doc.active && doc.profiles[doc.active];
+        var t = p && String(p.text || '').trim();
+        return t ? t : undefined;
+      },
+      onChange: function (cb) { listeners.push(cb); },
+      seedFromLegacy: function () {
+        try {
+          var raw = storage.getItem(LEGACY);
+          if (raw == null) return;
+          storage.removeItem(LEGACY);
+          if (!String(raw).trim()) return;
+          var doc = readDoc();
+          if (Object.keys(doc.profiles).length) return; // aldri overskriv
+          var id = newId();
+          doc.profiles[id] = { name: 'My preferences', text: clampText(raw), updated: now() };
+          doc.active = id;
+          writeDoc(doc);
+        } catch (e) {}
+      },
+    };
+  }
+
+  if (global.localStorage) {
+    global.Profiles = makeProfiles(global.localStorage);
+    global.Profiles.seedFromLegacy();
+  }
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { makeProfiles: makeProfiles };
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

@@ -45,8 +45,9 @@
     return lines.join('\n') + '\n\n';
   }
 
-  // Dybde for /api/svar: 'standard' er default; velges på split-knappen.
-  function coerceAskDepth(v) { return v === 'deep' ? 'deep' : 'standard'; }
+  // Dybde for /api/svar: 'deep' er default (Hans 2026-08-05); 'standard'
+  // kun ved eksplisitt valg på split-knappen.
+  function coerceAskDepth(v) { return v === 'standard' ? 'standard' : 'deep'; }
 
   // Trestegs-badge (spec 2026-08-04-lokke-niva): siste kjøring bestemmer
   // suksessveien, men en feilet POLERING etter en vellykket kjøring skal
@@ -520,19 +521,21 @@
     if (input) input.focus();
   }
 
-  // Rask vei tilbake til ask fra editor-visningen: liten knapp i toppmenyen
-  // (toppmenyen er skjult i ask-visningen, så knappen synes kun i editor).
+  // Vei tilbake til ask fra editor-visningen: blå, sentrert knapp i topp-
+  // menyen (toppmenyen er skjult i ask-visningen, så knappen synes kun i
+  // editor). Absolutt sentrert via .topbar-ask-switch — DOM-plasseringen
+  // i topbaren er derfor likegyldig.
   function injectTopbarSwitch() {
     var topbar = document.querySelector('header.topbar');
     if (!topbar || document.getElementById('topbarAskSwitch')) return;
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.id = 'topbarAskSwitch';
-    btn.className = 'mode-dropdown-btn topbar-ask-switch';
-    btn.textContent = '⇄ Ask';
+    btn.className = 'topbar-ask-switch';
+    btn.textContent = 'Ask mode';
     btn.title = 'Back to the ask view';
     btn.addEventListener('click', switchToAsk);
-    topbar.insertBefore(btn, document.getElementById('aiToggleBtn') || null);
+    topbar.appendChild(btn);
   }
 
   function initAskView() {

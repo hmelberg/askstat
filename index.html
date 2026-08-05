@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="preload" as="script" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js">
   <link rel="stylesheet" href="app.css?v=2026-07-25a">
-  <link rel="stylesheet" href="css/ask.css?v=2026-08-05a">
+  <link rel="stylesheet" href="css/ask.css?v=2026-08-05b">
   <script>
     // Ask er DEFAULT-visningen i askstat; ?view=editor gir full editor-visning.
     // Klassen settes FØR body rendres så editor-chrome aldri blinker frem.
@@ -338,30 +338,6 @@
       </div>
     </div>
   </div>
-  <div class="ai-modal-backdrop" id="welcomeBackdrop">
-    <div class="ai-modal" style="max-width:600px;">
-      <h3 style="font-size:20px;" id="welcomeHeading" data-i18n>Velkommen til OpenStat!</h3>
-      <div id="welcomeBodyOpen" class="ai-modal-help" style="margin-bottom:14px; font-size:14px; line-height:1.5;" data-i18n>
-        OpenStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv i Python, R eller SQL (DuckDB); kjør i nettleseren.
-      </div>
-      <div style="margin:14px 0; padding:12px 14px; background:var(--bg-code);
-                  border-left:3px solid var(--accent); border-radius:4px;">
-        <div style="font-size:13px; color:var(--text-muted); text-transform:uppercase;
-                    letter-spacing:0.5px; margin-bottom:6px;">Tips</div>
-        <div id="welcomeTipText" style="font-size:16px; line-height:1.5;"></div>
-      </div>
-      <label style="display:flex; align-items:center; gap:8px; font-size:14px;
-                    color:var(--text-muted); margin-top:12px; text-transform:none;
-                    letter-spacing:0;">
-        <input type="checkbox" id="welcomeDontShow" style="margin:0;">
-        <span data-i18n>Ikke vis denne meldingen igjen</span>
-      </label>
-      <div class="ai-modal-actions">
-        <button type="button" class="ai-modal-btn" id="welcomeNextTip" style="font-size:14px; padding:8px 16px;" data-i18n>Vis et nytt tips</button>
-        <button type="button" class="ai-modal-btn primary" id="welcomeOk" style="font-size:14px; padding:8px 16px;">OK</button>
-      </div>
-    </div>
-  </div>
   </div>
   <footer class="bottombar">
     <div class="bottombar-left">
@@ -659,87 +635,6 @@
         });
       });
     }
-
-    (function welcomeModule() {
-      var LS_KEY = 'microdata_welcome_dismissed';
-      var TIPS = [
-        "Trykk Ctrl+Enter (eller Cmd+Enter) for å kjøre scriptet.",
-        "Bruk Tab i kode-feltet for å få kommando- og variabel-forslag.",
-        "Klikk på linjenummer for å sette stoppunkt og kjøre skrittvis.",
-        "Skriv `help <kommando>` for å se syntaks og eksempler.",
-        "Last ned plott som PNG ved å høyreklikke på figuren.",
-        "Bruk `import` for å laste eksempel-datasett (f.eks. `import inntekt`).",
-        "AI-assistenten i sidemenyen kan forklare og forbedre koden din.",
-        "Lagre script-en din via menyen (☰) → 'Lagre script'.",
-        "Tilpass tema, font og layout via Innstillinger i menyen.",
-        "`describe` gir deg en rask oversikt over et datasett.",
-        "Bruk `keep` og `drop` til å filtrere variabler eller observasjoner.",
-        "`generate y = x1 + x2` lager en ny variabel basert på et uttrykk.",
-        "`collapse` aggregerer datasettet til et høyere nivå.",
-        "Du finner full hjelp i menyen (☰) → 'Hjelp'.",
-        "Tab i hjelpe-feltet filtrerer kommandoer og funksjoner mens du skriver.",
-        "Plot-typer: `histogram`, `barchart`, `scatter`, `lineplot`.",
-        "`regress y x1 x2` kjører en lineær regresjon (statsmodels).",
-        "Bruk `## python` eller `## r` for å bytte språk i en kodeblokk.",
-        "Variabler som slutter på `_FNR` er pseudonymer — kan kun brukes som nøkkel i collapse(by) eller merge(on)."
-      ];
-
-      function pickTip(prev) {
-        if (TIPS.length <= 1) return TIPS[0] || '';
-        var i;
-        do { i = Math.floor(Math.random() * TIPS.length); }
-        while (TIPS[i] === prev);
-        return TIPS[i];
-      }
-
-      function show() {
-        // Ask-visningen: velkomst/tips-modalen hører til editor-visningen.
-        // Uten denne vakta åpnes modalen ved boot (CSS-skjult av ask.css) og
-        // spretter opp i det brukeren bytter til Code & output.
-        if (document.documentElement.classList.contains('ask-view')) return;
-        var _nlCls = window.NotebookLinks ? window.NotebookLinks.classifyHash(location.hash) : null;
-        // Navnelenker (#demo) er også autorun-mottakere — ingen velkomst/tips
-        // (navn oppfører seg som #output-formen).
-        var isOutputOnly = !!(_nlCls && (_nlCls.action === 'output' || _nlCls.action === 'name'));
-        var variant = window.NotebookLinks
-          ? window.NotebookLinks.welcomeVariant(location.hostname, window.M2PY_APP || 'openstat', isOutputOnly)
-          : 'openstat_general';
-        if (variant === null) return;                 // output-only: no welcome
-        var _heading = document.getElementById('welcomeHeading');
-        if (_heading) _heading.textContent = t('Velkommen til {app}!', { app: 'OpenStat' });
-        if (localStorage.getItem(LS_KEY) === '1') return;
-        var bd = document.getElementById('welcomeBackdrop');
-        var tipEl = document.getElementById('welcomeTipText');
-        var nextBtn = document.getElementById('welcomeNextTip');
-        var okBtn = document.getElementById('welcomeOk');
-        var cb = document.getElementById('welcomeDontShow');
-        if (!bd || !tipEl || !nextBtn || !okBtn || !cb) return;
-
-        var lastTip = null;
-        tipEl.textContent = t(lastTip = pickTip(lastTip));
-        bd.classList.add('open');
-
-        nextBtn.onclick = function () { tipEl.textContent = t(lastTip = pickTip(lastTip)); };
-        var close = function () {
-          if (cb.checked) localStorage.setItem(LS_KEY, '1');
-          bd.classList.remove('open');
-        };
-        okBtn.onclick = close;
-        bd.addEventListener('click', function (e) { if (e.target === bd) close(); });
-        document.addEventListener('keydown', function esc(e) {
-          if (e.key === 'Escape' && bd.classList.contains('open')) {
-            close();
-            document.removeEventListener('keydown', esc);
-          }
-        });
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', show);
-      } else {
-        show();
-      }
-    })();
   </script>
   <script>
     window.refreshPlotlyAfterLayout = function() {

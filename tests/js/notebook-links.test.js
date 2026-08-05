@@ -69,15 +69,6 @@ test('classifyHash: non-matching returns null', () => {
   assert.equal(NL.classifyHash('#only.two'), null);         // needs user.repo.path.ext
 });
 
-test('welcomeVariant: output-only shows nothing', () => {
-  assert.equal(NL.welcomeVariant('micro.safestat.app', 'safestat', true), null);
-});
-test('welcomeVariant: alltid openstat-varianten (safestat-varianten fjernet 2026-07-24)', () => {
-  assert.equal(NL.welcomeVariant('microdata.run', 'openstat', false), 'openstat_general');
-  assert.equal(NL.welcomeVariant('py.openstat.app', 'openstat', false), 'openstat_general');
-  assert.equal(NL.welcomeVariant('micro.safestat.app', 'safestat', false), 'openstat_general');
-});
-
 test('rProsePrep: contiguous #\' block becomes one markdown cat', () => {
   const src = "#' # Title\n#' body text\nx <- 1\nprint(x)";
   const out = NL.rProsePrep(src);

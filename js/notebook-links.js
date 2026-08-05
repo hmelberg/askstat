@@ -85,12 +85,6 @@
     return { action: 'output', kind: 'dotted', urls: urls };
   };
 
-  NL.welcomeVariant = function (hostname, app, isOutputOnly) {
-    // openstat har bare én velkomstvariant (safestat-varianten fjernet 2026-07-24).
-    if (isOutputOnly) return null;
-    return 'openstat_general';
-  };
-
   var MD_START = '__micro_transform_start_markdown__';
   var MD_END = '__micro_transform_end__';
 

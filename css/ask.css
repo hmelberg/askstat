@@ -8,9 +8,8 @@ html.ask-view #modeGuiBar,
 html.ask-view .panel-left,
 html.ask-view #resizer,
 html.ask-view footer.bottombar,
-html.ask-view #sidebarOpenTab,
-html.ask-view #welcomeBackdrop { display: none !important; }
-/* (Topbar and welcome modal explain the editor — hidden in ask.) */
+html.ask-view #sidebarOpenTab { display: none !important; }
+/* (Topbar explains the editor — hidden in ask.) */
 
 /* Editor-/output-panelene ligger usynlig off-screen med ekte bredde MENS
    kjøringen pågår (plotly trenger ekte bredde). Etter vellykket kjøring
@@ -65,8 +64,13 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   background: var(--bg-code); color: inherit; border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; }
 
-/* Quick switch back to Ask, injected into the editor view's topbar. */
-.topbar-ask-switch { font-size: 12px; margin-left: 6px; }
+/* Quick switch back to Ask, injected into the editor view's topbar —
+   blå og sentrert i topbaren (Hans 2026-08-05). Topbaren er
+   position:fixed, så absolute her sentrerer mot hele barens bredde. */
+.topbar-ask-switch { position: absolute; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #fff; border: none; border-radius: 999px;
+  padding: 6px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.topbar-ask-switch:hover { filter: brightness(1.1); }
 
 /* The process track (progress lines, repair notes) streams inside the answer
    card while working (askStatus) and is archived into the Details fold

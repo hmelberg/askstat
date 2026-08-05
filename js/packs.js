@@ -157,17 +157,23 @@
       if (id && !mem[id]) await resolve(id);
     }
 
-    // Boot + språkbytte (spec §4): auto-forslag fra locale — setAutoPack
-    // no-op'er selv når et manuelt valg finnes, så dette er alltid trygt.
-    async function boot(locale) {
+    // Boot + språkbytte (spec §4): auto-forslag fra locale-KANDIDATER —
+    // lagret UI-språk først (eksplisitt brukersignal), så navigator-locale
+    // (bærer region: sv-FI!). setAutoPack no-op'er ved manuelt valg, og
+    // null RYDDER stale auto når ingen kandidat matcher.
+    function applyAuto(locales) {
+      var arr = Array.isArray(locales) ? locales : [locales];
+      var auto = null;
+      for (var i = 0; i < arr.length && !auto; i++) auto = autoFrom(arr[i]);
+      if (profiles && profiles.setAutoPack) profiles.setAutoPack(auto);
+    }
+    async function boot(locales) {
       await load();
-      var auto = autoFrom(locale);
-      if (auto && profiles && profiles.setAutoPack) profiles.setAutoPack(auto);
+      applyAuto(locales);
       await ensureCurrent();
     }
-    async function onLangChange(locale) {
-      var auto = autoFrom(locale);
-      if (profiles && profiles.setAutoPack) profiles.setAutoPack(auto);
+    async function onLangChange(locales) {
+      applyAuto(locales);
       await ensureCurrent();
     }
 
@@ -260,8 +266,11 @@
         if (!pickMenu.hidden && !pickMenu.contains(e.target)) pickMenu.hidden = true;
       });
       Prof.onChange(function () { renderPicker(); });
-      // Boot: last katalog, auto-forslag fra locale, preload gjeldende tekst.
-      P.boot((typeof navigator !== 'undefined' && navigator.language) || '')
+      // Boot: last katalog, auto-forslag (lagret UI-språk → navigator-locale),
+      // preload gjeldende tekst.
+      var storedLang = null;
+      try { storedLang = global.localStorage.getItem('microdata_ui_lang'); } catch (e) {}
+      P.boot([storedLang || '', (typeof navigator !== 'undefined' && navigator.language) || ''])
         .then(renderPicker)
         .catch(function () { renderPicker(); });
       renderPicker();

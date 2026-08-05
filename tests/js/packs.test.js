@@ -123,3 +123,28 @@ test('load tåler nett-feil: faller tilbake til storage-cache', async () => {
   assert.ok(P2.list().some((e) => e.id === 'norway'));
   assert.equal(P2.autoFrom('sv-FI'), 'finland');
 });
+
+// Task 11: locale→auto-pakke ved boot/språkbytte — mot EKTE profillager.
+const { makeProfiles } = require('../../js/profiles.js');
+
+test('boot: auto fra første matchende locale-kandidat; manuelt valg urørt', async () => {
+  const prof = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+  await P.boot(['sv-FI', 'en-US']);
+  assert.deepEqual(prof.packState(), { id: 'finland', auto: true });
+  await P.boot(['fi', 'nb-NO']);                       // lagret UI-språk vinner over navigator
+  assert.deepEqual(prof.packState(), { id: 'finland', auto: true });
+  prof.setPack('norway');                              // manuelt valg
+  await P.boot(['sv-FI', '']);
+  assert.deepEqual(prof.packState(), { id: 'norway', auto: false });
+});
+
+test('onLangChange: setter auto uten manuelt valg; alle-null rydder stale auto', async () => {
+  const prof = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+  await P.load();
+  await P.onLangChange(['ja']);
+  assert.deepEqual(prof.packState(), { id: 'country:JP', auto: true });
+  await P.onLangChange(['de', '']);                    // tvetydig + tom → rydd
+  assert.deepEqual(prof.packState(), { id: null, auto: false });
+});

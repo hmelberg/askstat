@@ -1,30 +1,85 @@
-// i18n.js — UI-språkmekanisme (norsk er kildespråk; ordbøker per språk i js/i18n/).
-// Norsk tekst er selve nøkkelen: t('Nytt script') slår opp i M2PY_I18N[lang] og
-// faller tilbake til nøkkelen (norsk) hvis oversettelsen mangler. Dermed kan
-// ingenting knekke av en manglende oversettelse.
-(function () {
+// i18n.js — UI-språkmekanisme. To nøkkelspråk lever side om side (spec
+// 2026-08-05-sprak-pakker-deling §4): editorens historiske NORSKE nøkler og
+// ask-visningens ENGELSKE nøkler. t()/applyTranslations bryr seg ikke om
+// nøkkelspråket — de slår opp i M2PY_I18N[lang] med fallbackkjede
+// lang → en → nøkkel. Unntak: lang='no' faller ALDRI til en (norsk er
+// kildespråk for editoren; en-fallback ville gjort norsk UI engelsk).
+// Nytt språk = legg til i SUPPORTED + egen ordbok js/i18n/<kode>.js.
+(function (global) {
   'use strict';
 
-  var LANG_KEY = 'microdata_ui_lang';
-  var STASH_KEY = 'm2py_lang_stash';
+  var SUPPORTED = ['no', 'en', 'da', 'sv', 'fi', 'is', 'de', 'fr', 'es', 'pt', 'zh', 'ja', 'hi'];
 
-  // Språk appen støtter. Nytt språk = legg til her + egen ordbok js/i18n/<kode>.js.
-  var SUPPORTED = ['no', 'en'];
-  window.M2PY_LANGS = SUPPORTED;
+  function hasOwn(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
 
-  function detectInitialLang() {
-    try {
-      var stored = localStorage.getItem(LANG_KEY);
-      if (SUPPORTED.indexOf(stored) !== -1) return stored;
-    } catch (e) {}
-    // askstat er engelsk-først (Hans 2026-07-29): nettleserspråket styrer ikke
-    // defaulten — norsk kan fortsatt velges i innstillingene (lagres og vinner).
+  // Ren kjerne (node-testet): locale-default. Lagret valg → språkdelen av
+  // navigator-locale → 'en'. Reverserer engelsk-først-valget fra 2026-07-29:
+  // nettleserspråket STYRER nå defaulten når vi har oversettelsen.
+  function detectLang(opts) {
+    var supported = (opts && opts.supported) || SUPPORTED;
+    var stored = opts && opts.stored;
+    if (supported.indexOf(stored) !== -1) return stored;
+    var nav = String((opts && opts.nav) || '');
+    var lang = nav.split(/[-_]/)[0].toLowerCase();
+    if (supported.indexOf(lang) !== -1) return lang;
     return 'en';
   }
 
-  var LANG = detectInitialLang();
+  // Ren kjerne (node-testet): oppslag m/fallbackkjede + {param}-interpolasjon.
+  function translate(key, opts) {
+    var dicts = (opts && opts.dicts) || {};
+    var lang = opts && opts.lang;
+    var s = key;
+    var d = dicts[lang];
+    if (d && hasOwn(d, key)) s = d[key];
+    else if (lang !== 'no' && lang !== 'en' && dicts.en && hasOwn(dicts.en, key)) s = dicts.en[key];
+    else if (lang === 'en' && dicts.en && hasOwn(dicts.en, key)) s = dicts.en[key];
+    var params = opts && opts.params;
+    if (params) {
+      s = s.replace(/\{(\w+)\}/g, function (m, k) {
+        return hasOwn(params, k) ? params[k] : m;
+      });
+    }
+    return s;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { detectLang: detectLang, translate: translate };
+  }
+
+  if (typeof global.document === 'undefined') return; // node: kun ren kjerne
+
+  var window = global;
+  var LANG_KEY = 'microdata_ui_lang';
+  var STASH_KEY = 'm2py_lang_stash';
+
+  window.M2PY_LANGS = SUPPORTED;
+
+  var stored = null;
+  try { stored = localStorage.getItem(LANG_KEY); } catch (e) {}
+  var LANG = detectLang({
+    stored: stored,
+    nav: (typeof navigator !== 'undefined' && navigator.language) || '',
+    supported: SUPPORTED,
+  });
   window.M2PY_LANG = LANG;
   try { document.documentElement.lang = LANG; } catch (e) {}
+
+  // Ordbok-lasting: en.js lastes alltid statisk (fallback-ordboka for
+  // editor-nøklene); aktivt språk ≠ no/en får ordboka si injisert her.
+  // Kjører den etter DOMContentLoaded re-appliseres oversettelsene (idempotent).
+  if (LANG !== 'en' && LANG !== 'no') loadDict(LANG);
+  if (LANG === 'no') loadDict('no'); // norsk ordbok dekker ask-visningens engelske nøkler
+  function loadDict(lang) {
+    try {
+      var s = document.createElement('script');
+      s.src = 'js/i18n/' + lang + '.js';
+      s.onload = function () {
+        if (window.applyTranslations) window.applyTranslations(document);
+      };
+      (document.head || document.documentElement).appendChild(s);
+    } catch (e) {}
+  }
 
   function normKey(s) {
     s = String(s).replace(/\s+/g, ' ').trim();
@@ -36,36 +91,35 @@
   }
   window.__i18nMissing = window.__i18nMissing || new Set();
 
+  function lookupChain(key) {
+    var dicts = window.M2PY_I18N || {};
+    var d = dicts[LANG];
+    if (d && hasOwn(d, key)) return d[key];
+    if (LANG !== 'no' && LANG !== 'en' && dicts.en && hasOwn(dicts.en, key)) return dicts.en[key];
+    return null;
+  }
+
   // t('Kunne ikke åpne: {msg}', { msg: e.message }) — {navn}-plassholdere
-  // erstattes også i fallbacken, så norsk fungerer uendret uten oversettelse.
+  // erstattes også i fallbacken, så kildeteksten fungerer uten oversettelse.
   window.t = function (key, params) {
-    var s = key;
-    var dict = (window.M2PY_I18N || {})[LANG];
-    if (dict && Object.prototype.hasOwnProperty.call(dict, key)) {
-      s = dict[key];
-    } else if (LANG !== 'no' && debugOn()) {
-      window.__i18nMissing.add(key);
-    }
+    var val = lookupChain(key);
+    var s = val !== null ? val : key;
+    if (val === null && LANG !== 'no' && debugOn()) window.__i18nMissing.add(key);
     if (params) {
       s = s.replace(/\{(\w+)\}/g, function (m, k) {
-        return Object.prototype.hasOwnProperty.call(params, k) ? params[k] : m;
+        return hasOwn(params, k) ? params[k] : m;
       });
     }
     return s;
   };
 
-  function lookup(key) {
-    var dict = (window.M2PY_I18N || {})[LANG];
-    if (dict && Object.prototype.hasOwnProperty.call(dict, key)) return dict[key];
-    return null;
-  }
-
   // Oversetter statisk markup merket med data-i18n-attributter. Nøkkelen leses
-  // fra DOM-en (entiteter som &#248; er allerede dekodet). Idempotent: etter
-  // oversettelse finnes ikke den engelske teksten som nøkkel, så andre gangs
-  // kjøring endrer ingenting. Ren no-op når språket er norsk.
+  // fra DOM-en (entiteter er allerede dekodet). Idempotent: etter oversettelse
+  // finnes ikke kildeteksten som nøkkel lenger, så nye kjøringer er no-op.
+  // Norsk er IKKE lenger ren no-op: ask-visningens engelske nøkler skal
+  // oversettes også til norsk (editor-nøklene finnes ikke i no-ordboka og
+  // står urørt på norsk).
   window.applyTranslations = function (root) {
-    if (LANG === 'no') return;
     root = root || document;
     var i, el, key, val;
 
@@ -73,30 +127,32 @@
     for (i = 0; i < textEls.length; i++) {
       el = textEls[i];
       key = normKey(el.textContent);
-      val = lookup(key);
+      val = lookupChain(key);
       if (val !== null) el.textContent = val;
-      else if (key && debugOn()) window.__i18nMissing.add(key);
+      else if (key && LANG !== 'no' && debugOn()) window.__i18nMissing.add(key);
     }
 
     var htmlEls = root.querySelectorAll('[data-i18n-html]');
     for (i = 0; i < htmlEls.length; i++) {
       el = htmlEls[i];
       key = normKey(el.textContent);
-      val = lookup(key);
+      val = lookupChain(key);
       if (val !== null) el.innerHTML = val; // verdier forfattes i repoet (js/i18n/*.js)
-      else if (key && debugOn()) window.__i18nMissing.add(key);
+      else if (key && LANG !== 'no' && debugOn()) window.__i18nMissing.add(key);
     }
 
-    var attrs = [['data-i18n-title', 'title'], ['data-i18n-placeholder', 'placeholder'], ['data-i18n-aria', 'aria-label']];
+    // data-i18n-q: eksempelspørsmålenes data-q-payload (selve spørsmålet som
+    // sendes) oversettes også — svarspråket følger spørsmålet, med vilje.
+    var attrs = [['data-i18n-title', 'title'], ['data-i18n-placeholder', 'placeholder'], ['data-i18n-aria', 'aria-label'], ['data-i18n-q', 'data-q']];
     for (var a = 0; a < attrs.length; a++) {
       var marked = root.querySelectorAll('[' + attrs[a][0] + ']');
       for (i = 0; i < marked.length; i++) {
         el = marked[i];
         key = normKey(el.getAttribute(attrs[a][1]) || '');
         if (!key) continue;
-        val = lookup(key);
+        val = lookupChain(key);
         if (val !== null) el.setAttribute(attrs[a][1], val);
-        else if (debugOn()) window.__i18nMissing.add(key);
+        else if (LANG !== 'no' && debugOn()) window.__i18nMissing.add(key);
       }
     }
   };
@@ -110,7 +166,8 @@
   };
 
   // Språkbytte: lagre valget, ta vare på editorinnholdet (ingen autosave i
-  // appen!) og last siden på nytt. Reload gir konsistent UI via vanlig boot.
+  // appen!) og last siden på nytt. Reload gir konsistent UI via vanlig boot —
+  // også pakke-auto-forslaget (js/packs.js boot leser lagret språk + locale).
   window.m2pySetLang = function (lang) {
     if (SUPPORTED.indexOf(lang) === -1) return;
     if (lang === LANG) return;
@@ -172,11 +229,12 @@
   };
 
   // Pass 1 kjøres umiddelbart (markupen over <script>-taggene er allerede
-  // parset); pass 2 på DOMContentLoaded tar markupen etter (modaler nederst).
+  // parset); pass 2 på DOMContentLoaded tar markupen etter (modaler nederst);
+  // dict-onload gir et ev. pass 3 (idempotent).
   window.applyTranslations(document);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { window.applyTranslations(document); });
   }
   if (document.readyState === 'complete') setTimeout(restoreStash, 0);
   else window.addEventListener('load', function () { setTimeout(restoreStash, 0); });
-})();
+})(typeof window !== 'undefined' ? window : globalThis);

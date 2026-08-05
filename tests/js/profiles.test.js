@@ -107,3 +107,31 @@ test('prune: tombstones eldre enn 90 dager fjernes ved skriving', () => {
   p.create('Ny', 'y');
   assert.equal(p.exportDoc().profiles[id], undefined);
 });
+
+test('pack-slot: manuelt valg vinner over auto, auto aldri i doc', () => {
+  const s = fakeStorage();
+  const p = makeProfiles(s, { now: () => '2026-08-05T10:00:00.000Z' });
+  assert.deepEqual(p.packState(), { id: null, auto: false });
+  p.setAutoPack('norway');
+  assert.deepEqual(p.packState(), { id: 'norway', auto: true });
+  assert.equal(p.exportDoc().pack, undefined);          // auto aldri i doc
+  p.setPack('finland');
+  assert.deepEqual(p.packState(), { id: 'finland', auto: false });
+  assert.equal(p.exportDoc().pack.id, 'finland');
+  p.setAutoPack('norway');                              // no-op etter manuelt valg
+  assert.deepEqual(p.packState(), { id: 'finland', auto: false });
+});
+
+test('pack-slot: mergeRemote nyeste vinner, fravær bevarer lokal', () => {
+  const p = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
+  p.setPack('norway');
+  p.mergeRemote({ v: 1, updated: '2026-08-06T00:00:00.000Z', profiles: {} }); // uten pack-felt
+  assert.equal(p.packState().id, 'norway');
+  p.mergeRemote({ v: 1, updated: '2026-08-04T00:00:00.000Z', profiles: {},
+    pack: { id: 'finland', updated: '2026-08-04T00:00:00.000Z' } });          // eldre → taper
+  assert.equal(p.packState().id, 'norway');
+  assert.ok(p.mergeRemote({ v: 1, updated: '2026-08-06T00:00:00.000Z', profiles: {},
+    pack: { id: null, updated: '2026-08-06T00:00:00.000Z' } }));              // nyere eksplisitt International
+  assert.deepEqual(p.packState(), { id: null, auto: false });
+  assert.equal(p.exportDoc().pack.id, null);            // manuelt International består i doc
+});

@@ -149,3 +149,17 @@ test('401 → onUnauthorized, status error', async () => {
   assert.ok(out >= 1);
   assert.equal(r.profiles, 'error');
 });
+
+test('pack-valg synkes: pushes uten profiler, merges inn hos B', async () => {
+  const f = fakeFetch({});
+  const d = makeDeps({ fetchImpl: f.impl });
+  KontoSync._configure(d, 1);
+  d.profiles.setPack('finland');                       // manuelt valg, INGEN profiler
+  await KontoSync.syncNow();
+  assert.ok(f.posts.profiles && f.posts.profiles.length >= 1); // pushet likevel
+  const pushed = f.posts.profiles[f.posts.profiles.length - 1];
+  assert.equal(pushed.pack.id, 'finland');
+  const B = makeProfiles(fakeStorage(), { now: () => '2026-08-01T00:00:00.000Z' });
+  B.mergeRemote(pushed);
+  assert.deepEqual(B.packState(), { id: 'finland', auto: false });
+});

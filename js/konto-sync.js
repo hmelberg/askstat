@@ -71,7 +71,8 @@
     if (remote.doc) { try { remoteDoc = JSON.parse(remote.doc); } catch (e) {} }
     if (remoteDoc) store.mergeRemote(remoteDoc);
     var out = store.exportDoc(exportOpts);
-    if (!remoteDoc && !Object.keys(entryMap(out)).length) return 'uptodate';
+    // out.pack: manuelt kildepakke-valg skal synkes også uten profiler
+    if (!remoteDoc && !Object.keys(entryMap(out)).length && !out.pack) return 'uptodate';
     if (remoteDoc && stableStringify(out) === stableStringify(remoteDoc)) return 'uptodate';
     await postDoc(d, name, out);
     return 'pushed';

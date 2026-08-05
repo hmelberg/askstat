@@ -58,6 +58,28 @@
     return h.indexOf(true) >= 0 ? 'feilet-etter-suksess' : 'feilet';
   }
 
+  // Fase 1 konto-runden (spec 2026-08-05): map runAskFlow-utfall → historikk-
+  // innslag. Ren funksjon — DOM-fangsten i runAskFlow kaller denne; id/ts
+  // settes av AskHistory.save. badgeText/badgeWarn lagres VERBATIM slik de
+  // ble vist (tapsfri gjenoppretting; badge-enumen er til fase 2-semantikk).
+  function buildHistoryEntry(ctx) {
+    return {
+      question: ctx.question,
+      route: ctx.route || 'data',
+      tolkning: ctx.tolkning || '',
+      markdown: ctx.markdown || '',
+      script: ctx.script || null,
+      sources: ctx.sources || [],
+      badge: ctx.badge,
+      badgeText: ctx.badgeText || null,
+      badgeWarn: !!ctx.badgeWarn,
+      depth: ctx.depth,
+      mode: ctx.mode,
+      profileId: ctx.profile ? ctx.profile.id : null,
+      profileName: ctx.profile ? ctx.profile.name : null,
+    };
+  }
+
   /* ── Output-referanser (spec 2026-07-31-ask-svar-referanser): svaret
      peker på levende output-noder. Ren halvdel her (node-testet);
      DOM-resolveren lenger ned. ─────────────────────────────────────── */
@@ -754,6 +776,22 @@
       var runHistory = [];
       var lastSources = [];
       var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
+      // Konto-runden fase 1: historikk-fangst. Profilen leses ved flytstart
+      // (proveniens); siste VELLYKKEDE script lagres for «Run code again».
+      var lastOkScript = null;
+      var activeProfile = (window.Profiles && window.Profiles.active && window.Profiles.active()) || null;
+      function saveHistory(markdown, badge, badgeText, badgeWarn, script, sources) {
+        if (!window.AskHistory) return;
+        try {
+          window.AskHistory.save(buildHistoryEntry({
+            question: question, route: route.rute, tolkning: route.tolkning,
+            markdown: markdown, script: script, sources: sources,
+            badge: badge, badgeText: badgeText, badgeWarn: badgeWarn,
+            depth: askDepth(), mode: currentAskMode(), profile: activeProfile,
+          }));
+          if (typeof renderHistoryList === 'function') renderHistoryList();
+        } catch (e) {}
+      }
       function sendTelemetri(flowError) {
         if (!window.FeilTelemetri) return;
         if (!feilRuns.length && !flowError) return;
@@ -785,11 +823,16 @@
           if (resp.ok && resp.body) route = parseAskRoute(await sseAccumulate(resp, null, ctrl.signal));
         } catch (e) { if (e && e.name === 'AbortError') throw e; /* ruterfeil → data-ruten */ }
         progressLine('Route: ' + route.rute + '. Interpretation: ' + (route.tolkning || '—'));
+        // Aktiv profil skal aldri usynlig forme svar (spec §Fase 1b) —
+        // linjen arkiveres til Details sammen med resten av prosess-sporet.
+        if (activeProfile) progressLine('Profile applied: ' + activeProfile.name);
 
         // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).
         if (route.rute === 'språk') {
           showAnswer(route.svar || 'This question could not be formalized, and the router gave no direct answer.',
             '⚠ Not verified with code or data — plain model answer', true);
+          saveHistory(route.svar || 'This question could not be formalized, and the router gave no direct answer.',
+            'ingen-kjøring', '⚠ Not verified with code or data — plain model answer', true, null, []);
           return;
         }
 
@@ -847,6 +890,7 @@
               var r = await window.mdAskExecuteScript(prefix + script, ctrl.signal);
               lastRunOk = r.ok;
               runHistory.push(r.ok);
+              if (r.ok) lastOkScript = prefix + script;
               if (!r.ok) feilRuns.push({ script: prefix + script, error: r.result });
               return r.result;
             },
@@ -884,6 +928,7 @@
               // et <p> resolveAnswerRefs aldri så.
               sweepUnresolvedRefs();
               maybeRenderMath(res.markdown);
+              saveHistory(res.markdown, 'ok', null, false, lastOkScript, res.sources || []);
               break;
             case 'feilet-etter-suksess':
               // Siste kjøring (poleringen) feilet, men en tidligere kjøring
@@ -893,6 +938,9 @@
                 '⚠ Last polish run failed — the numbers come from an earlier successful run', false);
               renderSources(res.sources);
               maybeRenderMath(res.markdown);
+              saveHistory(res.markdown, 'feilet-etter-suksess',
+                '⚠ Last polish run failed — the numbers come from an earlier successful run', false,
+                lastOkScript, res.sources || []);
               break;
             case 'feilet':
             default:
@@ -902,6 +950,9 @@
                 '⚠ The code did not run successfully — treat numbers with caution', true);
               renderSources(res.sources);
               maybeRenderMath(res.markdown);
+              saveHistory(res.markdown, 'feilet',
+                '⚠ The code did not run successfully — treat numbers with caution', true,
+                null, res.sources || []);
               break;
           }
         } else {
@@ -912,6 +963,11 @@
             true);
           renderSources(res.sources);
           maybeRenderMath(res.markdown);
+          saveHistory(res.markdown, 'ingen-kjøring',
+            (res.sources && res.sources.length
+              ? '⚠ Source-based answer — the code did not run successfully'
+              : null),
+            true, null, res.sources || []);
         }
         sendTelemetri(null);
       } catch (e) {
@@ -951,6 +1007,7 @@
       buildAskProvenance: buildAskProvenance,
       coerceAskDepth: coerceAskDepth,
       badgeFor: badgeFor,
+      buildHistoryEntry: buildHistoryEntry,
       assignRefs: assignRefs,
       formatOutputsManifest: formatOutputsManifest,
       stripRefs: stripRefs,

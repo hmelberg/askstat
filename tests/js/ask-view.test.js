@@ -157,3 +157,30 @@ test('badgeFor: tre tilstander', () => {
   assert.equal(askView.badgeFor([false, false]), 'feilet');
   assert.equal(askView.badgeFor([]), 'ok');   // konvensjon; kalleren når aldri hit (ranAny-gate)
 });
+
+// Konto-runden fase 1 (spec 2026-08-05): fangst av historikk-innslag.
+test('buildHistoryEntry: mapper alle felter + profil', () => {
+  const e = askView.buildHistoryEntry({
+    question: 'q', route: 'data', tolkning: 't', markdown: 'md {{fig:1}}',
+    script: 's', sources: [{ url: 'u', ok: true }], badge: 'ok',
+    badgeText: null, badgeWarn: false, depth: 'deep', mode: 'python',
+    profile: { id: 'p1', name: 'OECD only', text: '…' },
+  });
+  assert.equal(e.question, 'q');
+  assert.equal(e.script, 's');
+  assert.equal(e.badge, 'ok');
+  assert.equal(e.profileId, 'p1');
+  assert.equal(e.profileName, 'OECD only');
+  assert.equal(e.depth, 'deep');
+});
+
+test('buildHistoryEntry: defaults uten profil/script', () => {
+  const e = askView.buildHistoryEntry({ question: 'q', badge: 'ingen-kjøring' });
+  assert.equal(e.script, null);
+  assert.equal(e.profileId, null);
+  assert.equal(e.profileName, null);
+  assert.deepEqual(e.sources, []);
+  assert.equal(e.route, 'data');
+  assert.equal(e.badgeText, null);
+  assert.equal(e.badgeWarn, false);
+});

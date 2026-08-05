@@ -51,8 +51,10 @@ Proxy-eksempel (doktorgradsutdannede i New York, alder/kjønn/vekt):
 # ny = ost.read("/api/hent?url=https%3A%2F%2Fapi.census.gov%2Fdata%2F2023%2Facs%2Facs1%2Fpums%3Fget%3DAGEP%2CSEX%2CPWGTP%26SCHL%3D24%26for%3Dstate%3A36")
 ```
 
-(Formen er verifisert mot API-et; selve 200-svaret med nøkkel er
-UVERIFISERT i denne omgangen — proben din avgjør, som alltid.)
+Verifisert live med nøkkel 2026-08-06: spørringen over ga 200 med 2 893
+personrader. NB: filtervariablene (`SCHL`, `state`) echoes som EGNE
+kolonner i svaret — header var `AGEP,SEX,PWGTP,SCHL,state`. Datakallet
+sender også `Access-Control-Allow-Origin: *`.
 
 ## Kodebok og vekter (maskinlesbart!)
 
@@ -80,7 +82,8 @@ ACS1 PUMS) gir label + verdikart per variabel (f.eks. `SCHL`: `24` =
   som IKKE er aktivert via lenken i Census' e-post gir 302 →
   `invalid_key.html` med header `X-DataWebAPI-KeyError: 1` — samme
   symptom som manglende nøkkel. Ser du dette: nøkkelen må aktiveres,
-  ikke re-genereres.
+  ikke re-genereres — og aktiveringen tar et par minutter å propagere
+  (målt: 302 → 200 innen ~2 min etter klikk).
 
 ## Etikk
 

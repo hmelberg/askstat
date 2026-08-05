@@ -734,7 +734,7 @@
       var ctrl = new AbortController();
       var onAbort = function () { ctrl.abort(); };
       abortBtn.addEventListener('click', onAbort);
-      progressLine('Running the code …');
+      progressLine(t('Running the code …'));
       try {
         var r = await window.mdAskExecuteScript(e.script, ctrl.signal);
         archiveStatus();
@@ -963,7 +963,7 @@
       }
       try {
         // 1) Ruter (uendret): rute + operasjonell tolkning.
-        progressLine('Interpreting the question …');
+        progressLine(t('Interpreting the question …'));
         try {
           var resp = await fetch('/api/ask-ruter', {
             method: 'POST',
@@ -973,22 +973,22 @@
           });
           if (resp.ok && resp.body) route = parseAskRoute(await sseAccumulate(resp, null, ctrl.signal));
         } catch (e) { if (e && e.name === 'AbortError') throw e; /* ruterfeil → data-ruten */ }
-        progressLine('Route: ' + route.rute + '. Interpretation: ' + (route.tolkning || '—'));
+        progressLine(t('Route: {route}. Interpretation: {tolkning}', { route: route.rute, tolkning: route.tolkning || '—' }));
         // Aktiv profil skal aldri usynlig forme svar (spec §Fase 1b) —
         // linjen arkiveres til Details sammen med resten av prosess-sporet.
-        if (activeProfile) progressLine('Profile applied: ' + activeProfile.name);
+        if (activeProfile) progressLine(t('Profile applied: {name}', { name: activeProfile.name }));
         // Kildepakke skal heller aldri usynlig forme svar (spec 2026-08-05 §2).
         var packSt = (window.Profiles && window.Profiles.packState) ? window.Profiles.packState() : null;
         if (packSt && packSt.id && window.Packs) {
-          progressLine('Pack applied: ' + window.Packs.displayName(packSt.id) + (packSt.auto ? ' (auto)' : ''));
+          progressLine(t('Pack applied: {name}', { name: window.Packs.displayName(packSt.id) }) + (packSt.auto ? t(' (auto)') : ''));
         }
 
         // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).
         if (route.rute === 'språk') {
-          showAnswer(route.svar || 'This question could not be formalized, and the router gave no direct answer.',
-            '⚠ Not verified with code or data — plain model answer', true);
-          saveHistory(route.svar || 'This question could not be formalized, and the router gave no direct answer.',
-            'ingen-kjøring', '⚠ Not verified with code or data — plain model answer', true, null, []);
+          showAnswer(route.svar || t('This question could not be formalized, and the router gave no direct answer.'),
+            t('⚠ Not verified with code or data — plain model answer'), true);
+          saveHistory(route.svar || t('This question could not be formalized, and the router gave no direct answer.'),
+            'ingen-kjøring', t('⚠ Not verified with code or data — plain model answer'), true, null, []);
           return;
         }
 
@@ -1042,7 +1042,7 @@
                 }
                 confirmed = true;
               }
-              progressLine('Running the code …');
+              progressLine(t('Running the code …'));
               var r = await window.mdAskExecuteScript(prefix + script, ctrl.signal);
               lastRunOk = r.ok;
               runHistory.push(r.ok);
@@ -1091,11 +1091,11 @@
               // lyktes — mild, nøytral note (ikke rød): plassholdere har
               // ingen pålitelig output å peke på, strip til klammetekst.
               showAnswer(stripRefs(res.markdown),
-                '⚠ Last polish run failed — the numbers come from an earlier successful run', false);
+                t('⚠ Last polish run failed — the numbers come from an earlier successful run'), false);
               renderSources(res.sources);
               maybeRenderMath(res.markdown);
               saveHistory(res.markdown, 'feilet-etter-suksess',
-                '⚠ Last polish run failed — the numbers come from an earlier successful run', false,
+                t('⚠ Last polish run failed — the numbers come from an earlier successful run'), false,
                 lastOkScript, res.sources || []);
               break;
             case 'feilet':
@@ -1103,11 +1103,11 @@
               // Kjøring forsøkt og feilet — plassholdere har ingen pålitelig
               // output å peke på: strip til klammetekst.
               showAnswer(stripRefs(res.markdown),
-                '⚠ The code did not run successfully — treat numbers with caution', true);
+                t('⚠ The code did not run successfully — treat numbers with caution'), true);
               renderSources(res.sources);
               maybeRenderMath(res.markdown);
               saveHistory(res.markdown, 'feilet',
-                '⚠ The code did not run successfully — treat numbers with caution', true,
+                t('⚠ The code did not run successfully — treat numbers with caution'), true,
                 null, res.sources || []);
               break;
           }
@@ -1128,7 +1128,7 @@
         sendTelemetri(null);
       } catch (e) {
         if (e && e.name === 'AbortError') {
-          progressLine('Stopped.'); archiveStatus();
+          progressLine(t('Stopped.')); archiveStatus();
           if (feilRuns.length) sendTelemetri(null);
         }
         else {

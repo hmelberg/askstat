@@ -197,6 +197,7 @@
 
   // ---- DOM: modal + chip (kun browser; ask-visningen, engelske strenger).
   if (typeof document !== 'undefined' && document.getElementById) {
+    var T = function (k, p) { return global.t ? global.t(k, p) : k; };
     var initProfilesUi = function () {
       var P = global.Profiles;
       var backdrop = document.getElementById('profilesBackdrop');
@@ -216,7 +217,7 @@
         listEl.innerHTML = '';
         var none = document.createElement('label');
         none.className = 'profiles-row';
-        none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>No profile</span>';
+        none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>' + T('No profile') + '</span>';
         none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
         listEl.appendChild(none);
         P.list().forEach(function (pr) {
@@ -232,7 +233,7 @@
           var edit = document.createElement('button');
           edit.type = 'button';
           edit.className = 'ai-codeblock-btn';
-          edit.textContent = 'Edit';
+          edit.textContent = T('Edit');
           edit.addEventListener('click', function (ev) {
             ev.preventDefault();
             openEdit(pr.id);
@@ -308,7 +309,7 @@
       function renderPicker() {
         if (!pickLabel) return;
         var a = P.active();
-        pickLabel.textContent = a ? a.name : 'No profile';
+        pickLabel.textContent = a ? a.name : T('No profile');
       }
       function pickItem(text, checked, onPick) {
         var b = document.createElement('button');
@@ -330,14 +331,14 @@
         if (!pickMenu) return;
         pickMenu.innerHTML = '';
         var a = P.active();
-        pickItem('No profile', !a, function () { P.setActive(null); });
+        pickItem(T('No profile'), !a, function () { P.setActive(null); });
         P.list().forEach(function (pr) {
           pickItem(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
         });
         var sep = document.createElement('div');
         sep.className = 'ask-pop-sep';
         pickMenu.appendChild(sep);
-        pickItem('Manage profiles…', false, function () { P.openModal(); });
+        pickItem(T('Manage profiles…'), false, function () { P.openModal(); });
       }
       if (pickBtn && pickMenu) {
         pickBtn.addEventListener('click', function (e) {

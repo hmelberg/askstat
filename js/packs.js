@@ -202,6 +202,7 @@
 
   // ---- DOM: velger-pille i input-kortet (samme anatomi som profilvelgeren).
   if (typeof document !== 'undefined' && document.getElementById) {
+    var T = function (k, p) { return global.t ? global.t(k, p) : k; };
     var initPacksUi = function () {
       var P = global.Packs;
       var Prof = global.Profiles;
@@ -215,8 +216,8 @@
         var st = Prof.packState();
         // Aldri-usynlig-kravet: auto-valg merkes eksplisitt i pilla.
         pickLabel.textContent = st.id
-          ? P.displayName(st.id) + (st.auto ? ' (auto)' : '')
-          : 'International';
+          ? P.displayName(st.id) + (st.auto ? T(' (auto)') : '')
+          : T('International');
       }
       function pickItem(text, checked, onPick) {
         var b = document.createElement('button');
@@ -242,7 +243,7 @@
       function renderMenu() {
         pickMenu.innerHTML = '';
         var st = Prof.packState();
-        pickItem('International default', !st.id, function () { Prof.setPack(null); });
+        pickItem(T('International default'), !st.id, function () { Prof.setPack(null); });
         var entries = P.list();
         var groups = ['builtin', 'imported', 'country'];
         groups.forEach(function (g) {

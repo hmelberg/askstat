@@ -8,7 +8,24 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
-const html = readFileSync('index.html', 'utf-8');
+const fullHtml = readFileSync('index.html', 'utf-8');
+
+// KUN ask-scope (spec §4: editor senere): askView-blokka + ask-modalene.
+// Editorens data-i18n-markup (norske nøkler, delvis utenfor en.js) skal
+// IKKE inn i ask-fasiten.
+function region(startMarker, endMarker) {
+  const a = fullHtml.indexOf(startMarker);
+  const b = fullHtml.indexOf(endMarker, a);
+  if (a < 0 || b < 0) throw new Error(`fant ikke region ${startMarker}`);
+  return fullHtml.slice(a, b);
+}
+const html = [
+  region('<div id="askView"', '<div class="container layout-columns">'),
+  region('id="loginBackdrop"', 'id="kekBackdrop"'),
+  region('id="kekBackdrop"', 'id="askAboutBackdrop"'),
+  region('id="askAboutBackdrop"', 'id="profilesBackdrop"'),
+  region('id="profilesBackdrop"', 'id="aiSettingsBackdrop"'),
+].join('\n');
 
 function decodeEntities(s) {
   return s

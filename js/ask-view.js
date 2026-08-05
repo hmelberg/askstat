@@ -614,9 +614,12 @@
     }
     var depthBtn = document.getElementById('askDepthBtn');
     var depthMenu = document.getElementById('askDepthMenu');
+    var depthLabel = document.getElementById('askDepthLabel');
     function syncDepthUi() {
       var d = askDepth();
-      sendBtn.textContent = d === 'deep' ? 'Ask (deep)' : 'Ask';
+      // Layout-runden 2026-08-05: dybden vises i egen velger-pille (som
+      // Claudes modellvelger) — send-knappen er en ren ikonknapp.
+      if (depthLabel) depthLabel.textContent = d === 'deep' ? 'Deep' : 'Standard';
       depthMenu.querySelectorAll('button[data-depth]').forEach(function (b) {
         b.classList.toggle('active', b.dataset.depth === d);
       });
@@ -633,6 +636,35 @@
       syncDepthUi();
     });
     syncDepthUi();
+
+    // Kollapsbar sidebar (layout-runden 2026-08-05): full ↔ tynn ikonskinne,
+    // valget huskes per nettleser (md_ask_sidebar).
+    var sidebarEl = document.getElementById('askSidebar');
+    var sideToggle = document.getElementById('askSidebarToggle');
+    var LS_SIDEBAR = 'md_ask_sidebar';
+    function applySidebarMode() {
+      var thin = false;
+      try { thin = localStorage.getItem(LS_SIDEBAR) === 'thin'; } catch (e) {}
+      if (sidebarEl) sidebarEl.classList.toggle('thin', thin);
+      if (sideToggle) {
+        sideToggle.title = thin ? 'Expand sidebar' : 'Collapse sidebar';
+        sideToggle.setAttribute('aria-label', sideToggle.title);
+      }
+    }
+    if (sideToggle && sidebarEl) {
+      sideToggle.addEventListener('click', function () {
+        var thin = sidebarEl.classList.contains('thin');
+        try { localStorage.setItem(LS_SIDEBAR, thin ? 'full' : 'thin'); } catch (e) {}
+        applySidebarMode();
+      });
+    }
+    applySidebarMode();
+
+    // Tekstfeltet vokser med innholdet (maks-høyde i CSS), Claude-stil.
+    input.addEventListener('input', function () {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 220) + 'px';
+    });
 
     // Historikk-sidebar (konto-runden fase 1). renderHistoryList kalles også
     // fra saveHistory i runAskFlow (function declaration → hoistet).

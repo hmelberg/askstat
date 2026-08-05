@@ -200,23 +200,59 @@
         renderList();
         backdrop.classList.add('open');
       };
-      var sideBtn = document.getElementById('askProfilesBtn');
-      if (sideBtn) sideBtn.addEventListener('click', function () { P.openModal(); });
-
-      // Chip ved spørrefeltet (spec: aktiv profil skal aldri usynlig forme svar).
-      var chip = document.getElementById('askProfileChip');
-      var chipName = document.getElementById('askProfileChipName');
-      var chipOff = document.getElementById('askProfileChipOff');
-      function renderChip() {
-        if (!chip) return;
+      // Profilvelger i input-kortet (layout-runden 2026-08-05): plassert og
+      // formet som Claudes modellvelger — viser aktiv profil, åpner meny med
+      // alle profiler + «Manage profiles…» (modalen). Erstatter chipen; den
+      // synlige etiketten dekker fortsatt aldri-usynlig-kravet i spec §Fase 1b.
+      var pickBtn = document.getElementById('askProfileBtn');
+      var pickLabel = document.getElementById('askProfileLabel');
+      var pickMenu = document.getElementById('askProfileMenu');
+      function renderPicker() {
+        if (!pickLabel) return;
         var a = P.active();
-        chip.hidden = !a;
-        if (a) chipName.textContent = 'Profile: ' + a.name;
+        pickLabel.textContent = a ? a.name : 'No profile';
       }
-      if (chipName) chipName.addEventListener('click', function () { P.openModal(); });
-      if (chipOff) chipOff.addEventListener('click', function () { P.setActive(null); });
-      P.onChange(function () { renderChip(); renderList(); });
-      renderChip();
+      function pickItem(text, checked, onPick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        var check = document.createElement('span');
+        check.className = 'ask-pop-check';
+        check.textContent = checked ? '✓' : '';
+        var nm = document.createElement('span');
+        nm.textContent = text;
+        b.appendChild(check);
+        b.appendChild(nm);
+        b.addEventListener('click', function () {
+          pickMenu.hidden = true;
+          onPick();
+        });
+        pickMenu.appendChild(b);
+      }
+      function renderPickMenu() {
+        if (!pickMenu) return;
+        pickMenu.innerHTML = '';
+        var a = P.active();
+        pickItem('No profile', !a, function () { P.setActive(null); });
+        P.list().forEach(function (pr) {
+          pickItem(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
+        });
+        var sep = document.createElement('div');
+        sep.className = 'ask-pop-sep';
+        pickMenu.appendChild(sep);
+        pickItem('Manage profiles…', false, function () { P.openModal(); });
+      }
+      if (pickBtn && pickMenu) {
+        pickBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (pickMenu.hidden) renderPickMenu();
+          pickMenu.hidden = !pickMenu.hidden;
+        });
+        document.addEventListener('click', function (e) {
+          if (!pickMenu.hidden && !pickMenu.contains(e.target)) pickMenu.hidden = true;
+        });
+      }
+      P.onChange(function () { renderPicker(); renderList(); });
+      renderPicker();
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfilesUi);
     else initProfilesUi();

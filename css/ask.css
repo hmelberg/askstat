@@ -211,3 +211,12 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   text-overflow: ellipsis; white-space: nowrap; }
 #profilesEdit label { display: block; margin: 8px 0 3px; font-size: 0.85rem; }
 #profilesEdit input, #profilesEdit textarea { width: 100%; box-sizing: border-box; }
+
+/* Login/konto (konto-runden fase 2) */
+.ai-modal-error { color: var(--danger); font-size: 12px; min-height: 16px; margin-top: 6px; }
+#loginBackdrop label, #kekBackdrop label { display: block; margin: 10px 0 4px; font-size: 0.85rem; }
+#loginBackdrop input, #kekBackdrop input { width: 100%; box-sizing: border-box; }
+.ask-account-menu { min-width: 260px; }
+.ask-account-email { font-size: 12px; color: var(--text-muted); padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 4px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }

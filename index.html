@@ -161,6 +161,17 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span class="ask-side-label">API key &amp; settings</span>
         </button>
+        <div class="ask-picker-wrap">
+          <button type="button" class="ask-side-btn" id="askLoginBtn" title="Log in to keep your keys, history and profiles across devices">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="ask-side-label" id="askLoginLabel">Log in</span>
+          </button>
+          <div class="ask-pop-menu ask-account-menu" id="askAccountMenu" hidden>
+            <div class="ask-account-email" id="askAccountEmail"></div>
+            <button type="button" id="askLogoutBtn">Log out</button>
+            <button type="button" id="askLogoutClearBtn" title="Log out and remove keys, history and profiles from this browser — for shared computers">Log out and clear this device</button>
+          </div>
+        </div>
       </div>
     </aside>
     <main class="ask-main">
@@ -323,6 +334,54 @@
       </div>
     </div>
   </aside>
+
+  <!-- Login (konto-runden fase 2; engelsk, ask-visningen). Login er valgfritt
+       og gater aldri ask — kun synk av nøkler/historikk/profiler. -->
+  <div class="ai-modal-backdrop" id="loginBackdrop">
+    <div class="ai-modal">
+      <h3>Log in</h3>
+      <div id="loginStep1">
+        <div class="ai-modal-help">We'll email you a 3-word login code. Your keys, history and profiles then follow you across devices — nothing is uploaded until you log in.</div>
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email">
+        <div class="ai-modal-error" id="loginError"></div>
+        <div class="ai-modal-actions">
+          <button type="button" class="ai-modal-btn" id="loginCancel">Cancel</button>
+          <button type="button" class="ai-modal-btn primary" id="loginSubmit">Email me a code</button>
+        </div>
+      </div>
+      <div id="loginStep2" style="display:none">
+        <div class="ai-modal-help">We sent a code to <b id="loginSentEmail"></b>. Enter it here (or click the link in the email).</div>
+        <label for="loginCode">Login code</label>
+        <input type="text" id="loginCode" placeholder="three-word-code" autocomplete="one-time-code">
+        <div class="ai-modal-error" id="loginCodeError"></div>
+        <div class="ai-modal-actions">
+          <button type="button" class="ai-modal-btn primary" id="loginVerify">Log in</button>
+        </div>
+      </div>
+      <div id="loginStep3" style="display:none">
+        <div class="ai-modal-help">Signing you in…</div>
+        <div class="ai-modal-actions">
+          <button type="button" class="ai-modal-btn" id="loginDone">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEK-rotasjon: synkede nøkler ble lagret under en annen login-kode. -->
+  <div class="ai-modal-backdrop" id="kekBackdrop">
+    <div class="ai-modal">
+      <h3>Unlock synced keys</h3>
+      <div class="ai-modal-help">Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.</div>
+      <label for="kekCode">Previous login code</label>
+      <input type="text" id="kekCode" placeholder="three-word-code">
+      <div class="ai-modal-error" id="kekError"></div>
+      <div class="ai-modal-actions">
+        <button type="button" class="ai-modal-btn" id="kekSkip">Skip</button>
+        <button type="button" class="ai-modal-btn primary" id="kekTry">Unlock</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Profiles (ask-visningen; engelsk uten i18n, konvensjon 2026-07-29).
        Modal-stacking-felle: alle .ai-modal-backdrop har z-index 300 og senere
@@ -12530,6 +12589,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/ask-history.js"></script>
   <script src="js/profiles.js"></script>
   <script src="js/keys-crypto.js"></script>
+  <script src="js/login.js"></script>
   <script src="js/ask-view.js"></script>
   <script src="js/portable-export.js"></script>
   <script src="js/github-storage.js"></script>

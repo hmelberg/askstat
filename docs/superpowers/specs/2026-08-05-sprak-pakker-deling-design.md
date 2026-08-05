@@ -32,7 +32,7 @@ komposisjon, ikke nykonstruksjon.
   fra 2026-07-29). Region-subtag styrer landpakke (`sv-FI` → svensk UI +
   Finland-pakke). Auto-valgt pakke VISES alltid («auto») og overstyrer aldri
   et manuelt valg.
-- **Startspråk:** en (kilde) + no, da, sv, fi, is, de, fr, es, pt, zh, ja.
+- **Startspråk:** en (kilde) + no, da, sv, fi, is, de, fr, es, pt, zh, ja, hi.
   Claude genererer ordbøkene.
 - **Oversettelses-scope:** ask-visningen (knapper, UI-elementer, synlige
   progresslinjer, eksempler inkl. `data-q`). Editor-visningen SENERE.
@@ -90,7 +90,7 @@ relevant national sources such as {AGENCY} when natural for the question.»
 `data/packs/countries.json` beriker med byrånavn og ærlig registerdekning
 (f.eks. Tyskland: «Destatis har ingen adapter — bruk eurostat/dbnomics som
 dekker DE, eller web_fetch»). Malen virker også UTEN tabelloppslag (da uten
-byrånavn). V1-tabell: Norden + DE, FR, ES, PT, BR, CN, JP, NL, IT, UK, US.
+byrånavn). V1-tabell: Norden + DE, FR, ES, PT, BR, CN, JP, IN, NL, IT, UK, US.
 
 **Velger-UI.** Egen pille ved siden av profilvelgeren i input-kortet:
 «Sources: International default / Norway (auto) / …» — samme popup-anatomi
@@ -151,7 +151,7 @@ vektvariabler) i stedet.
   nøkkelspråk. Konsekvens: engelsk UI trenger ingen ask-oppføringer, og
   norsk blir en vanlig ordbok (`no.js` med kun ask-nøkler).
 - **Ordbøker:** `js/i18n/<lang>.js` for no, da, sv, fi, is, de, fr, es,
-  pt, zh, ja. `SUPPORTED`-lista utvides. Omfang: ~60–80 ask-strenger + tagline/
+  pt, zh, ja, hi. `SUPPORTED`-lista utvides. Omfang: ~60–80 ask-strenger + tagline/
   About + eksempler. Statiske sider (hjelp/personvern/export) forblir no/en.
 - **Eksempler oversettes helt** — både etikett og `data-q`. Det er
   tilsiktet at klikk da gir svar på UI-språket (svarspråk følger
@@ -161,7 +161,7 @@ vektvariabler) i stedet.
   locale-match → språkdel-match → `'en'`. Region-subtag mappes til
   landpakke (`nb-NO`→norway, `sv-FI`→finland, `pt-BR`→brazil-mal osv.).
   Uten region: entydige språk mappes (no/nb/nn→NO, da→DK, fi→FI, is→IS,
-  sv→SE, ja→JP); tvetydige (de/fr/es/pt/zh/en) → internasjonal default.
+  sv→SE, ja→JP, hi→IN); tvetydige (de/fr/es/pt/zh/en) → internasjonal default.
 - **Språkbytte setter pakke** kun når pakka ikke er manuelt valgt
   (`auto`-flagget) — vises som «(auto)» i velgeren.
 - **Server:** `ui_lang`-typene i `ask-ruter.ts`/`tolk-resultat.ts` utvides
@@ -228,7 +228,7 @@ vektvariabler) i stedet.
    forhåndsvisning.
 3. **Copy:** tagline + About (engelsk fastsettes her).
 4. **Språk:** fallbackkjede → ask-wiring (engelske nøkler) → ordbøker
-   (11 språk) → locale-default + region→pakke → `ui_lang`-utvidelse +
+   (12 språk) → locale-default + region→pakke → `ui_lang`-utvidelse +
    promptgeneralisering.
 5. **Mobil:** skuff-sidebar + reflow + modal-caps.
 6. **Deling v1:** community-mappe + indeks + Explore/Import + CI-lint.

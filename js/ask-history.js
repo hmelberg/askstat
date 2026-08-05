@@ -23,28 +23,47 @@
       } catch (e) {}
       return { v: 1, entries: {} };
     }
-    function idsNewestFirst(doc) {
-      return Object.keys(doc.entries).sort(function (a, b) {
-        return doc.entries[a].ts < doc.entries[b].ts ? 1 : -1;
-      });
+    var listeners = [];
+    function fire() {
+      listeners.forEach(function (cb) { try { cb(); } catch (e) {} });
+    }
+    function isLive(e) { return e && !e.deleted; }
+    function liveIdsNewestFirst(doc) {
+      return Object.keys(doc.entries).filter(function (id) { return isLive(doc.entries[id]); })
+        .sort(function (a, b) {
+          return doc.entries[a].ts < doc.entries[b].ts ? 1 : -1;
+        });
     }
     function evict(doc) {
-      var order = idsNewestFirst(doc);
+      var order = liveIdsNewestFirst(doc);
       while (order.length > MAX_ENTRIES ||
              (order.length && JSON.stringify(doc).length > MAX_BYTES)) {
-        delete doc.entries[order.pop()]; // pop = eldste
+        delete doc.entries[order.pop()]; // pop = eldste levende
       }
     }
-    function writeDoc(doc) {
+    // Tombstones (fase 2-synk): sletting vinner på tvers av enheter; prunes
+    // etter 90 dager.
+    function pruneTombstones(doc) {
+      var cutoff;
+      try { cutoff = new Date(new Date(now()).getTime() - 90 * 86400000).toISOString(); }
+      catch (e) { return; } // prune er husarbeid — aldri i veien for lagring
+      Object.keys(doc.entries).forEach(function (id) {
+        var e = doc.entries[id];
+        if (e && e.deleted && String(e.updated || '') < cutoff) delete doc.entries[id];
+      });
+    }
+    function writeDoc(doc, opts) {
+      pruneTombstones(doc);
       evict(doc);
       try {
         storage.setItem(LS, JSON.stringify(doc));
       } catch (e) { // kvote: kast eldste, prøv ÉN gang til, deretter stille
-        var order = idsNewestFirst(doc);
+        var order = liveIdsNewestFirst(doc);
         if (!order.length) return;
         delete doc.entries[order.pop()];
         try { storage.setItem(LS, JSON.stringify(doc)); } catch (e2) {}
       }
+      if (!opts || !opts.silent) fire();
     }
     return {
       save: function (fields) {
@@ -57,15 +76,60 @@
       },
       list: function () {
         var doc = readDoc();
-        return idsNewestFirst(doc).map(function (i) { return doc.entries[i]; });
+        return liveIdsNewestFirst(doc).map(function (i) { return doc.entries[i]; });
       },
-      get: function (id) { return readDoc().entries[id] || null; },
+      get: function (id) {
+        var e = readDoc().entries[id];
+        return isLive(e) ? e : null;
+      },
       remove: function (id) {
         var doc = readDoc();
-        delete doc.entries[id];
+        if (!doc.entries[id]) return;
+        doc.entries[id] = { id: id, ts: doc.entries[id].ts || now(), deleted: true, updated: now() };
         writeDoc(doc);
       },
-      clear: function () { try { storage.removeItem(LS); } catch (e) {} },
+      clear: function () {
+        var doc = readDoc();
+        var ts = now();
+        Object.keys(doc.entries).forEach(function (id) {
+          if (isLive(doc.entries[id])) {
+            doc.entries[id] = { id: id, ts: doc.entries[id].ts, deleted: true, updated: ts };
+          }
+        });
+        writeDoc(doc);
+      },
+      onChange: function (cb) { listeners.push(cb); },
+      // Fase 2-synk (konto-sync.js): serveren får ALDRI markdown-feltet
+      // (spec: question+kode+metadata; svarteksten er lokal cache). Merge =
+      // union per id, nyeste `updated` vinner, LIKHET → lokal (bevarer lokal
+      // markdown). Skriver stille — synken pusher selv.
+      exportDoc: function (opts) {
+        var doc = readDoc();
+        if (!opts || !opts.stripMarkdown) return doc;
+        var out = { v: 1, entries: {} };
+        Object.keys(doc.entries).forEach(function (id) {
+          var e = Object.assign({}, doc.entries[id]);
+          delete e.markdown;
+          out.entries[id] = e;
+        });
+        return out;
+      },
+      mergeRemote: function (remoteDoc) {
+        if (!remoteDoc || remoteDoc.v !== 1 || typeof remoteDoc.entries !== 'object') return false;
+        var doc = readDoc();
+        var changed = false;
+        Object.keys(remoteDoc.entries || {}).forEach(function (id) {
+          var r = remoteDoc.entries[id];
+          var l = doc.entries[id];
+          if (!r) return;
+          if (!l || String(r.updated || '') > String(l.updated || '')) {
+            doc.entries[id] = r;
+            changed = true;
+          }
+        });
+        if (changed) writeDoc(doc, { silent: true });
+        return changed;
+      },
     };
   }
 

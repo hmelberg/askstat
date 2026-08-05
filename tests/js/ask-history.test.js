@@ -14,9 +14,14 @@ function fakeStorage(failSets) {
     removeItem: (k) => m.delete(k),
   };
 }
-function makeSeq() { // injiserbar klokke: monotone ISO-tider
+function makeSeq() { // injiserbar klokke: monotone, GYLDIGE ISO-tider
   let i = 0;
-  return () => '2026-08-05T00:00:' + String(i++).padStart(2, '0') + '.000Z';
+  return () => {
+    const n = i++;
+    const min = String(Math.floor(n / 60)).padStart(2, '0');
+    const sec = String(n % 60).padStart(2, '0');
+    return `2026-08-05T00:${min}:${sec}.000Z`;
+  };
 }
 
 test('save/list: nyeste først, get/remove/clear', () => {
@@ -65,5 +70,35 @@ test('korrupt JSON i lagringen → tomt dokument, ikke kast', () => {
   const s = makeStore(st, { now: makeSeq() });
   assert.deepEqual(s.list(), []);
   s.save({ question: 'ok' });
+  assert.equal(s.list().length, 1);
+});
+
+// Fase 2-synk: tombstones, merge, strip av markdown (spec 2026-08-05 §Fase 2c).
+test('stripMarkdown + merge: lik updated → lokal markdown beholdes; tombstone vinner', () => {
+  const s = makeStore(fakeStorage(), { now: makeSeq() });
+  const id = s.save({ question: 'q', markdown: 'MD', script: 'code' });
+  const server = s.exportDoc({ stripMarkdown: true });
+  assert.equal(server.entries[id].markdown, undefined);
+  assert.equal(server.entries[id].script, 'code');
+  assert.equal(s.mergeRemote(server), false);       // lik updated → lokal vinner
+  assert.equal(s.get(id).markdown, 'MD');
+  const remote = JSON.parse(JSON.stringify(server));
+  remote.entries[id] = { id, ts: remote.entries[id].ts, deleted: true, updated: '2027-01-01T00:00:00.000Z' };
+  assert.ok(s.mergeRemote(remote));
+  assert.equal(s.get(id), null);
+  assert.equal(s.list().length, 0);
+});
+
+test('clear tombstoner alle; onChange fyrer på save/remove/clear, ikke merge', () => {
+  const s = makeStore(fakeStorage(), { now: makeSeq() });
+  let fired = 0;
+  s.onChange(() => fired++);
+  const a = s.save({ question: 'a' });
+  s.remove(a);
+  s.clear();
+  assert.equal(fired, 3);
+  assert.ok(s.exportDoc().entries[a].deleted);
+  s.mergeRemote({ v: 1, entries: { zzz: { id: 'zzz', ts: '2026-09-01T00:00:00.000Z', updated: '2026-09-01T00:00:00.000Z', question: 'r' } } });
+  assert.equal(fired, 3);                            // stille
   assert.equal(s.list().length, 1);
 });

@@ -28,25 +28,42 @@
       } catch (e) {}
       return { v: 1, active: null, updated: '', profiles: {} };
     }
-    function writeDoc(doc) {
-      doc.updated = now();
+    // Tombstones (fase 2-synk): slettede profiler blir {deleted:true, updated}
+    // så sletting vinner på tvers av enheter; prunes etter 90 dager.
+    function pruneTombstones(doc) {
+      var cutoff;
+      try { cutoff = new Date(new Date(now()).getTime() - 90 * 86400000).toISOString(); }
+      catch (e) { return; } // prune er husarbeid — aldri i veien for lagring
+      Object.keys(doc.profiles).forEach(function (id) {
+        var p = doc.profiles[id];
+        if (p && p.deleted && String(p.updated || '') < cutoff) delete doc.profiles[id];
+      });
+    }
+    function writeDoc(doc, opts) {
+      pruneTombstones(doc);
+      if (!opts || !opts.keepUpdated) doc.updated = now();
       try { storage.setItem(LS, JSON.stringify(doc)); } catch (e) {}
-      fire();
+      if (!opts || !opts.silent) fire();
     }
     function clampName(s) { return String(s || 'Untitled').trim().slice(0, NAME_MAX) || 'Untitled'; }
     function clampText(s) { return String(s == null ? '' : s).slice(0, TEXT_MAX); }
+    function live(doc, id) {
+      var p = doc.profiles[id];
+      return (p && !p.deleted) ? p : null;
+    }
     return {
       NAME_MAX: NAME_MAX,
       TEXT_MAX: TEXT_MAX,
       list: function () {
         var doc = readDoc();
-        return Object.keys(doc.profiles).map(function (id) {
-          return Object.assign({ id: id }, doc.profiles[id]);
-        }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+        return Object.keys(doc.profiles).filter(function (id) { return live(doc, id); })
+          .map(function (id) {
+            return Object.assign({ id: id }, doc.profiles[id]);
+          }).sort(function (a, b) { return a.name.localeCompare(b.name); });
       },
       get: function (id) {
         var doc = readDoc();
-        return doc.profiles[id] ? Object.assign({ id: id }, doc.profiles[id]) : null;
+        return live(doc, id) ? Object.assign({ id: id }, doc.profiles[id]) : null;
       },
       create: function (name, text) {
         var doc = readDoc();
@@ -65,28 +82,56 @@
       },
       remove: function (id) {
         var doc = readDoc();
-        delete doc.profiles[id];
+        if (!doc.profiles[id]) return;
+        doc.profiles[id] = { deleted: true, updated: now() };
         if (doc.active === id) doc.active = null;
         writeDoc(doc);
       },
       setActive: function (id) {
         var doc = readDoc();
-        if (id !== null && !doc.profiles[id]) return;
+        if (id !== null && !live(doc, id)) return;
         doc.active = id;
         writeDoc(doc);
       },
       active: function () {
         var doc = readDoc();
-        if (!doc.active || !doc.profiles[doc.active]) return null;
+        if (!doc.active || !live(doc, doc.active)) return null;
         return Object.assign({ id: doc.active }, doc.profiles[doc.active]);
       },
       activeText: function () {
         var doc = readDoc();
-        var p = doc.active && doc.profiles[doc.active];
+        var p = doc.active && live(doc, doc.active);
         var t = p && String(p.text || '').trim();
         return t ? t : undefined;
       },
       onChange: function (cb) { listeners.push(cb); },
+      // Fase 2-synk: exportDoc/mergeRemote brukes av konto-sync.js.
+      // Merge = union per id, nyeste `updated` vinner, likhet → lokal;
+      // `active` følger dokumentet med nyest doc.updated. Skriver STILLE
+      // (ingen onChange — synken pusher selv resultatet).
+      exportDoc: function () { return readDoc(); },
+      mergeRemote: function (remoteDoc) {
+        if (!remoteDoc || remoteDoc.v !== 1 || typeof remoteDoc.profiles !== 'object') return false;
+        var doc = readDoc();
+        var changed = false;
+        Object.keys(remoteDoc.profiles || {}).forEach(function (id) {
+          var r = remoteDoc.profiles[id];
+          var l = doc.profiles[id];
+          if (!r) return;
+          if (!l || String(r.updated || '') > String(l.updated || '')) {
+            doc.profiles[id] = r;
+            changed = true;
+          }
+        });
+        if (String(remoteDoc.updated || '') > String(doc.updated || '')) {
+          var remoteActive = remoteDoc.active || null;
+          if (doc.active !== remoteActive) { doc.active = remoteActive; changed = true; }
+          doc.updated = remoteDoc.updated;
+        }
+        if (doc.active && !live(doc, doc.active)) { doc.active = null; changed = true; }
+        if (changed) writeDoc(doc, { silent: true, keepUpdated: true });
+        return changed;
+      },
       seedFromLegacy: function () {
         try {
           var raw = storage.getItem(LEGACY);

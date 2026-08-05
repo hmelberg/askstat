@@ -65,3 +65,45 @@ test('onChange fyrer på mutasjoner, korrupt JSON → tomt dokument', () => {
   p.setActive(id);
   assert.ok(fired >= 2);
 });
+
+// Fase 2-synk: tombstones, merge, prune (spec 2026-08-05 §Fase 2c).
+function seq(day) { let i = 0; return () => `2026-08-0${day}T00:00:${String(i++).padStart(2, '0')}.000Z`; }
+
+test('tombstones + merge: sletting vinner, ukjente overlever, aktiv følger nyeste dok', () => {
+  const A = makeProfiles(fakeStorage(), { now: seq(1) });
+  const B = makeProfiles(fakeStorage(), { now: seq(2) });
+  const idA = A.create('Felles', 'x');
+  B.mergeRemote(A.exportDoc());
+  assert.equal(B.list().length, 1);
+  B.remove(idA);                                    // dag 2 > dag 1
+  assert.ok(A.mergeRemote(B.exportDoc()));
+  assert.equal(A.get(idA), null);                   // sletting spredd
+  assert.ok(A.exportDoc().profiles[idA].deleted);   // som tombstone
+  const idB = B.create('Bare B', 'y');
+  B.mergeRemote(A.exportDoc());
+  assert.ok(B.get(idB));                            // lokal ukjent overlever
+  B.setActive(idB);
+  A.mergeRemote(B.exportDoc());
+  assert.equal(A.active() && A.active().id, idB);   // aktiv fulgte nyeste dok
+});
+
+test('merge er stille (ingen onChange) og idempotent', () => {
+  const A = makeProfiles(fakeStorage(), { now: seq(1) });
+  const B = makeProfiles(fakeStorage(), { now: seq(2) });
+  B.create('Remote', 'r');
+  let fired = 0;
+  A.onChange(() => fired++);
+  assert.ok(A.mergeRemote(B.exportDoc()));
+  assert.equal(fired, 0);
+  assert.equal(A.mergeRemote(B.exportDoc()), false); // andre gang: uendret
+});
+
+test('prune: tombstones eldre enn 90 dager fjernes ved skriving', () => {
+  let t = '2026-01-01T00:00:00.000Z';
+  const p = makeProfiles(fakeStorage(), { now: () => t });
+  const id = p.create('Gammel', 'x');
+  p.remove(id);
+  t = '2026-06-01T00:00:00.000Z';
+  p.create('Ny', 'y');
+  assert.equal(p.exportDoc().profiles[id], undefined);
+});

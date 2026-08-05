@@ -1,11 +1,11 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { buildSvarSystem, coercePreferences } from "./svar-prompt.ts";
 
-Deno.test("coercePreferences: streng, trim, tak 2000", () => {
+Deno.test("coercePreferences: streng, trim, tak 8000 (profil-tekster)", () => {
   assertEquals(coercePreferences(undefined), "");
   assertEquals(coercePreferences(42), "");
   assertEquals(coercePreferences("  x  "), "x");
-  assertEquals(coercePreferences("a".repeat(3000)).length, 2000);
+  assertEquals(coercePreferences("a".repeat(9000)).length, 8000);
 });
 
 Deno.test("landruting alltid i data-ruten; preferanseblokk kun når satt, sist", () => {

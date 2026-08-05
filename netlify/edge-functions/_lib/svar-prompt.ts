@@ -16,7 +16,9 @@ export function coerceDepth(d: unknown): Depth {
 }
 
 export function coercePreferences(p: unknown): string {
-  return typeof p === "string" ? p.trim().slice(0, 2000) : "";
+  // 8000: profil-tekster kan romme datasettdokumentasjon (konto-runden
+  // fase 1); klient-cap i js/profiles.js er samme 8000.
+  return typeof p === "string" ? p.trim().slice(0, 8000) : "";
 }
 
 function renderPreferencesBlock(prefs: string): string {

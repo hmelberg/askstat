@@ -136,4 +136,16 @@ window.M2PY_I18N.no = {
   "by {author}, updated {updated}": "av {author}, oppdatert {updated}",
   "Open menu": "Åpne menyen",
   "Language": "Språk",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "Data på individnivå",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "Er folk i Norge lykkeligere enn i Tyskland? Bruk European Social Survey.",
+  "Happiness: Norway vs Germany (ESS)": "Lykke: Norge mot Tyskland (ESS)",
+  "What share of Americans with a doctorate are women? Use census microdata.": "Hvor stor andel av amerikanere med doktorgrad er kvinner? Bruk census-mikrodata.",
+  "Doctorates by gender (US census microdata)": "Doktorgrader etter kjønn (US census-mikrodata)",
+  "What is the average BMI of American adults by age group?": "Hva er gjennomsnittlig BMI blant voksne amerikanere etter aldersgruppe?",
+  "BMI by age group (NHANES)": "BMI etter aldersgruppe (NHANES)",
+  "How does child mortality differ by wealth quintile in Nigeria?": "Hvordan varierer barnedødelighet etter velstandskvintil i Nigeria?",
+  "Child mortality by wealth (DHS)": "Barnedødelighet etter velstand (DHS)",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Finnes det en survey med individdata om egenbetaling for helse i Tanzania?",
+  "Find a survey (World Bank Microdata)": "Finn en survey (World Bank Microdata)",
 };

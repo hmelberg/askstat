@@ -134,4 +134,16 @@ window.M2PY_I18N.hi = {
   "by {author}, updated {updated}": "{author} द्वारा, अद्यतन {updated}",
   "Open menu": "मेनू खोलें",
   "Language": "भाषा",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "व्यक्तिगत स्तर का डेटा",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "क्या नॉर्वे के लोग जर्मनी के लोगों से अधिक खुश हैं? European Social Survey का उपयोग करें।",
+  "Happiness: Norway vs Germany (ESS)": "खुशी: नॉर्वे बनाम जर्मनी (ESS)",
+  "What share of Americans with a doctorate are women? Use census microdata.": "डॉक्टरेट धारी अमेरिकियों में महिलाओं का हिस्सा कितना है? जनगणना माइक्रोडेटा का उपयोग करें।",
+  "Doctorates by gender (US census microdata)": "लिंग के अनुसार डॉक्टरेट (अमेरिकी जनगणना माइक्रोडेटा)",
+  "What is the average BMI of American adults by age group?": "आयु समूह के अनुसार अमेरिकी वयस्कों का औसत BMI क्या है?",
+  "BMI by age group (NHANES)": "आयु समूह के अनुसार BMI (NHANES)",
+  "How does child mortality differ by wealth quintile in Nigeria?": "नाइजीरिया में बाल मृत्यु दर धन क्विंटाइल के अनुसार कैसे भिन्न है?",
+  "Child mortality by wealth (DHS)": "धन के अनुसार बाल मृत्यु दर (DHS)",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "क्या तंज़ानिया में स्वास्थ्य पर जेब से खर्च के व्यक्तिगत स्तर के डेटा वाला कोई सर्वेक्षण है?",
+  "Find a survey (World Bank Microdata)": "सर्वेक्षण खोजें (World Bank Microdata)",
 };

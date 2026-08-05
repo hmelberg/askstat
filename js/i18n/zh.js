@@ -134,4 +134,16 @@ window.M2PY_I18N.zh = {
   "by {author}, updated {updated}": "作者 {author}，更新于 {updated}",
   "Open menu": "打开菜单",
   "Language": "语言",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "个体层面数据",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "挪威人比德国人更幸福吗？请使用欧洲社会调查（European Social Survey）。",
+  "Happiness: Norway vs Germany (ESS)": "幸福感：挪威对比德国（ESS）",
+  "What share of Americans with a doctorate are women? Use census microdata.": "拥有博士学位的美国人中女性占多大比例？请使用人口普查微观数据。",
+  "Doctorates by gender (US census microdata)": "按性别划分的博士学位（美国普查微观数据）",
+  "What is the average BMI of American adults by age group?": "美国成年人按年龄组的平均BMI是多少？",
+  "BMI by age group (NHANES)": "按年龄组的BMI（NHANES）",
+  "How does child mortality differ by wealth quintile in Nigeria?": "在尼日利亚，儿童死亡率按财富五分位有何差异？",
+  "Child mortality by wealth (DHS)": "按财富划分的儿童死亡率（DHS）",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "是否有包含坦桑尼亚个人自付医疗支出微观数据的调查？",
+  "Find a survey (World Bank Microdata)": "查找调查（世界银行微观数据库）",
 };

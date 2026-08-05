@@ -134,4 +134,16 @@ window.M2PY_I18N.fi = {
   "by {author}, updated {updated}": "tekijä {author}, päivitetty {updated}",
   "Open menu": "Avaa valikko",
   "Language": "Kieli",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "Yksilötason data",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "Ovatko ihmiset Norjassa onnellisempia kuin Saksassa? Käytä European Social Survey -aineistoa.",
+  "Happiness: Norway vs Germany (ESS)": "Onnellisuus: Norja vs. Saksa (ESS)",
+  "What share of Americans with a doctorate are women? Use census microdata.": "Kuinka suuri osuus tohtorin tutkinnon suorittaneista amerikkalaisista on naisia? Käytä väestölaskennan mikroaineistoa.",
+  "Doctorates by gender (US census microdata)": "Tohtorintutkinnot sukupuolen mukaan (USA:n census-mikroaineisto)",
+  "What is the average BMI of American adults by age group?": "Mikä on aikuisten amerikkalaisten keskimääräinen BMI ikäryhmittäin?",
+  "BMI by age group (NHANES)": "BMI ikäryhmittäin (NHANES)",
+  "How does child mortality differ by wealth quintile in Nigeria?": "Miten lapsikuolleisuus vaihtelee varallisuusviidenneksittäin Nigeriassa?",
+  "Child mortality by wealth (DHS)": "Lapsikuolleisuus varallisuuden mukaan (DHS)",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Onko olemassa kyselytutkimusta, jossa on yksilötason dataa omavastuisista terveysmenoista Tansaniassa?",
+  "Find a survey (World Bank Microdata)": "Etsi kyselytutkimus (World Bank Microdata)",
 };

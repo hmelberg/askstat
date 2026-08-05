@@ -134,4 +134,16 @@ window.M2PY_I18N.ja = {
   "by {author}, updated {updated}": "作成者 {author}、更新 {updated}",
   "Open menu": "メニューを開く",
   "Language": "言語",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "個人レベルのデータ",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "ノルウェーの人はドイツの人より幸せですか？European Social Survey を使ってください。",
+  "Happiness: Norway vs Germany (ESS)": "幸福度：ノルウェー対ドイツ（ESS）",
+  "What share of Americans with a doctorate are women? Use census microdata.": "博士号を持つアメリカ人のうち女性の割合は？国勢調査のミクロデータを使ってください。",
+  "Doctorates by gender (US census microdata)": "性別ごとの博士号（米国勢調査ミクロデータ）",
+  "What is the average BMI of American adults by age group?": "アメリカの成人の平均BMIは年齢層別にどのくらいですか？",
+  "BMI by age group (NHANES)": "年齢層別BMI（NHANES）",
+  "How does child mortality differ by wealth quintile in Nigeria?": "ナイジェリアでは子どもの死亡率は富の五分位でどう異なりますか？",
+  "Child mortality by wealth (DHS)": "富裕度別の子どもの死亡率（DHS）",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "タンザニアの自己負担医療費に関する個人レベルのデータを含む調査はありますか？",
+  "Find a survey (World Bank Microdata)": "調査を探す（World Bank Microdata）",
 };

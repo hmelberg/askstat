@@ -134,4 +134,16 @@ window.M2PY_I18N.es = {
   "by {author}, updated {updated}": "por {author}, actualizado {updated}",
   "Open menu": "Abrir el menú",
   "Language": "Idioma",
+  // Mikrodata-eksempler (2026-08-06):
+  "Individual-level data": "Datos a nivel individual",
+  "Are people in Norway happier than in Germany? Use the European Social Survey.": "¿Es la gente más feliz en Noruega que en Alemania? Usa la European Social Survey.",
+  "Happiness: Norway vs Germany (ESS)": "Felicidad: Noruega vs. Alemania (ESS)",
+  "What share of Americans with a doctorate are women? Use census microdata.": "¿Qué proporción de los estadounidenses con doctorado son mujeres? Usa microdatos del censo.",
+  "Doctorates by gender (US census microdata)": "Doctorados por sexo (microdatos del censo de EE. UU.)",
+  "What is the average BMI of American adults by age group?": "¿Cuál es el IMC medio de los adultos estadounidenses por grupo de edad?",
+  "BMI by age group (NHANES)": "IMC por grupo de edad (NHANES)",
+  "How does child mortality differ by wealth quintile in Nigeria?": "¿Cómo varía la mortalidad infantil según el quintil de riqueza en Nigeria?",
+  "Child mortality by wealth (DHS)": "Mortalidad infantil según riqueza (DHS)",
+  "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "¿Existe una encuesta con datos individuales sobre el gasto sanitario de bolsillo en Tanzania?",
+  "Find a survey (World Bank Microdata)": "Encontrar una encuesta (World Bank Microdata)",
 };

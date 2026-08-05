@@ -1,6 +1,6 @@
 # Språk-og-pakke-runden: deep-only, kildepakker, UI-språk, deling, mobil
 
-**Dato:** 2026-08-05 · **Status:** godkjent design (Hans 2026-08-05), implementasjon i gang
+**Dato:** 2026-08-05 · **Status:** implementert 2026-08-05 (alle 6 faser; e2e-smoket lokalt m/Norway-pakke — 7,9 % WHO-tall, «Pack applied» i sporet)
 
 ## Bakgrunn og mål
 

@@ -194,7 +194,7 @@
     },
     "nokkel_hint": "brukernavn:nøkkel — lag på kaggle.com → Settings → API",
     "sporrings_url_mal": "https://www.kaggle.com/api/v1/datasets/download/{eier}/{slug}/{filnavn}",
-    "quirks": "krever brukernøkkel (Basic auth via /api/hent); åpne datasett kan hentes uten nøkkel; privat-/konkurransedata krever registrert nøkkel; nedlasting redirecter til Google Storage (proxyen følger); enkeltfil-URL gir fila, uten {filnavn} kommer hele datasettet som zip (unngå); datasett er ofte uoffisielle kopier — foretrekk primærkilder og sjekk lisens; discovery via web_search + probe"
+    "quirks": "krever brukernøkkel (Basic auth via /api/hent); åpne datasett kan hentes uten nøkkel; privat-/konkurransedata krever registrert nøkkel; nedlasting redirecter til Google Storage (proxyen følger); enkeltfil-URL gir fila, uten {filnavn} kommer hele datasettet som zip (unngå); datasett er ofte uoffisielle kopier — foretrekk primærkilder og sjekk lisens; katalogsøk verifisert nøkkelfritt + CORS-åpent 2026-08-06: GET https://www.kaggle.com/api/v1/datasets/list?search={q} (felter: ref/title/totalBytes/licenseName/downloadCount) — bruk det FØR web_search; fil-liste-endepunktet datasets/list/files er dødt (404)"
   },
   {
     "id": "scb",
@@ -321,5 +321,99 @@
     "guide": true,
     "nokkel_hint": "gratis konto på ipums.org → API key",
     "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres"
+  },
+  {
+    "id": "ess",
+    "navn": "European Social Survey (ESS Data Portal API)",
+    "utgiver": "ESS ERIC / Sikt",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://api.ess.sikt.no/",
+    "cors": false,
+    "guide": true,
+    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI via åpen REST-API; krever gratis ESS-bruker-ID som userId-queryparam (sporings-ID, IKKE en hemmelighet) — se guiden"
+  },
+  {
+    "id": "census",
+    "navn": "US Census Microdata API (ACS/CPS PUMS)",
+    "utgiver": "U.S. Census Bureau",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://api.census.gov/",
+    "cors": true,
+    "auth": {
+      "type": "api_key",
+      "env": "CENSUS_API_KEY",
+      "plassering": "query:key"
+    },
+    "guide": true,
+    "quirks": "ekte personnivå-rader (PUMS) som JSON-matrise; variables.json (kodebok + vekter) er nøkkelfri og CORS-åpen, datakall krever nøkkel; vekt PWGTP + 80 replikatvekter — se guiden"
+  },
+  {
+    "id": "nchs",
+    "navn": "CDC/NCHS surveyfiler (NHANES XPT, NHIS CSV)",
+    "utgiver": "CDC / National Center for Health Statistics",
+    "tillit": "offisiell",
+    "tilgang": "fil",
+    "base_url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/",
+    "cors": false,
+    "guide": true,
+    "quirks": "åpne helse-mikrodatafiler uten registrering; NHANES: XPT-filer (0,5–15 MB) via pandas.read_sas — GAMMEL sti gir 200-med-HTML (soft-404, sjekk content-type!); NHIS: csv-zip på ftp.cdc.gov — se guiden"
+  },
+  {
+    "id": "wbmicro",
+    "navn": "World Bank Microdata Library (NADA-API)",
+    "utgiver": "Verdensbanken",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://microdata.worldbank.org/index.php/api/",
+    "cors": true,
+    "guide": true,
+    "quirks": "søk (7000+ surveys) + FULL variabelordbok (spørsmålstekst, verdietiketter) er åpne og nøkkelfrie; selve datafilene er login-gated — metadata må ALDRI presenteres som dataverdier; samme API hos IHSN/FAO — se guiden"
+  },
+  {
+    "id": "cessda",
+    "navn": "CESSDA Data Catalogue",
+    "utgiver": "CESSDA ERIC",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://datacatalogue.cessda.eu/api/DataSets/v2/",
+    "cors": true,
+    "guide": true,
+    "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden"
+  },
+  {
+    "id": "dhs",
+    "navn": "DHS Program (indikator-API)",
+    "utgiver": "USAID / ICF",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://api.dhsprogram.com/rest/dhs/",
+    "cors": true,
+    "guide": true,
+    "quirks": "helse-/demografiindikatorer fra 374 surveys i 90+ lav-/mellominntektsland (aggregert, CORS-åpen, nøkkelfri); survey-mikrodataene krever søknad+godkjenning — se guiden"
+  },
+  {
+    "id": "cdc",
+    "navn": "data.cdc.gov (Socrata SODA)",
+    "utgiver": "CDC",
+    "tillit": "offisiell",
+    "tilgang": "rest",
+    "base_url": "https://data.cdc.gov/resource/",
+    "cors": true,
+    "guide": true,
+    "sporrings_url_mal": "https://data.cdc.gov/resource/{id}.json?$limit=1000",
+    "quirks": "1078 datasett (BRFSS/PLACES-prevalens, dødelighet, vaksinasjon, kroniske sykdommer) — aggregert statistikk, IKKE mikrodata; SoQL ($where/$select/$group) server-side; nøkkelfri + CORS-åpen — se guiden"
+  },
+  {
+    "id": "hf",
+    "navn": "Hugging Face Datasets",
+    "utgiver": "(varierer — HF-brukere)",
+    "tillit": "etablert",
+    "tilgang": "rest",
+    "base_url": "https://datasets-server.huggingface.co/",
+    "cors": true,
+    "guide": true,
+    "quirks": "søk + typet forhåndsvisning + auto-konvertert parquet, alt CORS-åpent uten nøkkel; mye er uoffisielle kopier — foretrekk primærkilder og sjekk lisens/proveniens; gated datasett støttes ikke — se guiden"
   }
 ]

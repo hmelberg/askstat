@@ -159,31 +159,42 @@ Deno.test("isSearchableSource: ecb blir søkbar etter XML-støtte (SDMX_XML_SOUR
   assertEquals(isSearchableSource(reg[0]), true);
 });
 
-Deno.test("synligeKilder: filtrerer datacommons ut av PROMPT-lista uten nøkkel, lar andre kilder stå", () => {
+Deno.test("synligeKilder: filtrerer env-nøkkel-kilder ut av PROMPT-lista når nøkkelen mangler, lar andre stå", () => {
   const reg = parseRegistry([
     { id: "datacommons", navn: "Google Data Commons", utgiver: "Google", tillit: "etablert",
       tilgang: "rest", kind: "datacommons", base_url: "https://api.datacommons.org/v2/", cors: true,
       auth: { type: "api_key", env: "DATACOMMONS_API_KEY", plassering: "query:key" } },
+    { id: "census", navn: "US Census PUMS", utgiver: "Census", tillit: "offisiell",
+      tilgang: "rest", base_url: "https://api.census.gov/", cors: true,
+      auth: { type: "api_key", env: "CENSUS_API_KEY", plassering: "query:key" } },
     VALID[0],
   ]) as DataSource[];
-  const uten = synligeKilder(reg, false);
+  const uten = synligeKilder(reg, () => false);
   assertEquals(uten.map((s) => s.id), ["ssb"]);
+  // Delvis: kun kilden med manglende nøkkel filtreres.
+  const delvis = synligeKilder(reg, (env) => env === "CENSUS_API_KEY");
+  assertEquals(delvis.map((s) => s.id), ["census", "ssb"]);
 });
 
-Deno.test("synligeKilder: med nøkkel — datacommons blir stående, reg uendret (samme array)", () => {
+Deno.test("synligeKilder: med alle nøkler — alt blir stående, reg uendret", () => {
   const reg = parseRegistry([
     { id: "datacommons", navn: "Google Data Commons", utgiver: "Google", tillit: "etablert",
       tilgang: "rest", kind: "datacommons", base_url: "https://api.datacommons.org/v2/", cors: true,
       auth: { type: "api_key", env: "DATACOMMONS_API_KEY", plassering: "query:key" } },
     VALID[0],
   ]) as DataSource[];
-  const med = synligeKilder(reg, true);
+  const med = synligeKilder(reg, () => true);
   assertEquals(med, reg);
   assertEquals(med.map((s) => s.id), ["datacommons", "ssb"]);
 });
 
-Deno.test("synligeKilder: uten datacommons i registeret — no-op uansett nøkkel-status", () => {
-  const reg = parseRegistry([VALID[0]]) as DataSource[];
-  assertEquals(synligeKilder(reg, false), reg);
-  assertEquals(synligeKilder(reg, true), reg);
+Deno.test("synligeKilder: brukernøkkel-kilder (auth.user) berøres ALDRI — kun env-kilder filtreres", () => {
+  const reg = parseRegistry([
+    { id: "ipums", navn: "IPUMS", utgiver: "IPUMS", tillit: "etablert",
+      tilgang: "rest", base_url: "https://api.ipums.org/", cors: false,
+      auth: { type: "api_key", user: true, plassering: "header:Authorization" } },
+    VALID[0],
+  ]) as DataSource[];
+  assertEquals(synligeKilder(reg, () => false), reg);
+  assertEquals(synligeKilder(reg, () => true), reg);
 });

@@ -199,6 +199,30 @@ i småting-batchen.*
       (i dag går de til data-svar som er admin-gated — bevisst valg 9/7, men verdt
       å revurdere hvis vanlige brukere trenger AI-hjelp uten egen nøkkel)
 
+## Mikrodatakilder (lagt til 2026-08-06)
+
+*Full research + evaluering: docs/2026-08-mikrodatakilder-research.md.
+Levert i runden: 8 nye registerkilder (ess/census/nchs/wbmicro/cessda/
+dhs/cdc/hf, alle etter ipums-mønsteret uten adapterkode), kaggle-
+katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
+
+- [ ] **CESSDA-arm i search_datasets (research-scope)** — beste kandidaten:
+      ett GET-endepunkt, nøkkelfri, CORS-åpen, rike DDI-felter (à la
+      dataciteSearch). Zenodo som arm nr. 2 (billigst, direkte fil-URL-er).
+- [ ] **NADA-adapter + dataportals-registry-høsting** — én generisk
+      NADA-søkeadapter dekker WB/IHSN/FAO/WHO + ~130 nasjonale
+      mikrodatakataloger; instansliste høstes ved byggetid fra
+      commondataio/dataportals-registry-dumpen (apd-mønsteret; sjekk lisens).
+- [ ] **Dateno som eksplisitt bredde-fallback** — nøkkel finnes i miljøet,
+      men kvoten er 500 kall/mnd: aldri default-arm; alltid med
+      catalog_type-filter. Egen statsdb-under-API verdt en titt.
+- [ ] `CENSUS_API_KEY` i Netlify-miljøet (census er stille fraværende til
+      den finnes); verifiser samtidig at `FRED_API_KEY` faktisk er satt.
+- [ ] ROUTING-blokka i svar-prompten: kort ess/census/nchs-linje under
+      «DATATYPE styrer scope» når bruken har satt seg.
+- [ ] UKDS-pakkeinnhold kan genereres maskinelt fra deres åpne OAI-PMH
+      (DDI 2.5) — kandidat for harness-generert pakke-oppdatering.
+
 ## Pakkeinstallasjon (python/r)
 
 *Status i dag: autoinstallasjon er PÅ i begge språk — Python: `loadPackagesFromImports`

@@ -155,12 +155,13 @@ export default async (request: Request): Promise<Response> => {
         .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))
         .slice(0, 20)
       : [];
-    // synligeKilder: datacommons ute av PROMPT-blokka uten nøkkel — samme
-    // stille-fraværende-prinsipp som søkearmen (Task 6). `registry` selv
-    // (brukt til verktøy-dispatch/searchDatasets under) er UENDRET — kun
-    // listen som faktisk sendes til renderRegistryBlock er filtrert.
-    const harDcNokkel = !!Deno.env.get("DATACOMMONS_API_KEY");
-    registryBlock = renderRegistryBlock(synligeKilder(registry, harDcNokkel), availableKeys);
+    // synligeKilder: env-nøkkel-kilder (datacommons, census, fred, …) ute av
+    // PROMPT-blokka når nøkkelen mangler — samme stille-fraværende-prinsipp
+    // som søkearmen (Task 6). `registry` selv (brukt til verktøy-dispatch/
+    // searchDatasets under) er UENDRET — kun listen som faktisk sendes til
+    // renderRegistryBlock er filtrert.
+    registryBlock = renderRegistryBlock(
+      synligeKilder(registry, (env) => !!Deno.env.get(env)), availableKeys);
   }
 
   const memoryUrls = provider ? provider.webSearch === "none" : false;

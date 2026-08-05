@@ -18,11 +18,56 @@
     {
       "id": "us-health-surveys",
       "name": "US health surveys (NHIS/MEPS)",
-      "description": "Individual-level US health data: NHIS and MEPS via IPUMS, with honest fallbacks to aggregate sources.",
+      "description": "Individual-level US health data: NHIS and MEPS via IPUMS, direct NCHS files, with honest fallbacks to aggregate sources.",
       "file": "community/us-health-surveys.md",
       "community": true,
       "author": "hans",
-      "updated": "2026-08-05"
+      "updated": "2026-08-06"
+    },
+    {
+      "id": "europe-surveys",
+      "name": "European survey microdata (ESS/SHARE/GESIS)",
+      "description": "European individual-level surveys: ESS via its open API, plus honest guidance for SHARE, GESIS, WVS/EVS and UKDS.",
+      "file": "community/europe-surveys.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-06"
+    },
+    {
+      "id": "global-surveys",
+      "name": "Global development surveys (DHS/WB/barometers)",
+      "description": "Households and individuals in low- and middle-income countries: DHS indicators, World Bank Microdata search, regional barometers.",
+      "file": "community/global-surveys.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-06"
+    },
+    {
+      "id": "us-social-surveys",
+      "name": "US social surveys (GSS/PUMS/Pew)",
+      "description": "US attitudes and demographics at the individual level: GSS direct downloads, Census PUMS, and gated Pew data.",
+      "file": "community/us-social-surveys.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-06"
+    },
+    {
+      "id": "education-skills",
+      "name": "Education & skills (PIAAC/PISA/TALIS)",
+      "description": "OECD skills and education microdata: PIAAC per-country CSVs (usable), PISA/TALIS honestly labeled as too heavy.",
+      "file": "community/education-skills.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-06"
+    },
+    {
+      "id": "research-repositories",
+      "name": "Research data repositories (Dataverse/Zenodo)",
+      "description": "Replication and long-tail research data: Dataverse, Zenodo, OpenML and Figshare with access reality per platform.",
+      "file": "community/research-repositories.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-06"
     }
   ]
 }

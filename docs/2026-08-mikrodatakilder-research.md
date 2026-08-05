@@ -47,11 +47,10 @@ direktefiler).
 
 ## Handling som trengs fra Hans
 
-1. **`CENSUS_API_KEY`: AKTIVER nøkkelen** via lenken i Census' e-post —
-   nøkkelen Hans la i .env 2026-08-06 svarer 302 → invalid_key.html
-   (uaktivert). Etter aktivering: legg den i Netlify-miljøet
-   (`netlify env:set CENSUS_API_KEY …`) — til da er census usynlig i
-   prompten (synligeKilder).
+1. ~~CENSUS_API_KEY~~ GJORT 2026-08-06: nøkkelen aktivert (propagering
+   ~2 min), satt i Netlify-miljøet og prod-smoket via
+   ask.melberg.app/api/hent (2 893 PUMS-rader m/ server-side
+   nøkkelinjeksjon).
 2. **`FRED_API_KEY` står IKKE i Netlify-miljøet** (verifisert 2026-08-06:
    prod har kun DATACOMMONS_API_KEY + ESS_API_KEY) — fred er dermed nå
    skjult fra prompten i prod. Sett nøkkelen hvis fred skal tilbake.

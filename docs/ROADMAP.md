@@ -216,9 +216,8 @@ katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
 - [ ] **Dateno som eksplisitt bredde-fallback** — nøkkel finnes i miljøet,
       men kvoten er 500 kall/mnd: aldri default-arm; alltid med
       catalog_type-filter. Egen statsdb-under-API verdt en titt.
-- [ ] `CENSUS_API_KEY`: Hans' nøkkel (2026-08-06) er UAKTIVERT (302 →
-      invalid_key.html) — aktiver via e-postlenken, sett så i
-      Netlify-miljøet (census er stille fraværende til da).
+- [x] `CENSUS_API_KEY`: aktivert 2026-08-06 (propagering ~2 min), satt i
+      Netlify + prod-smoket (2 893 PUMS-rader via /api/hent-injeksjon).
 - [ ] `FRED_API_KEY` mangler i Netlify-miljøet (verifisert 2026-08-06) —
       fred er nå skjult fra prompten i prod; sett nøkkelen ved behov.
 - [x] ESS: `ESS_API_KEY` i Netlify + auth i registeret (query:userId,

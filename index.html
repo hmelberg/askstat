@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="preload" as="script" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js">
   <link rel="stylesheet" href="app.css?v=2026-07-25a">
-  <link rel="stylesheet" href="css/ask.css?v=2026-07-31a">
+  <link rel="stylesheet" href="css/ask.css?v=2026-08-05a">
   <script>
     // Ask er DEFAULT-visningen i askstat; ?view=editor gir full editor-visning.
     // Klassen settes FØR body rendres så editor-chrome aldri blinker frem.
@@ -136,15 +136,10 @@
         </div>
       </div>
       <button type="button" class="ask-side-btn" id="askNewBtn">＋ New question</button>
+      <button type="button" class="ask-side-btn" id="askSwitchCode" title="Switch to the code view: inspect, edit and re-run the code and see the full output">⇄ Code &amp; output</button>
       <button type="button" class="ask-side-btn" id="askSettingsBtn">⚙ API key &amp; settings</button>
     </aside>
     <main class="ask-main">
-      <div class="ask-switchbar">
-        <div class="ask-switch">
-          <button type="button" class="ask-switch-btn active" id="askSwitchAsk">Ask</button>
-          <button type="button" class="ask-switch-btn" id="askSwitchCode">Code &amp; output</button>
-        </div>
-      </div>
       <h1 class="ask-title">Ask with data</h1>
       <div class="ask-sub">Answers are computed with code and open data — you can inspect and edit everything.</div>
       <div class="ask-input-row">
@@ -170,6 +165,7 @@
         <div class="ask-answer-actions">
           <button type="button" class="ai-response-insert-btn" id="askCopyBtn">Copy answer</button>
           <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code</button>
+          <button type="button" class="ai-codeblock-btn" id="askFullOutputBtn" hidden title="Show everything the code produced, without leaving this view">Full output</button>
         </div>
       </div>
       <details id="askDetails" class="ask-details" hidden>
@@ -697,6 +693,10 @@
       }
 
       function show() {
+        // Ask-visningen: velkomst/tips-modalen hører til editor-visningen.
+        // Uten denne vakta åpnes modalen ved boot (CSS-skjult av ask.css) og
+        // spretter opp i det brukeren bytter til Code & output.
+        if (document.documentElement.classList.contains('ask-view')) return;
         var _nlCls = window.NotebookLinks ? window.NotebookLinks.classifyHash(location.hash) : null;
         // Navnelenker (#demo) er også autorun-mottakere — ingen velkomst/tips
         // (navn oppfører seg som #output-formen).

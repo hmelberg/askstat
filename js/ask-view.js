@@ -616,8 +616,24 @@
       if (!text) return;
       navigator.clipboard.writeText(text).catch(function () {});
     });
+    // «Full output»: vis alt kjøringen produserte uten å forlate ask-visningen.
+    // Output-noden kan alt bo i folden (referanse-svar), i den synlige
+    // fallback-verten, eller fortsatt i editoren (feilede kjøringer) — da
+    // monteres den i folden først. Knappen vises kun når kode faktisk kjørte.
+    var fullOutBtn = document.getElementById('askFullOutputBtn');
+    fullOutBtn.addEventListener('click', function () {
+      var out = document.getElementById('outputArea');
+      var details = document.getElementById('askFullOutput');
+      if (!out) return;
+      if (out.dataset.askMounted !== '1') mountFullOutput();
+      var inFold = details && details.contains(out);
+      if (inFold) { details.open = true; resizePlotlyIn(out); }
+      var target = inFold ? details : out;
+      if (target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
     document.getElementById('askNewBtn').addEventListener('click', function () {
       unmountLiveOutput();
+      fullOutBtn.hidden = true;
       answerCard.hidden = true;
       statusBox.innerHTML = '';
       answerBox.innerHTML = '';
@@ -719,6 +735,7 @@
       sendBtn.disabled = true;
       abortBtn.style.display = '';
       unmountLiveOutput();
+      fullOutBtn.hidden = true;
       answerCard.hidden = false;
       statusBox.innerHTML = '';
       answerBox.innerHTML = '';
@@ -844,6 +861,7 @@
         // gate: onRunCode har kjørt minst én gang), så badgeFor sitt
         // 'ok'-for-tom-liste-tilfelle nås aldri i denne grenen.
         if (ranAny) {
+          fullOutBtn.hidden = false;
           switch (badgeFor(runHistory)) {
             case 'ok':
               showAnswer(res.markdown, null, false);

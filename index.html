@@ -138,6 +138,7 @@
       <button type="button" class="ask-side-btn" id="askNewBtn">＋ New question</button>
       <button type="button" class="ask-side-btn" id="askSwitchCode" title="Switch to the code view: inspect, edit and re-run the code and see the full output">⇄ Code &amp; output</button>
       <button type="button" class="ask-side-btn" id="askSettingsBtn">⚙ API key &amp; settings</button>
+      <button type="button" class="ask-side-btn" id="askProfilesBtn" title="Named texts that are automatically added to every question you ask">☰ Profiles</button>
       <div class="ask-history" id="askHistoryWrap" hidden>
         <div class="ask-history-head">History</div>
         <div id="askHistoryList"></div>
@@ -158,6 +159,10 @@
           </div>
         </div>
         <button type="button" class="btn" id="askAbortBtn" style="display:none">Stop</button>
+      </div>
+      <div class="ask-profile-chip" id="askProfileChip" hidden>
+        <button type="button" class="ask-profile-chip-name" id="askProfileChipName" title="Active profile — its text is added to every ask. Click to manage."></button>
+        <button type="button" class="ask-profile-chip-off" id="askProfileChipOff" title="Deactivate profile">×</button>
       </div>
       <div id="askAnswerCard" class="ask-answer-card" hidden>
         <div id="askStatus" class="ask-process"></div>
@@ -283,6 +288,31 @@
       </div>
     </div>
   </aside>
+
+  <!-- Profiles (ask-visningen; engelsk uten i18n, konvensjon 2026-07-29).
+       Modal-stacking-felle: alle .ai-modal-backdrop har z-index 300 og senere
+       DOM vinner — åpnes denne noen gang OPPÅ en annen modal, trenger den
+       egen høyere z-index (jf. safestats pwPromptBackdrop = 310). -->
+  <div class="ai-modal-backdrop" id="profilesBackdrop">
+    <div class="ai-modal">
+      <h3>Profiles</h3>
+      <div class="ai-modal-help">A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
+      <div id="profilesList" class="profiles-list"></div>
+      <div id="profilesEdit" hidden>
+        <label for="profileName">Name</label>
+        <input type="text" id="profileName" maxlength="60">
+        <label for="profileText">Text added to every ask</label>
+        <textarea id="profileText" rows="7" maxlength="8000"></textarea>
+        <div class="ai-modal-help"><span id="profileCount">0</span> / 8000</div>
+      </div>
+      <div class="ai-modal-actions">
+        <button type="button" class="ai-modal-btn" id="profileNewBtn">New profile</button>
+        <button type="button" class="ai-modal-btn" id="profileDeleteBtn" hidden>Delete</button>
+        <button type="button" class="ai-modal-btn primary" id="profileSaveBtn" hidden>Save</button>
+        <button type="button" class="ai-modal-btn" id="profilesCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div class="ai-modal-backdrop" id="aiSettingsBackdrop">
     <div class="ai-modal">

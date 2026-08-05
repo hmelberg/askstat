@@ -108,6 +108,120 @@
     global.Profiles = makeProfiles(global.localStorage);
     global.Profiles.seedFromLegacy();
   }
+
+  // ---- DOM: modal + chip (kun browser; ask-visningen, engelske strenger).
+  if (typeof document !== 'undefined' && document.getElementById) {
+    var initProfilesUi = function () {
+      var P = global.Profiles;
+      var backdrop = document.getElementById('profilesBackdrop');
+      if (!P || !backdrop) return;
+      var listEl = document.getElementById('profilesList');
+      var editEl = document.getElementById('profilesEdit');
+      var nameEl = document.getElementById('profileName');
+      var textEl = document.getElementById('profileText');
+      var countEl = document.getElementById('profileCount');
+      var newBtn = document.getElementById('profileNewBtn');
+      var saveBtn = document.getElementById('profileSaveBtn');
+      var delBtn = document.getElementById('profileDeleteBtn');
+      var editingId = null; // null = ingen redigering; 'NY' = ny profil
+
+      function renderList() {
+        var act = P.active();
+        listEl.innerHTML = '';
+        var none = document.createElement('label');
+        none.className = 'profiles-row';
+        none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>No profile</span>';
+        none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
+        listEl.appendChild(none);
+        P.list().forEach(function (pr) {
+          var row = document.createElement('label');
+          row.className = 'profiles-row';
+          var r = document.createElement('input');
+          r.type = 'radio';
+          r.name = 'profileActive';
+          r.checked = !!(act && act.id === pr.id);
+          r.addEventListener('change', function () { P.setActive(pr.id); });
+          var nm = document.createElement('span');
+          nm.textContent = pr.name;
+          var edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'ai-codeblock-btn';
+          edit.textContent = 'Edit';
+          edit.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            openEdit(pr.id);
+          });
+          row.appendChild(r);
+          row.appendChild(nm);
+          row.appendChild(edit);
+          listEl.appendChild(row);
+        });
+      }
+      function openEdit(id) {
+        editingId = id;
+        var pr = id === 'NY' ? { name: '', text: '' } : (P.get(id) || { name: '', text: '' });
+        nameEl.value = pr.name;
+        textEl.value = pr.text;
+        countEl.textContent = String(textEl.value.length);
+        editEl.hidden = false;
+        saveBtn.hidden = false;
+        delBtn.hidden = id === 'NY';
+        nameEl.focus();
+      }
+      function closeEdit() {
+        editingId = null;
+        editEl.hidden = true;
+        saveBtn.hidden = true;
+        delBtn.hidden = true;
+      }
+      textEl.addEventListener('input', function () { countEl.textContent = String(textEl.value.length); });
+      newBtn.addEventListener('click', function () { openEdit('NY'); });
+      saveBtn.addEventListener('click', function () {
+        if (editingId === 'NY') {
+          var id = P.create(nameEl.value, textEl.value);
+          if (!P.active()) P.setActive(id); // første profil aktiveres direkte
+        } else if (editingId) {
+          P.update(editingId, { name: nameEl.value, text: textEl.value });
+        }
+        closeEdit();
+        renderList();
+      });
+      delBtn.addEventListener('click', function () {
+        if (editingId && editingId !== 'NY') P.remove(editingId);
+        closeEdit();
+        renderList();
+      });
+      document.getElementById('profilesCloseBtn').addEventListener('click', function () {
+        closeEdit();
+        backdrop.classList.remove('open');
+      });
+      P.openModal = function () {
+        closeEdit();
+        renderList();
+        backdrop.classList.add('open');
+      };
+      var sideBtn = document.getElementById('askProfilesBtn');
+      if (sideBtn) sideBtn.addEventListener('click', function () { P.openModal(); });
+
+      // Chip ved spørrefeltet (spec: aktiv profil skal aldri usynlig forme svar).
+      var chip = document.getElementById('askProfileChip');
+      var chipName = document.getElementById('askProfileChipName');
+      var chipOff = document.getElementById('askProfileChipOff');
+      function renderChip() {
+        if (!chip) return;
+        var a = P.active();
+        chip.hidden = !a;
+        if (a) chipName.textContent = 'Profile: ' + a.name;
+      }
+      if (chipName) chipName.addEventListener('click', function () { P.openModal(); });
+      if (chipOff) chipOff.addEventListener('click', function () { P.setActive(null); });
+      P.onChange(function () { renderChip(); renderList(); });
+      renderChip();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfilesUi);
+    else initProfilesUi();
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeProfiles: makeProfiles };
   }

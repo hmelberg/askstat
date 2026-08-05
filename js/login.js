@@ -264,6 +264,10 @@
       try {
         await requestCode(email);
         dom.loginSentEmail.textContent = email;
+        var sentLine = document.getElementById('loginSentLine');
+        var haveLine = document.getElementById('loginHaveLine');
+        if (sentLine) sentLine.hidden = false;
+        if (haveLine) haveLine.hidden = true;
         setStep(2);
         setTimeout(function () { dom.loginCode && dom.loginCode.focus(); }, 100);
       } catch (e) {
@@ -276,6 +280,19 @@
     dom.loginEmail.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); dom.loginSubmit.click(); }
     });
+    // «I already have a code» (Hans 2026-08-05): koden er multi-use i 30
+    // dager — har du den fra en annen maskin/eposten, hopp rett til steg 2.
+    var haveCodeBtn = document.getElementById('loginHaveCode');
+    if (haveCodeBtn) {
+      haveCodeBtn.addEventListener('click', function () {
+        var sentLine = document.getElementById('loginSentLine');
+        var haveLine = document.getElementById('loginHaveLine');
+        if (sentLine) sentLine.hidden = true;
+        if (haveLine) haveLine.hidden = false;
+        setStep(2);
+        setTimeout(function () { dom.loginCode && dom.loginCode.focus(); }, 60);
+      });
+    }
     dom.loginCancel.addEventListener('click', hideLogin);
     dom.loginDone.addEventListener('click', hideLogin);
     dom.loginVerify.addEventListener('click', verifyTypedCode);

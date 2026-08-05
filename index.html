@@ -351,13 +351,15 @@
         <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="email">
         <div class="ai-modal-error" id="loginError"></div>
         <div class="ai-modal-actions">
+          <button type="button" class="ai-modal-btn" id="loginHaveCode" title="Skip the email — enter a code you already have">I already have a code</button>
           <button type="button" class="ai-modal-btn" id="loginCancel">Cancel</button>
           <button type="button" class="ai-modal-btn primary" id="loginSubmit">Email me a code</button>
         </div>
       </div>
       <div id="loginStep2" style="display:none">
-        <div class="ai-modal-help">We sent a code to <b id="loginSentEmail"></b>. Enter it here (or click the link in the email).</div>
-        <div class="ai-modal-help">Already have a code from another device? Use the same one — your synced keys then unlock automatically.</div>
+        <div class="ai-modal-help" id="loginSentLine">We sent a code to <b id="loginSentEmail"></b>. Enter it here (or click the link in the email).</div>
+        <div class="ai-modal-help" id="loginHaveLine" hidden>Enter the login code you already have.</div>
+        <div class="ai-modal-help">The same code works on every device — and unlocks your synced keys automatically.</div>
         <label for="loginCode">Login code</label>
         <input type="text" id="loginCode" placeholder="three-word-code" autocomplete="one-time-code">
         <div class="ai-modal-error" id="loginCodeError"></div>

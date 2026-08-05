@@ -634,6 +634,46 @@
     });
     syncDepthUi();
 
+    // Historikk-sidebar (konto-runden fase 1). renderHistoryList kalles også
+    // fra saveHistory i runAskFlow (function declaration → hoistet).
+    var histWrap = document.getElementById('askHistoryWrap');
+    var histList = document.getElementById('askHistoryList');
+    function renderHistoryList() {
+      if (!histWrap || !histList || !window.AskHistory) return;
+      var items = window.AskHistory.list();
+      histWrap.hidden = !items.length;
+      histList.innerHTML = '';
+      items.forEach(function (e) {
+        var row = document.createElement('div');
+        row.className = 'ask-hist-item';
+        var open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'ask-hist-open';
+        open.title = e.question + ' (' + String(e.ts).slice(0, 10) + ')';
+        open.textContent = e.question.length > 60 ? e.question.slice(0, 57) + '…' : e.question;
+        open.addEventListener('click', function () { restoreEntry(e.id); });
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ask-hist-del';
+        del.textContent = '×';
+        del.title = 'Delete';
+        del.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          window.AskHistory.remove(e.id);
+          renderHistoryList();
+        });
+        row.appendChild(open);
+        row.appendChild(del);
+        histList.appendChild(row);
+      });
+    }
+    document.getElementById('askHistoryClear').addEventListener('click', function () {
+      if (window.AskHistory) window.AskHistory.clear();
+      renderHistoryList();
+    });
+    function restoreEntry(id) {} // stub — erstattes i Task 4 (gjenoppretting)
+    renderHistoryList();
+
     document.getElementById('askSwitchCode').addEventListener('click', switchToEditor);
     document.getElementById('askOpenEditorBtn').addEventListener('click', switchToEditor);
     document.getElementById('askCopyBtn').addEventListener('click', function () {

@@ -118,3 +118,21 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-out-slot { margin: 0.75rem 0; max-width: 100%; overflow-x: auto; }
 .ask-out-anchor { display: none; }
 .ask-full-output { margin-top: 0.75rem; }
+
+/* Historikk (konto-runden fase 1) */
+.ask-history { display: flex; flex-direction: column; min-height: 0; margin-top: 14px;
+  border-top: 1px solid var(--border); padding-top: 10px; }
+.ask-history-head { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
+  opacity: 0.6; padding: 0 8px 6px; }
+#askHistoryList { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.ask-hist-item { display: flex; align-items: center; gap: 2px; }
+.ask-hist-open { flex: 1 1 auto; min-width: 0; text-align: left; background: none;
+  border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; cursor: pointer;
+  color: inherit; font-size: 0.85rem; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.ask-hist-open:hover { background: var(--bg-code); }
+.ask-hist-del { flex: 0 0 auto; visibility: hidden; background: none; border: none;
+  cursor: pointer; color: inherit; opacity: 0.55; font-size: 0.95rem; padding: 2px 6px; }
+.ask-hist-item:hover .ask-hist-del { visibility: visible; }
+.ask-hist-del:hover { opacity: 1; }
+.ask-history-clear { font-size: 0.78rem; opacity: 0.7; margin-top: 4px; }

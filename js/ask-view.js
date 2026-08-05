@@ -591,6 +591,21 @@
     document.getElementById('askSettingsBtn').addEventListener('click', function () {
       if (window.mdOpenAiSettings) window.mdOpenAiSettings();
     });
+    // Språkvelger i ask-innstillingene (oppfølging 2026-08-05): editorens
+    // settingLanguage-select er eneste kilde til options-lista (klones — kan
+    // ikke drifte); bytte går via m2pySetLang (lagrer + reload; packs.js-boot
+    // re-deriverer auto-pakka fra det nye språket).
+    var askLangSel = document.getElementById('askLanguageSelect');
+    var askLangLabel = document.getElementById('askLanguageLabel');
+    var editorLangSel = document.getElementById('settingLanguage');
+    if (askLangSel && editorLangSel) {
+      askLangSel.innerHTML = editorLangSel.innerHTML;
+      askLangSel.value = window.M2PY_LANG || 'en';
+      if (askLangLabel) askLangLabel.textContent = t('Language');
+      askLangSel.addEventListener('change', function () {
+        if (window.m2pySetLang) window.m2pySetLang(askLangSel.value);
+      });
+    }
     // Hamburger med eksempelspørsmål: klikk fyller feltet (sender ikke — brukeren
     // ser spørsmålet og trykker Ask selv).
     var menuBtn = document.getElementById('askMenuBtn');

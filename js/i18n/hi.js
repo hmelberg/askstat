@@ -133,4 +133,5 @@ window.M2PY_I18N.hi = {
   "View/Import shared packs…": "साझा पैक देखें/आयात करें …",
   "by {author}, updated {updated}": "{author} द्वारा, अद्यतन {updated}",
   "Open menu": "मेनू खोलें",
+  "Language": "भाषा",
 };

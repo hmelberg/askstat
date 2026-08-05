@@ -135,4 +135,5 @@ window.M2PY_I18N.no = {
   "View/Import shared packs…": "Se/importer delte pakker …",
   "by {author}, updated {updated}": "av {author}, oppdatert {updated}",
   "Open menu": "Åpne menyen",
+  "Language": "Språk",
 };

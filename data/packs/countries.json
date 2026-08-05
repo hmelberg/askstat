@@ -1,0 +1,90 @@
+{
+  "v": 1,
+  "countries": {
+    "NO": {
+      "name": "Norway",
+      "agency": "Statistics Norway (SSB)",
+      "note": "ssb and fhi have first-class adapters (search_catalog + canonical ssb.read); norgesbank (SDMX) covers interest rates and FX."
+    },
+    "DK": {
+      "name": "Denmark",
+      "agency": "Statistics Denmark (Danmarks Statistik)",
+      "note": "dst has a searchable adapter — use search_catalog with source='dst'."
+    },
+    "SE": {
+      "name": "Sweden",
+      "agency": "Statistics Sweden (SCB)",
+      "note": "scb has a searchable PxWeb adapter — use search_catalog with source='scb'."
+    },
+    "FI": {
+      "name": "Finland",
+      "agency": "Statistics Finland (Tilastokeskus)",
+      "note": "statfin has a searchable adapter — use search_catalog with source='statfin'."
+    },
+    "IS": {
+      "name": "Iceland",
+      "agency": "Statistics Iceland (Hagstofa Íslands)",
+      "note": "No Hagstofa adapter — use eurostat (covers IS) or web_fetch px.hagstofa.is."
+    },
+    "DE": {
+      "name": "Germany",
+      "agency": "Destatis (Statistisches Bundesamt)",
+      "note": "No Destatis adapter — use eurostat or dbnomics (both cover DE), or web_fetch Genesis pages."
+    },
+    "FR": {
+      "name": "France",
+      "agency": "INSEE",
+      "note": "No INSEE adapter — use eurostat or dbnomics (INSEE series are indexed on dbnomics)."
+    },
+    "ES": {
+      "name": "Spain",
+      "agency": "INE (Instituto Nacional de Estadística)",
+      "note": "No INE adapter — use eurostat or dbnomics."
+    },
+    "PT": {
+      "name": "Portugal",
+      "agency": "INE Portugal (Instituto Nacional de Estatística)",
+      "note": "No INE adapter — use eurostat or dbnomics."
+    },
+    "NL": {
+      "name": "Netherlands",
+      "agency": "CBS (Centraal Bureau voor de Statistiek)",
+      "note": "No CBS adapter — use eurostat or dbnomics."
+    },
+    "IT": {
+      "name": "Italy",
+      "agency": "Istat",
+      "note": "No Istat adapter — use eurostat or dbnomics."
+    },
+    "GB": {
+      "name": "United Kingdom",
+      "agency": "Office for National Statistics (ONS)",
+      "note": "No ONS adapter — use dbnomics, worldbank or oecd; web_fetch ons.gov.uk for UK-specific series."
+    },
+    "US": {
+      "name": "United States",
+      "agency": "the U.S. statistical agencies (Census Bureau, BLS, and FRED)",
+      "note": "fred is in the registry (some series need a user key via AI settings); worldbank, oecd and dbnomics cover the US; IPUMS covers NHIS/MEPS microdata."
+    },
+    "BR": {
+      "name": "Brazil",
+      "agency": "IBGE",
+      "note": "No IBGE adapter — use worldbank or dbnomics (IBGE and central-bank series are indexed there), or web_fetch sidra.ibge.gov.br."
+    },
+    "CN": {
+      "name": "China",
+      "agency": "the National Bureau of Statistics of China",
+      "note": "No NBS adapter — use worldbank, dbnomics or owid for China series."
+    },
+    "JP": {
+      "name": "Japan",
+      "agency": "the Statistics Bureau of Japan (e-Stat)",
+      "note": "No e-Stat adapter — use worldbank, oecd or dbnomics (all cover JP)."
+    },
+    "IN": {
+      "name": "India",
+      "agency": "the Ministry of Statistics and Programme Implementation (MoSPI)",
+      "note": "No MoSPI adapter — use worldbank, dbnomics or owid for India series."
+    }
+  }
+}

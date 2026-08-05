@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "packs": [
+    {
+      "id": "norway",
+      "name": "Norway",
+      "description": "Norwegian sources first: SSB, FHI and Norges Bank, with search tips and known gaps.",
+      "file": "norway.md",
+      "country": "NO"
+    },
+    {
+      "id": "finland",
+      "name": "Finland",
+      "description": "Finnish sources first: Statistics Finland (StatFin), with Eurostat and DBnomics for comparisons.",
+      "file": "finland.md",
+      "country": "FI"
+    }
+  ]
+}

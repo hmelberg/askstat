@@ -77,7 +77,11 @@
   </ul>
 
   <h2>3. Cookies and local storage</h2>
-  <p>The app only uses <code>localStorage</code> in your own browser to remember your settings (e.g. Anthropic key, chosen mode, theme). None of this is sent to us unless you actively use the AI features.</p>
+  <p>The app only uses <code>localStorage</code> in your own browser to remember your settings (e.g. Anthropic key, chosen mode, theme), your question history and your profiles. None of this is sent to us unless you actively use the AI features or log in (see the next section).</p>
+
+  <h2>3b. Account and sync (optional)</h2>
+  <p>Logging in is optional and only adds sync — everything works without an account, and nothing is uploaded until you log in. If you do log in, we store on our server: your questions and the generated code (never the written answers), your profiles, and your API keys. The keys are encrypted in your browser with your login code before upload, so the server stores only ciphertext it cannot read. To be fully transparent: the login code passes through the server when you log in, so a malicious operator could technically capture it — the encryption protects against database leaks and casual inspection, not against the service itself.</p>
+  <p>«Log out» keeps your local data on the device and just stops syncing. «Log out and clear this device» also removes keys, history and profiles from the browser — use it on shared computers. To delete your account and everything stored on the server, contact us (section 7).</p>
 
   <h2>4. Sharing with third parties</h2>
   <p>We do not sell or rent out data. When you use the AI features, your question/script is shared with:</p>

@@ -77,7 +77,11 @@
   </ul>
 
   <h2>3. Informasjonskapsler og lokal lagring</h2>
-  <p>Appen bruker kun <code>localStorage</code> i din egen nettleser til å huske dine innstillinger (f.eks. Anthropic-nøkkel, valgt modus, tema). Ingenting av dette sendes til oss med mindre du aktivt bruker AI-funksjonene.</p>
+  <p>Appen bruker kun <code>localStorage</code> i din egen nettleser til å huske dine innstillinger (f.eks. Anthropic-nøkkel, valgt modus, tema), spørrehistorikken og profilene dine. Ingenting av dette sendes til oss med mindre du aktivt bruker AI-funksjonene eller logger inn (se neste avsnitt).</p>
+
+  <h2>3b. Konto og synkronisering (valgfritt)</h2>
+  <p>Innlogging er valgfritt og gir kun synkronisering — alt virker uten konto, og ingenting lastes opp før du logger inn. Logger du inn, lagrer vi på serveren: spørsmålene dine og den genererte koden (aldri de skrevne svarene), profilene dine og API-nøklene dine. Nøklene krypteres i nettleseren med login-koden din før opplasting, så serveren lagrer bare chiffertekst den ikke kan lese. For ordens skyld: login-koden passerer serveren når du logger inn, så en ondsinnet operatør kunne teknisk sett fange den — krypteringen beskytter mot databaselekkasjer og innsyn, ikke mot tjenesten selv.</p>
+  <p>«Log out» beholder lokale data på maskinen og stopper bare synkroniseringen. «Log out and clear this device» fjerner i tillegg nøkler, historikk og profiler fra nettleseren — bruk den på delte maskiner. Vil du slette kontoen og alt som ligger på serveren, kontakt oss (punkt 7).</p>
 
   <h2>4. Deling med tredjepart</h2>
   <p>Vi selger eller leier ikke ut data. Når du bruker AI-funksjonene, deles spørsmålet/skriptet med:</p>

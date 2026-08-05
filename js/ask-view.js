@@ -922,7 +922,7 @@
       var ctrl = new AbortController();
       var onAbort = function () { ctrl.abort(); };
       abortBtn.addEventListener('click', onAbort);
-      var uiLang = (window.M2PY_LANG === 'en') ? 'en' : 'no';
+      var uiLang = window.M2PY_LANG || 'en';
       var feilRuns = [];
       var runHistory = [];
       var lastSources = [];

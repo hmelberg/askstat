@@ -552,7 +552,7 @@
             output: payload.output || '',
             outputs: payload.outputs || '',
             språk: payload.lang || 'auto',
-            ui_lang: (window.M2PY_LANG === 'en') ? 'en' : 'no',
+            ui_lang: window.M2PY_LANG || 'en',
             provider: providerConfig() || undefined,
           }),
           signal,

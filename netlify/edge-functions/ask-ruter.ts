@@ -4,10 +4,11 @@ import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
 import { singleTextStream } from "./_lib/sse-util.ts";
+import { coerceUiLang, LANG_NAME } from "./_lib/ui-lang.ts";
 
 interface RequestBody {
   question: string;
-  ui_lang?: "no" | "en";
+  ui_lang?: string; // valideres av coerceUiLang (13 språk, ukjent → en)
   provider?: unknown;
 }
 
@@ -81,10 +82,10 @@ export default async (request: Request): Promise<Response> => {
     return new Response("Server configuration error", { status: 500 });
   }
 
-  const uiLang = body.ui_lang === "en" ? "en" : "no";
-  const prompt = (uiLang === "en"
-    ? 'Write "tolkning", "begrunnelse" and any "svar" in English.\n\n'
-    : 'Skriv "tolkning", "begrunnelse" og eventuelt "svar" på norsk.\n\n')
+  const uiLang = coerceUiLang(body.ui_lang);
+  const prompt = (uiLang === "no"
+    ? 'Skriv "tolkning", "begrunnelse" og eventuelt "svar" på norsk.\n\n'
+    : `Write "tolkning", "begrunnelse" and any "svar" in ${LANG_NAME[uiLang]}.\n\n`)
     + "SPØRSMÅL\n\n" + body.question.slice(0, 4_000);
 
   try {

@@ -5,13 +5,14 @@ import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
 import { singleTextStream } from "./_lib/sse-util.ts";
+import { coerceUiLang, LANG_NAME } from "./_lib/ui-lang.ts";
 
 interface RequestBody {
   script?: string;
   output: string;
   outputs?: string;   // OUTPUTS-manifestlinje (figurer/tabeller allerede vist i appen)
   språk?: "auto" | "microdata" | "python" | "r";
-  ui_lang?: "no" | "en";   // svarspråk (UI-språket); default norsk
+  ui_lang?: string;        // svarspråk (UI-språket); coerceUiLang, ukjent → en
   provider?: unknown;
 }
 
@@ -123,12 +124,12 @@ export default async (request: Request): Promise<Response> => {
   const output = body.output.slice(0, MAX_CHARS);
   const outputs = String(body.outputs ?? "").slice(0, 500).replace(/[\r\n]+/g, " ").trim();
   const requested = body.språk ?? "auto";
-  const uiLang = body.ui_lang === "en" ? "en" : "no";
-  const outputLanguage = uiLang === "en"
-    ? `Answer in English (overriding the Norwegian scaffold above). Translate the
-section headings as: «Hva analysen gjorde» → «What the analysis did»,
-«Resultater» → «Results», «Forbehold» → «Caveats».`
-    : "Svar på norsk.";
+  const uiLang = coerceUiLang(body.ui_lang);
+  const outputLanguage = uiLang === "no"
+    ? "Svar på norsk."
+    : `Answer in ${LANG_NAME[uiLang]} (overriding the Norwegian scaffold above).
+Translate the section headings («Hva analysen gjorde», «Resultater»,
+«Forbehold») into natural ${LANG_NAME[uiLang]} equivalents.`;
   const detected = detectLanguage(output || script);
 
   const prompt = TOLK_USER_TEMPLATE

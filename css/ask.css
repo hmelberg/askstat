@@ -84,7 +84,14 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 
 /* auto-margene MÅ gjentas her: shorthanden ellers nuller .ask-main > *-sentreringen */
 .ask-title { font-size: 28px; text-align: center; margin: 7vh auto 6px; }
-.ask-sub { color: var(--text-muted); text-align: center; margin-bottom: 22px; }
+.ask-sub { color: var(--text-muted); text-align: center; margin-bottom: 6px; }
+.ask-about-line { color: var(--text-muted); text-align: center; font-size: 13px; margin-bottom: 22px; }
+.ask-about-line a { color: var(--accent); text-decoration: none; }
+.ask-about-line a:hover { text-decoration: underline; }
+.ask-about-body { font-size: 14px; line-height: 1.55; }
+.ask-about-body p { margin: 0 0 10px; }
+.ask-about-body ul { margin: 0 0 6px; padding-left: 20px; }
+.ask-about-body li { margin-bottom: 6px; }
 
 /* Input-kortet: tekstfelt øverst, verktøysrad nederst (velgere venstre,
    send høyre) — samme anatomi som Claudes komposisjonsboks. */

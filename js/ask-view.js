@@ -611,6 +611,23 @@
     // fjernet; feltet beholdes i payload/historikk/telemetri som konstant.
     function askDepth() { return 'deep'; }
 
+    // Why AskStat?-modalen (copy-runden 2026-08-05): to innganger — sidebar-
+    // knappen og lenkelinja under taglinen.
+    var aboutBackdrop = document.getElementById('askAboutBackdrop');
+    function openAbout(e) {
+      if (e) e.preventDefault();
+      if (aboutBackdrop) aboutBackdrop.classList.add('open');
+    }
+    var aboutBtn = document.getElementById('askAboutBtn');
+    var aboutLink = document.getElementById('askAboutLink');
+    var aboutClose = document.getElementById('askAboutCloseBtn');
+    if (aboutBtn) aboutBtn.addEventListener('click', openAbout);
+    if (aboutLink) aboutLink.addEventListener('click', openAbout);
+    if (aboutClose) aboutClose.addEventListener('click', function () { aboutBackdrop.classList.remove('open'); });
+    if (aboutBackdrop) aboutBackdrop.addEventListener('click', function (e) {
+      if (e.target === aboutBackdrop) aboutBackdrop.classList.remove('open');
+    });
+
     // Kollapsbar sidebar (layout-runden 2026-08-05): full ↔ tynn ikonskinne,
     // valget huskes per nettleser (md_ask_sidebar).
     var sidebarEl = document.getElementById('askSidebar');

@@ -5,7 +5,7 @@ Deno.test("budsjettknotter og DEPTH-teksten forteller samme historie (spec fase 
   assertEquals(depthClientToolCalls("standard"), 8);
   assertEquals(depthRunCodeCalls("standard"), 4);
   assertEquals(depthClientToolCalls("deep"), 12);
-  const sys = buildSvarSystem("data", "python", "");
+  const sys = buildSvarSystem("data", "python", "", { depth: "standard" });
   assert(sys.includes("≤ 8 totalt"), "DEPTH-tabellen må si ≤ 8 klientverktøykall");
   assert(sys.includes("| ≤ 3 |"), "DEPTH-tabellen må si ≤ 3 web_search");
   assert(sys.includes("| ≤ 2 |"), "DEPTH-tabellen må si ≤ 2 web_fetch");
@@ -15,8 +15,14 @@ Deno.test("budsjettknotter og DEPTH-teksten forteller samme historie (spec fase 
   assertEquals(tools.find((t) => t.name === "web_fetch")?.max_uses, 2);
 });
 
+Deno.test("deep er buildSvarSystem-default (deep-only-runden 2026-08-05)", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assertEquals(sys.includes("inntil 12 klientverktøykall"), true,
+    "uten depth-opt skal deep-teksten rendres");
+});
+
 Deno.test("utforsk-standard-prosaen matcher de delte knottene", () => {
-  const sys = buildSvarSystem("utforsk", "python", "");
+  const sys = buildSvarSystem("utforsk", "python", "", { depth: "standard" });
   assert(sys.includes("≤ 3 web_search"), "utforsk-teksten må promise ≤ 3 web_search");
   assert(sys.includes("web_search, ≤ 2"), "utforsk-teksten må promise web_search, ≤ 2 web_fetch");
   assert(sys.includes("≤ 4 run_code-kjøringer"), "utforsk-teksten må promise ≤ 4 run_code-kjøringer");

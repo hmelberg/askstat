@@ -23,6 +23,23 @@ export function coercePreferences(p: unknown): string {
   return typeof p === "string" ? p.trim().slice(0, 8000) : "";
 }
 
+/** Markdown-vern (spec 2026-08-05-sprak-pakker-deling §2): injisert
+ *  brukertekst kan inneholde egne overskrifter — demoter dem to nivåer
+ *  (tak 6) så de aldri «avslutter» promptens egne ##-seksjoner. */
+export function demoteHeadings(s: string): string {
+  return s.replace(/^(#{1,6})(\s)/gm, (_m, h: string, sp: string) =>
+    "#".repeat(Math.min(6, h.length + 2)) + sp);
+}
+
+/** Kildepakke fra klienten (js/packs.js): {name, text}. Samme caps som
+ *  profiler (60/8000). */
+export function coercePack(p: unknown): { name: string; text: string } | null {
+  if (!p || typeof p !== "object") return null;
+  const name = String((p as Record<string, unknown>).name ?? "").trim().slice(0, 60);
+  const text = String((p as Record<string, unknown>).text ?? "").trim().slice(0, 8000);
+  return name && text ? { name, text } : null;
+}
+
 function renderPreferencesBlock(prefs: string): string {
   if (!prefs) return "";
   return `## Brukerens datapreferanser (overstyrer standardvalg)
@@ -31,7 +48,18 @@ Brukeren har lagret varige instrukser for datasøk og kildevalg. De har
 forrang over landrutingen og registerets standardvalg — men opphever ALDRI
 ærlighetsreglene (probe-✅, fabrikasjonsvern, budsjettene):
 
-${prefs}`;
+${demoteHeadings(prefs)}`;
+}
+
+function renderPackBlock(pack: { name: string; text: string } | null): string {
+  if (!pack) return "";
+  return `## Aktiv kildepakke: ${pack.name} (valgt av brukeren — overstyrer standardvalg)
+
+Pakken beskriver foretrukne kilder for brukerens kontekst. Den har forrang
+over landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
+fabrikasjonsvern, budsjettene):
+
+${demoteHeadings(pack.text)}`;
 }
 
 // Ruter fra /api/ask-ruter. "språk" når aldri hit (besvares av ruteren).
@@ -742,9 +770,9 @@ export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown },
+  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; pack?: unknown },
 ): string {
-  const depth = opts?.depth ?? "standard";
+  const depth = opts?.depth ?? "deep";
   if (route === "beregning") {
     return [INTRO_CALC, MODE[mode], RUN].join("\n\n");
   }
@@ -759,6 +787,8 @@ export function buildSvarSystem(
   blocks.push(registryBlock);
   const prefBlock = renderPreferencesBlock(coercePreferences(opts?.preferences));
   if (prefBlock) blocks.push(prefBlock);
+  const packBlock = renderPackBlock(coercePack(opts?.pack));
+  if (packBlock) blocks.push(packBlock);
   return blocks.join("\n\n");
 }
 

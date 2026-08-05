@@ -689,6 +689,9 @@
       detailsEl.open = false;
       input.value = e.question;
       showAnswer(stripRefs(e.markdown), e.badgeText, e.badgeWarn);
+      // Inline-plassholdere (uten blanke linjer rundt) fanges ikke av
+      // stripRefs — samme sikkerhetsnett som ok-grenen i runAskFlow.
+      sweepUnresolvedRefs();
       renderSources(e.sources);
       maybeRenderMath(e.markdown);
       var note = document.createElement('div');

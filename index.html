@@ -168,6 +168,11 @@
           </button>
           <div class="ask-pop-menu ask-account-menu" id="askAccountMenu" hidden>
             <div class="ask-account-email" id="askAccountEmail"></div>
+            <button type="button" id="askShowCodeBtn">Show login code</button>
+            <div class="ask-account-code" id="askAccountCode" hidden>
+              <div class="ask-account-code-value" id="askAccountCodeValue"></div>
+              <div class="ask-account-code-hint">This code logs you in and unlocks your synced keys on any device — treat it like a password.</div>
+            </div>
             <button type="button" id="askLogoutBtn">Log out</button>
             <button type="button" id="askLogoutClearBtn" title="Log out and remove keys, history and profiles from this browser — for shared computers">Log out and clear this device</button>
           </div>
@@ -352,6 +357,7 @@
       </div>
       <div id="loginStep2" style="display:none">
         <div class="ai-modal-help">We sent a code to <b id="loginSentEmail"></b>. Enter it here (or click the link in the email).</div>
+        <div class="ai-modal-help">Already have a code from another device? Use the same one — your synced keys then unlock automatically.</div>
         <label for="loginCode">Login code</label>
         <input type="text" id="loginCode" placeholder="three-word-code" autocomplete="one-time-code">
         <div class="ai-modal-error" id="loginCodeError"></div>

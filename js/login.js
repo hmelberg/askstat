@@ -57,7 +57,7 @@
     var res = await fetch(apiBase() + '/_/api/auth/email/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, lang: 'en' }),
+      body: JSON.stringify({ email: email, lang: 'en', app: 'askstat' }),
     });
     if (!res.ok) {
       var text = await res.text();
@@ -85,9 +85,19 @@
     try {
       localStorage.setItem(LS_TOKEN, state.token);
       localStorage.setItem(LS_USER, JSON.stringify(state.user));
+      // «Show login code» (Hans 2026-08-05): koden caches LOKALT så den kan
+      // vises igjen på denne maskinen. Marginal risiko ≈ null her: samme
+      // localStorage har alt bearer-token (innlogget økt) og avledet KEK.
+      // Serveren kan aldri vise den (kun hash). Fjernes av logoutAndClear.
+      if (code) {
+        var norm = (global.KeysCrypto && global.KeysCrypto.normalizeCode)
+          ? global.KeysCrypto.normalizeCode(code)
+          : String(code).toLowerCase().trim().replace(/[^a-z]+/g, '-').replace(/^-+|-+$/g, '');
+        if (norm) localStorage.setItem('md_login_code', norm);
+      }
     } catch (e) {}
     renderAccountUi();
-    // Synk-laget får råkoden til KEK-avledning — koden lagres aldri selv.
+    // Synk-laget får råkoden til KEK-avledning.
     if (global.KontoSync) global.KontoSync.onLogin(code || '');
   }
 
@@ -117,7 +127,7 @@
   async function logoutAndClear() {
     await logout();
     ['md_keys', 'md_keys_updated', 'md_profiles', 'md_ask_history',
-     'md_kek', 'md_kek_id'].forEach(function (k) {
+     'md_kek', 'md_kek_id', 'md_login_code'].forEach(function (k) {
       try { localStorage.removeItem(k); } catch (e) {}
     });
     location.reload();
@@ -286,6 +296,8 @@
           if (dom.askAccountMenu.hidden) {
             var emailEl = document.getElementById('askAccountEmail');
             if (emailEl) emailEl.textContent = state.user.email;
+            var cb = document.getElementById('askAccountCode');
+            if (cb) cb.hidden = true;   // koden vises kun på eksplisitt klikk
           }
           dom.askAccountMenu.hidden = !dom.askAccountMenu.hidden;
         }
@@ -296,6 +308,23 @@
           dom.askAccountMenu.hidden = true;
         }
       });
+      // «Show login code»: vis den lokalt cachede koden (setningsform).
+      // Finnes ingen cache (eldre login/annen maskin) → forklar + tilby ny.
+      var showCodeBtn = document.getElementById('askShowCodeBtn');
+      var codeBox = document.getElementById('askAccountCode');
+      var codeValue = document.getElementById('askAccountCodeValue');
+      if (showCodeBtn && codeBox) {
+        showCodeBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (!codeBox.hidden) { codeBox.hidden = true; return; }
+          var cached = '';
+          try { cached = localStorage.getItem('md_login_code') || ''; } catch (err) {}
+          codeValue.textContent = cached
+            ? cached.replace(/-/g, ' ')
+            : 'Not saved on this device — request a new code by email to see one.';
+          codeBox.hidden = false;
+        });
+      }
       var outBtn = document.getElementById('askLogoutBtn');
       var clearBtn = document.getElementById('askLogoutClearBtn');
       if (outBtn) outBtn.addEventListener('click', function () {

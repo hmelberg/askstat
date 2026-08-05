@@ -220,3 +220,8 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-account-email { font-size: 12px; color: var(--text-muted); padding: 6px 10px 8px;
   border-bottom: 1px solid var(--border); margin-bottom: 4px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
+.ask-account-code { padding: 4px 10px 8px; }
+.ask-account-code-value { font-family: monospace; font-size: 13px;
+  background: var(--bg-code); border-radius: 8px; padding: 8px 10px;
+  word-break: break-word; }
+.ask-account-code-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }

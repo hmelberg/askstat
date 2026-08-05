@@ -87,7 +87,10 @@
 
     function list() {
       var out = [];
+      // Community-pakker er IKKE direkte velgbare (les-før-aktiver, spec §5):
+      // de vises i Explore-modalen og kommer inn i lista som 'imported'-kopier.
       curated().forEach(function (p) {
+        if (p.community) return;
         out.push({ id: p.id, name: p.name, description: p.description || '', group: 'builtin' });
       });
       var covered = {};
@@ -177,6 +180,14 @@
       await ensureCurrent();
     }
 
+    function listCommunity() {
+      return curated().filter(function (p) { return p.community; })
+        .map(function (p) {
+          return { id: p.id, name: p.name, description: p.description || '',
+            author: p.author || '', updated: p.updated || '' };
+        });
+    }
+
     // Deling v1 (spec §5): import = KOPI med opprinnelse; resolves lokalt.
     function importPack(entry, text) {
       var all = imported();
@@ -190,9 +201,10 @@
     }
 
     return {
-      load: load, list: list, autoFrom: autoFrom, resolve: resolve,
-      payload: payload, ensureCurrent: ensureCurrent, boot: boot,
-      onLangChange: onLangChange, importPack: importPack, displayName: displayName,
+      load: load, list: list, listCommunity: listCommunity, autoFrom: autoFrom,
+      resolve: resolve, payload: payload, ensureCurrent: ensureCurrent,
+      boot: boot, onLangChange: onLangChange, importPack: importPack,
+      displayName: displayName,
     };
   }
 
@@ -257,7 +269,63 @@
             });
           });
         });
+        if (P.listCommunity().length) {
+          sep();
+          pickItem(T('View/Import shared packs…'), false, openExplore);
+        }
       }
+
+      // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
+      // rendret preview FØR import; import = kopi som aktiveres.
+      var expBackdrop = document.getElementById('packsExploreBackdrop');
+      var expList = document.getElementById('packsExploreList');
+      var expPrevWrap = document.getElementById('packsExplorePreviewWrap');
+      var expPrev = document.getElementById('packsExplorePreview');
+      var expMeta = document.getElementById('packsExploreMeta');
+      var expImport = document.getElementById('packsImportBtn');
+      var expClose = document.getElementById('packsExploreCloseBtn');
+      var expSelected = null; // {entry, text}
+      function openExplore() {
+        if (!expBackdrop) return;
+        expSelected = null;
+        expPrevWrap.hidden = true;
+        expImport.hidden = true;
+        expList.innerHTML = '';
+        P.listCommunity().forEach(function (e) {
+          var row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'ask-explore-row';
+          var nm = document.createElement('strong');
+          nm.textContent = e.name;
+          var desc = document.createElement('div');
+          desc.textContent = e.description;
+          row.appendChild(nm);
+          row.appendChild(desc);
+          row.addEventListener('click', function () {
+            P.resolve(e.id).then(function (got) {
+              if (!got) return;
+              expSelected = { entry: e, text: got.text };
+              expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
+              expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
+              expPrevWrap.hidden = false;
+              expImport.hidden = false;
+            });
+          });
+          expList.appendChild(row);
+        });
+        expBackdrop.classList.add('open');
+      }
+      if (expImport) expImport.addEventListener('click', function () {
+        if (!expSelected) return;
+        P.importPack(expSelected.entry, expSelected.text);
+        Prof.setPack('imported:' + expSelected.entry.id);
+        P.ensureCurrent();
+        expBackdrop.classList.remove('open');
+      });
+      if (expClose) expClose.addEventListener('click', function () { expBackdrop.classList.remove('open'); });
+      if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
+        if (e.target === expBackdrop) expBackdrop.classList.remove('open');
+      });
       pickBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         if (pickMenu.hidden) renderMenu();

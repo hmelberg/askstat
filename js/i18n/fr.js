@@ -126,4 +126,10 @@ window.M2PY_I18N.fr = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ La dernière exécution de finition a échoué — les chiffres proviennent d'une exécution réussie antérieure",
   "⚠ Not verified with code or data — plain model answer": "⚠ Non vérifié par du code ou des données — simple réponse du modèle",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Le code ne s'est pas exécuté correctement — traitez les chiffres avec prudence",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Packs sélectionnés partagés par d'autres utilisateurs. Lisez l'aperçu, puis importez votre propre copie — les packs importés apparaissent dans le sélecteur de packs de sources.",
+  "Import": "Importer",
+  "Shared packs": "Packs partagés",
+  "View/Import shared packs…": "Voir/importer les packs partagés …",
+  "by {author}, updated {updated}": "par {author}, mis à jour {updated}",
 };

@@ -126,4 +126,10 @@ window.M2PY_I18N.hi = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ आख़िरी परिष्करण रन विफल रहा — संख्याएँ पहले के सफल रन से हैं",
   "⚠ Not verified with code or data — plain model answer": "⚠ कोड या डेटा से सत्यापित नहीं — केवल मॉडल का उत्तर",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ कोड सफलतापूर्वक नहीं चला — संख्याओं को सावधानी से लें",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "अन्य उपयोगकर्ताओं द्वारा साझा किए गए चयनित पैक। पूर्वावलोकन पढ़ें, फिर अपनी प्रति आयात करें — आयातित पैक स्रोत-पैक चयनकर्ता में दिखते हैं।",
+  "Import": "आयात करें",
+  "Shared packs": "साझा पैक",
+  "View/Import shared packs…": "साझा पैक देखें/आयात करें …",
+  "by {author}, updated {updated}": "{author} द्वारा, अद्यतन {updated}",
 };

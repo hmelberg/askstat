@@ -126,4 +126,10 @@ window.M2PY_I18N.is = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Síðasta fáguð keyrsla mistókst — tölurnar koma úr fyrri vel heppnaðri keyrslu",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ekki sannreynt með kóða eða gögnum — hreint líkanssvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Kóðinn keyrði ekki án villu — farðu varlega með tölurnar",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Ritstýrðir pakkar sem aðrir notendur deila. Lestu forskoðunina og flyttu inn þitt eigið eintak — innfluttir pakkar birtast í pakkavalinu.",
+  "Import": "Flytja inn",
+  "Shared packs": "Deildir pakkar",
+  "View/Import shared packs…": "Skoða/flytja inn deilda pakka …",
+  "by {author}, updated {updated}": "eftir {author}, uppfært {updated}",
 };

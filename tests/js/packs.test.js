@@ -148,3 +148,27 @@ test('onLangChange: setter auto uten manuelt valg; alle-null rydder stale auto',
   await P.onLangChange(['de', '']);                    // tvetydig + tom → rydd
   assert.deepEqual(prof.packState(), { id: null, auto: false });
 });
+
+test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', async () => {
+  const IDX2 = { v: 1, packs: INDEX.packs.concat([{
+    id: 'us-health-surveys', name: 'US health surveys', description: 'NHIS/MEPS',
+    file: 'community/us-health-surveys.md', community: true, author: 'hans', updated: '2026-08-05',
+  }]) };
+  const files = Object.assign({}, FILES, {
+    'data/packs/index.json': IDX2,
+    'data/packs/community/us-health-surveys.md': '# US health\nUse ipums.',
+  });
+  const s = fakeStorage();
+  const P = makePacks(s, fakeFetch(files), fakeProfiles({ id: null, auto: false }));
+  await P.load();
+  assert.ok(!P.list().some((e) => e.id === 'us-health-surveys'));      // les-før-aktiver
+  const comm = P.listCommunity();
+  assert.equal(comm.length, 1);
+  assert.equal(comm[0].author, 'hans');
+  const preview = await P.resolve('us-health-surveys');                // preview-vei
+  assert.ok(preview.text.includes('ipums'));
+  P.importPack(comm[0], preview.text);
+  assert.ok(P.list().some((e) => e.id === 'imported:us-health-surveys'));
+  const got = await P.resolve('imported:us-health-surveys');
+  assert.equal(got.text, '# US health\nUse ipums.');                   // kopi, uten re-fetch
+});

@@ -126,4 +126,10 @@ window.M2PY_I18N.zh = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ 最后一次润色运行失败——数字来自先前一次成功的运行",
   "⚠ Not verified with code or data — plain model answer": "⚠ 未经代码或数据验证——纯模型回答",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ 代码未成功运行——请谨慎对待这些数字",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "其他用户分享的精选数据源包。请先阅读预览，然后导入你自己的副本——导入的包会出现在数据源包选择器中。",
+  "Import": "导入",
+  "Shared packs": "共享的包",
+  "View/Import shared packs…": "查看/导入共享的包 …",
+  "by {author}, updated {updated}": "作者 {author}，更新于 {updated}",
 };

@@ -126,4 +126,10 @@ window.M2PY_I18N.sv = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Sista poleringskörningen misslyckades — siffrorna kommer från en tidigare lyckad körning",
   "⚠ Not verified with code or data — plain model answer": "⚠ Inte verifierat med kod eller data — rent modellsvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koden kördes inte utan fel — behandla siffrorna med försiktighet",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuraterade paket delade av andra användare. Läs förhandsgranskningen och importera din egen kopia — importerade paket visas i källpaketväljaren.",
+  "Import": "Importera",
+  "Shared packs": "Delade paket",
+  "View/Import shared packs…": "Visa/importera delade paket …",
+  "by {author}, updated {updated}": "av {author}, uppdaterad {updated}",
 };

@@ -126,4 +126,10 @@ window.M2PY_I18N.ja = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ 最後の仕上げ実行が失敗——数字は以前の成功した実行に基づきます",
   "⚠ Not verified with code or data — plain model answer": "⚠ コードやデータで検証されていません——モデルの回答のみ",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ コードが正常に実行されませんでした——数字は慎重に扱ってください",
+
+  "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "他のユーザーが共有した厳選パック。プレビューを読んでから自分用のコピーをインポートしてください——インポートしたパックはソースパック選択に表示されます。",
+  "Import": "インポート",
+  "Shared packs": "共有パック",
+  "View/Import shared packs…": "共有パックを見る/インポート …",
+  "by {author}, updated {updated}": "作成者 {author}、更新 {updated}",
 };

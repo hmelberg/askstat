@@ -14,6 +14,15 @@
       "description": "Finnish sources first: Statistics Finland (StatFin), with Eurostat and DBnomics for comparisons.",
       "file": "finland.md",
       "country": "FI"
+    },
+    {
+      "id": "us-health-surveys",
+      "name": "US health surveys (NHIS/MEPS)",
+      "description": "Individual-level US health data: NHIS and MEPS via IPUMS, with honest fallbacks to aggregate sources.",
+      "file": "community/us-health-surveys.md",
+      "community": true,
+      "author": "hans",
+      "updated": "2026-08-05"
     }
   ]
 }

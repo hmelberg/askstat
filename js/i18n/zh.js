@@ -167,4 +167,6 @@ window.M2PY_I18N.zh = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "搜索 …",
   "← Back to list": "← 返回列表",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "你的来源库。已勾选的来源为启用状态，会随每个问题一起发送。点击名称查看详情；在下方导入共享来源或添加国家。",
 };

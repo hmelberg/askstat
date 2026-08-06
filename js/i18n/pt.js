@@ -168,4 +168,6 @@ window.M2PY_I18N.pt = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "Pesquisar …",
   "← Back to list": "← Voltar à lista",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "A sua biblioteca de fontes. As fontes assinaladas estão ativas e são enviadas com cada pergunta. Clique num nome para ver os detalhes; importe fontes partilhadas ou adicione países abaixo.",
 };

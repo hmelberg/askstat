@@ -167,4 +167,6 @@ window.M2PY_I18N.fi = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "Hae …",
   "← Back to list": "← Takaisin listaan",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "Lähdekirjastosi. Valitut lähteet ovat aktiivisia ja lähetetään jokaisen kysymyksen mukana. Napsauta nimeä nähdäksesi tiedot; tuo jaettuja lähteitä tai lisää maita alla.",
 };

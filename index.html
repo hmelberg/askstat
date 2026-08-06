@@ -452,7 +452,8 @@
   <div class="ai-modal-backdrop" id="profilesBackdrop">
     <div class="ai-modal">
       <h3 data-i18n id="profilesTitle">Profiles</h3>
-      <div class="ai-modal-help" data-i18n>A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
+      <div class="ai-modal-help" id="profilesHelp" data-i18n>A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
+      <div class="ai-modal-help" id="sourcesHelp" data-i18n hidden>Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.</div>
       <div id="profilesList" class="profiles-list"></div>
       <div id="sourcesInfo" class="sources-info" hidden></div>
       <div id="profilesEdit" hidden>

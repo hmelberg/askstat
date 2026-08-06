@@ -141,6 +141,11 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
   padding: 6px; min-width: 240px; box-shadow: 0 8px 28px rgba(0,0,0,.18);
   max-height: 55vh; overflow-y: auto; }
+/* Smoke-funn (menyopprydding, Task 7 §1): et stort bibliotek gjør menyen
+   taller enn avstanden til viewport-toppen når pillen sitter høyt (f.eks.
+   startskjermen) — js/context-pill.js måler og legger på denne klassen når
+   oppover-anker ville klippet menyens topp. */
+.ask-pop-menu.ask-pop-down { bottom: auto; top: calc(100% + 8px); }
 /* Menyopprydding (spec 2026-08-06): biblioteket ruller internt — de faste
    valgene over skillet er alltid synlige uansett bibliotekstørrelse. */
 .ask-ctx-scroll { max-height: 240px; overflow-y: auto; }
@@ -266,6 +271,11 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   cursor: pointer; }
 .profiles-row span { flex: 1 1 auto; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
+/* Smoke-funn (menyopprydding, Task 7 §3): .sources-name/.sources-search sin
+   flex:1 1 auto + overflow:hidden er riktig inni en rad-flexbox (.sources-row),
+   men kollapser til ~4px når de er DIREKTE barn av .profiles-list (kolonne-
+   flex) — «← Back to list» og søkefeltet i landvisningen. */
+.profiles-list > .sources-name, .profiles-list > .sources-search { flex: 0 0 auto; }
 
 /* Biblioteksmanageren (spec 2026-08-06-menyopprydding §4): lista ruller
    internt; modal-actions under er de faste, alltid synlige valgene. */

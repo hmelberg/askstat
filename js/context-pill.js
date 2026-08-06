@@ -36,6 +36,17 @@
       e.stopPropagation();
       if (menu.hidden) renderSections();
       menu.hidden = !menu.hidden;
+      // Smoke-funn (menyopprydding, Task 7 §1): pillen sitter høyt nok på
+      // startskjermen at et stort bibliotek (max-height 55vh) kan la menyens
+      // topp havne over viewport når den åpner OPPOVER (bottom-anchoring).
+      // Layout er synkron rett etter unhide, så mål-så-flipp fungerer i
+      // samme handler. getBoundingClientRect mangler i node-DOM-stubben —
+      // guard'en holder testen fra å kaste.
+      if (!menu.hidden && menu.getBoundingClientRect) {
+        var r = menu.getBoundingClientRect();
+        if (r.top < 8) menu.classList.add('ask-pop-down');
+        else menu.classList.remove('ask-pop-down');
+      }
     });
     // Fiks runde 2 (fase 2-runden, re-review-funn): et sjekkboks-/toggle-
     // klikk inni menyen (Task 3/6) trigger Prof.togglePack → Profiles.

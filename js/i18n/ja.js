@@ -167,4 +167,6 @@ window.M2PY_I18N.ja = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "検索 …",
   "← Back to list": "← リストに戻る",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "あなたのソースライブラリです。チェックしたソースは有効になり、質問のたびに送信されます。名前をクリックすると詳細が表示されます。下部で共有ソースをインポートしたり国を追加したりできます。",
 };

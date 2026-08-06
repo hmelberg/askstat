@@ -167,4 +167,6 @@ window.M2PY_I18N.hi = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "खोजें …",
   "← Back to list": "← सूची पर वापस जाएं",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "आपकी स्रोत लाइब्रेरी। चयनित स्रोत सक्रिय हैं और हर सवाल के साथ भेजे जाते हैं। विवरण के लिए किसी नाम पर क्लिक करें; नीचे साझा स्रोत आयात करें या देश जोड़ें।",
 };

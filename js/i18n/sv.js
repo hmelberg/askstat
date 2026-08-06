@@ -167,4 +167,6 @@ window.M2PY_I18N.sv = {
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "Sök …",
   "← Back to list": "← Tillbaka till listan",
+  // Smoke-funn (menyopprydding, Task 7 §2):
+  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "Ditt källbibliotek. Markerade källor är aktiva och skickas med varje fråga. Klicka på ett namn för detaljer; importera delade källor eller lägg till länder nedan.",
 };

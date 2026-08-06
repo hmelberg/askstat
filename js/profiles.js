@@ -421,6 +421,12 @@
         var ctyBtn = document.getElementById('sourcesCountryBtn');
         if (impBtn) impBtn.hidden = modalKind !== 'source';
         if (ctyBtn) ctyBtn.hidden = modalKind !== 'source';
+        // Smoke-funn (menyopprydding, Task 7 §2): profilhjelpeteksten sto
+        // synlig i kildemodus også — de to hjelpetekstene toggler nå speilvendt.
+        var profilesHelp = document.getElementById('profilesHelp');
+        var sourcesHelp = document.getElementById('sourcesHelp');
+        if (profilesHelp) profilesHelp.hidden = (modalKind === 'source');
+        if (sourcesHelp) sourcesHelp.hidden = (modalKind !== 'source');
         // sourcesInfo lever utenfor listEl (SourcesUi styrer den KUN i
         // source-modus) — skjul den eksplisitt her, ellers lekker en
         // tidligere valgt kildes infopanel inn i profil-modalen.

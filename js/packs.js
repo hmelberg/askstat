@@ -546,6 +546,11 @@
       // krever et virkende Rediger/Slett for egne kilder).
       var lastHooks = null;
       function renderCountries(container, hooks) {
+        // Smoke-funn (menyopprydding, Task 7 §4): infopanelet fra en tidligere
+        // valgt kilde i biblioteksvisningen (med Rediger/Slett) sto synlig
+        // under landlista — landene har intet infopanel av sitt eget.
+        var infoEl = document.getElementById('sourcesInfo');
+        if (infoEl) { infoEl.hidden = true; }
         container.innerHTML = '';
         var back = document.createElement('button');
         back.type = 'button';
@@ -652,6 +657,7 @@
       if (ctyBtn) ctyBtn.addEventListener('click', function () {
         managerView = 'countries';
         countryQuery = '';
+        selectedInfoId = null; // smoke-funn Task 7 §4 — se renderCountries
         var listEl = document.getElementById('profilesList');
         if (listEl) renderCountries(listEl, lastHooks || { onEdit: function () {} });
       });

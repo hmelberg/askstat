@@ -71,9 +71,10 @@ Vanlige variabler: `cntry` (ISO2), `essround`, `agea` (alder), `gndr`,
 
 ## Analyseregler (survey)
 
-- Bruk `anweight` for populasjonsestimater — IKKE `dweight` alene
-  (designvekt uten post-stratifisering; smoken 2026-08-06 valgte feil).
-  Si i svaret hvilken vekt som er brukt.
+- Bruk `anweight` for populasjonsestimater. NB (målt 2026-08-06):
+  TIDLIGE utgaver (e01) MANGLER anweight — sjekk kolonnene; fallback er
+  `dweight * pweight` (design- × populasjonsvekt, tilnærmer anweight).
+  Si ALLTID i svaret hvilken vekt som faktisk ble brukt.
 - Uten `recodeMissingValues=true`: 66/77/88/99-koder (og 6666/7777/…) er
   refusal/don't know/not applicable — filtrer FØR beregning.
 - Sammenlign land KUN innen samme runde med mindre spørsmålet gjelder trend.

@@ -10,8 +10,12 @@ RUTER
   ren kode uten eksterne data (telling, matematikk, datoer, logikk, strenger).
 - "data": krever statistikk/datasett fra eksterne kilder (SSB, Eurostat, OECD,
   WHO, Verdensbanken m.fl.) — beskrivende tall, sammenligninger, utvikling.
+  OGSÅ metaspørsmål om dataenes EKSISTENS/tilgjengelighet («finnes det
+  data/en survey/et datasett om X?») — datakatalog-søkeverktøyene finnes
+  kun i denne ruten.
 - "oppslag": enkeltfakta som må slås opp (hovedsteder, forfattere, definisjoner
-  fra autoritative kilder) — websøk, ikke beregning.
+  fra autoritative kilder) — websøk, ikke beregning. IKKE spørsmål om
+  datasett/surveys — de går til "data".
 - "utforsk": normative, konseptuelle eller svært usikre spørsmål der et
   direkte svar ville vært en mening eller en skuldertrekning — men der en
   enkel modell med navngitte parametre kan gjøre uenigheten eksplisitt

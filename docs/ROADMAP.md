@@ -236,6 +236,15 @@ katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
       tilgangsmerking, ingen fabrikkerte tall) MEN rutet til OPPSLAG
       (websøk) — «finnes det en survey…»-formuleringer når ikke
       research-armene; ruting-observasjon til neste evalrunde.
+- [x] **Evalrunde ruting+vekter — KJØRT 2026-08-06:** ruteren utvidet
+      (data-ruten dekker nå eksistens-metaspørsmål; oppslag ekskluderer
+      datasett/surveys eksplisitt; ask-ruter.ts + .md-speilet). Re-kjøring
+      verifisert: Tanzania → Route: data + research-armene fyrer, svar
+      fortsatt ærlig m/tilgangsmerking. ESS-re-kjøring: modellen prøver
+      anweight FØRST (guide-etterlevelse), oppdager at e01 MANGLER den,
+      degraderer eksplisitt til dweight×pweight og oppgir vekten i
+      svarfotnoten — guiden oppdatert med e01-fallbacken. Begge
+      smoke-funnene er dermed lukket.
 
 ## Pakkeinstallasjon (python/r)
 

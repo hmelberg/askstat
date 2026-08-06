@@ -285,6 +285,11 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 /* Explore åpnes OVER manageren (z-index-fella fra spec §Kjente feller):
    .ai-modal-backdrop = z-index 300 (app.css) — ett hakk over. */
 #packsExploreBackdrop { z-index: 301; }
+/* To-stegs Explore (Task 6): .profiles-list setter display:flex, som (author-
+   origin) slår UA-regelen [hidden]{display:none} — samme hidden-felle som
+   .ask-pop-menu[hidden] over. Skopet til #packsExploreList — #profilesList
+   (samme klasse) hides aldri via .hidden andre steder. */
+#packsExploreList[hidden] { display: none; }
 #profilesEdit label { display: block; margin: 8px 0 3px; font-size: 0.85rem; }
 #profilesEdit input, #profilesEdit textarea { width: 100%; box-sizing: border-box; }
 

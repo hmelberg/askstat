@@ -111,9 +111,9 @@ test('prune: tombstones eldre enn 90 dager fjernes ved skriving', () => {
 test('packs: tomt default; auto-forslag gir ett id m/auto-flagg', () => {
   const s = fakeStorage();
   const P = makeProfiles(s);
-  assert.deepEqual(P.packsState(), { ids: [], auto: false });
+  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: false });
   P.setAutoPack('norway');
-  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true });
+  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true, manual: false });
 });
 
 test('packs: setPacks vinner over auto, rydder md_pack_auto, dedupper', () => {
@@ -121,10 +121,10 @@ test('packs: setPacks vinner over auto, rydder md_pack_auto, dedupper', () => {
   const P = makeProfiles(s);
   P.setAutoPack('norway');
   P.setPacks(['a', 'b', 'a']);
-  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false });
+  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false, manual: true });
   assert.equal(s.getItem('md_pack_auto'), null);
   P.setAutoPack('norway'); // no-op når manuelt sett finnes
-  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false });
+  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false, manual: true });
 });
 
 test('packs: togglePack legger til og fjerner; tom liste = manuelt tomt', () => {
@@ -136,7 +136,7 @@ test('packs: togglePack legger til og fjerner; tom liste = manuelt tomt', () => 
   P.togglePack('a');
   assert.deepEqual(P.packsState().ids, ['b']);
   P.togglePack('b');
-  assert.deepEqual(P.packsState(), { ids: [], auto: false });
+  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: true });
 });
 
 test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
@@ -151,6 +151,32 @@ test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
     packs: { ids: ['z'], updated: '2000-01-01T00:00:00.000Z' } };
   assert.equal(P.mergeRemote(eldre), false);
   assert.deepEqual(P.packsState().ids, ['x', 'y']);
+});
+
+test('packs: setPacksAuto gjenoppretter auto som eksplisitt, synkbar verdi', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  P.setAutoPack('norway');
+  P.setPacks(['a']);
+  assert.deepEqual(P.packsState(), { ids: ['a'], auto: false, manual: true });
+  P.setPacksAuto();
+  assert.equal(P.exportDoc().packs.auto, true);        // eksplisitt verdi, ikke slettet felt
+  P.setAutoPack('norway');                             // ikke lenger blokkert av doc.packs
+  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true, manual: false });
+});
+
+test('packs: mergeRemote — nyere {auto:true} vinner over eldre manuelt sett, og omvendt', () => {
+  const P = makeProfiles(fakeStorage());
+  P.setPacks(['a']);
+  const autoNyere = { v: 1, active: null, updated: '', profiles: {},
+    packs: { auto: true, updated: '2099-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(autoNyere), true);
+  assert.deepEqual(P.packsState().ids, []);            // auto uten md_pack_auto = tomt her
+  assert.equal(P.packsState().manual, false);
+  const manueltEldre = { v: 1, active: null, updated: '', profiles: {},
+    packs: { ids: ['z'], updated: '2000-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(manueltEldre), false);    // eldre taper — ingen resurreksjon
+  assert.equal(P.packsState().manual, false);
 });
 
 // Kontekstrunden fase 3 (§Unifisert lager): kind 'profile'|'source'.
@@ -213,7 +239,7 @@ test('packs: gammel doc.pack ignoreres og skrubbes ved neste skriving', () => {
   s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',
     profiles: {}, pack: { id: 'country:IT', updated: '2026-08-05T00:00:00.000Z' } }));
   const P = makeProfiles(s);
-  assert.deepEqual(P.packsState(), { ids: [], auto: false }); // Italia er død
+  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: false }); // Italia er død
   P.setPacks(['norway']);
   const doc = JSON.parse(s.getItem('md_profiles'));
   assert.equal('pack' in doc, false);

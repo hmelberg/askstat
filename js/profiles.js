@@ -160,11 +160,12 @@
       packsState: function () {
         var doc = readDoc();
         if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) {
-          return { ids: doc.packs.ids.map(String), auto: false };
+          return { ids: doc.packs.ids.map(String), auto: false, manual: true };
         }
         var a = null;
         try { a = storage.getItem(PACK_AUTO); } catch (e) {}
-        return a ? { ids: [String(a)], auto: true } : { ids: [], auto: false };
+        return a ? { ids: [String(a)], auto: true, manual: false }
+                 : { ids: [], auto: false, manual: false };
       },
       setPacks: function (ids) {
         var doc = readDoc();
@@ -178,6 +179,15 @@
         try { storage.removeItem(PACK_AUTO); } catch (e) {}
         writeDoc(doc);
       },
+      // «Standard (automatisk)» (spec 2026-08-06-menyopprydding §2): auto
+      // gjenopprettes som EKSPLISITT verdi {auto:true} — å slette doc.packs
+      // ville blitt resurrektert av mergeRemote (remote manuelt sett med
+      // timestamp vinner alltid over et fraværende lokalt felt).
+      setPacksAuto: function () {
+        var doc = readDoc();
+        doc.packs = { auto: true, updated: now() };
+        writeDoc(doc);
+      },
       togglePack: function (id) {
         var st = this.packsState();
         var s = String(id);
@@ -188,7 +198,7 @@
       },
       setAutoPack: function (id) {
         var doc = readDoc();
-        if (doc.packs && typeof doc.packs === 'object') return; // manuelt valg vinner
+        if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) return; // manuelt valg vinner
         try {
           if (id == null) storage.removeItem(PACK_AUTO);
           else storage.setItem(PACK_AUTO, String(id));
@@ -215,14 +225,17 @@
           }
         });
         var rp = remoteDoc.packs;
-        if (rp && typeof rp === 'object' && Array.isArray(rp.ids)) {
+        if (rp && typeof rp === 'object' && (Array.isArray(rp.ids) || rp.auto === true)) {
+          var normPacks = function (p) {
+            return p.auto === true
+              ? { auto: true, updated: String(p.updated || '') }
+              : { ids: (p.ids || []).map(String), updated: String(p.updated || '') };
+          };
           var lp = doc.packs;
-          var rU = String(rp.updated || '');
-          var rIds = rp.ids.map(String);
-          if ((!lp || rU > String(lp.updated || '')) &&
-              (!lp || String(lp.updated || '') !== rU ||
-               JSON.stringify(lp.ids) !== JSON.stringify(rIds))) {
-            doc.packs = { ids: rIds, updated: rU };
+          var rN = normPacks(rp);
+          if ((!lp || rN.updated > String(lp.updated || '')) &&
+              JSON.stringify(lp ? normPacks(lp) : null) !== JSON.stringify(rN)) {
+            doc.packs = rN;
             changed = true;
           }
         }

@@ -166,5 +166,5 @@ test('pakkevalg synkes: pushes uten profiler, merges inn hos B', async () => {
   assert.deepEqual(pushed.packs.ids, ['finland']);
   const B = makeProfiles(fakeStorage(), { now: () => '2026-08-01T00:00:00.000Z' });
   B.mergeRemote(pushed);
-  assert.deepEqual(B.packsState(), { ids: ['finland'], auto: false });
+  assert.deepEqual(B.packsState(), { ids: ['finland'], auto: false, manual: true });
 });

@@ -212,12 +212,12 @@ test('boot: auto fra første matchende locale-kandidat; manuelt valg urørt', as
   const prof = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
   const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
   await P.boot(['sv-FI', 'en-US']);
-  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true });
+  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true, manual: false });
   await P.boot(['fi', 'nb-NO']);                       // lagret UI-språk vinner over navigator
-  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true });
+  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true, manual: false });
   prof.setPacks(['norway']);                           // manuelt valg
   await P.boot(['sv-FI', '']);
-  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: false });
+  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: false, manual: true });
 });
 
 test('onLangChange: setter auto uten manuelt valg; alle-null rydder stale auto', async () => {
@@ -225,9 +225,9 @@ test('onLangChange: setter auto uten manuelt valg; alle-null rydder stale auto',
   const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
   await P.load();
   await P.onLangChange(['ja']);
-  assert.deepEqual(prof.packsState(), { ids: ['country:JP'], auto: true });
+  assert.deepEqual(prof.packsState(), { ids: ['country:JP'], auto: true, manual: false });
   await P.onLangChange(['de', '']);                    // tvetydig + tom → rydd
-  assert.deepEqual(prof.packsState(), { ids: [], auto: false });
+  assert.deepEqual(prof.packsState(), { ids: [], auto: false, manual: false });
 });
 
 test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', async () => {
@@ -340,7 +340,7 @@ test('migrering: uten manuelt doc.packs skapes intet sett (auto bevares)', async
   const P = makePacks(s, fakeFetch(FILES), prof);
   P.migrateImported(prof);
   assert.equal(prof.list('source').length, 1);                        // kilden opprettes uansett
-  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: true }); // uendret — auto overlever
+  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: true, manual: false }); // uendret — auto overlever
   assert.equal(s.getItem('md_packs_imported'), null);
 });
 

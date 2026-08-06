@@ -157,4 +157,6 @@ window.M2PY_I18N.zh = {
   "Profile": "个人资料",
   "Sources": "来源",
   "Where the AI should look for data.": "AI 应该在哪里查找数据。",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{total} 个包中有 {short} 个以短格式发送",
 };

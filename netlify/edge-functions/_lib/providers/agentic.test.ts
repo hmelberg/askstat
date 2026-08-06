@@ -106,3 +106,27 @@ Deno.test("provider-løkka: run_code → run_code+continue m/ pending; resume m/
   assertEquals(ev2.find((e) => e.type === "text")?.text, "Ferdig");
   assertEquals(ev2.at(-1)?.type, "done");
 });
+
+Deno.test("provider-løkka: get_pack → get_pack+continue m/ pending (name+expectedId); resume m/ getPackResult fullfører", async () => {
+  const turns = [
+    { text: "", toolUses: [{ id: "p1", name: "get_pack", input: { id: "norway" } }], searchNotes: [], stop: "tool_use" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+    { text: "Ferdig", toolUses: [], searchNotes: [], stop: "end" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+  ];
+  let call = 0;
+  const runTurn = () => Promise.resolve(turns[call++]);
+  const base = {
+    runTurn, system: "s", userContent: "q", tools: [],
+    executeTool: () => Promise.reject(new Error("skal ikke kalles")),
+    clientTools: ["run_code", "get_pack"], turnsPerCall: 8,
+  };
+  const ev1 = await collect(runProviderAgenticStream(base));
+  assertEquals(ev1.find((e) => e.type === "get_pack")?.id, "norway");
+  const st = ev1.find((e) => e.type === "continue")?.state as { pending?: Record<string, unknown> };
+  assertEquals(st.pending?.name, "get_pack");
+  assertEquals(st.pending?.expectedId, "norway");
+  const ev2 = await collect(runProviderAgenticStream({
+    ...base, resume: st as never, getPackResult: { id: "norway", text: "full pakketekst" },
+  }));
+  assertEquals(ev2.find((e) => e.type === "text")?.text, "Ferdig");
+  assertEquals(ev2.at(-1)?.type, "done");
+});

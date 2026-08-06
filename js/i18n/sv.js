@@ -157,4 +157,6 @@ window.M2PY_I18N.sv = {
   "Profile": "Profil",
   "Sources": "Källor",
   "Where the AI should look for data.": "Var AI:n bör leta efter data.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} av {total} paket skickas i kortform",
 };

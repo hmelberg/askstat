@@ -22,6 +22,43 @@
   // er flerlands og gir null (internasjonal default).
   var LANG_COUNTRY = { no: 'NO', nb: 'NO', nn: 'NO', da: 'DK', fi: 'FI', is: 'IS', sv: 'SE', ja: 'JP', hi: 'IN' };
 
+  // Budsjett og detaljnivåer (kontekstrunden fase 2 §4): tre nivåer —
+  // full tekst (≤L3_CAP), et yaml-manifest utklipp (L2), eller et kort
+  // sammendrag (≤L1_CAP). PURE funksjoner — ingen storage/fetch-avhengighet,
+  // derfor deklarert her (utenfor makePacks) og node-testet direkte.
+  var L1_CAP = 1500;
+  var L3_CAP = 40000;
+  var TOTAL_BUDGET = 80000;
+  function yamlManifest(text) {
+    var m = String(text).match(/```yaml\n[\s\S]*?```/g);
+    return m ? m.join('\n\n') : '';
+  }
+  function summaryOf(p) {
+    if (p.summary) return String(p.summary).slice(0, L1_CAP);
+    var first = String(p.text || '').split(/\n\s*\n/)[0] || '';
+    return first.slice(0, L1_CAP);
+  }
+  // Budsjettering (spec §4): prioritet = sist valgt først; L3→L2→L1;
+  // alle valgte får ALLTID minst L1. Ren funksjon — node-testes direkte.
+  function compose(list) {
+    var budget = TOTAL_BUDGET;
+    var byId = {};
+    for (var i = list.length - 1; i >= 0; i--) {
+      var p = list[i];
+      var full = String(p.text || '').slice(0, L3_CAP);
+      var man = yamlManifest(full);
+      var pick;
+      if (full.length <= budget) pick = { level: 'full', text: full };
+      else if (man && man.length <= budget) pick = { level: 'manifest', text: man };
+      else pick = { level: 'summary', text: summaryOf(p) };
+      budget -= pick.text.length;
+      byId[p.id] = pick;
+    }
+    return list.map(function (p) {
+      return { id: p.id, name: p.name, text: byId[p.id].text, level: byId[p.id].level };
+    });
+  }
+
   function makePacks(storage, fetchImpl, profiles) {
     var index = null;     // {v, packs:[{id,name,description,file,country}]}
     var countries = null; // {v, countries:{CC:{name,agency,note}}}
@@ -144,7 +181,7 @@
         if (entry) {
           var res = await fetchImpl('data/packs/' + entry.file);
           if (res && res.ok) {
-            var text = (await res.text()).slice(0, 8000);
+            var text = (await res.text()).slice(0, L3_CAP);
             if (text.trim()) out = { name: entry.name, text: text };
           }
         }
@@ -161,18 +198,59 @@
       var st = profiles && profiles.packsState ? profiles.packsState() : null;
       return st ? st.ids : [];
     }
-    function payload() {
+    // Rå (ukomponerte) valgte pakker m/ summary-kandidat — delt grunnlag for
+    // payload()/composeInfo() (kontekstrunden fase 2 §4). summary hentes fra
+    // katalogposten (index.json) for kuraterte pakker, fra en generisk
+    // landsetning for country:, og fra compose()s første-avsnitt-fallback
+    // for user:-kilder (ingen katalogpost å hente fra).
+    function rawSelected() {
       var out = [];
       selectedIds().forEach(function (id) {
+        var got = null, summary;
         if (id.indexOf('user:') === 0) {
           var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
-          if (pr) out.push({ name: pr.name, text: pr.text });
-          return;
+          if (pr) got = { name: pr.name, text: pr.text };
+        } else {
+          got = mem[id] || readJson(TXT_CACHE + id);
+          if (got) {
+            if (id.indexOf('country:') === 0) {
+              summary = 'Prefer national sources for ' + got.name + '.';
+            } else {
+              var entry = curated().filter(function (p) { return p.id === id; })[0];
+              if (entry && entry.summary) summary = entry.summary;
+            }
+          }
         }
-        var got = mem[id] || readJson(TXT_CACHE + id);
-        if (got) out.push({ name: got.name, text: got.text });
+        if (got) out.push({ id: id, name: got.name, text: got.text, summary: summary });
       });
-      return out.length ? out : undefined;
+      return out;
+    }
+    function payload() {
+      var list = rawSelected();
+      return list.length ? compose(list) : undefined;
+    }
+    // composeInfo() (kontekstrunden fase 2 §4): {total, shortForm} for
+    // menyhintet — shortForm = antall valgte pakker som IKKE fikk full tekst.
+    function composeInfo() {
+      var list = rawSelected();
+      if (!list.length) return { total: 0, shortForm: 0 };
+      var composed = compose(list);
+      return {
+        total: composed.length,
+        shortForm: composed.filter(function (p) { return p.level !== 'full'; }).length,
+      };
+    }
+    // fullTextFor(id) (kontekstrunden fase 2 §4): full tekst for get_pack-
+    // svaret, ≤L3_CAP — synkron cache-treff (mem/TXT_CACHE) når mulig,
+    // ellers en fersk resolve() (dekker id-er utenfor gjeldende valg).
+    async function fullTextFor(id) {
+      if (!id) return '';
+      if (id.indexOf('user:') === 0) {
+        var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
+        return pr ? String(pr.text || '').slice(0, L3_CAP) : '';
+      }
+      var got = mem[id] || readJson(TXT_CACHE + id) || await resolve(id);
+      return got ? String(got.text || '').slice(0, L3_CAP) : '';
     }
     async function ensureSelected() {
       var ids = selectedIds();
@@ -250,6 +328,7 @@
     return {
       load: load, list: list, listCommunity: listCommunity, autoFrom: autoFrom,
       resolve: resolve, payload: payload, ensureSelected: ensureSelected,
+      composeInfo: composeInfo, fullTextFor: fullTextFor,
       boot: boot, onLangChange: onLangChange, importPack: importPack,
       displayName: displayName, migrateImported: migrateImported,
     };
@@ -383,6 +462,16 @@
           sep();
           modalRow(T('View/Import shared packs…'), function () { openExplore(); });
         }
+        // Budsjett-hint (kontekstrunden fase 2 §4): vises når 80k-budsjettet
+        // tvang én eller flere valgte pakker ned til manifest/summary-nivå.
+        var info = P.composeInfo();
+        if (info.shortForm > 0) {
+          var hint = document.createElement('div');
+          hint.className = 'ask-pop-hint';
+          hint.textContent = T('{short} of {total} packs sent in short form',
+            { short: info.shortForm, total: info.total });
+          container.appendChild(hint);
+        }
       }
       global.PacksUi = { renderInto: renderInto };
 
@@ -458,6 +547,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { makePacks: makePacks };
+    module.exports = { makePacks: makePacks, compose: compose };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

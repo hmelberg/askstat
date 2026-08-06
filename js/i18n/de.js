@@ -157,4 +157,6 @@ window.M2PY_I18N.de = {
   "Profile": "Profil",
   "Sources": "Quellen",
   "Where the AI should look for data.": "Wo die KI nach Daten suchen soll.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} von {total} Paketen werden in Kurzform gesendet",
 };

@@ -157,4 +157,6 @@ window.M2PY_I18N.is = {
   "Profile": "Prófíll",
   "Sources": "Heimildir",
   "Where the AI should look for data.": "Hvar gervigreindin ætti að leita að gögnum.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} af {total} pökkum sendir í styttri mynd",
 };

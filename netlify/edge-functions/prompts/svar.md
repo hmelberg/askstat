@@ -682,6 +682,21 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - `MODE[mode]` = MODE_PY / MODE_R / MODE_DUCK, valgt av datamodus (python/r/duckdb).
 - `DEPTH[depth]` = DEPTH_STANDARD / DEPTH_DEEP, valgt av dybdevalget (standard er default; «Deep» i nedtrekket).
 - `registerblokk` = `renderRegistryBlock` fra `_lib/registry.ts` (kilderegisteret; egen fil, ikke gjengitt her).
+- Kildepakkeblokka (`## Aktive kildepakker …`, `renderPacksBlock`) og
+  preferanseblokka (`renderPreferencesBlock`) er dynamisk generert fra
+  klientdata (`opts.packs`/`opts.preferences`) — IKKE statiske
+  block-konstanter som INTRO/DELIVERY/osv., derfor ikke gjengitt ordrett her
+  (samme grunn som registerblokka). Kontekstrunden Task 5 (2026-08-06):
+  kildepakker kan sendes i tre detaljnivåer (full/manifest/summary — klienten
+  budsjetterer i js/packs.js sin `compose()`, L1_CAP=1500/L3_CAP=40000/
+  TOTAL_BUDGET=80000); en pakke under full får overskriften
+  `### Kildepakke: <navn> (id: <id>)` etterfulgt av en fotnote
+  (*maskinutdrag*/*kortform* — «hent full tekst med get_pack»), og
+  intro-avsnittet legger til én setning om get_pack-verktøyet KUN når minst
+  én valgt pakke ikke er full. Serverens `coercePacks` (`_lib/svar-prompt.ts`)
+  håndhever egne, grovere tak: per pakke ≤40 000 tegn, sum ≤100 000, maks 20
+  pakker, id sanert til `[A-Za-z0-9:_-]` ≤100 tegn, level validert
+  (default `'full'`).
 - MEMORY_URLS legges KUN til for leverandører uten hostede web-verktøy (nivå 2, `opts.memoryUrls`).
 - Rutene "beregning", "oppslag" og "utforsk" bruker verken registerblokken, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, META_SEARCH, KODEBOK, PARTIAL eller MEMORY_URLS — de blokkene gjelder KUN "data". Utforsk-verktøyene er run_code + web_search/web_fetch (hosted; hostedWeb:false → kun run_code, UTFORSK_DATA-nivå 2 bærer degraderingen).
 - `DEPTH_UTFORSK[depth]` er utforsk-rutens egne, korte dybdeblokker (samme standard/deep-akse som DEPTH, egne budsjetter).
@@ -689,9 +704,27 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
   (`depthClientToolCalls`, `depthRunCodeCalls`) følger samme dybde/rute-akse
   som DEPTH-blokkene og skal fortelle samme historie (se kommentar over
   DEPTH_STANDARD i `svar-prompt.ts`).
+- `get_pack` (`GET_PACK_TOOL`, kontekstrunden Task 5): klientutført verktøy
+  som speiler run_code-protokollen (event + continue-token; klienten svarer
+  i resume-POSTen med `get_pack_result: {id, text}`, tak 40 000 tegn) —
+  `svar.ts` legger den til i verktøylista KUN når minst én valgt pakke ikke
+  er full (data-ruten). Ikke en del av `buildRouteToolDefs` (avgjøres av
+  packs-nivået, ikke rute/dybde), derfor ikke i tabellen over.
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-06 (kontekstrunden Task 5 — budsjett, detaljnivåer, get_pack)
+
+Kildepakkeblokka fikk tre klientsidebudsjetterte detaljnivåer (full/manifest/
+summary — se «Montering per rute»-notatet om `renderPacksBlock` over) og et
+nytt klientutført verktøy `get_pack {id}` som speiler run_code-protokollen
+(egen bullet over). Serverens `coercePacks`-tak hevet fra det gamle
+navn≤60/tekst≤8000/maks20 til navn≤60/tekst≤40000/sum≤100000/maks20, pluss
+id-sanering og level-validering (default `'full'`). Ingen tidligere prosa i
+denne fila dekket packs-/preferanseblokkene i det hele tatt (de er
+funksjonsrenderte, ikke statiske block-konstanter) — notatet over er derfor
+nytt dokumentasjon, ikke en oppdatering av eksisterende tekst.
 
 ### 2026-08-04 (vane-myking Task 3)
 

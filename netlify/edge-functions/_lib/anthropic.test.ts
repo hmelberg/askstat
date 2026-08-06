@@ -388,6 +388,72 @@ Deno.test("runAgenticStream: resume med runResult fletter tool_result og fortset
   assertEquals(lastUser.content[0].content, "OK. OUTPUT:\n42");
 });
 
+Deno.test("runAgenticStream: get_pack emitterer get_pack + continue med pending-state (name+expectedId)", async () => {
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code", "get_pack"],
+    executeTool: () => Promise.reject(new Error("skal ikke kalles")),
+    deps: { fetchImpl: sseFetch([
+      streamedToolTurn("get_pack", "tu_gp1", JSON.stringify({ id: "norway" })),
+    ]) },
+  }));
+  const gp = events.find((e) => e.type === "get_pack");
+  assertEquals(gp?.id, "norway");
+  const cont = events.find((e) => e.type === "continue");
+  const st = cont?.state as Record<string, unknown>;
+  const pending = st.pending as Record<string, unknown>;
+  assertEquals(pending.awaitingId, "tu_gp1");
+  assertEquals(pending.name, "get_pack");
+  assertEquals(pending.expectedId, "norway");
+  assertEquals(st.runCalls, 1); // deler run-budsjettet med run_code
+});
+
+Deno.test("runAgenticStream: resume med getPackResult fletter tool_result og fortsetter", async () => {
+  const base = {
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code", "get_pack"],
+    executeTool: () => Promise.resolve(""),
+  };
+  const ev1 = await collectSse(runAgenticStream({
+    ...base,
+    deps: { fetchImpl: sseFetch([streamedToolTurn("get_pack", "tu_gp", JSON.stringify({ id: "norway" }))]) },
+  }));
+  const st = (ev1.find((e) => e.type === "continue")?.state ?? {}) as never;
+  let capturedBody: Record<string, unknown> | null = null;
+  const capturingFetch = ((_u: string, init: RequestInit) => {
+    capturedBody = JSON.parse(String(init.body));
+    return Promise.resolve(new Response(sseUpstream(streamedTextTurn("Ferdig")), { status: 200 }));
+  }) as unknown as typeof fetch;
+  const ev2 = await collectSse(runAgenticStream({
+    ...base, resume: st, getPackResult: { id: "norway", text: "full pakketekst" },
+    deps: { fetchImpl: capturingFetch },
+  }));
+  assertEquals(ev2.at(-1)?.type, "done");
+  const msgs = ((capturedBody as Record<string, unknown> | null)?.messages ?? []) as Record<string, unknown>[];
+  const lastUser = msgs.at(-1) as { role: string; content: { type: string; tool_use_id: string; content: string }[] };
+  assertEquals(lastUser.role, "user");
+  assertEquals(lastUser.content[0].tool_use_id, "tu_gp");
+  assertEquals(lastUser.content[0].content, "full pakketekst");
+});
+
+Deno.test("runAgenticStream: resume med get_pack venter, men id samsvarer ikke → feil", async () => {
+  const ev1 = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["get_pack"],
+    executeTool: () => Promise.resolve(""),
+    deps: { fetchImpl: sseFetch([streamedToolTurn("get_pack", "tu_x", JSON.stringify({ id: "norway" }))]) },
+  }));
+  const st = (ev1.find((e) => e.type === "continue")?.state ?? {}) as never;
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["get_pack"],
+    executeTool: () => Promise.resolve(""),
+    resume: st, getPackResult: { id: "annen-id", text: "x" },
+    deps: { fetchImpl: sseFetch([]) },
+  }));
+  assertEquals(events.at(-1)?.type, "error");
+});
+
 Deno.test("runAgenticStream: run_code over budsjett får server-side tool_result i stedet for event", async () => {
   const events = await collectSse(runAgenticStream({
     apiKey: "k", model: "m", system: "s", userContent: "q",

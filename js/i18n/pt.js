@@ -158,4 +158,6 @@ window.M2PY_I18N.pt = {
   "Profile": "Perfil",
   "Sources": "Fontes",
   "Where the AI should look for data.": "Onde a IA deve procurar dados.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} de {total} pacotes enviados em forma curta",
 };

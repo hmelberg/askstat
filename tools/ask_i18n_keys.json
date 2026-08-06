@@ -143,6 +143,7 @@
   "Yours — switch to the code view any time to edit and re-run the analysis.",
   "by {author}, updated {updated}",
   "three-word-code",
+  "{short} of {total} packs sent in short form",
   "← Back",
   "⚠ Last polish run failed — the numbers come from an earlier successful run",
   "⚠ Not verified with code or data — plain model answer",

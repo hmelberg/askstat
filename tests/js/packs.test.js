@@ -2,7 +2,7 @@
 // resolusjon m/cache, locale→pakke. Node-seam: makePacks(storage, fetch, profiles).
 const test = require('node:test');
 const assert = require('node:assert');
-const { makePacks } = require('../../js/packs.js');
+const { makePacks, compose } = require('../../js/packs.js');
 
 function fakeStorage() {
   const m = new Map();
@@ -60,6 +60,51 @@ const FILES = {
   'data/packs/finland.md': '# Finland pack\nUse statfin first.',
 };
 
+// Budsjett og detaljnivåer (kontekstrunden fase 2 §4): compose() er en ren
+// funksjon — testes direkte, uten storage/fetch.
+test('compose: alt får full innenfor budsjettet; nivå og rekkefølge bevares', () => {
+  const out = compose([{ id: 'a', name: 'A', text: 'x'.repeat(100) },
+                       { id: 'b', name: 'B', text: 'y'.repeat(100) }]);
+  assert.deepEqual(out.map(p => p.level), ['full', 'full']);
+  assert.deepEqual(out.map(p => p.id), ['a', 'b']);
+});
+// MERK (avvik fra brief-utkastet, se task-5-report.md): brief-utkastets
+// versjon av denne testen brukte KUN to pakker og ventet at 'gammel' skulle
+// degradere til 'manifest'. Det er matematisk umulig med disse to pakkene:
+// TOTAL_BUDGET (80000) er EKSAKT 2×L3_CAP (40000), så de to
+// høyest-prioriterte fullstore pakkene rommes ALLTID begge fullt ut
+// (40000 <= 40000) — degradering krever en TREDJE pakke (jf. test 3 pekere:
+// «80000 rommer to L3-kutt»). Testen er derfor utvidet med en tredje,
+// budsjett-fyllende pakke ('fyll') slik at 'gammel' faktisk går tom for
+// budsjett og må degradere — mekanismen (sist-valgt-prioritet,
+// yaml-manifest-fallback) er UENDRET fra brief-utkastet.
+test('compose: sist valgt prioriteres; overskytende degraderes manifest→summary', () => {
+  const stor = 'z'.repeat(50000);  // > L3_CAP kuttes til 40000
+  const fyll = 'w'.repeat(39900);  // fyller nesten resten av budsjettet
+  const medYaml = 'intro\n```yaml\nid: x\n```\nprosa'.padEnd(60000, 'q');
+  const out = compose([
+    { id: 'gammel', name: 'G', text: medYaml, summary: 'kort om G' },
+    { id: 'fyll', name: 'F', text: fyll },
+    { id: 'ny', name: 'N', text: stor },
+  ]);
+  assert.equal(out[2].level, 'full');           // sist valgt vinner budsjettet
+  assert.equal(out[2].text.length, 40000);      // L3-cap
+  assert.equal(out[1].level, 'full');           // nest sist valgt får òg fullt (rommes ennå)
+  assert.equal(out[0].level, 'manifest');       // budsjettet tomt — yaml-blokka plukkes
+  assert(out[0].text.includes('id: x'));
+});
+test('compose: uten yaml → summary; summary-cap 1500; alle får ALLTID minst L1', () => {
+  const out = compose([
+    { id: 'a', name: 'A', text: 'p'.repeat(41000) },
+    { id: 'b', name: 'B', text: 'q'.repeat(41000) },
+    { id: 'c', name: 'C', text: 'r'.repeat(41000), summary: 's'.repeat(2000) },
+  ]);
+  assert.equal(out[2].level, 'full');
+  assert.equal(out[1].level, 'full');           // 80000 rommer to L3-kutt
+  assert.equal(out[0].level, 'summary');
+  assert(out[0].text.length <= 1500);
+});
+
 test('autoFrom: region vinner, entydige språk mappes, tvetydige → null', async () => {
   const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P.load();
@@ -96,18 +141,47 @@ test('payload: synkron fra cache etter ensureSelected; array for flere valgte; u
   await P.load();
   assert.equal(P.payload(), undefined);               // ikke resolvet ennå
   await P.ensureSelected();
-  assert.deepEqual(P.payload(), [{ name: 'Finland', text: '# Finland pack\nUse statfin first.' }]);
+  assert.deepEqual(P.payload(), [
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
+  ]);
   const P2 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: ['norway', 'finland'], auto: false }));
   await P2.load();
   await P2.ensureSelected();
   assert.deepEqual(P2.payload(), [
-    { name: 'Norway', text: '# Norway pack\nUse ssb first.' },
-    { name: 'Finland', text: '# Finland pack\nUse statfin first.' },
+    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full' },
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
   ]);
   const P3 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P3.load();
   await P3.ensureSelected();
   assert.equal(P3.payload(), undefined);              // ingen pakke valgt
+});
+
+test('composeInfo: {total, shortForm} følger budsjettert nivå; tomt sett → 0/0', async () => {
+  const s = fakeStorage();
+  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: ['norway', 'finland'], auto: false }));
+  await P.load();
+  assert.deepEqual(P.composeInfo(), { total: 0, shortForm: 0 });   // ikke resolvet ennå
+  await P.ensureSelected();
+  assert.deepEqual(P.composeInfo(), { total: 2, shortForm: 0 });   // begge får full innenfor budsjettet
+});
+
+test('fullTextFor: resolvet tekst kappet til L3_CAP; ukjent id → tom streng', async () => {
+  const s = fakeStorage();
+  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: ['norway'], auto: false }));
+  await P.load();
+  await P.ensureSelected();
+  const text = await P.fullTextFor('norway');
+  assert.ok(text.includes('ssb'));
+  assert.equal(await P.fullTextFor('ukjent-id'), '');
+});
+
+test('resolve: kappen er hevet til 40000 (L3_CAP), ikke 8000', async () => {
+  const bigFiles = Object.assign({}, FILES, { 'data/packs/norway.md': 'x'.repeat(50000) });
+  const P = makePacks(fakeStorage(), fakeFetch(bigFiles), fakeProfiles({ ids: [], auto: false }));
+  await P.load();
+  const got = await P.resolve('norway');
+  assert.equal(got.text.length, 40000);
 });
 
 test('list: builtins først, deretter land uten kuratert pakke', async () => {
@@ -201,7 +275,7 @@ test('user:-pakker resolves fra Profiles-lageret, aldri fetch', async () => {
   assert.equal(calls, before);                                         // resolve() gjorde ALDRI et fetch-kall
   prof.setPacks(['user:' + sid]);
   await P.ensureSelected();
-  assert.deepEqual(P.payload(), [{ name: 'ESS-kilde', text: 'yaml her' }]);
+  assert.deepEqual(P.payload(), [{ id: 'user:' + sid, name: 'ESS-kilde', text: 'yaml her', level: 'full' }]);
 });
 
 test('migrering: md_packs_imported flyttes til kind:source og velges om valgt', async () => {

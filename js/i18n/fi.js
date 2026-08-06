@@ -157,4 +157,6 @@ window.M2PY_I18N.fi = {
   "Profile": "Profiili",
   "Sources": "Lähteet",
   "Where the AI should look for data.": "Mistä tekoälyn tulisi etsiä dataa.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short}/{total} pakettia lähetetään lyhytmuodossa",
 };

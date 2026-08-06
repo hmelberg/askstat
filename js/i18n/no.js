@@ -159,4 +159,6 @@ window.M2PY_I18N.no = {
   "Child mortality by wealth (DHS)": "Barnedødelighet etter velstand (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Finnes det en survey med individdata om egenbetaling for helse i Tanzania?",
   "Find a survey (World Bank Microdata)": "Finn en survey (World Bank Microdata)",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} av {total} pakker sendes i kortform",
 };

@@ -659,6 +659,9 @@
       //   turn_discard {}           — deltas so far were an intermediate
       //                               (tool-calling) turn; archive them
       //   run_code {script}         — run client-side, re-POST resume + run_result
+      //   get_pack {id}             — resolve client-side via Packs.fullTextFor(id),
+      //                               re-POST resume + get_pack_result (mirrors
+      //                               run_code — see svar.ts/anthropic.ts)
       //   continue {state, probed, run_ok_calls} — server turn budget spent;
       //                               re-POST resume (run_ok_calls: run-disiplin
       //                               sidekanal-teller, see svar.ts)
@@ -671,7 +674,7 @@
         var handlers = params.handlers || {};
         var mode = params.mode ||
           ((typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python');
-        var buffer = '', sources = null, resume = null, runResult = null;
+        var buffer = '', sources = null, resume = null, runResult = null, getPackResult = null;
         for (var hop = 0; ; hop++) {
           if (hop > 60) throw new Error('Aborted: the answer was not finished after 60 continuation rounds.');
           var headers = providerAuthHeaders();
@@ -696,10 +699,12 @@
               script: params.scriptContext || undefined,
               resume: resume || undefined,
               run_result: runResult == null ? undefined : runResult,
+              get_pack_result: getPackResult == null ? undefined : getPackResult,
               provider: providerConfig() || undefined,
             }),
           });
           runResult = null;
+          getPackResult = null;
           if (resp.status === 401) {
             throw new Error(customProviderReady()
               ? T('AI-leverandøren avviste nøkkelen (401) — sjekk i AI-innstillingene.')
@@ -708,10 +713,11 @@
           if (resp.status === 429) throw new Error('Rate limited — wait a bit and ask again.');
           if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status + ' ' + (await resp.text()));
 
-          var cont = null, pendingRun = null;
+          var cont = null, pendingRun = null, pendingGetPack = null;
           await consumeSse(resp, function (ev) {
             if (ev.type === 'continue') { cont = { state: ev.state, probed: ev.probed, run_ok_calls: ev.run_ok_calls }; return; }
             if (ev.type === 'run_code') { pendingRun = ev.script || ''; return; }
+            if (ev.type === 'get_pack') { pendingGetPack = ev.id || ''; return; }
             if (ev.type === 'delta' || ev.type === 'text') {
               buffer += ev.text;
               if (handlers.onDelta) handlers.onDelta(buffer);
@@ -739,6 +745,20 @@
             }
             runResult = await handlers.onRunCode(pendingRun);
             resume = cont;   // run_code ender alltid invokasjonen med en continue
+            continue;
+          }
+          if (pendingGetPack != null) {
+            if (params.signal && params.signal.aborted) {
+              throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+            }
+            // get_pack er generisk (ingen kjøremiljø involvert) — løses direkte
+            // her i stedet for via en handlers.onGetPack-krok per kaller.
+            var packText = '';
+            try {
+              if (window.Packs && window.Packs.fullTextFor) packText = await window.Packs.fullTextFor(pendingGetPack);
+            } catch (e) { packText = ''; }
+            getPackResult = { id: pendingGetPack, text: packText };
+            resume = cont;   // get_pack ender alltid invokasjonen med en continue
             continue;
           }
           if (!cont) break;

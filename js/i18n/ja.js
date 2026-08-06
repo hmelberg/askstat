@@ -157,4 +157,6 @@ window.M2PY_I18N.ja = {
   "Profile": "プロフィール",
   "Sources": "ソース",
   "Where the AI should look for data.": "AIがデータを探す場所。",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{total}個中{short}個のパックが短縮形で送信されます",
 };

@@ -31,16 +31,41 @@ export function demoteHeadings(s: string): string {
     "#".repeat(Math.min(6, h.length + 2)) + sp);
 }
 
-/** Kildepakker fra klienten (js/packs.js): [{name, text}]. Defensive caps —
- *  klienten budsjetterer, serveren begrenser (spec 2026-08-06 §4). */
-export function coercePacks(p: unknown): { name: string; text: string }[] {
+export interface RenderedPack {
+  id: string;
+  name: string;
+  text: string;
+  level: "full" | "manifest" | "summary";
+}
+
+// Tak (kontekstrunden fase 2 §4/§5): klienten budsjetterer innenfor
+// TOTAL_BUDGET=80000 (js/packs.js compose()), serveren håndhever egne,
+// grovere defensive tak uavhengig av hva klienten faktisk sendte.
+const PACK_ID_MAX = 100;
+const PACK_NAME_MAX = 60;
+const PACK_TEXT_MAX = 40000;
+const PACKS_SUM_MAX = 100000;
+const PACKS_MAX = 20;
+
+/** Kildepakker fra klienten (js/packs.js: Packs.payload()/compose()):
+ *  [{id, name, text, level}]. Defensive caps — klienten budsjetterer,
+ *  serveren begrenser (spec 2026-08-06 §4). */
+export function coercePacks(p: unknown): RenderedPack[] {
   if (!Array.isArray(p)) return [];
-  const out: { name: string; text: string }[] = [];
-  for (const item of p.slice(0, 20)) {
+  const out: RenderedPack[] = [];
+  let sum = 0;
+  for (const item of p.slice(0, PACKS_MAX)) {
     if (!item || typeof item !== "object") continue;
-    const name = String((item as Record<string, unknown>).name ?? "").trim().slice(0, 60);
-    const text = String((item as Record<string, unknown>).text ?? "").trim().slice(0, 8000);
-    if (name && text) out.push({ name, text });
+    const rec = item as Record<string, unknown>;
+    const name = String(rec.name ?? "").trim().slice(0, PACK_NAME_MAX);
+    const text = String(rec.text ?? "").trim().slice(0, PACK_TEXT_MAX);
+    if (!name || !text) continue;
+    if (sum + text.length > PACKS_SUM_MAX) break; // stopp når taket nås
+    const id = String(rec.id ?? "").replace(/[^A-Za-z0-9:_-]/g, "").slice(0, PACK_ID_MAX);
+    const level: RenderedPack["level"] =
+      rec.level === "manifest" || rec.level === "summary" ? rec.level : "full";
+    out.push({ id, name, text, level });
+    sum += text.length;
   }
   return out;
 }
@@ -56,16 +81,30 @@ forrang over landrutingen og registerets standardvalg — men opphever ALDRI
 ${demoteHeadings(prefs)}`;
 }
 
-function renderPacksBlock(packs: { name: string; text: string }[]): string {
+// Nivåmerker (kontekstrunden fase 2 §4): en pakke under 'full' fikk teksten
+// klippet av klientens budsjett (compose() i js/packs.js) — merket forteller
+// modellen at get_pack-verktøyet henter resten.
+function renderPacksBlock(packs: RenderedPack[]): string {
   if (!packs.length) return "";
-  const parts = packs.map((p) =>
-    `### Kildepakke: ${p.name}\n\n${demoteHeadings(p.text)}`);
+  const anyShort = packs.some((p) => p.level !== "full");
+  const parts = packs.map((p) => {
+    const note = p.level === "manifest"
+      ? "\n*(maskinutdrag — hent full tekst med get_pack)*"
+      : p.level === "summary"
+        ? "\n*(kortform — hent full tekst med get_pack)*"
+        : "";
+    return `### Kildepakke: ${p.name} (id: ${p.id})${note}\n\n${demoteHeadings(p.text)}`;
+  });
+  const getPackNote = anyShort
+    ? " Pakker merket kortform/maskinutdrag kan hentes i full tekst med" +
+      " get_pack-verktøyet (id står i overskriften)."
+    : "";
   return `## Aktive kildepakker (valgt av brukeren)
 
 Brukeren har valgt disse kildepakkene. Bruk den eller de som er relevante
 for spørsmålet; ignorer pakker som ikke angår det. De har forrang over
 landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
-fabrikasjonsvern, budsjettene):
+fabrikasjonsvern, budsjettene).${getPackNote}
 
 ${parts.join("\n\n")}`;
 }
@@ -873,6 +912,19 @@ export const RUN_CODE_TOOL = {
     type: "object",
     properties: { script: { type: "string", description: "hele scriptet, klart til kjøring" } },
     required: ["script"],
+  },
+};
+
+// Klientutført verktøy (kontekstrunden fase 2 §4), speiler run_code-mønsteret
+// (svar.ts legger den KUN til når minst én valgt pakke ikke er 'full').
+export const GET_PACK_TOOL = {
+  name: "get_pack",
+  description:
+    "Hent FULL tekst for en kildepakke som ble sendt i kortform eller som maskinutdrag (id-en står i pakkens overskrift i 'Aktive kildepakker'-blokka: '### Kildepakke: navn (id: <id>)').",
+  input_schema: {
+    type: "object",
+    properties: { id: { type: "string", description: "pakkens id, fra overskriften" } },
+    required: ["id"],
   },
 };
 

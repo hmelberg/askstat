@@ -157,4 +157,6 @@ window.M2PY_I18N.hi = {
   "Profile": "प्रोफ़ाइल",
   "Sources": "स्रोत",
   "Where the AI should look for data.": "AI को डेटा कहाँ खोजना चाहिए।",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{total} में से {short} पैक संक्षिप्त रूप में भेजे जाते हैं",
 };

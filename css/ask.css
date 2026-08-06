@@ -159,6 +159,7 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-pop-menu .ask-pop-check { width: 14px; flex: 0 0 14px; color: var(--accent);
   font-weight: 700; }
 .ask-pop-sep { border-top: 1px solid var(--border); margin: 4px 6px; }
+.ask-pop-hint { padding: 6px 10px 2px; font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
 /* Kontekst-pillen (kontekstrunden §1): seksjonsoverskrifter m/forklaringslinje */
 .ask-context-menu { min-width: 280px; }
 .ask-ctx-head { display: flex; align-items: center; gap: 7px; padding: 8px 10px 2px;

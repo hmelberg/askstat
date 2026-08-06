@@ -157,4 +157,6 @@ window.M2PY_I18N.da = {
   "Profile": "Profil",
   "Sources": "Kilder",
   "Where the AI should look for data.": "Hvor AI'en bør lede efter data.",
+  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
+  "{short} of {total} packs sent in short form": "{short} af {total} pakker sendes i kortform",
 };

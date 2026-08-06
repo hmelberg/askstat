@@ -37,12 +37,15 @@ export interface ProviderAgenticOptions {
   resume?: AgenticResumeState;
   turnsPerCall?: number;
   continueExtra?: () => Record<string, unknown>;
-  // Klientutførte verktøy (run_code): verktøykall med disse navnene utføres
-  // IKKE av executeTool — de emitteres som {type:"run_code", script} fulgt av
-  // {type:"continue", state} (state.pending husker hva vi venter på), og
-  // klienten re-POST-er med resume + run_result (verktøyresultat-strengen).
+  // Klientutførte verktøy (run_code, get_pack — kontekstrunden fase 2 §4,
+  // speiler anthropic.ts sin runAgenticStream): verktøykall med disse
+  // navnene utføres IKKE av executeTool. run_code emitteres som
+  // {type:"run_code", script} og get_pack som {type:"get_pack", id}, begge
+  // fulgt av {type:"continue", state}. Klienten re-POST-er med resume +
+  // run_result (run_code) eller get_pack_result (get_pack).
   clientTools?: string[];
   runResult?: string;
+  getPackResult?: { id: string; text: string };
   maxRunCode?: number;
   deps?: RetryDeps;
 }
@@ -70,14 +73,27 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
       const maxRunCode = opts.maxRunCode ?? 2;
 
       try {
-        // Resume etter run_code: flett klientens kjøreresultat inn som
+        // Resume etter run_code/get_pack: flett klientens resultat inn som
         // tool_result sammen med eventuelle server-verktøyresultater fra samme tur.
         if (state.pending) {
-          if (typeof opts.runResult !== "string") {
-            throw new Error("resume med ventende run_code mangler run_result");
+          let pendingContent: string;
+          if (state.pending.name === "get_pack") {
+            const gp = opts.getPackResult;
+            if (!gp || typeof gp.text !== "string" || typeof gp.id !== "string") {
+              throw new Error("resume med ventende get_pack mangler get_pack_result");
+            }
+            if (gp.id !== state.pending.expectedId) {
+              throw new Error("get_pack_result.id samsvarer ikke med utestående forespørsel");
+            }
+            pendingContent = gp.text.slice(0, 40_000);
+          } else {
+            if (typeof opts.runResult !== "string") {
+              throw new Error("resume med ventende run_code mangler run_result");
+            }
+            pendingContent = opts.runResult;
           }
           const merged = [...state.pending.results,
-            { tool_use_id: state.pending.awaitingId, content: opts.runResult }];
+            { tool_use_id: state.pending.awaitingId, content: pendingContent }];
           state.messages.push({
             role: "user",
             content: merged.map((r) => ({ type: "tool_result", tool_use_id: r.tool_use_id, content: r.content })),
@@ -122,7 +138,7 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
             }
             state.messages.push({ role: "assistant", content });
             const results: { tool_use_id: string; content: string }[] = [];
-            let clientCall: { id: string; input: Record<string, unknown> } | null = null;
+            let clientCall: { id: string; name: string; input: Record<string, unknown> } | null = null;
             for (const tu of turn.toolUses) {
               if (clientToolNames.has(tu.name)) {
                 state.runCalls = (state.runCalls ?? 0) + 1;
@@ -130,9 +146,9 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
                   results.push({ tool_use_id: tu.id, content:
                     "Kjøre-budsjettet er brukt opp — skriv sluttsvaret NÅ basert på det du allerede vet. Vær ærlig om hva som ikke ble verifisert." });
                 } else if (clientCall) {
-                  results.push({ tool_use_id: tu.id, content: "Kall run_code én gang per tur." });
+                  results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
                 } else {
-                  clientCall = { id: tu.id, input: tu.input };
+                  clientCall = { id: tu.id, name: tu.name, input: tu.input };
                 }
                 continue;
               }
@@ -152,8 +168,14 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
               results.push({ tool_use_id: tu.id, content: out });
             }
             if (clientCall) {
-              state.pending = { results, awaitingId: clientCall.id };
-              emit({ type: "run_code", script: String(clientCall.input.script ?? "") });
+              if (clientCall.name === "get_pack") {
+                const id = String(clientCall.input.id ?? "");
+                state.pending = { results, awaitingId: clientCall.id, name: "get_pack", expectedId: id };
+                emit({ type: "get_pack", id });
+              } else {
+                state.pending = { results, awaitingId: clientCall.id, name: "run_code" };
+                emit({ type: "run_code", script: String(clientCall.input.script ?? "") });
+              }
               emit({ type: "continue", state, ...(opts.continueExtra?.() ?? {}) });
               controller.close();
               return;

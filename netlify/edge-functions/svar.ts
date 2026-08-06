@@ -11,9 +11,9 @@ import { coerceScope, searchDatasets } from "./_lib/tools/search-datasets.ts";
 import { probeUrl } from "./_lib/tools/probe.ts";
 import { injectBeforeDone } from "./_lib/sse-util.ts";
 import {
-  buildRouteToolDefs, buildSvarSystem, coerceDataMode,
-  coerceDepth, coerceRoute, depthClientToolCalls, depthRunCodeCalls,
-  progressLabel, questionTurn,
+  buildRouteToolDefs, buildSvarSystem, coerceDataMode, coerceDepth,
+  coercePacks, coerceRoute, depthClientToolCalls, depthRunCodeCalls,
+  GET_PACK_TOOL, progressLabel, questionTurn,
 } from "./_lib/svar-prompt.ts";
 import { searchLiterature } from "./_lib/tools/search-literature.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
@@ -35,6 +35,7 @@ interface RequestBody {
   provider?: unknown;
   resume?: ResumeBody;
   run_result?: string;
+  get_pack_result?: unknown;
 }
 
 // Resume-bodies bærer hele samtaletilstanden (tool-results, websøk-blokker).
@@ -51,6 +52,10 @@ function validResumeState(s: AgenticResumeState | undefined): s is AgenticResume
     const p = s.pending as Record<string, unknown>;
     if (!p || typeof p.awaitingId !== "string" || p.awaitingId.length > 200 ||
       !Array.isArray(p.results) || (p.results as unknown[]).length > 20) return false;
+    // name/expectedId (get_pack — kontekstrunden fase 2 §4): valgfrie, men
+    // strengformet og lengdebegrenset når de foreligger.
+    if (p.name !== undefined && (typeof p.name !== "string" || p.name.length > 20)) return false;
+    if (p.expectedId !== undefined && (typeof p.expectedId !== "string" || p.expectedId.length > 100)) return false;
   }
   return typeof s.usage === "object" && s.usage !== null;
 }
@@ -109,6 +114,16 @@ export default async (request: Request): Promise<Response> => {
   const runResult = typeof body.run_result === "string"
     ? body.run_result.slice(0, 30_000)
     : undefined;
+  // get_pack-protokollen (kontekstrunden fase 2 §4, speiler run_result over):
+  // resume-feltet klienten fyller etter Packs.fullTextFor(id) — id-match mot
+  // den utestående forespørselen håndheves i runAgenticStream (state.pending).
+  const rawGetPackResult = body.get_pack_result as Record<string, unknown> | undefined;
+  const getPackResult = rawGetPackResult && typeof rawGetPackResult === "object"
+    ? {
+      id: String(rawGetPackResult.id ?? "").slice(0, 100),
+      text: String(rawGetPackResult.text ?? "").slice(0, 40_000),
+    }
+    : undefined;
 
   // Run-disiplin (spec 2026-08-04-lokke-niva): suksess-teller i resume-
   // SIDEKANALEN (probed-mønsteret — løkka er uvitende). Påminnelse på
@@ -139,6 +154,12 @@ export default async (request: Request): Promise<Response> => {
   const route = coerceRoute(body.route);
   const mode = coerceDataMode(body.mode);
   const depth = coerceDepth(body.depth);
+
+  // get_pack er kun aktuelt i data-ruten (packs-blokka rendres KUN der, se
+  // buildSvarSystem) og KUN når minst én valgt pakke ikke fikk full tekst.
+  const needsGetPack = route === "data" && coercePacks(body.packs).some((p) => p.level !== "full");
+  const withGetPackTool = (tools: unknown[]): unknown[] =>
+    needsGetPack ? [...tools, GET_PACK_TOOL] : tools;
 
   // Registeret trengs bare i data-ruten (beregning/oppslag har verken
   // katalogverktøy eller registerblokk i prompten) — sparer et nettkall.
@@ -234,34 +255,37 @@ export default async (request: Request): Promise<Response> => {
     progressLabel,
     maxTokens: 8192,
     maxClientToolCalls: depthClientToolCalls(depth),
-    clientTools: ["run_code"],
+    clientTools: needsGetPack ? ["run_code", "get_pack"] : ["run_code"],
     maxRunCode: depthRunCodeCalls(depth),
     runResult: runResultTilLopet,
+    getPackResult,
     resume: resumeState,
     continueExtra: () => ({ probed, run_ok_calls: runOkCalls }),
   };
   const providerDeps = { timeoutMs: 180_000, retries: 1 };
   // filtrerRunCode (run-disiplin.ts): dropper run_code fra `tools` ved
   // run_ok_calls>=2, unntatt der run_code er eneste verktøy (beregning) —
-  // se kommentar der. Verktøylista ligger FØR system i Anthropic sitt
+  // se kommentar der. get_pack er UBERØRT av run-disiplinen (den handler om
+  // reparasjonsløkker, ikke om å hente pakketekst) — withGetPackTool legges
+  // til FØR filtrering. Verktøylista ligger FØR system i Anthropic sitt
   // cache-prefiks, så denne endringen invaliderer prompt-cachen for resten
   // av løpet — akseptert kostnad (spec §Mekanisme 1), ikke optimalisert her.
   let inner: ReadableStream<Uint8Array>;
   if (provider && provider.type === "openai-compat") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiCompatTurn(provider),
-      tools: filtrerRunCode(buildRouteToolDefs(route, depth, { hostedWeb: false }), runOkCalls),
+      tools: filtrerRunCode(withGetPackTool(buildRouteToolDefs(route, depth, { hostedWeb: false })), runOkCalls),
     });
   } else if (provider && provider.type === "openai-responses") {
     inner = runProviderAgenticStream({
       ...commonOpts, deps: providerDeps, runTurn: makeOpenAiResponsesTurn(provider),
-      tools: filtrerRunCode(buildRouteToolDefs(route, depth, { hostedWeb: false }), runOkCalls),
+      tools: filtrerRunCode(withGetPackTool(buildRouteToolDefs(route, depth, { hostedWeb: false })), runOkCalls),
     });
   } else {
     inner = runAgenticStream({
       ...commonOpts,
       apiKey, model,
-      tools: filtrerRunCode(buildRouteToolDefs(route, depth), runOkCalls),
+      tools: filtrerRunCode(withGetPackTool(buildRouteToolDefs(route, depth)), runOkCalls),
       turnsPerCall: 8,
       cacheTtl: "1h",
       apiBase: provider?.type === "anthropic-compat" ? provider.baseUrl : undefined,

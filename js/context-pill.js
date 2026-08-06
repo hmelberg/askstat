@@ -47,7 +47,16 @@
       menu.hidden = !menu.hidden;
     });
     document.addEventListener('click', function (e) {
-      if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true;
+      // Fiks (fase 2-runden, controller-funn): et sjekkboks-/toggle-klikk
+      // inni menyen (Task 3/6) trigger Prof.togglePack → Profiles.onChange
+      // SYNKRONT → renderSections() → container.innerHTML = '' — FØR
+      // klikk-eventet har rukket å boble hit til document. e.target peker da
+      // på en node som allerede er fjernet fra treet (isConnected=false),
+      // og menu.contains(e.target) svarer (feilaktig) false siden noden ikke
+      // er noe sted i DOM-treet lenger — menyen lukket seg selv ved hvert
+      // valg. Et frakoblet mål er ALDRI et ekte utenfor-klikk (de har alltid
+      // et tilkoblet mål) — ignorer det i stedet for å tolke det som utenfor.
+      if (!menu.hidden && e.target && e.target.isConnected && !menu.contains(e.target)) menu.hidden = true;
     });
     Prof.onChange(function () {
       renderLabel();

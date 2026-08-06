@@ -537,6 +537,14 @@
       // (reset() under, kalt fra profiles.js openModal).
       var managerView = 'library'; // 'library' | 'countries'
       var countryQuery = '';
+      // Review-funn (task 5 self-review, 2026-08-07): renderLibrary ALLTID
+      // mottar de ekte hooks'ene fra js/profiles.js sin renderList(); husk
+      // dem her slik at #sourcesCountryBtn (som ikke går via renderList) kan
+      // gjenbruke et ekte onEdit i stedet for en blindpassasjer-dummy —
+      // ellers blir «Rediger» på egne kilder en stille no-op etter en
+      // land-visning→tilbake-runde uten noe mellomliggende onChange (spec §4
+      // krever et virkende Rediger/Slett for egne kilder).
+      var lastHooks = null;
       function renderCountries(container, hooks) {
         container.innerHTML = '';
         var back = document.createElement('button');
@@ -580,6 +588,7 @@
         });
       }
       function renderLibrary(container, hooks) {
+        lastHooks = hooks;
         if (managerView === 'countries') return renderCountries(container, hooks);
         container.innerHTML = '';
         container.classList.add('sources-scroll');
@@ -644,7 +653,7 @@
         managerView = 'countries';
         countryQuery = '';
         var listEl = document.getElementById('profilesList');
-        if (listEl) renderCountries(listEl, { onEdit: function () {} });
+        if (listEl) renderCountries(listEl, lastHooks || { onEdit: function () {} });
       });
       global.SourcesUi = {
         renderLibrary: renderLibrary,

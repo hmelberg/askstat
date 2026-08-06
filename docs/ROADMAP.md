@@ -206,13 +206,13 @@ Levert i runden: 8 nye registerkilder (ess/census/nchs/wbmicro/cessda/
 dhs/cdc/hf, alle etter ipums-mønsteret uten adapterkode), kaggle-
 katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
 
-- [ ] **CESSDA-arm i search_datasets (research-scope)** — beste kandidaten:
-      ett GET-endepunkt, nøkkelfri, CORS-åpen, rike DDI-felter (à la
-      dataciteSearch). Zenodo som arm nr. 2 (billigst, direkte fil-URL-er).
-- [ ] **NADA-adapter + dataportals-registry-høsting** — én generisk
-      NADA-søkeadapter dekker WB/IHSN/FAO/WHO + ~130 nasjonale
-      mikrodatakataloger; instansliste høstes ved byggetid fra
-      commondataio/dataportals-registry-dumpen (apd-mønsteret; sjekk lisens).
+- [x] **CESSDA + Zenodo-armer i search_datasets** — LEVERT 2026-08-06
+      (spec 2026-08-06-mikrodata-oppdagelse; kind cessda i search_catalog
+      også). Live-verifisert; CESSDA-pid-URL-formen dokumentert i adapteren.
+- [x] **NADA-adapter + dataportals-registry-høsting** — LEVERT 2026-08-06:
+      kind nada (wbmicro søk+variabelordbok), data/nada-catalog.json
+      (40/108 levende, probet; MIT). IHSN-TLS-fella: kun nettleser-direkte
+      (ECDSA-SHA512-kjede Deno ikke støtter) — se spec+guiden.
 - [ ] **Dateno som eksplisitt bredde-fallback** — nøkkel finnes i miljøet,
       men kvoten er 500 kall/mnd: aldri default-arm; alltid med
       catalog_type-filter. Egen statsdb-under-API verdt en titt.
@@ -226,6 +226,16 @@ katalogsøk-oppgradering, generalisert synligeKilder, 6 community-pakker.*
       «DATATYPE styrer scope» når bruken har satt seg.
 - [ ] UKDS-pakkeinnhold kan genereres maskinelt fra deres åpne OAI-PMH
       (DDI 2.5) — kandidat for harness-generert pakke-oppdatering.
+- [x] **E2E-smoke av mikrodata-eksemplene (punkt 1)** — KJØRT 2026-08-06
+      lokalt (netlify dev + .env-nøkkel): ESS-eksemplet FULL PASS
+      (research-armene fyrte; 22 190×558 rader; vektet Welch-analyse m/
+      figur; NO 7,95 vs DE 7,76). To funn fikset/logget: (1) e04-CSV >
+      50 MB → proxy-avkorting (guiden styrer nå mot parquet/mindre
+      utgave); (2) modellen valgte dweight, ikke anweight (guiden
+      skjerpet). Tanzania-eksemplet: ærlig og korrekt (NPS/HBS/DHS m/
+      tilgangsmerking, ingen fabrikkerte tall) MEN rutet til OPPSLAG
+      (websøk) — «finnes det en survey…»-formuleringer når ikke
+      research-armene; ruting-observasjon til neste evalrunde.
 
 ## Pakkeinstallasjon (python/r)
 

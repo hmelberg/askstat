@@ -36,6 +36,11 @@ GET https://api.ess.sikt.no/v1/data/dataFile/{doiPrefix}/{doiSuffix}
 - Suksess = **307-redirect** til en signert Azure-fil-URL (~1 time
   gyldig) — proxyen følger redirecten; ikke gjenbruk den signerte URL-en
   senere, gjør heller et nytt kall.
+- **50 MB-fella (målt i smoke 2026-08-06):** siste UTGAVE av en runde
+  (f.eks. ess11e04_0, 31 land) er >50 MB som CSV → proxyen AVKORTER
+  (`x-hent-truncated`) og lesingen feiler. Velg `fileFormat=parquet`
+  (mye mindre) og/eller en tidlig utgave (e01, færre land) når landene
+  dine er med — sjekk landlisten FØR du velger fil, ikke etter.
 - Svært store filer er ekskludert fra API-et (dokumentert); kumulative
   flerlandsfiler kan mangle — degrader da til per-runde-filer.
 
@@ -66,7 +71,9 @@ Vanlige variabler: `cntry` (ISO2), `essround`, `agea` (alder), `gndr`,
 
 ## Analyseregler (survey)
 
-- Bruk `anweight` for populasjonsestimater; si i svaret om tall er vektet.
+- Bruk `anweight` for populasjonsestimater — IKKE `dweight` alene
+  (designvekt uten post-stratifisering; smoken 2026-08-06 valgte feil).
+  Si i svaret hvilken vekt som er brukt.
 - Uten `recodeMissingValues=true`: 66/77/88/99-koder (og 6666/7777/…) er
   refusal/don't know/not applicable — filtrer FØR beregning.
 - Sammenlign land KUN innen samme runde med mindre spørsmålet gjelder trend.

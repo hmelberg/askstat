@@ -146,4 +146,10 @@ window.M2PY_I18N.ja = {
   "Child mortality by wealth (DHS)": "富裕度別の子どもの死亡率（DHS）",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "タンザニアの自己負担医療費に関する個人レベルのデータを含む調査はありますか？",
   "Find a survey (World Bank Microdata)": "調査を探す（World Bank Microdata）",
+  "Context": "コンテキスト",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "コンテキスト — 優先するソースと適用するプロフィール指示。クリックして変更。",
+  "Instructions added to every question.": "すべての質問に追加される指示。",
+  "Profile": "プロフィール",
+  "Sources": "ソース",
+  "Where the AI should look for data.": "AIがデータを探す場所。",
 };

@@ -146,4 +146,10 @@ window.M2PY_I18N.fi = {
   "Child mortality by wealth (DHS)": "Lapsikuolleisuus varallisuuden mukaan (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Onko olemassa kyselytutkimusta, jossa on yksilötason dataa omavastuisista terveysmenoista Tansaniassa?",
   "Find a survey (World Bank Microdata)": "Etsi kyselytutkimus (World Bank Microdata)",
+  "Context": "Konteksti",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Konteksti — mitkä lähteet asetetaan etusijalle ja mitkä profiiliohjeet ovat käytössä. Muuta napsauttamalla.",
+  "Instructions added to every question.": "Ohjeet, jotka lisätään jokaiseen kysymykseen.",
+  "Profile": "Profiili",
+  "Sources": "Lähteet",
+  "Where the AI should look for data.": "Mistä tekoälyn tulisi etsiä dataa.",
 };

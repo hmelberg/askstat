@@ -146,4 +146,10 @@ window.M2PY_I18N.es = {
   "Child mortality by wealth (DHS)": "Mortalidad infantil según riqueza (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "¿Existe una encuesta con datos individuales sobre el gasto sanitario de bolsillo en Tanzania?",
   "Find a survey (World Bank Microdata)": "Encontrar una encuesta (World Bank Microdata)",
+  "Context": "Contexto",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Contexto — qué fuentes preferir y qué instrucciones de perfil aplicar. Haz clic para ajustar.",
+  "Instructions added to every question.": "Instrucciones que se añaden a cada pregunta.",
+  "Profile": "Perfil",
+  "Sources": "Fuentes",
+  "Where the AI should look for data.": "Dónde debe buscar datos la IA.",
 };

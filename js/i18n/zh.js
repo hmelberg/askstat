@@ -146,4 +146,10 @@ window.M2PY_I18N.zh = {
   "Child mortality by wealth (DHS)": "按财富划分的儿童死亡率（DHS）",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "是否有包含坦桑尼亚个人自付医疗支出微观数据的调查？",
   "Find a survey (World Bank Microdata)": "查找调查（世界银行微观数据库）",
+  "Context": "上下文",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "上下文 — 优先使用哪些来源以及应用哪些个人资料指令。点击调整。",
+  "Instructions added to every question.": "添加到每个问题的指令。",
+  "Profile": "个人资料",
+  "Sources": "来源",
+  "Where the AI should look for data.": "AI 应该在哪里查找数据。",
 };

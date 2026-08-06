@@ -146,4 +146,10 @@ window.M2PY_I18N.is = {
   "Child mortality by wealth (DHS)": "Barnadauði eftir auðlegð (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Er til könnun með einstaklingsgögnum um heilbrigðisútgjöld úr eigin vasa í Tansaníu?",
   "Find a survey (World Bank Microdata)": "Finndu könnun (World Bank Microdata)",
+  "Context": "Samhengi",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Samhengi — hvaða heimildir eru teknar fram yfir og hvaða prófílleiðbeiningar gilda. Smelltu til að breyta.",
+  "Instructions added to every question.": "Leiðbeiningar sem bætt er við hverja spurningu.",
+  "Profile": "Prófíll",
+  "Sources": "Heimildir",
+  "Where the AI should look for data.": "Hvar gervigreindin ætti að leita að gögnum.",
 };

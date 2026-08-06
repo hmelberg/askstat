@@ -146,4 +146,10 @@ window.M2PY_I18N.hi = {
   "Child mortality by wealth (DHS)": "धन के अनुसार बाल मृत्यु दर (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "क्या तंज़ानिया में स्वास्थ्य पर जेब से खर्च के व्यक्तिगत स्तर के डेटा वाला कोई सर्वेक्षण है?",
   "Find a survey (World Bank Microdata)": "सर्वेक्षण खोजें (World Bank Microdata)",
+  "Context": "संदर्भ",
+  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "संदर्भ — कौन से स्रोतों को प्राथमिकता दी जाए और कौन से प्रोफ़ाइल निर्देश लागू हों। बदलने के लिए क्लिक करें।",
+  "Instructions added to every question.": "निर्देश जो हर प्रश्न में जोड़े जाते हैं।",
+  "Profile": "प्रोफ़ाइल",
+  "Sources": "स्रोत",
+  "Where the AI should look for data.": "AI को डेटा कहाँ खोजना चाहिए।",
 };

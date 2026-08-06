@@ -13,6 +13,10 @@ registrering).
 **Metadata ≠ data (E17):** treff her beviser at en studie FINNES — aldri
 hva tallene er. Datafil må probes ✅ hos arkivet før noe tall bygges.
 
+Kilden er SØKBAR direkte: `search_catalog(source='cessda', query=…)` —
+og search_datasets(scope='research') søker den automatisk. Rå-formen
+under er for filtrerte oppslag (land/år/tilgang).
+
 ## Ett endepunkt (GET, JSON, nøkkelfritt, CORS-åpent — verifisert)
 
 ```

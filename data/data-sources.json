@@ -371,6 +371,7 @@
     "utgiver": "Verdensbanken",
     "tillit": "offisiell",
     "tilgang": "rest",
+    "kind": "nada",
     "base_url": "https://microdata.worldbank.org/index.php/api/",
     "cors": true,
     "guide": true,
@@ -382,10 +383,22 @@
     "utgiver": "CESSDA ERIC",
     "tillit": "offisiell",
     "tilgang": "rest",
+    "kind": "cessda",
     "base_url": "https://datacatalogue.cessda.eu/api/DataSets/v2/",
     "cors": true,
     "guide": true,
     "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden"
+  },
+  {
+    "id": "ihsn",
+    "navn": "IHSN Central Data Catalog (NADA-API)",
+    "utgiver": "International Household Survey Network",
+    "tillit": "etablert",
+    "tilgang": "rest",
+    "base_url": "https://catalog.ihsn.org/index.php/api/",
+    "cors": true,
+    "guide": true,
+    "quirks": "~5 400 surveys aggregert fra nasjonale statistikkbyrå-arkiver — metadata-pekere: data hos produsentarkivet (ofte login); samme NADA-API som wbmicro. NB: serverside-henting (search_catalog//api/hent) FEILER mot denne verten (TLS-kjede Deno ikke støtter, målt 2026-08-06) — bruk DIREKTE ost.read fra nettleseren (CORS-åpen), se guiden"
   },
   {
     "id": "dhs",

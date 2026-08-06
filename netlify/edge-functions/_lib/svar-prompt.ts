@@ -398,9 +398,11 @@ Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
   én kontrakt), worldbank for utviklingsindikatorer, oecd for OECD-land.
 - **Hverdagsspråklige tverrlandssammenligninger**: owid (åpen GET-CSV).
 - **DATATYPE styrer scope:** individ-/mikrodata (survey, personnivå,
-  registerhendelser) → search_datasets scope='research' + ipums-guiden
-  (helse-surveys NHIS/MEPS, internasjonale folketellinger); aggregert/
-  makro (rater, indekser, tidsserier) → scope='stats'; usikker → 'all'.
+  registerhendelser) → search_datasets scope='research' (søker nå også
+  CESSDA, Zenodo og WB/IHSN-mikrodatakatalogene — treff der er som regel
+  metadata/landingssider, aldri tall) + registerkildene ess/census/nchs/
+  ipums for direkte lastbare mikrodata; aggregert/makro (rater, indekser,
+  tidsserier) → scope='stats'; usikker → 'all'.
 - **Harmoniserte tverrlandsrater** (arbeidsledighet, inflasjon, renter
   o.l. «akkurat nå» på tvers av land): dbnomics FØRST — samme
   OECD-/Eurostat-serier bak en enkel sti, uten dimensjonsjakten som rå
@@ -844,7 +846,7 @@ export const CLIENT_TOOL_DEFS: unknown[] = [
 export const SEARCH_DATASETS_TOOL = {
   name: "search_datasets",
   description:
-    "Meta-søk etter datasett på tvers av kuraterte kataloger. scope='stats' (default): SSB, Verdensbanken, Eurostat, DBnomics (IMF/BIS/ILO m.fl.), OECD, apd. scope='research': DataCite (forskningsdata/DOI), data.europa.eu. scope='all': begge. Returnerer normaliserte treff med how_to_read-hint per treff, og failed-liste over kataloger som ikke svarte.",
+    "Meta-søk etter datasett på tvers av kuraterte kataloger. scope='stats' (default): SSB, Verdensbanken, Eurostat, DBnomics (IMF/BIS/ILO m.fl.), OECD, apd. scope='research': DataCite (forskningsdata/DOI), data.europa.eu, CESSDA (europeiske samfunnsvitenskapelige arkiver), Zenodo (åpne forskningsdatasett m/direkte fil-URL-er), World Bank Microdata + IHSN (survey-mikrodatakataloger — metadata/landingssider, ikke tall). scope='all': begge. Returnerer normaliserte treff med how_to_read-hint per treff, og failed-liste over kataloger som ikke svarte.",
   input_schema: {
     type: "object",
     properties: {

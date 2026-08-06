@@ -19,6 +19,10 @@ registreringen og tilby aggregerte fallbacks (worldbank/dhs/who).
 
 ## Endepunkter (alle GET, JSON, nøkkelfrie — verifisert)
 
+Kilden er SØKBAR direkte: `search_catalog(source='wbmicro', query=…)` og
+`table_metadata('wbmicro', '<IDNO>', find=…)` (variabelordboka) — bruk
+dem framfor rå URL-er. Rå-formene under er for detaljoppslag proxy-veien.
+
 Base: `https://microdata.worldbank.org/index.php/api/`
 
 - Søk: `catalog/search?sk=<ord>&ps=<antall>&format=json`

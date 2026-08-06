@@ -8,6 +8,8 @@ import { eurostatSearch } from "./catalogs/eurostat.ts";
 import { dbnomicsSearch } from "./catalogs/dbnomics.ts";
 import { dataciteSearch } from "./catalogs/datacite.ts";
 import { dataeuropaSearch } from "./catalogs/dataeuropa.ts";
+import { cessdaSearch } from "./catalogs/cessda.ts";
+import { zenodoSearch } from "./catalogs/zenodo.ts";
 import { owidSearch } from "./catalogs/owid.ts";
 import { dcSearch } from "./catalogs/datacommons.ts";
 
@@ -41,11 +43,14 @@ interface Deps {
 }
 
 // Gjenbruk av eksisterende enkeltkilde-søk: CatalogHit → DatasetHit.
+// access default "open" — nada-armene overstyrer til "landing-page"
+// (datafiler login-gated; META_SEARCH-regelen stopper lasting uten probe-✅).
 function viaSearchCatalog(
   sourceId: string,
   query: string,
   deps: Deps,
   howToRead: (id: string) => string,
+  access: DatasetHit["access"] = "open",
 ): () => Promise<DatasetHit[]> {
   return async () => {
     const hits = await searchCatalog(sourceId, query, {
@@ -53,7 +58,7 @@ function viaSearchCatalog(
     });
     return hits.slice(0, MAX_PER_CATALOG).map((h) => ({
       source: h.source, id: h.id, title: h.title,
-      time: h.period || undefined, access: "open" as const,
+      time: h.period || undefined, access,
       url: h.url || undefined, how_to_read: howToRead(h.id),
     }));
   };
@@ -83,6 +88,15 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
   const research: Record<string, () => Promise<DatasetHit[]>> = {
     datacite: () => dataciteSearch(query, f),
     dataeuropa: () => dataeuropaSearch(query, f),
+    // Mikrodata-oppdagelse (spec 2026-08-06): CESSDA/Zenodo direkte;
+    // WB via nada-kind-adapteren. IHSN har INGEN arm: verten serverer en
+    // TLS-kjede Deno/rustls ikke støtter (målt 2026-08-06) — alle
+    // server-side-kall feiler; kilden nås kun nettleser-direkte (guiden).
+    cessda: () => cessdaSearch(query, f),
+    zenodo: () => zenodoSearch(query, f),
+    wbmicro: viaSearchCatalog("wbmicro", query, deps, (id) =>
+      `table_metadata('wbmicro', '${id}') → variabelordbok (spørsmålstekst/etiketter); datafiler krever WB-login — metadata er ikke data`,
+      "landing-page"),
   };
   if (scope === "stats") return stats;
   if (scope === "research") return research;

@@ -109,7 +109,7 @@ export const SDMX_STRUCTURE_ACCEPT: Record<string, string> = {
  *  disse via fast-xml-parser. Verifisert 2026-07-25, se spec §8. */
 export const SDMX_XML_SOURCES = new Set(["ecb"]);
 
-const SEARCHABLE_KINDS = new Set(["apd", "statfin", "dst", "fhi"]);
+const SEARCHABLE_KINDS = new Set(["apd", "statfin", "dst", "fhi", "nada", "cessda"]);
 
 /** Én kilde til sannhet for "er denne kilden søkbar via search_catalog?" —
  *  brukt BÅDE av renderRegistryBlock (prompt-hintet) og av search_catalog

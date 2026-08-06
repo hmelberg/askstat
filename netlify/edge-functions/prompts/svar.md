@@ -777,3 +777,8 @@ for alle ruter); INTERAKTIVITET-linja i MODE_PY er UENDRET.
   evalloggen: to SSB-feil på rad tømte budsjettet på Q6; Hans' beslutning).
 - 2026-07-30: META_SEARCH erstatter SEARCH_HINTS; KODEBOK ny; search_datasets-
   verktøyet (spec 2026-07-30-oppdagelseslaget).
+- 2026-08-06: mikrodata-oppdagelse (spec 2026-08-06-mikrodata-oppdagelse):
+  research-scope i search_datasets utvidet med cessda/zenodo/wbmicro/ihsn-
+  armer (nada-treff = landing-page, aldri open); kind nada+cessda i
+  search_catalog/table_metadata (nada: variabelordbok m/find+cap);
+  ROUTING-DATATYPE-linja nevner de nye armene + ess/census/nchs/ipums.

@@ -71,3 +71,19 @@ Deno.test("datacommons-armen er stille fraværende uten DATACOMMONS_API_KEY (ekt
     if (had !== undefined) Deno.env.set("DATACOMMONS_API_KEY", had);
   }
 });
+
+Deno.test("research-scope inneholder mikrodata-armene (ekte buildCatalogs; alle feiler → failed-listen)", async () => {
+  // spec 2026-08-06-mikrodata-oppdagelse: cessda/zenodo/wbmicro/ihsn skal
+  // være registrert i research-scope. failFetch lar alle armene feile —
+  // navnene skal da stå i failed-listen (registrert ≠ vellykket).
+  const failFetch = (() =>
+    Promise.resolve(new Response("nope", { status: 500 }))) as unknown as typeof fetch;
+  const res = await searchDatasets("health survey", "research", {
+    registry: [], origin: "https://x.example", fetchImpl: failFetch,
+  });
+  for (const arm of ["datacite", "dataeuropa", "cessda", "zenodo", "wbmicro"]) {
+    assertEquals(res.failed.includes(arm), true, `${arm} mangler i research-scope`);
+  }
+  // ihsn skal IKKE ha arm (TLS-kjede Deno ikke støtter — kun nettleser-direkte).
+  assertEquals(res.failed.includes("ihsn"), false);
+});

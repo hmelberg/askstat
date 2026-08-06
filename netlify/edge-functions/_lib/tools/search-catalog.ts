@@ -5,6 +5,8 @@
 // verdier nås via web_search + probe (prompt-regel).
 import { findSource, isSearchableSource, SDMX_STRUCTURE_ACCEPT, SDMX_XML_SOURCES, type DataSource } from "../registry.ts";
 import { queryWords, scoreSubstring } from "./catalogs/static-catalog.ts";
+import { nadaSearch } from "./catalogs/nada.ts";
+import { cessdaSearch } from "./catalogs/cessda.ts";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
 
 export interface CatalogHit {
@@ -48,6 +50,12 @@ export async function searchCatalog(
         case "fhi": return fhiSearch(src, query, f);
         case "dst": return dstSearch(src, query, f);
         case "statfin": return statfinSearch(src, query, f);
+        case "nada": return nadaSearch(src, query, f);
+        case "cessda":
+          // Gjenbruker armen; DatasetHit → CatalogHit (dypere per-katalog-søk).
+          return (await cessdaSearch(query, f, MAX_HITS)).map((h) => ({
+            source: src.id, id: h.id, title: h.title, period: h.time, url: h.url ?? "",
+          }));
         default:
           throw new Error(`ingen søkeadapter for tilgang='${src.tilgang}' (kilde '${sourceId}') — bruk web_search + probe`);
       }

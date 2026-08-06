@@ -5,6 +5,7 @@ import { XMLParser } from "https://esm.sh/fast-xml-parser@4";
 import { worldbankMetadata } from "./catalogs/worldbank.ts";
 import { dbnomicsMetadata } from "./catalogs/dbnomics.ts";
 import { dcCoverage } from "./catalogs/datacommons.ts";
+import { nadaMetadata } from "./catalogs/nada.ts";
 
 export interface TableVariable {
   code: string;
@@ -108,6 +109,11 @@ export async function tableMetadata(
         // navnerom-prefikser (m:/s:/c:) og en annen references-verdi
         // (descendants, ikke all — se kommentaren i eurostatMetadata).
         case "eurostat": return eurostatMetadata(src, tableId, f, deps.find);
+        // nada: variabelordbok (find-filtrert, capped) + tilgangsklasse —
+        // verdilister per variabel hentes IKKE (ett API-kall per vid, spec
+        // 2026-08-06-mikrodata-oppdagelse §B); merknad-feltet bærer
+        // proxy-formen for per-variabel-detalj + login-forbeholdet.
+        case "nada": return nadaMetadata(src, tableId, f, deps.find);
         default:
           throw new Error(
             `table_metadata støtter ikke '${sourceId}' ennå — bruk probe på data-URL-en for å se kolonner`,

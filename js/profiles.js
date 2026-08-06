@@ -418,37 +418,6 @@
         }
         backdrop.classList.add('open');
       };
-      // Kontekst-pillen (kontekstrunden 2026-08-06 §1): profilseksjonen
-      // rendres inn i den delte popoveren av js/context-pill.js via denne
-      // kroken. Samletiketten (aldri-usynlig-kravet i spec §Fase 1b) eies
-      // også av context-pill.js.
-      global.ProfilesUi = {
-        renderInto: function (container, close) {
-          container.innerHTML = '';
-          var a = P.active();
-          function item(text, checked, onPick) {
-            var b = document.createElement('button');
-            b.type = 'button';
-            var check = document.createElement('span');
-            check.className = 'ask-pop-check';
-            check.textContent = checked ? '✓' : '';
-            var nm = document.createElement('span');
-            nm.textContent = text;
-            b.appendChild(check);
-            b.appendChild(nm);
-            b.addEventListener('click', function () {
-              close();
-              onPick();
-            });
-            container.appendChild(b);
-          }
-          item(T('No profile'), !a, function () { P.setActive(null); });
-          P.list('profile').forEach(function (pr) {
-            item(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
-          });
-          item(T('Manage profiles…'), false, function () { P.openModal(); });
-        },
-      };
       P.onChange(function () { renderList(); renderSideLabel(); });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfilesUi);

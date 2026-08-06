@@ -14,7 +14,6 @@ window.M2PY_I18N.de = {
   "Can a theory explain addiction? (model)": "Kann eine Theorie Sucht erklären? (Modell)",
   "Can hyperbolic discounting explain addiction?": "Kann hyperbolisches Diskontieren Sucht erklären?",
   "Cancel": "Abbrechen",
-  "Choose country →": "Land wählen →",
   "Clear history": "Verlauf löschen",
   "Close": "Schließen",
   "Code & output": "Code & Ausgabe",
@@ -55,7 +54,6 @@ window.M2PY_I18N.de = {
   "Log out and clear this device": "Abmelden und dieses Gerät leeren",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Abmelden und Schlüssel, Verlauf und Profile aus diesem Browser entfernen — für gemeinsam genutzte Rechner",
   "Login code": "Login-Code",
-  "Manage profiles…": "Profile verwalten …",
   "Markdown is supported": "Markdown wird unterstützt",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "Die meisten KI-Chatbots antworten aus dem Gedächtnis — flüssig, aber manchmal falsch, und man sieht nicht, woher eine Antwort stammt.",
   "My sources": "Meine Quellen",
@@ -151,8 +149,6 @@ window.M2PY_I18N.de = {
   "Child mortality by wealth (DHS)": "Kindersterblichkeit nach Wohlstand (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Gibt es eine Erhebung mit Individualdaten zu Gesundheitsausgaben aus eigener Tasche in Tansania?",
   "Find a survey (World Bank Microdata)": "Eine Erhebung finden (World Bank Microdata)",
-  "Context": "Kontext",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Kontext — welche Quellen bevorzugt und welche Profilanweisungen angewendet werden. Zum Ändern klicken.",
   "Instructions added to every question.": "Anweisungen, die jeder Frage hinzugefügt werden.",
   "Profile": "Profil",
   "Profile — instructions added to every question. Click to manage.": "Profil — Anweisungen, die zu jeder Frage hinzugefügt werden. Klicken Sie zum Verwalten.",
@@ -162,6 +158,10 @@ window.M2PY_I18N.de = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} von {total} Paketen werden in Kurzform gesendet",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Erweiterte Suche — auch außerhalb der eingebauten Quellen suchen (langsamer)",
   "Save as source": "Als Quelle speichern",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Erweiterte Internetsuche — auch außerhalb der eingebauten Quellen suchen (langsamer)",
+  "Manage sources…": "Quellen verwalten …",
+  "Sources — where the AI should look for data. Click to adjust.": "Quellen — wo die KI nach Daten suchen soll. Zum Ändern klicken.",
+  "Standard (automatic)": "Standard (automatisch)",
 };

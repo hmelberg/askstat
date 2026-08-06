@@ -14,7 +14,6 @@ window.M2PY_I18N.sv = {
   "Can a theory explain addiction? (model)": "Kan en teori förklara beroende? (modell)",
   "Can hyperbolic discounting explain addiction?": "Kan hyperbolisk diskontering förklara beroende?",
   "Cancel": "Avbryt",
-  "Choose country →": "Välj land →",
   "Clear history": "Rensa historiken",
   "Close": "Stäng",
   "Code & output": "Kod och output",
@@ -55,7 +54,6 @@ window.M2PY_I18N.sv = {
   "Log out and clear this device": "Logga ut och rensa den här enheten",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Logga ut och ta bort nycklar, historik och profiler från den här webbläsaren — för delade datorer",
   "Login code": "Inloggningskod",
-  "Manage profiles…": "Hantera profiler …",
   "Markdown is supported": "Markdown stöds",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De flesta AI-chattbotar svarar ur minnet — flytande, men ibland fel, och du kan inte se var svaret kom ifrån.",
   "My sources": "Mina källor",
@@ -151,8 +149,6 @@ window.M2PY_I18N.sv = {
   "Child mortality by wealth (DHS)": "Barnadödlighet efter välstånd (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Finns det en undersökning med individdata om egenavgifter för hälsa i Tanzania?",
   "Find a survey (World Bank Microdata)": "Hitta en undersökning (World Bank Microdata)",
-  "Context": "Kontext",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Kontext — vilka källor som föredras och vilka profilinstruktioner som gäller. Klicka för att ändra.",
   "Instructions added to every question.": "Instruktioner som läggs till varje fråga.",
   "Profile": "Profil",
   "Profile — instructions added to every question. Click to manage.": "Profil — instruktioner som läggs till varje fråga. Klicka för att hantera.",
@@ -162,6 +158,10 @@ window.M2PY_I18N.sv = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} av {total} paket skickas i kortform",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Utökad sökning — leta även utanför de inbyggda källorna (långsammare)",
   "Save as source": "Spara som källa",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Utökad internetsökning — leta även utanför de inbyggda källorna (långsammare)",
+  "Manage sources…": "Hantera källor …",
+  "Sources — where the AI should look for data. Click to adjust.": "Källor — var AI:n bör leta efter data. Klicka för att ändra.",
+  "Standard (automatic)": "Standard (automatisk)",
 };

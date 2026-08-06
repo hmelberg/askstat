@@ -14,7 +14,6 @@ window.M2PY_I18N.fi = {
   "Can a theory explain addiction? (model)": "Voiko teoria selittää riippuvuuden? (malli)",
   "Can hyperbolic discounting explain addiction?": "Voiko hyperbolinen diskonttaus selittää riippuvuuden?",
   "Cancel": "Peruuta",
-  "Choose country →": "Valitse maa →",
   "Clear history": "Tyhjennä historia",
   "Close": "Sulje",
   "Code & output": "Koodi ja tuloste",
@@ -55,7 +54,6 @@ window.M2PY_I18N.fi = {
   "Log out and clear this device": "Kirjaudu ulos ja tyhjennä tämä laite",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Kirjaudu ulos ja poista avaimet, historia ja profiilit tästä selaimesta — jaetuille tietokoneille",
   "Login code": "Kirjautumiskoodi",
-  "Manage profiles…": "Hallinnoi profiileja …",
   "Markdown is supported": "Markdown on tuettu",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "Useimmat tekoäly-chatbotit vastaavat muistista — sujuvasti, mutta joskus väärin, etkä näe mistä vastaus tuli.",
   "My sources": "Omat lähteet",
@@ -151,8 +149,6 @@ window.M2PY_I18N.fi = {
   "Child mortality by wealth (DHS)": "Lapsikuolleisuus varallisuuden mukaan (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Onko olemassa kyselytutkimusta, jossa on yksilötason dataa omavastuisista terveysmenoista Tansaniassa?",
   "Find a survey (World Bank Microdata)": "Etsi kyselytutkimus (World Bank Microdata)",
-  "Context": "Konteksti",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Konteksti — mitkä lähteet asetetaan etusijalle ja mitkä profiiliohjeet ovat käytössä. Muuta napsauttamalla.",
   "Instructions added to every question.": "Ohjeet, jotka lisätään jokaiseen kysymykseen.",
   "Profile": "Profiili",
   "Profile — instructions added to every question. Click to manage.": "Profiili — ohjeet, jotka lisätään jokaiseen kysymykseen. Hallinnoi napsauttamalla.",
@@ -162,6 +158,10 @@ window.M2PY_I18N.fi = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short}/{total} pakettia lähetetään lyhytmuodossa",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Laajennettu haku — etsi myös sisäänrakennettujen lähteiden ulkopuolelta (hitaampi)",
   "Save as source": "Tallenna lähteeksi",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Laajennettu internethaku — etsi myös sisäänrakennettujen lähteiden ulkopuolelta (hitaampi)",
+  "Manage sources…": "Hallinnoi lähteitä …",
+  "Sources — where the AI should look for data. Click to adjust.": "Lähteet — mistä tekoälyn tulisi etsiä dataa. Muuta napsauttamalla.",
+  "Standard (automatic)": "Standardi (automaattinen)",
 };

@@ -16,14 +16,11 @@ window.M2PY_I18N.no = {
   "Can a theory explain addiction? (model)": "Kan en teori forklare avhengighet? (modell)",
   "Can hyperbolic discounting explain addiction?": "Kan hyperbolsk diskontering forklare avhengighet?",
   "Cancel": "Avbryt",
-  "Choose country →": "Velg land →",
   "Clear history": "Tøm historikken",
   "Close": "Lukk",
   "Code & output": "Kode og output",
   "Collapse sidebar": "Skjul sidefeltet",
   "Computed, not guessed": "Beregnet, ikke gjettet",
-  "Context": "Kontekst",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Kontekst — hvilke kilder som foretrekkes og hvilke profilinstruksjoner som gjelder. Klikk for å endre.",
   "Copy answer": "Kopier svaret",
   "Count letters in a word": "Tell bokstaver i et ord",
   "Days between two dates": "Dager mellom to datoer",
@@ -60,7 +57,6 @@ window.M2PY_I18N.no = {
   "Log out and clear this device": "Logg ut og tøm denne enheten",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Logg ut og fjern nøkler, historikk og profiler fra denne nettleseren — for delte maskiner",
   "Login code": "Login-kode",
-  "Manage profiles…": "Administrer profiler …",
   "Markdown is supported": "Markdown støttes",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De fleste KI-chatboter svarer fra hukommelsen — flytende, men iblant feil, og du kan ikke se hvor svaret kom fra.",
   "My sources": "Mine kilder",
@@ -164,6 +160,10 @@ window.M2PY_I18N.no = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} av {total} pakker sendes i kortform",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Utvidet søk — let også utenfor kildegrunnlaget (tregere)",
   "Save as source": "Lagre som kilde",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Utvidet internettsøk — let også utenfor kildegrunnlaget (tregere)",
+  "Manage sources…": "Administrer kilder …",
+  "Sources — where the AI should look for data. Click to adjust.": "Kilder — hvor KI-en bør lete etter data. Klikk for å endre.",
+  "Standard (automatic)": "Standard (automatisk)",
 };

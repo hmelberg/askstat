@@ -141,6 +141,9 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
   padding: 6px; min-width: 240px; box-shadow: 0 8px 28px rgba(0,0,0,.18);
   max-height: 55vh; overflow-y: auto; }
+/* Menyopprydding (spec 2026-08-06): biblioteket ruller internt — de faste
+   valgene over skillet er alltid synlige uansett bibliotekstørrelse. */
+.ask-ctx-scroll { max-height: 240px; overflow-y: auto; }
 /* Explore-modalen (delte pakker) */
 .ask-explore-row { display: block; width: 100%; text-align: left; background: none;
   border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;

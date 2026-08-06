@@ -14,7 +14,6 @@ window.M2PY_I18N.ja = {
   "Can a theory explain addiction? (model)": "理論は依存症を説明できるか？（モデル）",
   "Can hyperbolic discounting explain addiction?": "双曲割引は依存症を説明できるか？",
   "Cancel": "キャンセル",
-  "Choose country →": "国を選択 →",
   "Clear history": "履歴を消去",
   "Close": "閉じる",
   "Code & output": "コードと出力",
@@ -55,7 +54,6 @@ window.M2PY_I18N.ja = {
   "Log out and clear this device": "ログアウトしてこのデバイスを消去",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "ログアウトし、このブラウザからキー・履歴・プロファイルを削除——共用パソコン向け",
   "Login code": "ログインコード",
-  "Manage profiles…": "プロファイルを管理 …",
   "Markdown is supported": "Markdownに対応",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "ほとんどのAIチャットボットは記憶から答えます——流暢ですが、時に間違っていて、答えの出どころは見えません。",
   "My sources": "マイソース",
@@ -151,8 +149,6 @@ window.M2PY_I18N.ja = {
   "Child mortality by wealth (DHS)": "富裕度別の子どもの死亡率（DHS）",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "タンザニアの自己負担医療費に関する個人レベルのデータを含む調査はありますか？",
   "Find a survey (World Bank Microdata)": "調査を探す（World Bank Microdata）",
-  "Context": "コンテキスト",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "コンテキスト — 優先するソースと適用するプロフィール指示。クリックして変更。",
   "Instructions added to every question.": "すべての質問に追加される指示。",
   "Profile": "プロフィール",
   "Profile — instructions added to every question. Click to manage.": "プロフィール — すべての質問に追加される指示。クリックして管理します。",
@@ -162,6 +158,10 @@ window.M2PY_I18N.ja = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{total}個中{short}個のパックが短縮形で送信されます",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "拡張検索 — 組み込みソース以外も検索（低速）",
   "Save as source": "ソースとして保存",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "拡張インターネット検索 — 組み込みソース以外も検索（低速）",
+  "Manage sources…": "ソースを管理 …",
+  "Sources — where the AI should look for data. Click to adjust.": "ソース — AIがデータを探す場所。クリックして変更。",
+  "Standard (automatic)": "標準（自動）",
 };

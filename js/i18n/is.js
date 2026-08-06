@@ -14,7 +14,6 @@ window.M2PY_I18N.is = {
   "Can a theory explain addiction? (model)": "Getur kenning útskýrt fíkn? (líkan)",
   "Can hyperbolic discounting explain addiction?": "Getur hýperbólísk afvöxtun útskýrt fíkn?",
   "Cancel": "Hætta við",
-  "Choose country →": "Velja land →",
   "Clear history": "Hreinsa ferilinn",
   "Close": "Loka",
   "Code & output": "Kóði og úttak",
@@ -55,7 +54,6 @@ window.M2PY_I18N.is = {
   "Log out and clear this device": "Skrá út og hreinsa þetta tæki",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Skrá út og fjarlægja lykla, feril og prófíla úr þessum vafra — fyrir sameiginlegar tölvur",
   "Login code": "Innskráningarkóði",
-  "Manage profiles…": "Sýsla með prófíla …",
   "Markdown is supported": "Markdown er stutt",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "Flest gervigreindar-spjallmenni svara eftir minni — reiprennandi, en stundum rangt, og þú sérð ekki hvaðan svarið kom.",
   "My sources": "Mínar heimildir",
@@ -151,8 +149,6 @@ window.M2PY_I18N.is = {
   "Child mortality by wealth (DHS)": "Barnadauði eftir auðlegð (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Er til könnun með einstaklingsgögnum um heilbrigðisútgjöld úr eigin vasa í Tansaníu?",
   "Find a survey (World Bank Microdata)": "Finndu könnun (World Bank Microdata)",
-  "Context": "Samhengi",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Samhengi — hvaða heimildir eru teknar fram yfir og hvaða prófílleiðbeiningar gilda. Smelltu til að breyta.",
   "Instructions added to every question.": "Leiðbeiningar sem bætt er við hverja spurningu.",
   "Profile": "Prófíll",
   "Profile — instructions added to every question. Click to manage.": "Prófíll — leiðbeiningar sem bætt er við hverja spurningu. Smelltu til að stjórna.",
@@ -162,6 +158,10 @@ window.M2PY_I18N.is = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} af {total} pökkum sendir í styttri mynd",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Útvíkkuð leit — leita líka utan innbyggðra heimilda (hægara)",
   "Save as source": "Vista sem heimild",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Útvíkkuð netleit — leita líka utan innbyggðra heimilda (hægara)",
+  "Manage sources…": "Sýsla með heimildir …",
+  "Sources — where the AI should look for data. Click to adjust.": "Heimildir — hvar gervigreindin ætti að leita að gögnum. Smelltu til að breyta.",
+  "Standard (automatic)": "Sjálfgefið (sjálfvirkt)",
 };

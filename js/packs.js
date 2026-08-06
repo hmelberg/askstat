@@ -367,32 +367,34 @@
         } catch (e) {}
       }
 
-      // Menyens view-tilstand: 'main' (kilder) eller 'countries' (drill-inn-
-      // lista over ALLE land uten kuratert pakke). Overlever re-render (den
-      // delte popoveren re-rendrer denne seksjonen ved hvert Profiles.onChange
-      // mens menyen står åpen — sjekkboks-klikk skal IKKE lukke menyen eller
-      // hoppe tilbake til hovedvisningen). Nullstilles kun ved fersk åpning
-      // ({fresh:true} fra context-pill.js).
-      var view = 'main';
+      // Boot-lokalisering (spec 2026-08-05 §4): lagret UI-språk → navigator-
+      // locale. Hoistet HIT (Task 3) — Standard-raden bruker samme kandidat-
+      // liste ved gjenoppretting (P.onLangChange), P.boot() nederst likeså.
+      var storedLang = null;
+      try { storedLang = global.localStorage.getItem('microdata_ui_lang'); } catch (e) {}
+      var localeCandidates = [storedLang || '', (typeof navigator !== 'undefined' && navigator.language) || ''];
 
-      // Kontekst-pillen (kontekstrunden 2026-08-06 §1): kildeseksjonen
+      // Ren kildepille (spec 2026-08-06-menyopprydding §3): kildeseksjonen
       // rendres inn i den delte popoveren av js/context-pill.js via denne
-      // kroken; etiketten (m/auto-merke) eies også av context-pill.js.
-      // opts.fresh: sann ved nyåpning av popoveren (nullstiller view).
-      function renderInto(container, close, opts) {
-        if (opts && opts.fresh) view = 'main';
+      // kroken; etiketten eies av context-pill.js. Faste valg (Standard/
+      // Utvidet søk/Administrer kilder) ligger ALLTID øverst på container og
+      // ruller aldri vekk; biblioteket (sjekkbokser) ligger i en egen
+      // internt-rullende .ask-ctx-scroll-div under.
+      function renderInto(container, close) {
         container.innerHTML = '';
+        var st = Prof.packsState();
+        var ids = st.ids;
 
         // Sjekkboks-rad: klikk toggler valget og RE-RENDRER via
         // Prof.togglePack → Profiles.onChange → context-pill (IKKE close()).
-        function checkRow(id, name, checked, autoOk) {
+        function checkRow(container, id, name, checked) {
           var b = document.createElement('button');
           b.type = 'button';
           var check = document.createElement('span');
           check.className = 'ask-pop-check';
           check.textContent = checked ? '✓' : '';
           var nm = document.createElement('span');
-          nm.textContent = name + (checked && autoOk ? T(' (auto)') : '');
+          nm.textContent = name;
           b.appendChild(check);
           b.appendChild(nm);
           b.addEventListener('click', function () {
@@ -401,8 +403,7 @@
           });
           container.appendChild(b);
         }
-        // Navigasjonsrad (← Back / Choose country →): bytter view LOKALT —
-        // ingen Profiles-tilstand endres, så vi re-rendrer direkte selv.
+        // Navigasjonsrad — brukes av modalRow under.
         function navRow(text, onClick) {
           var b = document.createElement('button');
           b.type = 'button';
@@ -415,7 +416,7 @@
           b.addEventListener('click', onClick);
           container.appendChild(b);
         }
-        // Rad som åpner Explore-modalen: lukker den lille popoveren først.
+        // Rad som åpner en modal (Administrer kilder …): lukker popoveren først.
         function modalRow(text, onClick) {
           navRow(text, function () { close(); onClick(); });
         }
@@ -435,7 +436,7 @@
           check.className = 'ask-pop-check';
           check.textContent = readDiscover() ? '✓' : '';
           var nm = document.createElement('span');
-          nm.textContent = T('Extended search — also look beyond the built-in sources (slower)');
+          nm.textContent = T('Extended internet search — also look beyond the built-in sources (slower)');
           b.appendChild(check);
           b.appendChild(nm);
           b.addEventListener('click', function () {
@@ -445,60 +446,44 @@
           container.appendChild(b);
         }
 
-        var st = Prof.packsState();
-        var ids = st.ids;
-
-        if (view === 'countries') {
-          navRow(T('← Back'), function () { view = 'main'; renderInto(container, close); });
-          P.list().filter(function (e) { return e.group === 'country'; }).forEach(function (e) {
-            checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto);
+        // Faste valg (spec menyopprydding §1): alltid øverst, ruller aldri vekk.
+        function standardRow() {
+          var b = document.createElement('button');
+          b.type = 'button';
+          var check = document.createElement('span');
+          check.className = 'ask-pop-check';
+          check.textContent = st.manual ? '' : '✓';
+          var nm = document.createElement('span');
+          nm.textContent = T('Standard (automatic)');
+          b.appendChild(check);
+          b.appendChild(nm);
+          b.addEventListener('click', function () {
+            if (!st.manual) return;
+            Prof.setPacksAuto();            // fyrer onChange → re-render
+            P.onLangChange(localeCandidates); // gjenoppretter md_pack_auto + preloader
           });
-          return;
+          container.appendChild(b);
         }
-
-        // main-view (spec §2): (1) builtin → (2) community (importerte som
-        // sjekkbokser + uimporterte som Explore-forhåndsvisningsrader) →
-        // (3) valgte land → (4) «Choose country →» → (5) sep + Explore-lenke.
-        var entries = P.list();
-        var builtin = entries.filter(function (e) { return e.group === 'builtin'; });
-        var importedEntries = entries.filter(function (e) { return e.group === 'imported'; });
-        var community = P.listCommunity();
-        // «Allerede importert»: idene har nå ingen forbindelse til
-        // community-katalogens egen id (user:<tilfeldig>), så vi må matche
-        // via origin.id på kildeoppføringene i stedet for på selve pakke-iden.
-        var importedCommunityIds = {};
-        Prof.list('source').forEach(function (pr) {
-          if (pr.origin && pr.origin.source === 'community') importedCommunityIds[pr.origin.id] = true;
-        });
-        var unimported = community.filter(function (c) { return !importedCommunityIds[c.id]; });
-        var selectedCountries = ids.filter(function (id) { return id.indexOf('country:') === 0; });
-
-        var any = false;
-        function maybeSep() { if (any) sep(); any = true; }
-
-        if (builtin.length) {
-          maybeSep();
-          builtin.forEach(function (e) { checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto); });
-        }
-        if (importedEntries.length || unimported.length) {
-          maybeSep();
-          importedEntries.forEach(function (e) { checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto); });
-          unimported.forEach(function (c) {
-            modalRow(c.name, function () { openExplore(c); });
-          });
-        }
-        if (selectedCountries.length) {
-          maybeSep();
-          selectedCountries.forEach(function (id) { checkRow(id, P.displayName(id), true, st.auto); });
-        }
-        maybeSep();
-        navRow(T('Choose country →'), function () { view = 'countries'; renderInto(container, close); });
+        standardRow();
+        discoverRow();
+        modalRow(T('Manage sources…'), function () { Prof.openModal({ kind: 'source' }); });
         sep();
-        modalRow(T('New source…'), function () { Prof.openModal({ kind: 'source' }); });
-        if (community.length) {
-          sep();
-          modalRow(T('View/Import shared packs…'), function () { openExplore(); });
-        }
+
+        // Biblioteket: KUN sjekkboksrader, i egen rulle-div (§1).
+        var scroll = document.createElement('div');
+        scroll.className = 'ask-ctx-scroll';
+        container.appendChild(scroll);
+        var entries = P.list();
+        entries.filter(function (e) { return e.group === 'builtin'; }).forEach(function (e) {
+          checkRow(scroll, e.id, e.name, ids.indexOf(e.id) >= 0);
+        });
+        entries.filter(function (e) { return e.group === 'imported'; }).forEach(function (e) {
+          checkRow(scroll, e.id, e.name, ids.indexOf(e.id) >= 0);
+        });
+        ids.filter(function (id) { return id.indexOf('country:') === 0; }).forEach(function (id) {
+          checkRow(scroll, id, P.displayName(id), true);
+        });
+
         // Budsjett-hint (kontekstrunden fase 2 §4): vises når 80k-budsjettet
         // tvang én eller flere valgte pakker ned til manifest/summary-nivå.
         var info = P.composeInfo();
@@ -509,11 +494,6 @@
             { short: info.shortForm, total: info.total });
           container.appendChild(hint);
         }
-        // Utvidet søk (kontekstrunden fase 2 §5): nederst i kildeseksjonen,
-        // egen separator over — kun i hovedvisningen (som budsjett-hintet
-        // over; land-drill-inn-visningen returnerer før den når hit).
-        sep();
-        discoverRow();
       }
       global.PacksUi = { renderInto: renderInto };
 
@@ -572,15 +552,13 @@
       if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
         if (e.target === expBackdrop) expBackdrop.classList.remove('open');
       });
-      // Boot: last katalog, auto-forslag (lagret UI-språk → navigator-locale),
-      // preload gjeldende tekst. Etiketten re-rendres etterpå — displayName
-      // trenger katalogen for kuraterte pakker.
+      // Boot: last katalog, auto-forslag (localeCandidates, hoistet over
+      // renderInto), preload gjeldende tekst. Etiketten re-rendres etterpå —
+      // displayName trenger katalogen for kuraterte pakker.
       function refreshPill() {
         if (global.ContextPill) global.ContextPill.refresh();
       }
-      var storedLang = null;
-      try { storedLang = global.localStorage.getItem('microdata_ui_lang'); } catch (e) {}
-      P.boot([storedLang || '', (typeof navigator !== 'undefined' && navigator.language) || ''])
+      P.boot(localeCandidates)
         .then(refreshPill)
         .catch(refreshPill);
     };

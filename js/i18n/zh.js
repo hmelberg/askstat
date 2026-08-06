@@ -14,7 +14,6 @@ window.M2PY_I18N.zh = {
   "Can a theory explain addiction? (model)": "理论能解释成瘾吗？（模型）",
   "Can hyperbolic discounting explain addiction?": "双曲贴现能解释成瘾吗？",
   "Cancel": "取消",
-  "Choose country →": "选择国家 →",
   "Clear history": "清除历史记录",
   "Close": "关闭",
   "Code & output": "代码与输出",
@@ -55,7 +54,6 @@ window.M2PY_I18N.zh = {
   "Log out and clear this device": "退出登录并清空此设备",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "退出登录并从此浏览器移除密钥、历史记录和配置文件——适用于共用电脑",
   "Login code": "登录码",
-  "Manage profiles…": "管理配置文件 …",
   "Markdown is supported": "支持 Markdown",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "大多数 AI 聊天机器人凭记忆作答——流畅，但有时是错的，而且你看不到答案从何而来。",
   "My sources": "我的来源",
@@ -151,8 +149,6 @@ window.M2PY_I18N.zh = {
   "Child mortality by wealth (DHS)": "按财富划分的儿童死亡率（DHS）",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "是否有包含坦桑尼亚个人自付医疗支出微观数据的调查？",
   "Find a survey (World Bank Microdata)": "查找调查（世界银行微观数据库）",
-  "Context": "上下文",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "上下文 — 优先使用哪些来源以及应用哪些个人资料指令。点击调整。",
   "Instructions added to every question.": "添加到每个问题的指令。",
   "Profile": "个人资料",
   "Profile — instructions added to every question. Click to manage.": "个人资料 — 添加到每个问题的指令。点击以管理。",
@@ -162,6 +158,10 @@ window.M2PY_I18N.zh = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{total} 个包中有 {short} 个以短格式发送",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "扩展搜索 — 也在内置来源之外查找（较慢）",
   "Save as source": "保存为来源",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "扩展互联网搜索 — 也在内置来源之外查找（较慢）",
+  "Manage sources…": "管理来源 …",
+  "Sources — where the AI should look for data. Click to adjust.": "来源 — AI 应该在哪里查找数据。点击调整。",
+  "Standard (automatic)": "标准（自动）",
 };

@@ -14,7 +14,6 @@ window.M2PY_I18N.hi = {
   "Can a theory explain addiction? (model)": "क्या कोई सिद्धांत लत को समझा सकता है? (मॉडल)",
   "Can hyperbolic discounting explain addiction?": "क्या हाइपरबोलिक डिस्काउंटिंग लत को समझा सकती है?",
   "Cancel": "रद्द करें",
-  "Choose country →": "देश चुनें →",
   "Clear history": "इतिहास साफ़ करें",
   "Close": "बंद करें",
   "Code & output": "कोड और आउटपुट",
@@ -55,7 +54,6 @@ window.M2PY_I18N.hi = {
   "Log out and clear this device": "लॉग आउट करें और यह उपकरण साफ़ करें",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "लॉग आउट करें और इस ब्राउज़र से कुंजियाँ, इतिहास और प्रोफ़ाइल हटाएँ — साझा कंप्यूटरों के लिए",
   "Login code": "लॉगिन कोड",
-  "Manage profiles…": "प्रोफ़ाइल प्रबंधित करें …",
   "Markdown is supported": "Markdown समर्थित है",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "अधिकांश AI चैटबॉट स्मृति से उत्तर देते हैं — धाराप्रवाह, पर कभी-कभी ग़लत, और आप देख नहीं सकते कि उत्तर कहाँ से आया।",
   "My sources": "मेरे स्रोत",
@@ -151,8 +149,6 @@ window.M2PY_I18N.hi = {
   "Child mortality by wealth (DHS)": "धन के अनुसार बाल मृत्यु दर (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "क्या तंज़ानिया में स्वास्थ्य पर जेब से खर्च के व्यक्तिगत स्तर के डेटा वाला कोई सर्वेक्षण है?",
   "Find a survey (World Bank Microdata)": "सर्वेक्षण खोजें (World Bank Microdata)",
-  "Context": "संदर्भ",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "संदर्भ — कौन से स्रोतों को प्राथमिकता दी जाए और कौन से प्रोफ़ाइल निर्देश लागू हों। बदलने के लिए क्लिक करें।",
   "Instructions added to every question.": "निर्देश जो हर प्रश्न में जोड़े जाते हैं।",
   "Profile": "प्रोफ़ाइल",
   "Profile — instructions added to every question. Click to manage.": "प्रोफ़ाइल — हर प्रश्न में जोड़े जाने वाले निर्देश। प्रबंधित करने के लिए क्लिक करें।",
@@ -162,6 +158,10 @@ window.M2PY_I18N.hi = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{total} में से {short} पैक संक्षिप्त रूप में भेजे जाते हैं",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "विस्तारित खोज — अंतर्निहित स्रोतों से परे भी खोजें (धीमा)",
   "Save as source": "स्रोत के रूप में सहेजें",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "विस्तारित इंटरनेट खोज — अंतर्निहित स्रोतों से परे भी खोजें (धीमा)",
+  "Manage sources…": "स्रोत प्रबंधित करें …",
+  "Sources — where the AI should look for data. Click to adjust.": "स्रोत — AI को डेटा कहाँ खोजना चाहिए। बदलने के लिए क्लिक करें।",
+  "Standard (automatic)": "मानक (स्वतः)",
 };

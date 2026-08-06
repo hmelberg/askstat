@@ -1,9 +1,9 @@
-// js/context-pill.js — kontekstrunden fase 1 (spec 2026-08-06 §1): én pille
-// forener kilde- og profilvelgeren. Denne fila eier åpne/lukke-logikken og
-// samletiketten; seksjonsinnholdet rendres av PacksUi/ProfilesUi.renderInto
-// ved åpning. Etikett: «<pakke> · <profil>» — tomme deler utelates, alt tomt
-// gir «Context». Auto-valgt pakke merkes «(auto)» (aldri-usynlig-kravet fra
-// spec 2026-08-05 §Fase 1b dekkes her).
+// js/context-pill.js — ren kildepille (spec 2026-08-06-menyopprydding §3,
+// tar over fra kontekstrunden fase 1 sin forente kilde+profil-pille).
+// Profildelen flyttet til sidemenyen i Task 2 (js/profiles.js sin
+// askProfileBtn) — denne fila eier kun kilde-popoveren: åpne/lukke-logikken
+// og samletiketten; seksjonsinnholdet rendres av PacksUi.renderInto ved
+// åpning. Etikett: «<pakke1> +N» — ingen valg gir «Sources».
 (function (global) {
   'use strict';
   if (typeof document === 'undefined' || !document.getElementById) return;
@@ -15,35 +15,26 @@
     var labelEl = document.getElementById('askContextLabel');
     var menu = document.getElementById('askContextMenu');
     var packSec = document.getElementById('askCtxPackSection');
-    var profSec = document.getElementById('askCtxProfileSection');
     if (!Prof || !btn || !labelEl || !menu) return;
 
     function renderLabel() {
-      var parts = [];
+      var lbl = null;
       if (P) {
         var st = Prof.packsState();
-        var lbl = st.ids.length
-          ? P.displayName(st.ids[0]) + (st.ids.length > 1 ? ' +' + (st.ids.length - 1) : '') + (st.auto ? T(' (auto)') : '')
-          : null;
-        if (lbl) parts.push(lbl);
+        if (st.ids.length) {
+          lbl = P.displayName(st.ids[0]) + (st.ids.length > 1 ? ' +' + (st.ids.length - 1) : '');
+        }
       }
-      var a = Prof.active();
-      if (a) parts.push(a.name);
-      labelEl.textContent = parts.length ? parts.join(' · ') : T('Context');
+      labelEl.textContent = lbl || T('Sources');
     }
     function close() { menu.hidden = true; }
-    // fresh: sann kun ved nyåpning av popoveren — PacksUi bruker den til å
-    // nullstille sin interne view-tilstand (main/countries, Task 3 §2).
-    // onChange-re-render (sjekkboks-klikk osv.) sender fresh:false slik at
-    // en åpen landvelger-drill-inn ikke hopper tilbake til hovedvisningen.
-    function renderSections(fresh) {
-      if (global.PacksUi && packSec) global.PacksUi.renderInto(packSec, close, { fresh: !!fresh });
-      if (global.ProfilesUi && profSec) global.ProfilesUi.renderInto(profSec, close);
+    function renderSections() {
+      if (global.PacksUi && packSec) global.PacksUi.renderInto(packSec, close);
     }
 
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      if (menu.hidden) renderSections(true);
+      if (menu.hidden) renderSections();
       menu.hidden = !menu.hidden;
     });
     // Fiks runde 2 (fase 2-runden, re-review-funn): et sjekkboks-/toggle-
@@ -70,7 +61,7 @@
     });
     Prof.onChange(function () {
       renderLabel();
-      if (!menu.hidden) renderSections(false);
+      if (!menu.hidden) renderSections();
     });
     global.ContextPill = { refresh: renderLabel };
     renderLabel();

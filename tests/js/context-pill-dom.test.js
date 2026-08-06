@@ -141,9 +141,11 @@ function freshEnv(opts) {
   // Stub for PacksUi: hver renderInto-kalling tømmer containeren (detacher
   // ev. forrige rad — DETTE er mekanismen regresjonen handler om) og setter
   // inn ÉN sjekkboks-rad hvis klikk-håndtering kaller Prof.togglePack.
+  // Kontrakten (Task 3): renderInto(container, close) — ingen tredje
+  // opts/fresh-parameter (ingen drill-inn-tilstand igjen å nullstille).
   global.PacksUi = {
-    renderInto: function (container, close, renderOpts) {
-      renderCalls.push(renderOpts);
+    renderInto: function (container, close) {
+      renderCalls.push(container);
       container.innerHTML = '';
       var row = new FakeEl('button');
       row.addEventListener('click', function () { Prof.togglePack('demo-id'); });
@@ -151,7 +153,6 @@ function freshEnv(opts) {
       lastRow = row;
     },
   };
-  global.ProfilesUi = { renderInto: function () {} };
   global.t = function (k) { return k; };
 
   require(CONTEXT_PILL_PATH);
@@ -170,14 +171,15 @@ function fireDocClick(docListeners, evt) {
   (docListeners.click || []).forEach(function (fn) { fn(evt); });
 }
 
-test('context-pill: knapp-klikk åpner menyen (fresh:true) og stopper propagering', () => {
-  const { btn, menu, renderCalls } = freshEnv();
+test('context-pill: knapp-klikk åpner menyen og rendrer kildeseksjonen (packSec, close) uten opts', () => {
+  const { btn, menu, packSec, renderCalls } = freshEnv();
   var stopped = false;
   fireClick(btn, { target: btn, stopPropagation: function () { stopped = true; } });
   assert.strictEqual(menu.hidden, false, 'menyen skal åpnes');
   assert.strictEqual(stopped, true, 'knappens eget klikk skal ikke boble videre');
-  assert.deepStrictEqual(renderCalls[renderCalls.length - 1], { fresh: true },
-    'nyåpning skal signalisere fresh:true til PacksUi');
+  assert.strictEqual(renderCalls.length, 1, 'nyåpning skal rendre kildeseksjonen én gang');
+  assert.strictEqual(renderCalls[0], packSec,
+    'PacksUi.renderInto skal kalles med askCtxPackSection som container');
 });
 
 test('context-pill: ekte utenfor-klikk (tilkoblet mål utenfor menyen) LUKKER menyen', () => {
@@ -207,8 +209,8 @@ test('REGRESJON 1: sjekkboks-klikk som detacher target FØR bobling til document
   fireClick(row1, evt);
   assert.notStrictEqual(getLastRow(), row1, 'en ny rad skal ha blitt rendret inn i stedet');
   assert.strictEqual(row1.isConnected, false, 'rad 1 skal nå være frakoblet (kjernen i regresjonen)');
-  assert.deepStrictEqual(renderCalls[renderCalls.length - 1], { fresh: false },
-    'onChange-re-render skal beholde view (fresh:false)');
+  assert.strictEqual(renderCalls.length, 2,
+    'onChange skal utløse en ny renderInto-kalling (re-render, ikke lukk)');
 
   // 2) Bobling til menu: row1 var en etterkommer av menu DA klikket startet,
   //    så DOM-spec'ens faste propagasjonssti gir menu-lytteren eventet

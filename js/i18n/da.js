@@ -14,7 +14,6 @@ window.M2PY_I18N.da = {
   "Can a theory explain addiction? (model)": "Kan en teori forklare afhængighed? (model)",
   "Can hyperbolic discounting explain addiction?": "Kan hyperbolsk diskontering forklare afhængighed?",
   "Cancel": "Annuller",
-  "Choose country →": "Vælg land →",
   "Clear history": "Ryd historikken",
   "Close": "Luk",
   "Code & output": "Kode og output",
@@ -55,7 +54,6 @@ window.M2PY_I18N.da = {
   "Log out and clear this device": "Log ud og ryd denne enhed",
   "Log out and remove keys, history and profiles from this browser — for shared computers": "Log ud og fjern nøgler, historik og profiler fra denne browser — til delte computere",
   "Login code": "Login-kode",
-  "Manage profiles…": "Administrér profiler …",
   "Markdown is supported": "Markdown understøttes",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De fleste AI-chatbots svarer fra hukommelsen — flydende, men nogle gange forkert, og du kan ikke se, hvor svaret kom fra.",
   "My sources": "Mine kilder",
@@ -151,8 +149,6 @@ window.M2PY_I18N.da = {
   "Child mortality by wealth (DHS)": "Børnedødelighed efter velstand (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Findes der en survey med individdata om egenbetaling for sundhed i Tanzania?",
   "Find a survey (World Bank Microdata)": "Find en survey (World Bank Microdata)",
-  "Context": "Kontekst",
-  "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Kontekst — hvilke kilder der foretrækkes, og hvilke profilinstruktioner der gælder. Klik for at ændre.",
   "Instructions added to every question.": "Instruktioner som tilføjes hvert spørgsmål.",
   "Profile": "Profil",
   "Profile — instructions added to every question. Click to manage.": "Profil — instrukser som tilføjes hvert spørgsmål. Klik for at styre.",
@@ -162,6 +158,10 @@ window.M2PY_I18N.da = {
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} af {total} pakker sendes i kortform",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
-  "Extended search — also look beyond the built-in sources (slower)": "Udvidet søgning — led også uden for kildegrundlaget (langsommere)",
   "Save as source": "Gem som kilde",
+  // Ren kildepille (spec 2026-08-06-menyopprydding §3):
+  "Extended internet search — also look beyond the built-in sources (slower)": "Udvidet internetsøgning — led også uden for kildegrundlaget (langsommere)",
+  "Manage sources…": "Administrér kilder …",
+  "Sources — where the AI should look for data. Click to adjust.": "Kilder — hvor AI'en bør lede efter data. Klik for at ændre.",
+  "Standard (automatic)": "Standard (automatisk)",
 };

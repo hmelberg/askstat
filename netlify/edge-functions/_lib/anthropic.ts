@@ -353,6 +353,12 @@ export interface AgenticOptions {
   runResult?: string;
   getPackResult?: { id: string; text: string };
   maxRunCode?: number;
+  // get_pack har EGEN budsjett-teller (state.getPackCalls), atskilt fra
+  // run_code sin runCalls/maxRunCode (funn ved review 2026-08-06: delt
+  // teller tømte run_code-budsjettet på 1-2 pakke-hentinger, uten at
+  // modellen fikk kjørt kode i det hele tatt). Default 3 — nok til et par
+  // kortform-pakker uten å kunne loope til maxTurns.
+  maxGetPack?: number;
   deps?: RetryDeps;
 }
 
@@ -367,6 +373,10 @@ export interface AgenticResumeState {
   // rundtures via klienten; meldingsarrayet bærer da kun siste tool-results.
   prevResponseId?: string;
   runCalls?: number;
+  // getPackCalls: EGEN teller for get_pack (review-fiks 2026-08-06) — holdes
+  // atskilt fra runCalls slik at pakke-henting aldri spiser av run_code sitt
+  // budsjett. Må rekonstrueres av svar.ts på lik linje med runCalls.
+  getPackCalls?: number;
   // name: hvilket klientverktøy vi venter på ('run_code'/'get_pack') —
   // avgjør hvilket resume-felt (runResult/getPackResult) som fletter inn
   // svaret. expectedId: for get_pack, id-en som ble forespurt — resume MÅ
@@ -555,6 +565,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
       const turnsPerCall = opts.turnsPerCall ?? 1;
       const clientToolNames = new Set(opts.clientTools ?? []);
       const maxRunCode = opts.maxRunCode ?? 2;
+      const maxGetPack = opts.maxGetPack ?? 3;
       // A pause_turn segment's text is scratch work just like a tool_use
       // segment's — but turnHadText is scoped per for-iteration, so text
       // streamed before a pause_turn would otherwise be forgotten by the time
@@ -577,7 +588,12 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
             if (gp.id !== state.pending.expectedId) {
               throw new Error("get_pack_result.id samsvarer ikke med utestående forespørsel");
             }
-            pendingContent = gp.text.slice(0, 40_000);
+            // Server-side vern (review-funn 2026-08-06): tom text ville gitt
+            // en tom tool_result-content-blokk, som Messages-API-et avviser
+            // med 400 — dødelig for HELE svaret. Klienten setter allerede en
+            // markørstreng ved ukjent id (js/ai-chat.js), men denne fanger
+            // ALLE veier inn (fremtidige klienter, manipulert payload).
+            pendingContent = gp.text.slice(0, 40_000) || "(fant ikke pakken — svar med det du har)";
           } else {
             if (typeof opts.runResult !== "string") {
               throw new Error("resume med ventende run_code mangler run_result");
@@ -662,14 +678,30 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
             let clientCall: { id: string; name: string; input: Record<string, unknown> } | null = null;
             for (const tu of toolUses) {
               if (clientToolNames.has(tu.name)) {
-                state.runCalls = (state.runCalls ?? 0) + 1;
-                if (state.runCalls > maxRunCode) {
-                  results.push({ tool_use_id: tu.id, content:
-                    "Kjøre-budsjettet er brukt opp — skriv sluttsvaret NÅ basert på det du allerede vet. Vær ærlig om hva som ikke ble verifisert." });
-                } else if (clientCall) {
-                  results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                // get_pack har EGEN teller (getPackCalls) — review-funn
+                // 2026-08-06: en delt teller med run_code tømte
+                // kjørebudsjettet etter 1-2 pakke-hentinger, uten at
+                // modellen fikk kjørt kode i det hele tatt.
+                if (tu.name === "get_pack") {
+                  state.getPackCalls = (state.getPackCalls ?? 0) + 1;
+                  if (state.getPackCalls > maxGetPack) {
+                    results.push({ tool_use_id: tu.id, content:
+                      "get_pack-budsjettet er brukt opp — bruk det du allerede har, eller skriv sluttsvaret NÅ." });
+                  } else if (clientCall) {
+                    results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                  } else {
+                    clientCall = { id: tu.id, name: tu.name, input: (tu.input ?? {}) as Record<string, unknown> };
+                  }
                 } else {
-                  clientCall = { id: tu.id, name: tu.name, input: (tu.input ?? {}) as Record<string, unknown> };
+                  state.runCalls = (state.runCalls ?? 0) + 1;
+                  if (state.runCalls > maxRunCode) {
+                    results.push({ tool_use_id: tu.id, content:
+                      "Kjøre-budsjettet er brukt opp — skriv sluttsvaret NÅ basert på det du allerede vet. Vær ærlig om hva som ikke ble verifisert." });
+                  } else if (clientCall) {
+                    results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                  } else {
+                    clientCall = { id: tu.id, name: tu.name, input: (tu.input ?? {}) as Record<string, unknown> };
+                  }
                 }
                 continue;
               }
@@ -690,7 +722,14 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
             }
             if (clientCall) {
               if (clientCall.name === "get_pack") {
-                const id = String(clientCall.input.id ?? "");
+                // Samme id-regel som coercePacks i svar-prompt.ts (id ≤100,
+                // [A-Za-z0-9:_-]) — sanert HER, ikke bare der: id-en
+                // rundtures i state.pending.expectedId og valideres av
+                // svar.ts sin validResumeState (review-funn 2026-08-06). En
+                // usanert modell-emittert id ville fått SERVERENS EGEN
+                // continue-token avvist på neste hop.
+                const id = String(clientCall.input.id ?? "")
+                  .replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 100);
                 state.pending = { results, awaitingId: clientCall.id, name: "get_pack", expectedId: id };
                 emit({ type: "get_pack", id });
               } else {

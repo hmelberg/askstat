@@ -47,6 +47,11 @@ export interface ProviderAgenticOptions {
   runResult?: string;
   getPackResult?: { id: string; text: string };
   maxRunCode?: number;
+  // get_pack har EGEN budsjett-teller (state.getPackCalls) — se
+  // anthropic.ts sin AgenticOptions.maxGetPack for begrunnelsen
+  // (review-fiks 2026-08-06: delt teller med run_code tømte
+  // kjørebudsjettet på pakke-hentinger alene).
+  maxGetPack?: number;
   deps?: RetryDeps;
 }
 
@@ -71,6 +76,7 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
       };
       const clientToolNames = new Set(opts.clientTools ?? []);
       const maxRunCode = opts.maxRunCode ?? 2;
+      const maxGetPack = opts.maxGetPack ?? 3;
 
       try {
         // Resume etter run_code/get_pack: flett klientens resultat inn som
@@ -85,7 +91,11 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
             if (gp.id !== state.pending.expectedId) {
               throw new Error("get_pack_result.id samsvarer ikke med utestående forespørsel");
             }
-            pendingContent = gp.text.slice(0, 40_000);
+            // Server-side vern (review-funn 2026-08-06), speiler
+            // anthropic.ts: tom text ville gitt en tom tool_result-
+            // content-blokk, avvist med 400 av de fleste Chat Completions-
+            // API-er — dødelig for hele svaret.
+            pendingContent = gp.text.slice(0, 40_000) || "(fant ikke pakken — svar med det du har)";
           } else {
             if (typeof opts.runResult !== "string") {
               throw new Error("resume med ventende run_code mangler run_result");
@@ -141,14 +151,28 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
             let clientCall: { id: string; name: string; input: Record<string, unknown> } | null = null;
             for (const tu of turn.toolUses) {
               if (clientToolNames.has(tu.name)) {
-                state.runCalls = (state.runCalls ?? 0) + 1;
-                if (state.runCalls > maxRunCode) {
-                  results.push({ tool_use_id: tu.id, content:
-                    "Kjøre-budsjettet er brukt opp — skriv sluttsvaret NÅ basert på det du allerede vet. Vær ærlig om hva som ikke ble verifisert." });
-                } else if (clientCall) {
-                  results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                // get_pack har EGEN teller (getPackCalls) — se
+                // anthropic.ts sin kommentar (review-funn 2026-08-06).
+                if (tu.name === "get_pack") {
+                  state.getPackCalls = (state.getPackCalls ?? 0) + 1;
+                  if (state.getPackCalls > maxGetPack) {
+                    results.push({ tool_use_id: tu.id, content:
+                      "get_pack-budsjettet er brukt opp — bruk det du allerede har, eller skriv sluttsvaret NÅ." });
+                  } else if (clientCall) {
+                    results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                  } else {
+                    clientCall = { id: tu.id, name: tu.name, input: tu.input };
+                  }
                 } else {
-                  clientCall = { id: tu.id, name: tu.name, input: tu.input };
+                  state.runCalls = (state.runCalls ?? 0) + 1;
+                  if (state.runCalls > maxRunCode) {
+                    results.push({ tool_use_id: tu.id, content:
+                      "Kjøre-budsjettet er brukt opp — skriv sluttsvaret NÅ basert på det du allerede vet. Vær ærlig om hva som ikke ble verifisert." });
+                  } else if (clientCall) {
+                    results.push({ tool_use_id: tu.id, content: "Kall ett klientverktøy (run_code/get_pack) én gang per tur." });
+                  } else {
+                    clientCall = { id: tu.id, name: tu.name, input: tu.input };
+                  }
                 }
                 continue;
               }
@@ -169,7 +193,12 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
             }
             if (clientCall) {
               if (clientCall.name === "get_pack") {
-                const id = String(clientCall.input.id ?? "");
+                // Sanert (id ≤100, [A-Za-z0-9:_-]) — se anthropic.ts sin
+                // kommentar (review-funn 2026-08-06: usanert id ville fått
+                // svar.ts sin validResumeState til å avvise servens EGEN
+                // continue-token).
+                const id = String(clientCall.input.id ?? "")
+                  .replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 100);
                 state.pending = { results, awaitingId: clientCall.id, name: "get_pack", expectedId: id };
                 emit({ type: "get_pack", id });
               } else {

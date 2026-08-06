@@ -757,6 +757,11 @@
             try {
               if (window.Packs && window.Packs.fullTextFor) packText = await window.Packs.fullTextFor(pendingGetPack);
             } catch (e) { packText = ''; }
+            // Tom tekst (ukjent/fjernet id) ville gitt en tom tool_result-
+            // content-blokk, som Messages-API-et avviser med 400 — dødelig
+            // for HELE svaret (review-funn 2026-08-06 #2). En markørstreng
+            // holder svaret i live; svar.ts/anthropic.ts har samme vern.
+            if (!packText) packText = '(fant ikke pakken — svar med det du har)';
             getPackResult = { id: pendingGetPack, text: packText };
             resume = cont;   // get_pack ender alltid invokasjonen med en continue
             continue;

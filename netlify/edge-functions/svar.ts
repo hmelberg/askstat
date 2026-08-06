@@ -41,11 +41,18 @@ interface RequestBody {
 // Resume-bodies bærer hele samtaletilstanden (tool-results, websøk-blokker).
 const MAX_BODY_BYTES = 2_000_000;
 
-function validResumeState(s: AgenticResumeState | undefined): s is AgenticResumeState {
+// Eksportert for direkte node/deno-test (review-funn 2026-08-06 #1) — den
+// eneste garantien for at et resume-objekt som PASSERER valideringen faktisk
+// også REKONSTRUERES korrekt (rebuildResumeState under) er å teste paret.
+export function validResumeState(s: AgenticResumeState | undefined): s is AgenticResumeState {
   if (!s || !Array.isArray(s.messages) || s.messages.length < 1 || s.messages.length > 400) return false;
   if (!Number.isInteger(s.turn) || s.turn < 1 || s.turn > 64) return false;
   if (!Number.isInteger(s.clientCalls) || s.clientCalls < 0 || s.clientCalls > 200) return false;
   if (s.runCalls !== undefined && (!Number.isInteger(s.runCalls) || s.runCalls < 0 || s.runCalls > 50)) return false;
+  // getPackCalls (review-funn 2026-08-06 #3): egen teller, samme grenser som
+  // runCalls — se anthropic.ts sin AgenticResumeState.getPackCalls.
+  if (s.getPackCalls !== undefined &&
+    (!Number.isInteger(s.getPackCalls) || s.getPackCalls < 0 || s.getPackCalls > 50)) return false;
   if (s.prevResponseId !== undefined &&
     (typeof s.prevResponseId !== "string" || s.prevResponseId.length > 200)) return false;
   if (s.pending !== undefined) {
@@ -58,6 +65,34 @@ function validResumeState(s: AgenticResumeState | undefined): s is AgenticResume
     if (p.expectedId !== undefined && (typeof p.expectedId !== "string" || p.expectedId.length > 100)) return false;
   }
   return typeof s.usage === "object" && s.usage !== null;
+}
+
+// Ren rekonstruksjon av resume-state fra klientens (allerede
+// validResumeState-sjekkede) JSON — eksportert og node/deno-testet direkte
+// (review-funn 2026-08-06 #1). `pending` kopieres som ETT objekt, ALDRI
+// felt-for-felt (i motsetning til `usage` under, som bevisst whitelister
+// tallfelt) — en felt-for-felt-omskriving her ville stille droppet
+// pending.name/expectedId og latt HVER get_pack-runde dø med «mangler
+// run_result», med en grønn test-suite (siden begge protokolltestene i
+// anthropic.test.ts/agentic.test.ts kaller løkkene direkte og aldri går
+// via denne funksjonen).
+export function rebuildResumeState(s: AgenticResumeState): AgenticResumeState {
+  const u = s.usage as Record<string, unknown>;
+  return {
+    messages: s.messages,
+    turn: s.turn,
+    clientCalls: s.clientCalls,
+    runCalls: s.runCalls,
+    getPackCalls: s.getPackCalls,
+    pending: s.pending,
+    prevResponseId: s.prevResponseId,
+    usage: {
+      inputTokens: Number(u.inputTokens) || 0,
+      outputTokens: Number(u.outputTokens) || 0,
+      cacheReadTokens: Number(u.cacheReadTokens) || 0,
+      cacheCreationTokens: Number(u.cacheCreationTokens) || 0,
+    },
+  };
 }
 
 export default async (request: Request): Promise<Response> => {
@@ -94,22 +129,7 @@ export default async (request: Request): Promise<Response> => {
     if (!validResumeState(body.resume.state)) {
       return new Response("Invalid resume payload", { status: 400 });
     }
-    const s = body.resume.state;
-    const u = s.usage as Record<string, unknown>;
-    resumeState = {
-      messages: s.messages,
-      turn: s.turn,
-      clientCalls: s.clientCalls,
-      runCalls: s.runCalls,
-      pending: s.pending,
-      prevResponseId: s.prevResponseId,
-      usage: {
-        inputTokens: Number(u.inputTokens) || 0,
-        outputTokens: Number(u.outputTokens) || 0,
-        cacheReadTokens: Number(u.cacheReadTokens) || 0,
-        cacheCreationTokens: Number(u.cacheCreationTokens) || 0,
-      },
-    };
+    resumeState = rebuildResumeState(body.resume.state);
   }
   const runResult = typeof body.run_result === "string"
     ? body.run_result.slice(0, 30_000)

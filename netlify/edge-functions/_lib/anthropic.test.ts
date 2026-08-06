@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { fetchWithRetry, messageAnthropic, runAgenticStream } from "./anthropic.ts";
 
 const noSleep = (_ms: number) => Promise.resolve();
@@ -405,7 +405,74 @@ Deno.test("runAgenticStream: get_pack emitterer get_pack + continue med pending-
   assertEquals(pending.awaitingId, "tu_gp1");
   assertEquals(pending.name, "get_pack");
   assertEquals(pending.expectedId, "norway");
-  assertEquals(st.runCalls, 1); // deler run-budsjettet med run_code
+  // Review-funn 2026-08-06 #3: get_pack har EGEN teller — run_code sitt
+  // budsjett (runCalls) skal stå urørt av en pakke-henting.
+  assertEquals(st.getPackCalls, 1);
+  assertEquals(st.runCalls, undefined);
+});
+
+Deno.test("runAgenticStream: get_pack over EGET budsjett (maxGetPack) får server-side tool_result, run_code urørt", async () => {
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["run_code", "get_pack"], maxGetPack: 3,
+    executeTool: () => Promise.resolve(""),
+    resume: {
+      messages: [{ role: "user", content: "q" }], turn: 1, clientCalls: 0, getPackCalls: 3,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    } as never,
+    deps: { fetchImpl: sseFetch([
+      streamedToolTurn("get_pack", "tu_over", JSON.stringify({ id: "x" })),
+      streamedTextTurn("Svar uten flere pakke-hentinger"),
+    ]) },
+  }));
+  assertEquals(events.some((e) => e.type === "get_pack"), false);
+  assertEquals(events.at(-1)?.type, "done");
+});
+
+Deno.test("runAgenticStream: get_pack-id saneres ved emisjon (id ≤100, [A-Za-z0-9:_-]) — samme regel som coercePacks", async () => {
+  const events = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["get_pack"],
+    executeTool: () => Promise.reject(new Error("skal ikke kalles")),
+    deps: { fetchImpl: sseFetch([
+      streamedToolTurn("get_pack", "tu_dirty",
+        JSON.stringify({ id: "../etc/passwd!!" + "x".repeat(150) })),
+    ]) },
+  }));
+  const gp = events.find((e) => e.type === "get_pack");
+  assert(gp?.id);
+  assert(/^[A-Za-z0-9:_-]*$/.test(String(gp?.id)));
+  assert(String(gp?.id).length <= 100);
+  const cont = events.find((e) => e.type === "continue");
+  const pending = (cont?.state as Record<string, unknown>).pending as Record<string, unknown>;
+  assertEquals(pending.expectedId, gp?.id); // samme sanerte verdi begge steder
+});
+
+Deno.test("runAgenticStream: resume med tomt getPackResult.text fletter en markørstreng, ikke en tom content-blokk", async () => {
+  const ev1 = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["get_pack"],
+    executeTool: () => Promise.resolve(""),
+    deps: { fetchImpl: sseFetch([streamedToolTurn("get_pack", "tu_empty", JSON.stringify({ id: "ukjent" }))]) },
+  }));
+  const st = (ev1.find((e) => e.type === "continue")?.state ?? {}) as never;
+  let capturedBody: Record<string, unknown> | null = null;
+  const capturingFetch = ((_u: string, init: RequestInit) => {
+    capturedBody = JSON.parse(String(init.body));
+    return Promise.resolve(new Response(sseUpstream(streamedTextTurn("Ferdig")), { status: 200 }));
+  }) as unknown as typeof fetch;
+  const ev2 = await collectSse(runAgenticStream({
+    apiKey: "k", model: "m", system: "s", userContent: "q",
+    tools: [], turnsPerCall: 8, clientTools: ["get_pack"],
+    executeTool: () => Promise.resolve(""),
+    resume: st, getPackResult: { id: "ukjent", text: "" },
+    deps: { fetchImpl: capturingFetch },
+  }));
+  assertEquals(ev2.at(-1)?.type, "done");
+  const msgs = ((capturedBody as Record<string, unknown> | null)?.messages ?? []) as Record<string, unknown>[];
+  const lastUser = msgs.at(-1) as { role: string; content: { type: string; content: string }[] };
+  assertEquals(lastUser.content[0].content.length > 0, true); // ALDRI en tom content-streng
+  assert(lastUser.content[0].content.includes("fant ikke pakken"));
 });
 
 Deno.test("runAgenticStream: resume med getPackResult fletter tool_result og fortsetter", async () => {

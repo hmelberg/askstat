@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { runProviderAgenticStream, type ProviderTurnResult } from "./agentic.ts";
 
 async function collect(stream: ReadableStream<Uint8Array>): Promise<Record<string, unknown>[]> {
@@ -121,12 +121,86 @@ Deno.test("provider-løkka: get_pack → get_pack+continue m/ pending (name+expe
   };
   const ev1 = await collect(runProviderAgenticStream(base));
   assertEquals(ev1.find((e) => e.type === "get_pack")?.id, "norway");
-  const st = ev1.find((e) => e.type === "continue")?.state as { pending?: Record<string, unknown> };
+  const st = ev1.find((e) => e.type === "continue")?.state as
+    { pending?: Record<string, unknown>; getPackCalls?: number; runCalls?: number };
   assertEquals(st.pending?.name, "get_pack");
   assertEquals(st.pending?.expectedId, "norway");
+  // Review-funn 2026-08-06 #3: EGEN teller — run_code sitt budsjett urørt.
+  assertEquals(st.getPackCalls, 1);
+  assertEquals(st.runCalls, undefined);
   const ev2 = await collect(runProviderAgenticStream({
     ...base, resume: st as never, getPackResult: { id: "norway", text: "full pakketekst" },
   }));
   assertEquals(ev2.find((e) => e.type === "text")?.text, "Ferdig");
   assertEquals(ev2.at(-1)?.type, "done");
+});
+
+Deno.test("provider-løkka: get_pack over EGET budsjett (maxGetPack) får server-side tool_result", async () => {
+  const turns = [
+    { text: "", toolUses: [{ id: "p1", name: "get_pack", input: { id: "x" } }], searchNotes: [], stop: "tool_use" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+    { text: "Ferdig uten flere pakke-hentinger", toolUses: [], searchNotes: [], stop: "end" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+  ];
+  let call = 0;
+  const events = await collect(runProviderAgenticStream({
+    runTurn: () => Promise.resolve(turns[call++]),
+    system: "s", userContent: "q", tools: [],
+    executeTool: () => Promise.resolve(""),
+    clientTools: ["get_pack"], maxGetPack: 3, turnsPerCall: 8,
+    resume: {
+      messages: [{ role: "user", content: "q" }], turn: 1, clientCalls: 0, getPackCalls: 3,
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    } as never,
+  }));
+  assertEquals(events.some((e) => e.type === "get_pack"), false);
+  assertEquals(events.at(-1)?.type, "done");
+});
+
+Deno.test("provider-løkka: get_pack-id saneres ved emisjon (id ≤100, [A-Za-z0-9:_-])", async () => {
+  const events = await collect(runProviderAgenticStream({
+    runTurn: () => Promise.resolve({
+      text: "", toolUses: [{ id: "p1", name: "get_pack", input: { id: "../x!!" + "y".repeat(150) } }],
+      searchNotes: [], stop: "tool_use" as const, usage: { inputTokens: 1, outputTokens: 1 },
+    }),
+    system: "s", userContent: "q", tools: [],
+    executeTool: () => Promise.reject(new Error("skal ikke kalles")),
+    clientTools: ["get_pack"], turnsPerCall: 8,
+  }));
+  const gp = events.find((e) => e.type === "get_pack");
+  assert(gp?.id);
+  assert(/^[A-Za-z0-9:_-]*$/.test(String(gp?.id)));
+  assert(String(gp?.id).length <= 100);
+  const st = events.find((e) => e.type === "continue")?.state as { pending?: Record<string, unknown> };
+  assertEquals(st.pending?.expectedId, gp?.id);
+});
+
+Deno.test("provider-løkka: resume med tomt getPackResult.text fletter en markørstreng, ikke en tom content-blokk", async () => {
+  const turns = [
+    { text: "", toolUses: [{ id: "p1", name: "get_pack", input: { id: "ukjent" } }], searchNotes: [], stop: "tool_use" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+    { text: "Ferdig", toolUses: [], searchNotes: [], stop: "end" as const, usage: { inputTokens: 1, outputTokens: 1 } },
+  ];
+  let call = 0;
+  const ev1 = await collect(runProviderAgenticStream({
+    runTurn: () => Promise.resolve(turns[call++]),
+    system: "s", userContent: "q", tools: [],
+    executeTool: () => Promise.resolve(""),
+    clientTools: ["get_pack"], turnsPerCall: 8,
+  }));
+  const st = ev1.find((e) => e.type === "continue")?.state as never;
+  // Fang siste tool_result FØR den forsvinner inn i neste tur (state.messages
+  // ved starten av resume-turen har allerede fletten inn — se runTurn under).
+  let seenContent = "";
+  const ev2 = await collect(runProviderAgenticStream({
+    runTurn: (state) => {
+      const lastUser = state.messages.at(-1) as { role: string; content: { content: string }[] };
+      if (lastUser?.role === "user") seenContent = lastUser.content[0]?.content ?? "";
+      return Promise.resolve(turns[call++]);
+    },
+    system: "s", userContent: "q", tools: [],
+    executeTool: () => Promise.resolve(""),
+    clientTools: ["get_pack"], turnsPerCall: 8,
+    resume: st, getPackResult: { id: "ukjent", text: "" },
+  }));
+  assertEquals(ev2.at(-1)?.type, "done");
+  assert(seenContent.length > 0); // ALDRI en tom content-streng
+  assert(seenContent.includes("fant ikke pakken"));
 });

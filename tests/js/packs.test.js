@@ -258,6 +258,36 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
   assert.deepEqual(prof.get(newId.slice(5)).origin, { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' });
 });
 
+// Review-funn 2026-08-06 #4: hele importstien (resolve → importPack →
+// Profiles.create kind:'source') skal bevare tekst opp til L3_CAP (40000),
+// ikke klippe ved den gamle 8000-grensen. Ekte .md-filer ligger fortsatt
+// under 8000 av redaksjonelle grunner (packs-lint.test.js sin egen, urelaterte
+// grense på KILDEFILEN) — denne testen bruker en SYNTETISK stor fil for å
+// bevise selve MEKANISMEN uavhengig av dagens faktiske innhold.
+test('import: en community-pakke over 8000 tegn overlever HELE veien til Profiles (40000-kappen, ikke 8000)', async () => {
+  const bigText = '# Big pack\n' + 'x'.repeat(9000) + '\nUse ipums.';
+  assert.ok(bigText.length > 8000); // fixture-sjekk: faktisk over den gamle grensen
+  const IDX3 = { v: 1, packs: INDEX.packs.concat([{
+    id: 'big-community', name: 'Big community pack', description: 'stor pakke',
+    file: 'community/big.md', community: true, author: 'hans', updated: '2026-08-06',
+  }]) };
+  const files = Object.assign({}, FILES, {
+    'data/packs/index.json': IDX3,
+    'data/packs/community/big.md': bigText,
+  });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  const entry = P.listCommunity().filter((c) => c.id === 'big-community')[0];
+  const preview = await P.resolve('big-community');
+  assert.equal(preview.text.length, bigText.length);   // resolve() klipper ikke ved 8000
+  const newId = P.importPack(entry, preview.text);
+  const stored = prof.get(newId.slice(5));
+  assert.equal(stored.text.length, bigText.length);    // og OGSÅ hele veien inn i Profiles-lageret
+  assert.equal(stored.text, bigText);
+});
+
 // Kontekstrunden fase 3 (§Unifisert lager): egne kilder bor i Profiles, ikke
 // lenger i en egen md_packs_imported-blob eller 'imported:'-idnavnerom.
 test('user:-pakker resolves fra Profiles-lageret, aldri fetch', async () => {

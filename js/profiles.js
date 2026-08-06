@@ -299,59 +299,38 @@
         renderList();
         backdrop.classList.add('open');
       };
-      // Profilvelger i input-kortet (layout-runden 2026-08-05): plassert og
-      // formet som Claudes modellvelger — viser aktiv profil, åpner meny med
-      // alle profiler + «Manage profiles…» (modalen). Erstatter chipen; den
-      // synlige etiketten dekker fortsatt aldri-usynlig-kravet i spec §Fase 1b.
-      var pickBtn = document.getElementById('askProfileBtn');
-      var pickLabel = document.getElementById('askProfileLabel');
-      var pickMenu = document.getElementById('askProfileMenu');
-      function renderPicker() {
-        if (!pickLabel) return;
-        var a = P.active();
-        pickLabel.textContent = a ? a.name : T('No profile');
-      }
-      function pickItem(text, checked, onPick) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        var check = document.createElement('span');
-        check.className = 'ask-pop-check';
-        check.textContent = checked ? '✓' : '';
-        var nm = document.createElement('span');
-        nm.textContent = text;
-        b.appendChild(check);
-        b.appendChild(nm);
-        b.addEventListener('click', function () {
-          pickMenu.hidden = true;
-          onPick();
-        });
-        pickMenu.appendChild(b);
-      }
-      function renderPickMenu() {
-        if (!pickMenu) return;
-        pickMenu.innerHTML = '';
-        var a = P.active();
-        pickItem(T('No profile'), !a, function () { P.setActive(null); });
-        P.list().forEach(function (pr) {
-          pickItem(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
-        });
-        var sep = document.createElement('div');
-        sep.className = 'ask-pop-sep';
-        pickMenu.appendChild(sep);
-        pickItem(T('Manage profiles…'), false, function () { P.openModal(); });
-      }
-      if (pickBtn && pickMenu) {
-        pickBtn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          if (pickMenu.hidden) renderPickMenu();
-          pickMenu.hidden = !pickMenu.hidden;
-        });
-        document.addEventListener('click', function (e) {
-          if (!pickMenu.hidden && !pickMenu.contains(e.target)) pickMenu.hidden = true;
-        });
-      }
-      P.onChange(function () { renderPicker(); renderList(); });
-      renderPicker();
+      // Kontekst-pillen (kontekstrunden 2026-08-06 §1): profilseksjonen
+      // rendres inn i den delte popoveren av js/context-pill.js via denne
+      // kroken. Samletiketten (aldri-usynlig-kravet i spec §Fase 1b) eies
+      // også av context-pill.js.
+      global.ProfilesUi = {
+        renderInto: function (container, close) {
+          container.innerHTML = '';
+          var a = P.active();
+          function item(text, checked, onPick) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            var check = document.createElement('span');
+            check.className = 'ask-pop-check';
+            check.textContent = checked ? '✓' : '';
+            var nm = document.createElement('span');
+            nm.textContent = text;
+            b.appendChild(check);
+            b.appendChild(nm);
+            b.addEventListener('click', function () {
+              close();
+              onPick();
+            });
+            container.appendChild(b);
+          }
+          item(T('No profile'), !a, function () { P.setActive(null); });
+          P.list().forEach(function (pr) {
+            item(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
+          });
+          item(T('Manage profiles…'), false, function () { P.openModal(); });
+        },
+      };
+      P.onChange(function () { renderList(); });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfilesUi);
     else initProfilesUi();

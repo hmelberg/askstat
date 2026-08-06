@@ -218,42 +218,34 @@
     var initPacksUi = function () {
       var P = global.Packs;
       var Prof = global.Profiles;
-      var pickBtn = document.getElementById('askPackBtn');
-      var pickLabel = document.getElementById('askPackLabel');
-      var pickMenu = document.getElementById('askPackMenu');
-      if (!P || !Prof || !pickBtn || !pickMenu) return;
+      if (!P || !Prof) return;
 
-      function renderPicker() {
-        if (!pickLabel) return;
-        var st = Prof.packState();
-        // Aldri-usynlig-kravet: auto-valg merkes eksplisitt i pilla.
-        pickLabel.textContent = st.id
-          ? P.displayName(st.id) + (st.auto ? T(' (auto)') : '')
-          : T('International');
-      }
-      function pickItem(text, checked, onPick) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        var check = document.createElement('span');
-        check.className = 'ask-pop-check';
-        check.textContent = checked ? '✓' : '';
-        var nm = document.createElement('span');
-        nm.textContent = text;
-        b.appendChild(check);
-        b.appendChild(nm);
-        b.addEventListener('click', function () {
-          pickMenu.hidden = true;
-          onPick();
-        });
-        pickMenu.appendChild(b);
-      }
-      function sep() {
-        var d = document.createElement('div');
-        d.className = 'ask-pop-sep';
-        pickMenu.appendChild(d);
-      }
-      function renderMenu() {
-        pickMenu.innerHTML = '';
+      // Kontekst-pillen (kontekstrunden 2026-08-06 §1): kildeseksjonen
+      // rendres inn i den delte popoveren av js/context-pill.js via denne
+      // kroken; etiketten (m/auto-merke) eies også av context-pill.js.
+      function renderInto(container, close) {
+        container.innerHTML = '';
+        function pickItem(text, checked, onPick) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          var check = document.createElement('span');
+          check.className = 'ask-pop-check';
+          check.textContent = checked ? '✓' : '';
+          var nm = document.createElement('span');
+          nm.textContent = text;
+          b.appendChild(check);
+          b.appendChild(nm);
+          b.addEventListener('click', function () {
+            close();
+            onPick();
+          });
+          container.appendChild(b);
+        }
+        function sep() {
+          var d = document.createElement('div');
+          d.className = 'ask-pop-sep';
+          container.appendChild(d);
+        }
         var st = Prof.packState();
         pickItem(T('International default'), !st.id, function () { Prof.setPack(null); });
         var entries = P.list();
@@ -274,6 +266,7 @@
           pickItem(T('View/Import shared packs…'), false, openExplore);
         }
       }
+      global.PacksUi = { renderInto: renderInto };
 
       // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
       // rendret preview FØR import; import = kopi som aktiveres.
@@ -326,23 +319,17 @@
       if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
         if (e.target === expBackdrop) expBackdrop.classList.remove('open');
       });
-      pickBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        if (pickMenu.hidden) renderMenu();
-        pickMenu.hidden = !pickMenu.hidden;
-      });
-      document.addEventListener('click', function (e) {
-        if (!pickMenu.hidden && !pickMenu.contains(e.target)) pickMenu.hidden = true;
-      });
-      Prof.onChange(function () { renderPicker(); });
       // Boot: last katalog, auto-forslag (lagret UI-språk → navigator-locale),
-      // preload gjeldende tekst.
+      // preload gjeldende tekst. Etiketten re-rendres etterpå — displayName
+      // trenger katalogen for kuraterte pakker.
+      function refreshPill() {
+        if (global.ContextPill) global.ContextPill.refresh();
+      }
       var storedLang = null;
       try { storedLang = global.localStorage.getItem('microdata_ui_lang'); } catch (e) {}
       P.boot([storedLang || '', (typeof navigator !== 'undefined' && navigator.language) || ''])
-        .then(renderPicker)
-        .catch(function () { renderPicker(); });
-      renderPicker();
+        .then(refreshPill)
+        .catch(refreshPill);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPacksUi);
     else initPacksUi();

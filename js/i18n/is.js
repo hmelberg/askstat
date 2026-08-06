@@ -164,4 +164,7 @@ window.M2PY_I18N.is = {
   "Add country…": "Bæta við landi …",
   "Import shared sources…": "Flytja inn deildar heimildir …",
   "Imported from shared sources. ": "Flutt inn frá deildum heimildum. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Leita …",
+  "← Back to list": "← Til baka í listann",
 };

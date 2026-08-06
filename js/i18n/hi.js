@@ -164,4 +164,7 @@ window.M2PY_I18N.hi = {
   "Add country…": "देश जोड़ें …",
   "Import shared sources…": "साझा स्रोत आयात करें …",
   "Imported from shared sources. ": "साझा स्रोतों से आयात किया गया। ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "खोजें …",
+  "← Back to list": "← सूची पर वापस जाएं",
 };

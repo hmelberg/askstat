@@ -166,4 +166,7 @@ window.M2PY_I18N.no = {
   "Add country…": "Legg til land …",
   "Import shared sources…": "Importer delte kilder …",
   "Imported from shared sources. ": "Importert fra delte kilder. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Søk …",
+  "← Back to list": "← Tilbake til lista",
 };

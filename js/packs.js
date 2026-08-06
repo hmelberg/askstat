@@ -59,6 +59,17 @@
     });
   }
 
+  // Søkefilter for import-/landvelgerne (spec menyopprydding §5–6). PURE —
+  // node-testes direkte, deles av Explore-søket og «Legg til land …».
+  function filterCatalog(entries, q) {
+    var s = String(q || '').trim().toLowerCase();
+    if (!s) return entries;
+    return entries.filter(function (e) {
+      return (String(e.name || '') + ' ' + String(e.description || ''))
+        .toLowerCase().indexOf(s) >= 0;
+    });
+  }
+
   function makePacks(storage, fetchImpl, profiles) {
     var index = null;     // {v, packs:[{id,name,description,file,country}]}
     var countries = null; // {v, countries:{CC:{name,agency,note}}}
@@ -520,7 +531,56 @@
       // Biblioteksmanageren (spec menyopprydding §4): profilesBackdrop i
       // source-modus. selectedInfoId overlever re-render (P.onChange).
       var selectedInfoId = null;
+      // Landvisning (spec menyopprydding §5–6): egen view-tilstand inni
+      // SourcesUi — 'library' er biblioteklista, 'countries' er «Legg til
+      // land …»-undervisningen med søk. countryQuery nullstilles ved åpning
+      // (reset() under, kalt fra profiles.js openModal).
+      var managerView = 'library'; // 'library' | 'countries'
+      var countryQuery = '';
+      function renderCountries(container, hooks) {
+        container.innerHTML = '';
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'sources-name';
+        back.textContent = T('← Back to list');
+        back.addEventListener('click', function () {
+          managerView = 'library';
+          renderLibrary(container, hooks);
+        });
+        container.appendChild(back);
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'sources-search';
+        search.placeholder = T('Search…');
+        search.value = countryQuery;
+        search.addEventListener('input', function () {
+          countryQuery = search.value;
+          renderCountries(container, hooks);
+          var s2 = container.querySelector ? container.querySelector('.sources-search') : null;
+          if (s2) s2.focus();
+        });
+        container.appendChild(search);
+        var ids = Prof.packsState().ids;
+        var all = P.list().filter(function (e) { return e.group === 'country'; });
+        filterCatalog(all, countryQuery).forEach(function (e) {
+          var row = document.createElement('div');
+          row.className = 'sources-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = ids.indexOf(e.id) >= 0;
+          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
+          var nm = document.createElement('button');
+          nm.type = 'button';
+          nm.className = 'sources-name';
+          nm.textContent = e.name;
+          nm.addEventListener('click', function () { Prof.togglePack(e.id); P.ensureSelected(); });
+          row.appendChild(cb);
+          row.appendChild(nm);
+          container.appendChild(row);
+        });
+      }
       function renderLibrary(container, hooks) {
+        if (managerView === 'countries') return renderCountries(container, hooks);
         container.innerHTML = '';
         container.classList.add('sources-scroll');
         var infoEl = document.getElementById('sourcesInfo');
@@ -579,7 +639,17 @@
           }
         }
       }
-      global.SourcesUi = { renderLibrary: renderLibrary };
+      var ctyBtn = document.getElementById('sourcesCountryBtn');
+      if (ctyBtn) ctyBtn.addEventListener('click', function () {
+        managerView = 'countries';
+        countryQuery = '';
+        var listEl = document.getElementById('profilesList');
+        if (listEl) renderCountries(listEl, { onEdit: function () {} });
+      });
+      global.SourcesUi = {
+        renderLibrary: renderLibrary,
+        reset: function () { managerView = 'library'; selectedInfoId = null; countryQuery = ''; },
+      };
 
       // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
       // rendret preview FØR import; import = kopi som aktiveres.
@@ -655,6 +725,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { makePacks: makePacks, compose: compose };
+    module.exports = { makePacks: makePacks, compose: compose, filterCatalog: filterCatalog };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

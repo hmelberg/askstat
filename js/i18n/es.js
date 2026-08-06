@@ -164,4 +164,7 @@ window.M2PY_I18N.es = {
   "Add country…": "Añadir país …",
   "Import shared sources…": "Importar fuentes compartidas …",
   "Imported from shared sources. ": "Importado de fuentes compartidas. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Buscar …",
+  "← Back to list": "← Volver a la lista",
 };

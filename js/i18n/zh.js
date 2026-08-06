@@ -164,4 +164,7 @@ window.M2PY_I18N.zh = {
   "Add country…": "添加国家 …",
   "Import shared sources…": "导入共享来源 …",
   "Imported from shared sources. ": "从共享来源导入。",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "搜索 …",
+  "← Back to list": "← 返回列表",
 };

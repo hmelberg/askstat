@@ -164,4 +164,7 @@ window.M2PY_I18N.fi = {
   "Add country…": "Lisää maa …",
   "Import shared sources…": "Tuo jaettuja lähteitä …",
   "Imported from shared sources. ": "Tuotu jaetuista lähteistä. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Hae …",
+  "← Back to list": "← Takaisin listaan",
 };

@@ -2,7 +2,7 @@
 // resolusjon m/cache, locale→pakke. Node-seam: makePacks(storage, fetch, profiles).
 const test = require('node:test');
 const assert = require('node:assert');
-const { makePacks, compose } = require('../../js/packs.js');
+const { makePacks, compose, filterCatalog } = require('../../js/packs.js');
 
 function fakeStorage() {
   const m = new Map();
@@ -103,6 +103,20 @@ test('compose: uten yaml → summary; summary-cap 1500; alle får ALLTID minst L
   assert.equal(out[1].level, 'full');           // 80000 rommer to L3-kutt
   assert.equal(out[0].level, 'summary');
   assert(out[0].text.length <= 1500);
+});
+
+// Søkefilter for landvelgeren (spec menyopprydding §5–6): PURE, deles av
+// Explore-søket (Task 6) og «Legg til land …» (denne oppgaven).
+test('filterCatalog: navn+beskrivelse, case-insensitiv, tom query = alt', () => {
+  const entries = [
+    { name: 'Norway', description: 'SSB core' },
+    { name: 'Sweden', description: 'SCB' },
+    { name: 'Helse', description: 'FHI og NPR' },
+  ];
+  assert.equal(filterCatalog(entries, '').length, 3);
+  assert.deepEqual(filterCatalog(entries, 'ssb').map((e) => e.name), ['Norway']);
+  assert.deepEqual(filterCatalog(entries, 'FHI').map((e) => e.name), ['Helse']);
+  assert.equal(filterCatalog(entries, 'zzz').length, 0);
 });
 
 test('autoFrom: region vinner, entydige språk mappes, tvetydige → null', async () => {

@@ -165,4 +165,7 @@ window.M2PY_I18N.pt = {
   "Add country…": "Adicionar país …",
   "Import shared sources…": "Importar fontes partilhadas …",
   "Imported from shared sources. ": "Importado de fontes partilhadas. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Pesquisar …",
+  "← Back to list": "← Voltar à lista",
 };

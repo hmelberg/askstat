@@ -164,4 +164,7 @@ window.M2PY_I18N.ja = {
   "Add country…": "国を追加 …",
   "Import shared sources…": "共有ソースをインポート …",
   "Imported from shared sources. ": "共有ソースからインポートしました。",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "検索 …",
+  "← Back to list": "← リストに戻る",
 };

@@ -164,4 +164,7 @@ window.M2PY_I18N.sv = {
   "Add country…": "Lägg till land …",
   "Import shared sources…": "Importera delade källor …",
   "Imported from shared sources. ": "Importerad från delade källor. ",
+  // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
+  "Search…": "Sök …",
+  "← Back to list": "← Tillbaka till listan",
 };

@@ -414,6 +414,7 @@
       P.openModal = function (opts) {
         opts = opts || {};
         modalKind = opts.kind === 'source' ? 'source' : 'profile';
+        if (modalKind === 'source' && global.SourcesUi && global.SourcesUi.reset) global.SourcesUi.reset();
         if (titleEl) titleEl.textContent = modalKind === 'source' ? T('Sources') : T('Profiles');
         if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
         var impBtn = document.getElementById('sourcesImportBtn');

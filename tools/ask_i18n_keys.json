@@ -95,6 +95,7 @@
   "Save",
   "Save as source",
   "Savings simulator with a slider",
+  "Search…",
   "Shared packs",
   "Should I tell his wife? (ethics, modelled)",
   "Should the government approve a new drug that costs 1 million kroner per QALY?",
@@ -147,6 +148,7 @@
   "by {author}, updated {updated}",
   "three-word-code",
   "{short} of {total} packs sent in short form",
+  "← Back to list",
   "⚠ Last polish run failed — the numbers come from an earlier successful run",
   "⚠ Not verified with code or data — plain model answer",
   "⚠ The code did not run successfully — treat numbers with caution"

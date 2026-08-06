@@ -190,6 +190,24 @@ test('kind: source-tekst har romsligere budsjett (40000) enn profil (8000)', () 
   assert.equal(P.get(sid).text.length, 40000);
 });
 
+// Review-funn 1 (2026-08-06): remove() av en kind:source-oppføring som er
+// valgt i doc.packs.ids skal ikke etterlate en hengende 'user:'+id.
+test('kind: remove() av en valgt kilde rydder også doc.packs.ids', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  const sid = P.create('ESS-kilde', 'yaml her', 'source');
+  P.setPacks(['user:' + sid]);
+  assert.deepEqual(P.packsState().ids, ['user:' + sid]);
+  P.remove(sid);
+  assert.deepEqual(P.packsState().ids, []);
+  // en usignifikant id (som ikke matcher noen doc.packs-oppføring) rører
+  // ikke doc.packs i det hele tatt:
+  const pid = P.create('Vanlig profil', 't');
+  P.setPacks(['norway']);
+  P.remove(pid);
+  assert.deepEqual(P.packsState().ids, ['norway']);
+});
+
 test('packs: gammel doc.pack ignoreres og skrubbes ved neste skriving', () => {
   const s = fakeStorage();
   s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',

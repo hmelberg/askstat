@@ -112,6 +112,17 @@
         if (!doc.profiles[id]) return;
         doc.profiles[id] = { deleted: true, updated: now() };
         if (doc.active === id) doc.active = null;
+        // Kontekstrunden fase 3 (§Unifisert lager, review-funn 1): en slettet
+        // kind:source-oppføring kan stå valgt i doc.packs.ids som 'user:'+id
+        // — fjern den også, ellers henger iden igjen for alltid (synkes til
+        // andre enheter; payload()/list() hopper den stille over, men
+        // packsState().ids.length ville fortsatt telle den med).
+        if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) {
+          var uid = 'user:' + id;
+          if (doc.packs.ids.indexOf(uid) >= 0) {
+            doc.packs = { ids: doc.packs.ids.filter(function (x) { return x !== uid; }), updated: now() };
+          }
+        }
         writeDoc(doc);
       },
       // setActive: avviser kilder (kind==='source') — de kan aldri være aktiv

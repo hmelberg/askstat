@@ -247,3 +247,30 @@ test('migrering: ingen md_packs_imported → no-op', async () => {
   P.migrateImported(prof);
   assert.equal(prof.list('source').length, 0);
 });
+
+// Review-funn 2 (2026-08-06): migreringen skjer i praksis via boot(), ikke
+// ved et direkte migrateImported()-kall — de øvrige migrerings-testene over
+// kaller kun migrateImported() direkte og beskytter derfor ikke boot()s
+// load → migrateImported → applyAuto → ensureSelected-rekkefølge. Denne
+// testen går gjennom P.boot([...]) selv, slik at en fremtidig omrokkering
+// (f.eks. migrateImported() flyttet til etter ensureSelected, eller fjernet
+// fra boot() helt) feiler her.
+test('boot(): migrerer md_packs_imported (rekkefølgen inni boot er beskyttet)', async () => {
+  const s = fakeStorage();
+  s.setItem('md_packs_imported', JSON.stringify({
+    x: { name: 'US health', text: '# US health\nUse ipums.',
+      origin: { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' } },
+  }));
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  prof.setPacks(['imported:x', 'norway']);                             // manuelt valg som refererer den gamle importen
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.boot(['en-US']);
+  const sources = prof.list('source');
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].name, 'US health');
+  const st = prof.packsState();
+  assert.ok(st.ids.indexOf('user:' + sources[0].id) >= 0);             // remappet
+  assert.ok(st.ids.indexOf('norway') >= 0);                            // andre ider urørt
+  assert.equal(st.ids.indexOf('imported:x'), -1);                      // gammel-iden borte
+  assert.equal(s.getItem('md_packs_imported'), null);                 // nøkkelen fjernet
+});

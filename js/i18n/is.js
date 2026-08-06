@@ -56,7 +56,6 @@ window.M2PY_I18N.is = {
   "Login code": "Innskráningarkóði",
   "Markdown is supported": "Markdown er stutt",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "Flest gervigreindar-spjallmenni svara eftir minni — reiprennandi, en stundum rangt, og þú sérð ekki hvaðan svarið kom.",
-  "My sources": "Mínar heimildir",
   "Name": "Nafn",
   "New profile": "Nýr prófíll",
   "New question": "Ný spurning",
@@ -161,4 +160,8 @@ window.M2PY_I18N.is = {
   "Manage sources…": "Sýsla með heimildir …",
   "Sources — where the AI should look for data. Click to adjust.": "Heimildir — hvar gervigreindin ætti að leita að gögnum. Smelltu til að breyta.",
   "Standard (automatic)": "Sjálfgefið (sjálfvirkt)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "Bæta við landi …",
+  "Import shared sources…": "Flytja inn deildar heimildir …",
+  "Imported from shared sources. ": "Flutt inn frá deildum heimildum. ",
 };

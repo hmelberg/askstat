@@ -58,7 +58,6 @@ window.M2PY_I18N.no = {
   "Login code": "Login-kode",
   "Markdown is supported": "Markdown støttes",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De fleste KI-chatboter svarer fra hukommelsen — flytende, men iblant feil, og du kan ikke se hvor svaret kom fra.",
-  "My sources": "Mine kilder",
   "Name": "Navn",
   "New profile": "Ny profil",
   "New question": "Nytt spørsmål",
@@ -163,4 +162,8 @@ window.M2PY_I18N.no = {
   "Manage sources…": "Administrer kilder …",
   "Sources — where the AI should look for data. Click to adjust.": "Kilder — hvor KI-en bør lete etter data. Klikk for å endre.",
   "Standard (automatic)": "Standard (automatisk)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "Legg til land …",
+  "Import shared sources…": "Importer delte kilder …",
+  "Imported from shared sources. ": "Importert fra delte kilder. ",
 };

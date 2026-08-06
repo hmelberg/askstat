@@ -56,7 +56,6 @@ window.M2PY_I18N.es = {
   "Login code": "Código de acceso",
   "Markdown is supported": "Se admite Markdown",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "La mayoría de los chatbots de IA responden de memoria — con fluidez, pero a veces mal, y no puedes ver de dónde salió la respuesta.",
-  "My sources": "Mis fuentes",
   "Name": "Nombre",
   "New profile": "Nuevo perfil",
   "New question": "Nueva pregunta",
@@ -161,4 +160,8 @@ window.M2PY_I18N.es = {
   "Manage sources…": "Gestionar fuentes …",
   "Sources — where the AI should look for data. Click to adjust.": "Fuentes — dónde debe buscar datos la IA. Haz clic para ajustar.",
   "Standard (automatic)": "Estándar (automático)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "Añadir país …",
+  "Import shared sources…": "Importar fuentes compartidas …",
+  "Imported from shared sources. ": "Importado de fuentes compartidas. ",
 };

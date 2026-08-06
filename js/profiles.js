@@ -294,6 +294,10 @@
       var modalKind = 'profile';
 
       function renderList() {
+        if (modalKind === 'source' && global.SourcesUi) {
+          global.SourcesUi.renderLibrary(listEl, { onEdit: openEdit });
+          return;
+        }
         var act = P.active();
         listEl.innerHTML = '';
         if (modalKind === 'profile') {
@@ -404,8 +408,19 @@
       P.openModal = function (opts) {
         opts = opts || {};
         modalKind = opts.kind === 'source' ? 'source' : 'profile';
-        if (titleEl) titleEl.textContent = modalKind === 'source' ? T('My sources') : T('Profiles');
+        if (titleEl) titleEl.textContent = modalKind === 'source' ? T('Sources') : T('Profiles');
         if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
+        var impBtn = document.getElementById('sourcesImportBtn');
+        var ctyBtn = document.getElementById('sourcesCountryBtn');
+        if (impBtn) impBtn.hidden = modalKind !== 'source';
+        if (ctyBtn) ctyBtn.hidden = modalKind !== 'source';
+        // sourcesInfo lever utenfor listEl (SourcesUi styrer den KUN i
+        // source-modus) — skjul den eksplisitt her, ellers lekker en
+        // tidligere valgt kildes infopanel inn i profil-modalen.
+        if (modalKind !== 'source') {
+          var infoEl = document.getElementById('sourcesInfo');
+          if (infoEl) infoEl.hidden = true;
+        }
         if ('prefillName' in opts || 'prefillText' in opts) {
           renderList();
           openEdit('NY');

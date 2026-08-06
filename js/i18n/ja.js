@@ -56,7 +56,6 @@ window.M2PY_I18N.ja = {
   "Login code": "ログインコード",
   "Markdown is supported": "Markdownに対応",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "ほとんどのAIチャットボットは記憶から答えます——流暢ですが、時に間違っていて、答えの出どころは見えません。",
-  "My sources": "マイソース",
   "Name": "名前",
   "New profile": "新しいプロファイル",
   "New question": "新しい質問",
@@ -161,4 +160,8 @@ window.M2PY_I18N.ja = {
   "Manage sources…": "ソースを管理 …",
   "Sources — where the AI should look for data. Click to adjust.": "ソース — AIがデータを探す場所。クリックして変更。",
   "Standard (automatic)": "標準（自動）",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "国を追加 …",
+  "Import shared sources…": "共有ソースをインポート …",
+  "Imported from shared sources. ": "共有ソースからインポートしました。",
 };

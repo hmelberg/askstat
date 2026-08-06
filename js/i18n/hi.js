@@ -56,7 +56,6 @@ window.M2PY_I18N.hi = {
   "Login code": "लॉगिन कोड",
   "Markdown is supported": "Markdown समर्थित है",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "अधिकांश AI चैटबॉट स्मृति से उत्तर देते हैं — धाराप्रवाह, पर कभी-कभी ग़लत, और आप देख नहीं सकते कि उत्तर कहाँ से आया।",
-  "My sources": "मेरे स्रोत",
   "Name": "नाम",
   "New profile": "नई प्रोफ़ाइल",
   "New question": "नया प्रश्न",
@@ -161,4 +160,8 @@ window.M2PY_I18N.hi = {
   "Manage sources…": "स्रोत प्रबंधित करें …",
   "Sources — where the AI should look for data. Click to adjust.": "स्रोत — AI को डेटा कहाँ खोजना चाहिए। बदलने के लिए क्लिक करें।",
   "Standard (automatic)": "मानक (स्वतः)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "देश जोड़ें …",
+  "Import shared sources…": "साझा स्रोत आयात करें …",
+  "Imported from shared sources. ": "साझा स्रोतों से आयात किया गया। ",
 };

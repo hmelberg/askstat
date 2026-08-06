@@ -56,7 +56,6 @@ window.M2PY_I18N.zh = {
   "Login code": "登录码",
   "Markdown is supported": "支持 Markdown",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "大多数 AI 聊天机器人凭记忆作答——流畅，但有时是错的，而且你看不到答案从何而来。",
-  "My sources": "我的来源",
   "Name": "名称",
   "New profile": "新建配置文件",
   "New question": "新问题",
@@ -161,4 +160,8 @@ window.M2PY_I18N.zh = {
   "Manage sources…": "管理来源 …",
   "Sources — where the AI should look for data. Click to adjust.": "来源 — AI 应该在哪里查找数据。点击调整。",
   "Standard (automatic)": "标准（自动）",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "添加国家 …",
+  "Import shared sources…": "导入共享来源 …",
+  "Imported from shared sources. ": "从共享来源导入。",
 };

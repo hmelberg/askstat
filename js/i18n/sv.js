@@ -56,7 +56,6 @@ window.M2PY_I18N.sv = {
   "Login code": "Inloggningskod",
   "Markdown is supported": "Markdown stöds",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De flesta AI-chattbotar svarar ur minnet — flytande, men ibland fel, och du kan inte se var svaret kom ifrån.",
-  "My sources": "Mina källor",
   "Name": "Namn",
   "New profile": "Ny profil",
   "New question": "Ny fråga",
@@ -161,4 +160,8 @@ window.M2PY_I18N.sv = {
   "Manage sources…": "Hantera källor …",
   "Sources — where the AI should look for data. Click to adjust.": "Källor — var AI:n bör leta efter data. Klicka för att ändra.",
   "Standard (automatic)": "Standard (automatisk)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "Lägg till land …",
+  "Import shared sources…": "Importera delade källor …",
+  "Imported from shared sources. ": "Importerad från delade källor. ",
 };

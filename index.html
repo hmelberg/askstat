@@ -452,6 +452,7 @@
       <h3 data-i18n id="profilesTitle">Profiles</h3>
       <div class="ai-modal-help" data-i18n>A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
       <div id="profilesList" class="profiles-list"></div>
+      <div id="sourcesInfo" class="sources-info" hidden></div>
       <div id="profilesEdit" hidden>
         <label for="profileName" data-i18n>Name</label>
         <input type="text" id="profileName" maxlength="60">
@@ -464,6 +465,8 @@
         </details>
       </div>
       <div class="ai-modal-actions">
+        <button type="button" class="ai-modal-btn" data-i18n id="sourcesImportBtn" hidden>Import shared sources…</button>
+        <button type="button" class="ai-modal-btn" data-i18n id="sourcesCountryBtn" hidden>Add country…</button>
         <button type="button" class="ai-modal-btn" data-i18n id="profileNewBtn">New profile</button>
         <button type="button" class="ai-modal-btn" data-i18n id="profileDeleteBtn" hidden>Delete</button>
         <button type="button" class="ai-modal-btn primary" data-i18n id="profileSaveBtn" hidden>Save</button>

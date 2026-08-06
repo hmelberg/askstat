@@ -352,6 +352,23 @@ test('migrering: ingen md_packs_imported → no-op', async () => {
   assert.equal(prof.list('source').length, 0);
 });
 
+// Biblioteksmanageren (spec 2026-08-06-menyopprydding §4): describe(id) er
+// infopanelets tekstkilde — katalogbeskrivelse for builtins, note/mal for
+// land, og egen tekst (m/origin-prefiks ved community-import) for user:.
+test('describe: katalogbeskrivelse, landnote, egen kilde m/origin-prefiks', async () => {
+  const prof = fakeProfiles({ ids: [], auto: false });
+  prof.get = (id) => (id === 'egen1'
+    ? { id: 'egen1', name: 'Min', text: 'Første linje.\nMer.', kind: 'source',
+        origin: { source: 'community', id: 'x' } }
+    : null);
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+  await P.load();
+  assert.ok(P.describe('norway').length > 0);            // description fra index.json
+  assert.ok(P.describe('country:SE').length > 0);        // note/mal fra countries.json
+  assert.match(P.describe('user:egen1'), /Første linje/);
+  assert.equal(P.describe('finnes:ikke'), '');
+});
+
 // Review-funn 2 (2026-08-06): migreringen skjer i praksis via boot(), ikke
 // ved et direkte migrateImported()-kall — de øvrige migrerings-testene over
 // kaller kun migrateImported() direkte og beskytter derfor ikke boot()s

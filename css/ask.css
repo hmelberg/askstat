@@ -266,6 +266,21 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   cursor: pointer; }
 .profiles-row span { flex: 1 1 auto; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
+
+/* Biblioteksmanageren (spec 2026-08-06-menyopprydding §4): lista ruller
+   internt; modal-actions under er de faste, alltid synlige valgene. */
+.sources-scroll { max-height: 300px; overflow-y: auto; }
+.sources-row { display: flex; align-items: center; gap: 8px; padding: 4px 2px; }
+.sources-row.active { background: var(--bg-code); border-radius: 6px; }
+.sources-name { flex: 1 1 auto; min-width: 0; text-align: left; background: none;
+  border: none; color: inherit; font: inherit; cursor: pointer; padding: 2px 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sources-info { border-top: 1px solid var(--border); margin: 8px 0; padding: 8px 2px;
+  font-size: 12.5px; color: var(--text-muted); white-space: pre-wrap; }
+.sources-info-actions { display: flex; gap: 8px; margin-top: 8px; }
+/* Explore åpnes OVER manageren (z-index-fella fra spec §Kjente feller):
+   .ai-modal-backdrop = z-index 300 (app.css) — ett hakk over. */
+#packsExploreBackdrop { z-index: 301; }
 #profilesEdit label { display: block; margin: 8px 0 3px; font-size: 0.85rem; }
 #profilesEdit input, #profilesEdit textarea { width: 100%; box-sizing: border-box; }
 

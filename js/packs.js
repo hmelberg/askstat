@@ -126,6 +126,22 @@
       return c ? c.name : id;
     }
 
+    // Infopanelet i biblioteksmanageren (spec menyopprydding §4).
+    function describe(id) {
+      if (id.indexOf('country:') === 0) {
+        var e = countryMap()[id.slice(8)];
+        return e ? (e.note || renderTemplate(id.slice(8))) : '';
+      }
+      if (id.indexOf('user:') === 0) {
+        var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
+        if (!pr) return '';
+        var pre = pr.origin && pr.origin.source === 'community' ? 'Imported from shared sources. ' : '';
+        return pre + String(pr.text || '').slice(0, 400);
+      }
+      var c = curated().filter(function (p) { return p.id === id; })[0];
+      return c ? (c.description || '') : '';
+    }
+
     function list() {
       var out = [];
       // Community-pakker er IKKE direkte velgbare (les-før-aktiver, spec §5):
@@ -330,7 +346,7 @@
       resolve: resolve, payload: payload, ensureSelected: ensureSelected,
       composeInfo: composeInfo, fullTextFor: fullTextFor,
       boot: boot, onLangChange: onLangChange, importPack: importPack,
-      displayName: displayName, migrateImported: migrateImported,
+      displayName: displayName, describe: describe, migrateImported: migrateImported,
     };
   }
 
@@ -497,6 +513,70 @@
       }
       global.PacksUi = { renderInto: renderInto };
 
+      // Biblioteksmanageren (spec menyopprydding §4): profilesBackdrop i
+      // source-modus. selectedInfoId overlever re-render (P.onChange).
+      var selectedInfoId = null;
+      function renderLibrary(container, hooks) {
+        container.innerHTML = '';
+        container.classList.add('sources-scroll');
+        var infoEl = document.getElementById('sourcesInfo');
+        var st = Prof.packsState();
+        var ids = st.ids;
+        var entries = P.list().filter(function (e) {
+          return e.group !== 'country' || ids.indexOf(e.id) >= 0; // land: kun valgte (§4)
+        });
+        entries.forEach(function (e) {
+          var row = document.createElement('div');
+          row.className = 'sources-row' + (selectedInfoId === e.id ? ' active' : '');
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = ids.indexOf(e.id) >= 0;
+          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
+          var nm = document.createElement('button');
+          nm.type = 'button';
+          nm.className = 'sources-name';
+          nm.textContent = e.name;
+          nm.addEventListener('click', function () {
+            selectedInfoId = selectedInfoId === e.id ? null : e.id;
+            renderLibrary(container, hooks);
+          });
+          row.appendChild(cb);
+          row.appendChild(nm);
+          container.appendChild(row);
+        });
+        if (infoEl) {
+          infoEl.hidden = !selectedInfoId;
+          infoEl.innerHTML = '';
+          if (selectedInfoId) {
+            var txt = document.createElement('div');
+            txt.textContent = P.describe(selectedInfoId) || '';
+            infoEl.appendChild(txt);
+            if (selectedInfoId.indexOf('user:') === 0) {
+              var pid = selectedInfoId.slice(5);
+              var actions = document.createElement('div');
+              actions.className = 'sources-info-actions';
+              var edit = document.createElement('button');
+              edit.type = 'button';
+              edit.className = 'ai-codeblock-btn';
+              edit.textContent = T('Edit');
+              edit.addEventListener('click', function () { hooks.onEdit(pid); });
+              var del = document.createElement('button');
+              del.type = 'button';
+              del.className = 'ai-codeblock-btn';
+              del.textContent = T('Delete');
+              del.addEventListener('click', function () {
+                selectedInfoId = null;
+                Prof.remove(pid);           // fyrer onChange → profiles.js renderList → hit
+              });
+              actions.appendChild(edit);
+              actions.appendChild(del);
+              infoEl.appendChild(actions);  // knapperad — «Del …» kan legges til her senere
+            }
+          }
+        }
+      }
+      global.SourcesUi = { renderLibrary: renderLibrary };
+
       // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
       // rendret preview FØR import; import = kopi som aktiveres.
       var expBackdrop = document.getElementById('packsExploreBackdrop');
@@ -552,6 +632,10 @@
       if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
         if (e.target === expBackdrop) expBackdrop.classList.remove('open');
       });
+      // Biblioteksmanagerens «Importer delte kilder …» (spec §4): åpner
+      // samme Explore-modal som temapakke-radene i popoveren (Task 3).
+      var impBtn = document.getElementById('sourcesImportBtn');
+      if (impBtn) impBtn.addEventListener('click', function () { openExplore(); });
       // Boot: last katalog, auto-forslag (localeCandidates, hoistet over
       // renderInto), preload gjeldende tekst. Etiketten re-rendres etterpå —
       // displayName trenger katalogen for kuraterte pakker.

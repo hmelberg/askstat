@@ -56,7 +56,6 @@ window.M2PY_I18N.fi = {
   "Login code": "Kirjautumiskoodi",
   "Markdown is supported": "Markdown on tuettu",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "Useimmat tekoäly-chatbotit vastaavat muistista — sujuvasti, mutta joskus väärin, etkä näe mistä vastaus tuli.",
-  "My sources": "Omat lähteet",
   "Name": "Nimi",
   "New profile": "Uusi profiili",
   "New question": "Uusi kysymys",
@@ -161,4 +160,8 @@ window.M2PY_I18N.fi = {
   "Manage sources…": "Hallinnoi lähteitä …",
   "Sources — where the AI should look for data. Click to adjust.": "Lähteet — mistä tekoälyn tulisi etsiä dataa. Muuta napsauttamalla.",
   "Standard (automatic)": "Standardi (automaattinen)",
+  // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
+  "Add country…": "Lisää maa …",
+  "Import shared sources…": "Tuo jaettuja lähteitä …",
+  "Imported from shared sources. ": "Tuotu jaetuista lähteistä. ",
 };

@@ -383,6 +383,7 @@
         if (titleEl) titleEl.textContent = modalKind === 'source' ? T('My sources') : T('Profiles');
         if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
         if ('prefillName' in opts || 'prefillText' in opts) {
+          renderList();
           openEdit('NY');
           nameEl.value = opts.prefillName || '';
           textEl.value = opts.prefillText || '';

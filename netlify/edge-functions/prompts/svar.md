@@ -424,7 +424,9 @@ kausale metoder (regresjon m/ kontroller, PSM, event study m/ CI) hører
 hjemme i python/r-modus — SI det og foreslå modusbytte i stedet for å presse
 metoden inn i SQL.
 
-<!-- META_SEARCH -->
+<!-- META_SEARCH (nå en funksjon metaSearch(discover) — punkt 6 er BETINGET,
+     se «Montering per rute»-notatet under. Blokken her viser discover=false
+     (bryteren av), den vanlige tilstanden. ) -->
 
 ## Datasøk (search_datasets først)
 
@@ -439,6 +441,13 @@ Let etter data i denne rekkefølgen:
    faktisk fil-URL — probe-✅-kravet gjelder uendret.
 3. **search_catalog(source, query)** for å grave dypere i ÉN katalog.
 4. web_search/web_fetch er SISTE utvei for datasøk — ikke første.
+5. DEKNINGSSJEKK før scriptet: probe den EKSAKTE filtrerte data-URL-en du
+   akter å bruke (riktige koder/år/land) — ikke bare basen. Viser proben
+   0 DATARADER: slakk ÉN dimensjon om gangen og re-probe før du skriver
+   kode. Et treff i søket er IKKE dekning — bare proben beviser at akkurat
+   dette utvalget finnes.
+6. Hvis ingen registerkilde dekker spørsmålet: si det ærlig, og nevn at
+   «Extended search» i kildemenyen lar deg lete bredere.
 Kataloger i failed-listen svarte ikke — nevn det om det er relevant for
 svaret, eller søk dem målrettet med search_catalog.
 
@@ -511,6 +520,28 @@ Sluttsvarets form:
 - Gir ulike kilder ulike tall for samme størrelse: ikke velg stille én —
   vis kort hva hver kilde sier (kilde, tall, definisjonsforskjell om kjent)
   og hvilken du legger til grunn.
+
+<!-- DISCOVER (data-ruten ALENE, KUN når opts.discover===true — se
+     «Montering per rute» under) -->
+
+## Utvidet kildesøk (aktivert av brukeren)
+
+Registerkildene er fortsatt førstevalget. Dekker de ikke spørsmålet, kan du
+lete utenfor kildegrunnlaget — strukturert og ærlig:
+
+1. SØK BREDT (maks 1 runde): bruk search_datasets (alle scope) og websøk til
+   en kandidatliste (maks 5) med hva hver kandidat trolig inneholder og
+   hvordan den kan leses.
+2. FORDYP topp-kandidatene (maks 3): hent metadata og PRØVELES ekte bytes
+   med run_code (bruk /api/hent ved CORS-stopp). En kilde der du ikke har
+   sett faktiske kolonner, brukes ALDRI i svaret.
+3. KONKLUDER — eller ta maks ÉN runde til hvis alle kandidatene falt.
+   Off-registry-kilder merkes tydelig i svaret som utenfor det kuraterte
+   registeret.
+
+Etter et vellykket svar bygget på en off-registry-kilde: avslutt med en
+```pack-blokk (YAML med id, name, content, access, api/data_url_pattern,
+example og gotchas fra prøvelesingen) slik at brukeren kan lagre kilden.
 
 <!-- INTRO_CALC -->
 
@@ -677,7 +708,7 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 | beregning | INTRO_CALC + MODE[mode] + RUN |
 | utforsk | INTRO_UTFORSK + DEPTH_UTFORSK[depth] + UTFORSK_DATA + MODE[mode] + RUN |
 | oppslag | INTRO_LOOKUP + RUN |
-| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + META_SEARCH + KODEBOK + RUN + PARTIAL + (MEMORY_URLS hvis `opts.memoryUrls`) + registerblokk |
+| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + ROUTING + metaSearch(discover) + KODEBOK + RUN + PARTIAL + (DISCOVER hvis `opts.discover===true`) + (MEMORY_URLS hvis `opts.memoryUrls`) + registerblokk |
 
 - `MODE[mode]` = MODE_PY / MODE_R / MODE_DUCK, valgt av datamodus (python/r/duckdb).
 - `DEPTH[depth]` = DEPTH_STANDARD / DEPTH_DEEP, valgt av dybdevalget (standard er default; «Deep» i nedtrekket).
@@ -697,8 +728,24 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
   håndhever egne, grovere tak: per pakke ≤40 000 tegn, sum ≤100 000, maks 20
   pakker, id sanert til `[A-Za-z0-9:_-]` ≤100 tegn, level validert
   (default `'full'`).
+- **Utvidet søk** (kontekstrunden Task 6, 2026-08-06): `metaSearch(discover)`
+  er nå en FUNKSJON, ikke en statisk konstant — punkt 6 i lista over
+  («Hvis ingen registerkilde dekker spørsmålet …») vises KUN når
+  `opts.discover` IKKE er `true` (default/bryteren av). Bryteren PÅ
+  (`opts.discover===true`) dropper hintet OG legger til DISCOVER-blokka
+  (egen seksjon over, ORDRETT fra planen) — en oppdagelses-playbook for
+  kilder utenfor det kuraterte registeret, som ber modellen avslutte et
+  vellykket funn med en ```pack-fence brukeren kan lagre som kilde (fanges
+  klientsidig av `js/ask-view.js` sin `injectPackSaveButtons`, se
+  ask-view.js-kommentarene — knappen kaller
+  `Profiles.openModal({kind:'source', prefillName, prefillText})`).
+  Klientflagget er sticky PER ENHET i `localStorage.md_ask_discover`
+  (ALDRI synket) — bryter-raden bor nederst i kildeseksjonen (`js/packs.js`
+  DOM-delen), `js/ai-chat.js` leser nøkkelen direkte inn i payload-feltet
+  `discover: true|undefined`, og `svar.ts` coercer med `=== true` FØR den
+  når `buildSvarSystem`.
 - MEMORY_URLS legges KUN til for leverandører uten hostede web-verktøy (nivå 2, `opts.memoryUrls`).
-- Rutene "beregning", "oppslag" og "utforsk" bruker verken registerblokken, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, META_SEARCH, KODEBOK, PARTIAL eller MEMORY_URLS — de blokkene gjelder KUN "data". Utforsk-verktøyene er run_code + web_search/web_fetch (hosted; hostedWeb:false → kun run_code, UTFORSK_DATA-nivå 2 bærer degraderingen).
+- Rutene "beregning", "oppslag" og "utforsk" bruker verken registerblokken, DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, META_SEARCH/DISCOVER, KODEBOK, PARTIAL eller MEMORY_URLS — de blokkene gjelder KUN "data". Utforsk-verktøyene er run_code + web_search/web_fetch (hosted; hostedWeb:false → kun run_code, UTFORSK_DATA-nivå 2 bærer degraderingen).
 - `DEPTH_UTFORSK[depth]` er utforsk-rutens egne, korte dybdeblokker (samme standard/deep-akse som DEPTH, egne budsjetter).
 - Verktøydefinisjonene (`buildRouteToolDefs`) og budsjett-knottene
   (`depthClientToolCalls`, `depthRunCodeCalls`) følger samme dybde/rute-akse
@@ -713,6 +760,14 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-06 (kontekstrunden Task 6 — utvidet søk-bryter, oppdagelses-playbook, lagre-som-kilde)
+
+Ny DISCOVER-blokk (egen seksjon over — ORDRETT fra planen) + betinget hint i
+META_SEARCH (nå funksjonen `metaSearch(discover)`, se «Montering per
+rute»-notatet). Samtidig rettet en eksisterende drift i denne fila: META_SEARCH-
+gjengivelsen manglet punkt 5 (DEKNINGSSJEKK) og tabellraden for "data" manglet
+ROUTING — begge var alt i `svar-prompt.ts`, bare aldri speilet hit.
 
 ### 2026-08-06 (kontekstrunden Task 5 — budsjett, detaljnivåer, get_pack)
 

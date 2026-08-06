@@ -159,4 +159,7 @@ window.M2PY_I18N.ja = {
   "Where the AI should look for data.": "AIがデータを探す場所。",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{total}個中{short}個のパックが短縮形で送信されます",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "拡張検索 — 組み込みソース以外も検索（低速）",
+  "Save as source": "ソースとして保存",
 };

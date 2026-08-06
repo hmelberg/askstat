@@ -350,6 +350,23 @@
       // Profiles.packsState().ids — brukt både i renderInto og import.
       function selectedIds() { return Prof.packsState().ids; }
 
+      // Utvidet søk (kontekstrunden fase 2 §5): sticky PER ENHET — bor i
+      // localStorage ALENE (ALDRI i doc.packs/synk, i motsetning til
+      // pakkevalget over). js/ai-chat.js sin payload leser NØYAKTIG denne
+      // nøkkelen direkte (se run-kontrakt.test.js) — ingen felles konstant
+      // på tvers av filer i dette ES5-oppsettet, så navnet er literal begge
+      // steder med VILJE.
+      var DISCOVER_KEY = 'md_ask_discover';
+      function readDiscover() {
+        try { return global.localStorage.getItem(DISCOVER_KEY) === '1'; } catch (e) { return false; }
+      }
+      function writeDiscover(on) {
+        try {
+          if (on) global.localStorage.setItem(DISCOVER_KEY, '1');
+          else global.localStorage.removeItem(DISCOVER_KEY);
+        } catch (e) {}
+      }
+
       // Menyens view-tilstand: 'main' (kilder) eller 'countries' (drill-inn-
       // lista over ALLE land uten kuratert pakke). Overlever re-render (den
       // delte popoveren re-rendrer denne seksjonen ved hvert Profiles.onChange
@@ -406,6 +423,26 @@
           var d = document.createElement('div');
           d.className = 'ask-pop-sep';
           container.appendChild(d);
+        }
+        // Utvidet søk-raden (kontekstrunden fase 2 §5): egen sjekkboks-rad,
+        // IKKE et pakkevalg — klikk toggler localStorage direkte og
+        // re-rendrer LOKALT (samme IKKE-close-oppførsel som checkRow, men
+        // uten omveien om Prof.togglePack/ensureSelected).
+        function discoverRow() {
+          var b = document.createElement('button');
+          b.type = 'button';
+          var check = document.createElement('span');
+          check.className = 'ask-pop-check';
+          check.textContent = readDiscover() ? '✓' : '';
+          var nm = document.createElement('span');
+          nm.textContent = T('Extended search — also look beyond the built-in sources (slower)');
+          b.appendChild(check);
+          b.appendChild(nm);
+          b.addEventListener('click', function () {
+            writeDiscover(!readDiscover());
+            renderInto(container, close);
+          });
+          container.appendChild(b);
         }
 
         var st = Prof.packsState();
@@ -472,6 +509,11 @@
             { short: info.shortForm, total: info.total });
           container.appendChild(hint);
         }
+        // Utvidet søk (kontekstrunden fase 2 §5): nederst i kildeseksjonen,
+        // egen separator over — kun i hovedvisningen (som budsjett-hintet
+        // over; land-drill-inn-visningen returnerer før den når hit).
+        sep();
+        discoverRow();
       }
       global.PacksUi = { renderInto: renderInto };
 

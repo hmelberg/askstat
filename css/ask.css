@@ -216,6 +216,15 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .ask-badge.ask-badge-warn { border-color: var(--accent); color: var(--accent); }
 .ask-answer-actions { display: flex; gap: 8px; margin-top: 14px; }
 
+/* «Save as source» under en ```pack-fence (kontekstrunden fase 2 §5) —
+   samme kompakte, sekundære look som .ai-codeblock-btn i app.css. */
+.ask-save-source-btn { display: inline-flex; align-items: center; gap: 4px;
+  margin: 4px 0 12px; padding: 4px 10px; border: 1px solid var(--border);
+  background: var(--bg-panel); color: var(--text-muted); border-radius: 4px;
+  cursor: pointer; font-size: 12px; }
+.ask-save-source-btn:hover { background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent); border-color: var(--accent); }
+
 .ask-details { margin-top: 12px; font-size: 13px; color: var(--text-muted); max-width: 760px; }
 .ask-details[hidden] { display: none; }
 .ask-details summary { cursor: pointer; }

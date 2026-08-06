@@ -159,4 +159,7 @@ window.M2PY_I18N.da = {
   "Where the AI should look for data.": "Hvor AI'en bør lede efter data.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} af {total} pakker sendes i kortform",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "Udvidet søgning — led også uden for kildegrundlaget (langsommere)",
+  "Save as source": "Gem som kilde",
 };

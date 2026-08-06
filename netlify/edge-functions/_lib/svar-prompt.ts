@@ -409,7 +409,15 @@ se join-nøkler i registeret). Harmoniser koder og enheter FØR join, kommenter
 join-type (inner/left) og hvorfor, og sjekk radtall før/etter (stille
 rad-tap er en klassisk feilkilde).`;
 
-const META_SEARCH = `\
+// metaSearch(discover) (kontekstrunden fase 2 §5): siste punkt i listen er
+// et hint mot "Utvidet søk"-bryteren, men KUN når den er AV — er den PÅ
+// overtar DISCOVER-blokka (under) jobben, og et dobbelt hint ville vært
+// motstridende («si det ærlig og gi opp» vs. «let videre»).
+function metaSearch(discover: boolean): string {
+  const hint = discover ? "" : `
+6. Hvis ingen registerkilde dekker spørsmålet: si det ærlig, og nevn at
+   «Extended search» i kildemenyen lar deg lete bredere.`;
+  return `\
 ## Datasøk (search_datasets først)
 
 Let etter data i denne rekkefølgen:
@@ -427,9 +435,36 @@ Let etter data i denne rekkefølgen:
    akter å bruke (riktige koder/år/land) — ikke bare basen. Viser proben
    0 DATARADER: slakk ÉN dimensjon om gangen og re-probe før du skriver
    kode. Et treff i søket er IKKE dekning — bare proben beviser at akkurat
-   dette utvalget finnes.
+   dette utvalget finnes.${hint}
 Kataloger i failed-listen svarte ikke — nevn det om det er relevant for
 svaret, eller søk dem målrettet med search_catalog.`;
+}
+
+// DISCOVER (kontekstrunden fase 2 §5): oppdagelses-playbook for data UTENFOR
+// det kuraterte registeret — data-ruten ALENE, og KUN når klienten sendte
+// discover:true (bryteren i kildeseksjonen, js/packs.js DOM; localStorage
+// md_ask_discover, ALDRI synket; ai-chat.js payload; svar.ts videresender
+// body.discover===true hit). Teksten er ORDRETT fra planen — ikke omskriv
+// uten å oppdatere docs/superpowers/plans/2026-08-06-kontekstrunden-fase2-6.md.
+const DISCOVER = `\
+## Utvidet kildesøk (aktivert av brukeren)
+
+Registerkildene er fortsatt førstevalget. Dekker de ikke spørsmålet, kan du
+lete utenfor kildegrunnlaget — strukturert og ærlig:
+
+1. SØK BREDT (maks 1 runde): bruk search_datasets (alle scope) og websøk til
+   en kandidatliste (maks 5) med hva hver kandidat trolig inneholder og
+   hvordan den kan leses.
+2. FORDYP topp-kandidatene (maks 3): hent metadata og PRØVELES ekte bytes
+   med run_code (bruk /api/hent ved CORS-stopp). En kilde der du ikke har
+   sett faktiske kolonner, brukes ALDRI i svaret.
+3. KONKLUDER — eller ta maks ÉN runde til hvis alle kandidatene falt.
+   Off-registry-kilder merkes tydelig i svaret som utenfor det kuraterte
+   registeret.
+
+Etter et vellykket svar bygget på en off-registry-kilde: avslutt med en
+\`\`\`pack-blokk (YAML med id, name, content, access, api/data_url_pattern,
+example og gotchas fra prøvelesingen) slik at brukeren kan lagre kilden.`;
 
 const ROUTING = `\
 ## Landruting (standardvalg — brukerens preferanser har forrang)
@@ -819,7 +854,7 @@ export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; packs?: unknown },
+  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; packs?: unknown; discover?: boolean },
 ): string {
   const depth = opts?.depth ?? "deep";
   if (route === "beregning") {
@@ -831,7 +866,11 @@ export function buildSvarSystem(
   if (route === "oppslag") {
     return [INTRO_LOOKUP, RUN].join("\n\n");
   }
-  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], ROUTING, META_SEARCH, KODEBOK, RUN, PARTIAL];
+  // Utvidet søk (kontekstrunden fase 2 §5): opts.discover===true bytter
+  // metaSearch sitt hint mot bryteren for DISCOVER-blokka (playbooken).
+  const discoverOn = opts?.discover === true;
+  const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], ROUTING, metaSearch(discoverOn), KODEBOK, RUN, PARTIAL];
+  if (discoverOn) blocks.push(DISCOVER);
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
   blocks.push(registryBlock);
   const prefBlock = renderPreferencesBlock(coercePreferences(opts?.preferences));

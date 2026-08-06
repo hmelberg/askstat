@@ -32,6 +32,7 @@ interface RequestBody {
   available_keys?: unknown;
   preferences?: unknown;
   packs?: unknown;
+  discover?: unknown;
   provider?: unknown;
   resume?: ResumeBody;
   run_result?: string;
@@ -206,7 +207,12 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const memoryUrls = provider ? provider.webSearch === "none" : false;
-  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth, preferences: body.preferences, packs: body.packs });
+  // Utvidet søk (kontekstrunden fase 2 §5): eksplisitt streng boolean —
+  // klienten sender kun true|undefined (js/ai-chat.js payload), men body er
+  // ukjent JSON, så === true holder DISCOVER-blokka unna en tilfeldig
+  // truthy-verdi (f.eks. "false" som streng).
+  const discover = body.discover === true;
+  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth, preferences: body.preferences, packs: body.packs, discover });
 
   const probed: { url: string; ok: boolean; cors: boolean; viaProxy: boolean }[] = [];
   if (body.resume && Array.isArray(body.resume.probed)) {

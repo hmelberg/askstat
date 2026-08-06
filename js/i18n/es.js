@@ -159,4 +159,7 @@ window.M2PY_I18N.es = {
   "Where the AI should look for data.": "Dónde debe buscar datos la IA.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} de {total} paquetes se envían en forma corta",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "Búsqueda ampliada — buscar también fuera de las fuentes integradas (más lento)",
+  "Save as source": "Guardar como fuente",
 };

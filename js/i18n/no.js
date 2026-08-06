@@ -161,4 +161,7 @@ window.M2PY_I18N.no = {
   "Find a survey (World Bank Microdata)": "Finn en survey (World Bank Microdata)",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short} av {total} pakker sendes i kortform",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "Utvidet søk — let også utenfor kildegrunnlaget (tregere)",
+  "Save as source": "Lagre som kilde",
 };

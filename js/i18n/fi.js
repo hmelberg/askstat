@@ -159,4 +159,7 @@ window.M2PY_I18N.fi = {
   "Where the AI should look for data.": "Mistä tekoälyn tulisi etsiä dataa.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{short}/{total} pakettia lähetetään lyhytmuodossa",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "Laajennettu haku — etsi myös sisäänrakennettujen lähteiden ulkopuolelta (hitaampi)",
+  "Save as source": "Tallenna lähteeksi",
 };

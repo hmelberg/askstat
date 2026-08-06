@@ -113,3 +113,32 @@ Deno.test("packs-blokk: tom liste → ingen blokk; utforsk-ruten får den ikke",
   assert(!buildSvarSystem("utforsk", "python", "", {
     packs: [{ name: "N", text: "t" }] }).includes("Aktive kildepakker"));
 });
+
+// Utvidet søk (kontekstrunden fase 2 §5): DISCOVER-blokka er en oppdagelses-
+// playbook for kilder UTENFOR registeret — KUN data-ruten, KUN når klienten
+// eksplisitt sendte discover:true (bryteren i kildeseksjonen, js/packs.js).
+Deno.test("DISCOVER-blokk: data-ruten m/discover:true; fraværende ellers; aldri andre ruter", () => {
+  const med = buildSvarSystem("data", "python", "", { discover: true });
+  assert(med.includes("## Utvidet kildesøk (aktivert av brukeren)"));
+  assert(med.includes("```pack-blokk"));
+  const utenFalse = buildSvarSystem("data", "python", "", { discover: false });
+  assert(!utenFalse.includes("## Utvidet kildesøk"));
+  const utenUndef = buildSvarSystem("data", "python", "");
+  assert(!utenUndef.includes("## Utvidet kildesøk"));
+  assert(!buildSvarSystem("beregning", "python", "", { discover: true }).includes("## Utvidet kildesøk"));
+  assert(!buildSvarSystem("utforsk", "python", "", { discover: true }).includes("## Utvidet kildesøk"));
+  assert(!buildSvarSystem("oppslag", "python", "", { discover: true }).includes("## Utvidet kildesøk"));
+});
+
+// Hint-linja (samme spec-punkt): peker mot bryteren KUN når den er av —
+// DISCOVER-blokka overtar jobben når den er på (ingen dobbel veiledning).
+Deno.test("Utvidet-søk-hint: «Extended search» nevnes i data-ruten uten discover, forsvinner med", () => {
+  const utenDiscover = buildSvarSystem("data", "python", "");
+  assert(utenDiscover.includes("Extended search"));
+  const medDiscoverFalse = buildSvarSystem("data", "python", "", { discover: false });
+  assert(medDiscoverFalse.includes("Extended search"));
+  const medDiscover = buildSvarSystem("data", "python", "", { discover: true });
+  assert(!medDiscover.includes("Extended search"));
+  // andre ruter har verken hintet eller META_SEARCH i det hele tatt
+  assert(!buildSvarSystem("beregning", "python", "").includes("Extended search"));
+});

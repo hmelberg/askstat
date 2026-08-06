@@ -159,4 +159,7 @@ window.M2PY_I18N.zh = {
   "Where the AI should look for data.": "AI 应该在哪里查找数据。",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
   "{short} of {total} packs sent in short form": "{total} 个包中有 {short} 个以短格式发送",
+  // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
+  "Extended search — also look beyond the built-in sources (slower)": "扩展搜索 — 也在内置来源之外查找（较慢）",
+  "Save as source": "保存为来源",
 };

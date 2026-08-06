@@ -167,6 +167,45 @@ test('buildHistoryEntry: mapper alle felter + profil', () => {
   assert.equal(e.depth, 'deep');
 });
 
+// Lagre-som-kilde (kontekstrunden fase 2 §5): ```pack-fences i svaret får en
+// «Save as source»-knapp under kodeblokken (klikkhåndteringen er en delegert
+// DOM-listener i initAskView — ikke testbar her, samme som resten av
+// filas DOM-halvdel; injectPackSaveButtons er den rene streng→streng-delen).
+test('injectPackSaveButtons: pack-fence får knapp m/ navn hentet fra YAML-ens name:-linje', () => {
+  const html = '<p>tekst</p>\n<pre><code class="language-pack">id: ess\nname: European Social Survey\ncontent: x\n</code></pre>\n';
+  const out = askView.injectPackSaveButtons(html, 'Save as source');
+  assert.ok(out.includes('class="ask-save-source-btn"'));
+  assert.ok(out.includes('data-pack-name="European Social Survey"'));
+  assert.ok(out.includes('>Save as source<'));
+  assert.ok(out.indexOf('</pre>') < out.indexOf('ask-save-source-btn'), 'knappen skal stå ETTER kodeblokken');
+});
+
+test('injectPackSaveButtons: uten name:-linje → tom data-pack-name (klikk-håndteringen faller tilbake selv)', () => {
+  const html = '<pre><code class="language-pack">id: x\ncontent: y\n</code></pre>';
+  const out = askView.injectPackSaveButtons(html, 'Save as source');
+  assert.ok(out.includes('data-pack-name=""'));
+});
+
+test('injectPackSaveButtons: vanlig ```yaml-fence får INGEN knapp (kun language-pack matcher)', () => {
+  const html = '<pre><code class="language-yaml">id: x\nname: y\n</code></pre>';
+  const out = askView.injectPackSaveButtons(html, 'Save as source');
+  assert.strictEqual(out, html);
+  assert.ok(!out.includes('ask-save-source-btn'));
+});
+
+test('injectPackSaveButtons: flere pack-fences får hver sin knapp; HTML-entiteter avkodes/re-kodes trygt', () => {
+  const html =
+    '<pre><code class="language-pack">name: A &amp; B\nurl: &quot;https://x?a=1&amp;b=2&quot;\n</code></pre>' +
+    '<p>mellomtekst</p>' +
+    '<pre><code class="language-pack">name: Second\n</code></pre>';
+  const out = askView.injectPackSaveButtons(html, 'Save as source');
+  assert.strictEqual((out.match(/ask-save-source-btn/g) || []).length, 2);
+  assert.ok(out.includes('data-pack-name="A &amp; B"'));
+  assert.ok(out.includes('data-pack-name="Second"'));
+  assert.ok(out.includes('data-pack-text="name: A &amp; B'));
+  assert.ok(out.includes('url: &quot;https://x?a=1&amp;b=2&quot;'));
+});
+
 test('buildHistoryEntry: defaults uten profil/script', () => {
   const e = askView.buildHistoryEntry({ question: 'q', badge: 'ingen-kjøring' });
   assert.equal(e.script, null);

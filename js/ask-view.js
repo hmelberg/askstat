@@ -424,6 +424,41 @@
     });
   }
 
+  /* ── Lagre-som-kilde (kontekstrunden fase 2 §5): en ```pack-fence i svaret
+     (DISCOVER-playbooken i _lib/svar-prompt.ts ber modellen avslutte et
+     vellykket off-registry-funn med én) får en «Save as source»-knapp rett
+     under kodeblokken. Ren STRENG→STRENG-transform på markdown-it sin
+     rendrede HTML (samme mønster som maskMathSegments/restoreMathSegments
+     over — testbar uten DOM). Knappen bærer alt den trenger i data-*-
+     attributter; selve klikk-håndteringen er ÉN delegert listener på
+     #askAnswer (satt opp i initAskView, se der) — knappene lages på nytt
+     ved hver renderMd()-kjøring, så en per-knapp addEventListener ville
+     bare lekke. ───────────────────────────────────────────────────────── */
+  var PACK_FENCE_RE = /<pre><code class="language-pack">([\s\S]*?)<\/code><\/pre>/g;
+  var PACK_NAME_LINE_RE = /^\s*name:\s*(.+?)\s*$/m;
+  // markdown-it sin escapeHtml() rører KUN &, <, > og " (ALDRI ' — se
+  // markdown-it@14 sin common/utils.js); ett regex-pass m/ alternering
+  // unngår dobbel-avkoding av sekvenser som «&amp;lt;».
+  function decodePackFenceEntities(s) {
+    var map = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"' };
+    return String(s || '').replace(/&amp;|&lt;|&gt;|&quot;/g, function (e) { return map[e]; });
+  }
+  function escPackAttr(s) {
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '\n': '&#10;', '\r': '&#13;' };
+    return String(s).replace(/[&<>"'\n\r]/g, function (c) { return map[c]; });
+  }
+  function injectPackSaveButtons(html, label) {
+    var btnLabel = label || 'Save as source';
+    return String(html || '').replace(PACK_FENCE_RE, function (whole, escapedContent) {
+      var text = decodePackFenceEntities(escapedContent);
+      var m = PACK_NAME_LINE_RE.exec(text);
+      var name = m ? m[1].trim() : '';
+      return whole + '<button type="button" class="ask-save-source-btn"' +
+        ' data-pack-name="' + escPackAttr(name) + '" data-pack-text="' + escPackAttr(text) + '">' +
+        escPackAttr(btnLabel) + '</button>';
+    });
+  }
+
   /* KaTeX (spec §6): lazy — lastes KUN når svaret ser ut til å inneholde
      matte. Idempotent per fane (promise-cache, samme mønster som
      _loadImportScript i index.html). CDN-feil → rå LaTeX blir stående,
@@ -823,6 +858,18 @@
       if (!text) return;
       navigator.clipboard.writeText(text).catch(function () {});
     });
+    // Lagre-som-kilde (kontekstrunden fase 2 §5): delegert — knappene
+    // (injectPackSaveButtons, se renderMd) lages på nytt ved hver
+    // render, så én listener på svar-beholderen dekker dem alle.
+    answerBox.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.ask-save-source-btn');
+      if (!btn || !window.Profiles || !window.Profiles.openModal) return;
+      window.Profiles.openModal({
+        kind: 'source',
+        prefillName: btn.dataset.packName || t('New source'),
+        prefillText: btn.dataset.packText || '',
+      });
+    });
     // «Full output»: vis alt kjøringen produserte uten å forlate ask-visningen.
     // Output-noden kan alt bo i folden (referanse-svar), i den synlige
     // fallback-verten, eller fortsatt i editoren (feilede kjøringer) — da
@@ -858,7 +905,8 @@
       if (md) {
         try {
           var mm = maskMathSegments(text || '');
-          node.innerHTML = restoreMathSegments(md.render(mm.masked), mm.segs);
+          var html = restoreMathSegments(md.render(mm.masked), mm.segs);
+          node.innerHTML = injectPackSaveButtons(html, t('Save as source'));
           return;
         } catch (_) {}
       }
@@ -1207,6 +1255,7 @@
       planRefResolution: planRefResolution,
       maskMathSegments: maskMathSegments,
       restoreMathSegments: restoreMathSegments,
+      injectPackSaveButtons: injectPackSaveButtons,
     };
   }
 })();

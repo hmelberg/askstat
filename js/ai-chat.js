@@ -696,6 +696,10 @@
               // fra js/packs.js-cachen — synkron; ensureSelected preloader
               // ved valg/boot.
               packs: (window.Packs && window.Packs.payload && window.Packs.payload()) || undefined,
+              // Utvidet søk (kontekstrunden fase 2 §5): true|undefined —
+              // svar.ts coercer med === true (aldri stol på en tilfeldig
+              // truthy verdi over nettet).
+              discover: getDiscoverPref() || undefined,
               script: params.scriptContext || undefined,
               resume: resume || undefined,
               run_result: runResult == null ? undefined : runResult,
@@ -940,6 +944,12 @@
       // before S2. Anyone flipping this on has explicitly opted into the risk.
       function getAutorunPref() {
         try { return localStorage.getItem('md_ai_autorun') === '1'; } catch (e) { return false; }
+      }
+      // Utvidet søk (kontekstrunden fase 2 §5): sticky PER ENHET, ALDRI
+      // synket — bryteren bor i js/packs.js sin kildeseksjon (nederst,
+      // egen sjekkboks-rad) og skriver/leser NØYAKTIG denne nøkkelen.
+      function getDiscoverPref() {
+        try { return localStorage.getItem('md_ask_discover') === '1'; } catch (e) { return false; }
       }
       function confirmAutoRun(signal) {
         if (getAutorunPref()) return Promise.resolve(true);

@@ -32,14 +32,18 @@
       labelEl.textContent = parts.length ? parts.join(' · ') : T('Context');
     }
     function close() { menu.hidden = true; }
-    function renderSections() {
-      if (global.PacksUi && packSec) global.PacksUi.renderInto(packSec, close);
+    // fresh: sann kun ved nyåpning av popoveren — PacksUi bruker den til å
+    // nullstille sin interne view-tilstand (main/countries, Task 3 §2).
+    // onChange-re-render (sjekkboks-klikk osv.) sender fresh:false slik at
+    // en åpen landvelger-drill-inn ikke hopper tilbake til hovedvisningen.
+    function renderSections(fresh) {
+      if (global.PacksUi && packSec) global.PacksUi.renderInto(packSec, close, { fresh: !!fresh });
       if (global.ProfilesUi && profSec) global.ProfilesUi.renderInto(profSec, close);
     }
 
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      if (menu.hidden) renderSections();
+      if (menu.hidden) renderSections(true);
       menu.hidden = !menu.hidden;
     });
     document.addEventListener('click', function (e) {
@@ -47,7 +51,7 @@
     });
     Prof.onChange(function () {
       renderLabel();
-      if (!menu.hidden) renderSections();
+      if (!menu.hidden) renderSections(false);
     });
     global.ContextPill = { refresh: renderLabel };
     renderLabel();

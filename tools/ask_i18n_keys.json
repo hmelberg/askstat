@@ -14,6 +14,7 @@
   "Can hyperbolic discounting explain addiction?",
   "Cancel",
   "Child mortality by wealth (DHS)",
+  "Choose country →",
   "Clear history",
   "Close",
   "Code & output",
@@ -50,7 +51,6 @@
   "Import",
   "Individual-level data",
   "Instructions added to every question.",
-  "International default",
   "Interpreting the question …",
   "Is 7919 a prime number?",
   "Is it fair that the top 10% earn five times the median income?",
@@ -140,6 +140,7 @@
   "Yours — switch to the code view any time to edit and re-run the analysis.",
   "by {author}, updated {updated}",
   "three-word-code",
+  "← Back",
   "⚠ Last polish run failed — the numbers come from an earlier successful run",
   "⚠ Not verified with code or data — plain model answer",
   "⚠ The code did not run successfully — treat numbers with caution"

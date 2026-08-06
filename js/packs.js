@@ -226,53 +226,112 @@
 
       // Flervalg (kontekstrunden fase 2 §2): DOM-delens egen speiling av
       // Profiles.packsState().ids — brukt både i renderInto og import.
-      // Midlertidig sjekkboks-fri liste (Task 3 bygger om menyen helt).
       function selectedIds() { return Prof.packsState().ids; }
+
+      // Menyens view-tilstand: 'main' (kilder) eller 'countries' (drill-inn-
+      // lista over ALLE land uten kuratert pakke). Overlever re-render (den
+      // delte popoveren re-rendrer denne seksjonen ved hvert Profiles.onChange
+      // mens menyen står åpen — sjekkboks-klikk skal IKKE lukke menyen eller
+      // hoppe tilbake til hovedvisningen). Nullstilles kun ved fersk åpning
+      // ({fresh:true} fra context-pill.js).
+      var view = 'main';
 
       // Kontekst-pillen (kontekstrunden 2026-08-06 §1): kildeseksjonen
       // rendres inn i den delte popoveren av js/context-pill.js via denne
       // kroken; etiketten (m/auto-merke) eies også av context-pill.js.
-      function renderInto(container, close) {
+      // opts.fresh: sann ved nyåpning av popoveren (nullstiller view).
+      function renderInto(container, close, opts) {
+        if (opts && opts.fresh) view = 'main';
         container.innerHTML = '';
-        function pickItem(text, checked, onPick) {
+
+        // Sjekkboks-rad: klikk toggler valget og RE-RENDRER via
+        // Prof.togglePack → Profiles.onChange → context-pill (IKKE close()).
+        function checkRow(id, name, checked, autoOk) {
           var b = document.createElement('button');
           b.type = 'button';
           var check = document.createElement('span');
           check.className = 'ask-pop-check';
           check.textContent = checked ? '✓' : '';
           var nm = document.createElement('span');
-          nm.textContent = text;
+          nm.textContent = name + (checked && autoOk ? T(' (auto)') : '');
           b.appendChild(check);
           b.appendChild(nm);
           b.addEventListener('click', function () {
-            close();
-            onPick();
+            Prof.togglePack(id);
+            P.ensureSelected();
           });
           container.appendChild(b);
+        }
+        // Navigasjonsrad (← Back / Choose country →): bytter view LOKALT —
+        // ingen Profiles-tilstand endres, så vi re-rendrer direkte selv.
+        function navRow(text, onClick) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          var check = document.createElement('span');
+          check.className = 'ask-pop-check';
+          var nm = document.createElement('span');
+          nm.textContent = text;
+          b.appendChild(check);
+          b.appendChild(nm);
+          b.addEventListener('click', onClick);
+          container.appendChild(b);
+        }
+        // Rad som åpner Explore-modalen: lukker den lille popoveren først.
+        function modalRow(text, onClick) {
+          navRow(text, function () { close(); onClick(); });
         }
         function sep() {
           var d = document.createElement('div');
           d.className = 'ask-pop-sep';
           container.appendChild(d);
         }
-        var ids = selectedIds();
-        pickItem(T('International default'), !ids.length, function () { Prof.setPacks([]); });
-        var entries = P.list();
-        var groups = ['builtin', 'imported', 'country'];
-        groups.forEach(function (g) {
-          var inGroup = entries.filter(function (e) { return e.group === g; });
-          if (!inGroup.length) return;
-          sep();
-          inGroup.forEach(function (e) {
-            pickItem(e.name, ids.indexOf(e.id) >= 0, function () {
-              Prof.togglePack(e.id);
-              P.ensureSelected();
-            });
+
+        var st = Prof.packsState();
+        var ids = st.ids;
+
+        if (view === 'countries') {
+          navRow(T('← Back'), function () { view = 'main'; renderInto(container, close); });
+          P.list().filter(function (e) { return e.group === 'country'; }).forEach(function (e) {
+            checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto);
           });
-        });
-        if (P.listCommunity().length) {
+          return;
+        }
+
+        // main-view (spec §2): (1) builtin → (2) community (importerte som
+        // sjekkbokser + uimporterte som Explore-forhåndsvisningsrader) →
+        // (3) valgte land → (4) «Choose country →» → (5) sep + Explore-lenke.
+        var entries = P.list();
+        var builtin = entries.filter(function (e) { return e.group === 'builtin'; });
+        var importedEntries = entries.filter(function (e) { return e.group === 'imported'; });
+        var community = P.listCommunity();
+        var importedIds = {};
+        importedEntries.forEach(function (e) { importedIds[e.id] = true; });
+        var unimported = community.filter(function (c) { return !importedIds['imported:' + c.id]; });
+        var selectedCountries = ids.filter(function (id) { return id.indexOf('country:') === 0; });
+
+        var any = false;
+        function maybeSep() { if (any) sep(); any = true; }
+
+        if (builtin.length) {
+          maybeSep();
+          builtin.forEach(function (e) { checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto); });
+        }
+        if (importedEntries.length || unimported.length) {
+          maybeSep();
+          importedEntries.forEach(function (e) { checkRow(e.id, e.name, ids.indexOf(e.id) >= 0, st.auto); });
+          unimported.forEach(function (c) {
+            modalRow(c.name, function () { openExplore(c); });
+          });
+        }
+        if (selectedCountries.length) {
+          maybeSep();
+          selectedCountries.forEach(function (id) { checkRow(id, P.displayName(id), true, st.auto); });
+        }
+        maybeSep();
+        navRow(T('Choose country →'), function () { view = 'countries'; renderInto(container, close); });
+        if (community.length) {
           sep();
-          pickItem(T('View/Import shared packs…'), false, openExplore);
+          modalRow(T('View/Import shared packs…'), function () { openExplore(); });
         }
       }
       global.PacksUi = { renderInto: renderInto };
@@ -287,7 +346,19 @@
       var expImport = document.getElementById('packsImportBtn');
       var expClose = document.getElementById('packsExploreCloseBtn');
       var expSelected = null; // {entry, text}
-      function openExplore() {
+      function expSelectEntry(e) {
+        P.resolve(e.id).then(function (got) {
+          if (!got) return;
+          expSelected = { entry: e, text: got.text };
+          expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
+          expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
+          expPrevWrap.hidden = false;
+          expImport.hidden = false;
+        });
+      }
+      // preselect (Task 3): en menyrad for en uimportert temapakke åpner
+      // Explore direkte på den posten (les-før-aktiver uten ekstra klikk).
+      function openExplore(preselect) {
         if (!expBackdrop) return;
         expSelected = null;
         expPrevWrap.hidden = true;
@@ -303,19 +374,11 @@
           desc.textContent = e.description;
           row.appendChild(nm);
           row.appendChild(desc);
-          row.addEventListener('click', function () {
-            P.resolve(e.id).then(function (got) {
-              if (!got) return;
-              expSelected = { entry: e, text: got.text };
-              expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
-              expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
-              expPrevWrap.hidden = false;
-              expImport.hidden = false;
-            });
-          });
+          row.addEventListener('click', function () { expSelectEntry(e); });
           expList.appendChild(row);
         });
         expBackdrop.classList.add('open');
+        if (preselect) expSelectEntry(preselect);
       }
       if (expImport) expImport.addEventListener('click', function () {
         if (!expSelected) return;

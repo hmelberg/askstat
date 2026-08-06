@@ -53,6 +53,8 @@ Innhold ovenfra:
 3. Skillelinje.
 4. **Kun sjekkboksrader:** biblioteket = innebygde pakker, egne/importerte
    kilder, valgte land. Klikk toggler (ikke-lukkende, som i dag).
+   **Lista har maks-høyde og ruller internt** — de faste valgene over
+   skillet er alltid synlige uansett bibliotekstørrelse (Hans 2026-08-06).
 5. Budsjett-hintet nederst (uendret).
 
 Ut av popoveren: uimporterte community-rader, «Choose country →»-drillinnen
@@ -97,7 +99,9 @@ til biblioteksmanager — profilmodusen er uendret. Tittel «Kilder»
   senere.
 - **Bunnknapper (faste valg, alltid synlige):** «+ Ny kilde» (dagens
   editor), «Importer delte kilder …» (åpner Explore, §5), «Legg til
-  land …» (undervisning, §6).
+  land …» (undervisning, §6). **Lista ruller internt** (maks-høyde);
+  bunnknappene er festet under lista (sticky footer) og forblir synlige
+  uansett listelengde (Hans 2026-08-06).
 
 ### 5. Import med søk (Explore-modalen)
 
@@ -160,6 +164,8 @@ dukker opp i biblioteket/popoveren som avkrysset rad); «← Tilbake».
 - «Del …»/innsending av kildebeskrivelse til admin (knapperaden i
   infopanelet er forberedt).
 - Søk i selve popoveren — biblioteket er lite; søk bor i manager/import.
+- Popover viser bare aktive + sist brukte kilder — kun hvis biblioteket
+  vokser så mye at intern rulling (§1) ikke holder.
 
 ## Kjente feller
 

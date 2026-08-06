@@ -46,17 +46,27 @@
       if (menu.hidden) renderSections(true);
       menu.hidden = !menu.hidden;
     });
+    // Fiks runde 2 (fase 2-runden, re-review-funn): et sjekkboks-/toggle-
+    // klikk inni menyen (Task 3/6) trigger Prof.togglePack → Profiles.
+    // onChange SYNKRONT → renderSections() → container.innerHTML = '' — FØR
+    // klikk-eventet har rukket å boble hit til document. Runde 1 sjekket
+    // e.target.isConnected, men den invarianten («et ekte utenfor-klikk har
+    // alltid et tilkoblet mål») holder IKKE i denne kodebasen — elementer
+    // UTENFOR menyen som detacher SEG SELV synkront i eget klikk-handler
+    // (askConfirm() sine Run/Cancel-knapper i js/ask-view.js, lukk-knappen i
+    // js/names.js sin showNameError) ga samme frakoblede-target-symptom og
+    // ble feilaktig ignorert av runde 1 — menyen ble stående åpen.
+    // Riktig mekanisme: DOM-spec'en fikser eventets propagasjonssti FØR
+    // dispatch starter — en klikk-lytter på menu-elementet SELV fyres
+    // fortsatt for rader som detaches midt i dispatchen (den var en forelder
+    // DA klikket startet), mens et element utenfor menyen ALDRI fyrer meny-
+    // lytteren, uansett om det detacher seg selv eller ikke. `menuSawClick`
+    // fanger nettopp dette: samme Event-objekt ender opp der hvis og bare
+    // hvis klikket startet inni menyen.
+    var menuSawClick = null;
+    menu.addEventListener('click', function (e) { menuSawClick = e; });
     document.addEventListener('click', function (e) {
-      // Fiks (fase 2-runden, controller-funn): et sjekkboks-/toggle-klikk
-      // inni menyen (Task 3/6) trigger Prof.togglePack → Profiles.onChange
-      // SYNKRONT → renderSections() → container.innerHTML = '' — FØR
-      // klikk-eventet har rukket å boble hit til document. e.target peker da
-      // på en node som allerede er fjernet fra treet (isConnected=false),
-      // og menu.contains(e.target) svarer (feilaktig) false siden noden ikke
-      // er noe sted i DOM-treet lenger — menyen lukket seg selv ved hvert
-      // valg. Et frakoblet mål er ALDRI et ekte utenfor-klikk (de har alltid
-      // et tilkoblet mål) — ignorer det i stedet for å tolke det som utenfor.
-      if (!menu.hidden && e.target && e.target.isConnected && !menu.contains(e.target)) menu.hidden = true;
+      if (!menu.hidden && e !== menuSawClick && !menu.contains(e.target)) menu.hidden = true;
     });
     Prof.onChange(function () {
       renderLabel();

@@ -7,22 +7,42 @@
 // tests/js/cells-dom.test.js og tests/js/param-forms-dom.test.js bruker for
 // sine respektive DOM-halvdeler.
 //
-// Regresjon (fase 2-runden, controller-funn i ekte Chrome): et sjekkboks-
-// klikk i kontekst-menyen (Task 3 §2 og Task 6 sin «Extended search…»-rad)
-// kaller Prof.togglePack/setSearchMode → Profiles.onChange fyres SYNKRONT →
-// context-pill sin renderSections() → container.innerHTML = '' — ALT dette
-// skjer FØR klikk-eventet har rukket å boble videre fra raden til document.
-// e.target peker da på en node som allerede er fjernet fra treet
-// (isConnected=false) når document-lytteren omsider kjører, og det gamle
-// `!menu.contains(e.target)`-sjekket svarte (feilaktig) sant siden noden
-// ikke lenger er noe sted i treet — menyen lukket seg selv ved hvert valg.
+// Regresjon runde 1 (fase 2-runden, controller-funn i ekte Chrome): et
+// sjekkboks-klikk i kontekst-menyen (Task 3 §2 og Task 6 sin «Extended
+// search…»-rad) kaller Prof.togglePack/setSearchMode → Profiles.onChange
+// fyres SYNKRONT → context-pill sin renderSections() → container.innerHTML
+// = '' — ALT dette skjer FØR klikk-eventet har rukket å boble videre fra
+// raden til document. e.target peker da på en node som allerede er fjernet
+// fra treet når document-lytteren omsider kjører.
+//
+// Runde 1-fiksen sjekket e.target.isConnected, men den invarianten («et
+// ekte utenfor-klikk har alltid et tilkoblet mål») holder IKKE i denne
+// kodebasen: elementer UTENFOR menyen som detacher SEG SELV synkront i eget
+// klikk-handler (askConfirm() sine Run/Cancel-knapper i js/ask-view.js,
+// lukk-knappen i js/names.js sin showNameError) ga samme frakoblede-target-
+// symptom og ble feilaktig ignorert — menyen ble stående åpen. Runde 2
+// bruker i stedet DOM-spec'ens faste propagasjonssti: en klikk-lytter på
+// selve `menu`-elementet fyres FORTSATT for et klikk som startet inni
+// menyen, selv om raden ble detachet midt i dispatchen (den var en forelder
+// DA klikket startet — det spiller ingen rolle at den slutter å være det
+// underveis). Et element utenfor menyen fyrer ALDRI menyens lytter, uansett
+// om det detacher seg selv. Se de to REGRESJON-testene under.
 //
 // MERK — FakeEl.innerHTML her er STRENGERE enn søsken-stubbene (ui/cells/
 // param-forms-dom.test.js): de nullstiller kun forelderens children-liste;
 // denne detacher OGSÅ hvert fjernet barns _parentNode (ekte DOM-oppførsel),
-// fordi nettopp DEN detach-en er scenariet regresjonen dreier seg om — uten
-// den ville testen ikke reprodusere feilen (isConnected ville feilaktig
-// forbli sann via en gjenværende, stale parentNode-referanse).
+// fordi nettopp DEN detach-en er scenariet begge regresjonene dreier seg
+// om — uten den ville testene ikke reprodusere feilene (isConnected ville
+// feilaktig forbli sann via en gjenværende, stale parentNode-referanse).
+//
+// MERK 2 — stubben har INGEN ekte event-bobling (ingen automatisk sti fra
+// target til document via forelder-kjeden). fireClick()/fireDocClick() pluss
+// testenes egne mellomsteg simulerer derfor MANUELT nøyaktig den fasefølgen
+// en ekte nettleser ville brukt for et gitt klikk (mål-fase → ev. `menu`
+// hvis målet var en etterkommer AV MENYEN DA KLIKKET STARTET → document) —
+// med SAMME event-objekt hele veien, akkurat som ekte DOM-dispatch. Det er
+// nettopp den delte identiteten (`e !== menuSawClick`) fiksen i
+// js/context-pill.js hviler på.
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -167,11 +187,13 @@ test('context-pill: ekte utenfor-klikk (tilkoblet mål utenfor menyen) LUKKER me
 
   var outside = new FakeEl('div');
   outside.__docRoot = true; // et vanlig, tilkoblet element ANDRE steder på siden
+  // outside er aldri en etterkommer av menu — menyens klikk-lytter fyres
+  // IKKE (ingen fireClick(menu, …)-mellomsteg), akkurat som i ekte DOM.
   fireDocClick(docListeners, { target: outside });
   assert.strictEqual(menu.hidden, true, 'et ekte utenfor-klikk skal fortsatt lukke menyen');
 });
 
-test('REGRESJON: sjekkboks-klikk som detacher target FØR bobling til document skal IKKE lukke menyen', () => {
+test('REGRESJON 1: sjekkboks-klikk som detacher target FØR bobling til document skal IKKE lukke menyen', () => {
   const { btn, menu, packSec, docListeners, getLastRow, renderCalls } = freshEnv();
   fireClick(btn, { target: btn, stopPropagation: function () {} }); // åpne menyen (fresh-render lager rad1)
   const row1 = getLastRow();
@@ -179,7 +201,7 @@ test('REGRESJON: sjekkboks-klikk som detacher target FØR bobling til document s
   assert.strictEqual(row1.isConnected, true, 'rad 1 er tilkoblet rett etter render');
 
   const evt = { target: row1 }; // samme event-objekt/target hele veien, som i ekte DOM-bobling
-  // 1) Target-fasen: radens eget klikk kjører FØRST — dette trigger
+  // 1) Mål-fasen: radens eget klikk kjører FØRST — dette trigger
   //    Prof.togglePack → onChange → renderSections(false) SYNKRONT, som
   //    tømmer packSec (detacher row1) og setter inn en ny rad2.
   fireClick(row1, evt);
@@ -188,16 +210,52 @@ test('REGRESJON: sjekkboks-klikk som detacher target FØR bobling til document s
   assert.deepStrictEqual(renderCalls[renderCalls.length - 1], { fresh: false },
     'onChange-re-render skal beholde view (fresh:false)');
 
-  // 2) Bobling: eventet fortsetter til document MED SAMME (nå frakoblede) target —
-  //    ekte nettlesere avbryter ikke bobling selv om target fjernes underveis.
+  // 2) Bobling til menu: row1 var en etterkommer av menu DA klikket startet,
+  //    så DOM-spec'ens faste propagasjonssti gir menu-lytteren eventet
+  //    likevel — selv om row1 (og bare row1, ikke menu selv) nå er detachet.
+  fireClick(menu, evt);
+  // 3) Bobling videre til document MED SAMME (nå frakoblede) target — ekte
+  //    nettlesere avbryter ikke bobling selv om target fjernes underveis.
   fireDocClick(docListeners, evt);
   assert.strictEqual(menu.hidden, false,
-    'menyen skal IKKE lukkes av et sjekkboks-klikk inni seg selv (regresjonen)');
+    'menyen skal IKKE lukkes av et sjekkboks-klikk inni seg selv (regresjon 1)');
+});
+
+test('REGRESJON 2 (funnet i re-review): et UTENFOR-element som detacher SEG SELV i eget klikk-handler skal likevel LUKKE menyen', () => {
+  const { btn, menu, docListeners } = freshEnv();
+  fireClick(btn, { target: btn, stopPropagation: function () {} }); // åpne menyen
+
+  // Simulerer f.eks. askConfirm() sine Run/Cancel-knapper (js/ask-view.js:
+  // wrap.remove()) eller lukk-knappen i js/names.js sin showNameError
+  // (bar.remove()): et element UTENFOR menyen som fjerner seg selv fra SIN
+  // EGEN forelder synkront i eget klikk-handler, FØR eventet har rukket å
+  // boble til document. Elementet var ALDRI en etterkommer av menu, så
+  // menyens klikk-lytter fyres IKKE her (ingen fireClick(menu, …)) — i
+  // motsetning til sjekkboks-raden i regresjon 1 over. Runde 1 sin
+  // isConnected-sjekk klarte ikke å skille denne saken fra regresjon 1 (samme
+  // frakoblet-target-symptom, men motsatt riktig utfall) — det er nøyaktig
+  // det re-reviewen fant.
+  var outsideParent = new FakeEl('div');
+  outsideParent.__docRoot = true;
+  var outsideBtn = new FakeEl('button');
+  outsideParent.appendChild(outsideBtn);
+  outsideBtn.addEventListener('click', function () { outsideParent.removeChild(outsideBtn); });
+
+  var evt = { target: outsideBtn };
+  fireClick(outsideBtn, evt); // mål-fasen: detacher seg selv
+  assert.strictEqual(outsideBtn.isConnected, false,
+    'utenfor-elementet er nå frakoblet (samme symptom som regresjon 1 — men IKKE innom menyen)');
+
+  fireDocClick(docListeners, evt); // bobler rett til document — menu så det aldri
+  assert.strictEqual(menu.hidden, true,
+    'et frakoblet UTENFOR-mål skal likevel lukke menyen (der runde 1 sin isConnected-sjekk feilet)');
 });
 
 test('context-pill: klikk på et FORTSATT tilkoblet element inni menyen (f.eks. profilseksjonen) lukker ikke menyen', () => {
   const { btn, menu, profSec, docListeners } = freshEnv();
   fireClick(btn, { target: btn, stopPropagation: function () {} });
-  fireDocClick(docListeners, { target: profSec });
+  var evt = { target: profSec };
+  fireClick(menu, evt); // profSec er et ekte barn av menu — bobler gjennom menu-lytteren i ekte DOM
+  fireDocClick(docListeners, evt);
   assert.strictEqual(menu.hidden, false, 'et tilkoblet mål inni menyen skal aldri lukke den');
 });

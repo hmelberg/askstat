@@ -31,13 +31,18 @@ export function demoteHeadings(s: string): string {
     "#".repeat(Math.min(6, h.length + 2)) + sp);
 }
 
-/** Kildepakke fra klienten (js/packs.js): {name, text}. Samme caps som
- *  profiler (60/8000). */
-export function coercePack(p: unknown): { name: string; text: string } | null {
-  if (!p || typeof p !== "object") return null;
-  const name = String((p as Record<string, unknown>).name ?? "").trim().slice(0, 60);
-  const text = String((p as Record<string, unknown>).text ?? "").trim().slice(0, 8000);
-  return name && text ? { name, text } : null;
+/** Kildepakker fra klienten (js/packs.js): [{name, text}]. Defensive caps —
+ *  klienten budsjetterer, serveren begrenser (spec 2026-08-06 §4). */
+export function coercePacks(p: unknown): { name: string; text: string }[] {
+  if (!Array.isArray(p)) return [];
+  const out: { name: string; text: string }[] = [];
+  for (const item of p.slice(0, 20)) {
+    if (!item || typeof item !== "object") continue;
+    const name = String((item as Record<string, unknown>).name ?? "").trim().slice(0, 60);
+    const text = String((item as Record<string, unknown>).text ?? "").trim().slice(0, 8000);
+    if (name && text) out.push({ name, text });
+  }
+  return out;
 }
 
 function renderPreferencesBlock(prefs: string): string {
@@ -51,15 +56,18 @@ forrang over landrutingen og registerets standardvalg — men opphever ALDRI
 ${demoteHeadings(prefs)}`;
 }
 
-function renderPackBlock(pack: { name: string; text: string } | null): string {
-  if (!pack) return "";
-  return `## Aktiv kildepakke: ${pack.name} (valgt av brukeren — overstyrer standardvalg)
+function renderPacksBlock(packs: { name: string; text: string }[]): string {
+  if (!packs.length) return "";
+  const parts = packs.map((p) =>
+    `### Kildepakke: ${p.name}\n\n${demoteHeadings(p.text)}`);
+  return `## Aktive kildepakker (valgt av brukeren)
 
-Pakken beskriver foretrukne kilder for brukerens kontekst. Den har forrang
-over landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
+Brukeren har valgt disse kildepakkene. Bruk den eller de som er relevante
+for spørsmålet; ignorer pakker som ikke angår det. De har forrang over
+landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
 fabrikasjonsvern, budsjettene):
 
-${demoteHeadings(pack.text)}`;
+${parts.join("\n\n")}`;
 }
 
 // Ruter fra /api/ask-ruter. "språk" når aldri hit (besvares av ruteren).
@@ -772,7 +780,7 @@ export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; pack?: unknown },
+  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; packs?: unknown },
 ): string {
   const depth = opts?.depth ?? "deep";
   if (route === "beregning") {
@@ -789,8 +797,8 @@ export function buildSvarSystem(
   blocks.push(registryBlock);
   const prefBlock = renderPreferencesBlock(coercePreferences(opts?.preferences));
   if (prefBlock) blocks.push(prefBlock);
-  const packBlock = renderPackBlock(coercePack(opts?.pack));
-  if (packBlock) blocks.push(packBlock);
+  const packsBlock = renderPacksBlock(coercePacks(opts?.packs));
+  if (packsBlock) blocks.push(packsBlock);
   return blocks.join("\n\n");
 }
 

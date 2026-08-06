@@ -1,9 +1,11 @@
-// js/packs.js — kildepakker (spec 2026-08-05-sprak-pakker-deling §2):
-// kuraterte pakker (data/packs/*.md), generisk landmal (countries.json) og
-// importerte kopier. Pakketeksten resolves KLIENTSIDE og sendes som
-// pack-felt til /api/svar (ai-chat.js) — serveren rendrer blokka.
-// Valg-tilstanden bor i Profiles (packState/setPack/setAutoPack); denne fila
-// eier innhold, katalog og cache. DOM-delen (velger-pille) bak document-guard.
+// js/packs.js — kildepakker (spec 2026-08-05-sprak-pakker-deling §2, flervalg
+// kontekstrunden fase 2 §2): kuraterte pakker (data/packs/*.md), generisk
+// landmal (countries.json) og importerte kopier. Pakketekstene resolves
+// KLIENTSIDE og sendes som packs-felt ([{name,text}]) til /api/svar
+// (ai-chat.js) — serveren rendrer blokka.
+// Valg-tilstanden bor i Profiles (packsState/setPacks/togglePack/setAutoPack);
+// denne fila eier innhold, katalog og cache. DOM-delen (velger-pille) bak
+// document-guard.
 (function (global) {
   'use strict';
   var IDX_CACHE = 'md_packs_index';
@@ -143,21 +145,23 @@
       return out;
     }
 
-    function currentId() {
-      var st = profiles && profiles.packState ? profiles.packState() : null;
-      return st && st.id ? st.id : null;
+    function selectedIds() {
+      var st = profiles && profiles.packsState ? profiles.packsState() : null;
+      return st ? st.ids : [];
     }
-
     function payload() {
-      var id = currentId();
-      if (!id) return undefined;
-      var got = mem[id] || readJson(TXT_CACHE + id);
-      return got ? { name: got.name, text: got.text } : undefined;
+      var out = [];
+      selectedIds().forEach(function (id) {
+        var got = mem[id] || readJson(TXT_CACHE + id);
+        if (got) out.push({ name: got.name, text: got.text });
+      });
+      return out.length ? out : undefined;
     }
-
-    async function ensureCurrent() {
-      var id = currentId();
-      if (id && !mem[id]) await resolve(id);
+    async function ensureSelected() {
+      var ids = selectedIds();
+      for (var i = 0; i < ids.length; i++) {
+        if (!mem[ids[i]]) await resolve(ids[i]);
+      }
     }
 
     // Boot + språkbytte (spec §4): auto-forslag fra locale-KANDIDATER —
@@ -173,11 +177,11 @@
     async function boot(locales) {
       await load();
       applyAuto(locales);
-      await ensureCurrent();
+      await ensureSelected();
     }
     async function onLangChange(locales) {
       applyAuto(locales);
-      await ensureCurrent();
+      await ensureSelected();
     }
 
     function listCommunity() {
@@ -202,7 +206,7 @@
 
     return {
       load: load, list: list, listCommunity: listCommunity, autoFrom: autoFrom,
-      resolve: resolve, payload: payload, ensureCurrent: ensureCurrent,
+      resolve: resolve, payload: payload, ensureSelected: ensureSelected,
       boot: boot, onLangChange: onLangChange, importPack: importPack,
       displayName: displayName,
     };
@@ -219,6 +223,11 @@
       var P = global.Packs;
       var Prof = global.Profiles;
       if (!P || !Prof) return;
+
+      // Flervalg (kontekstrunden fase 2 §2): DOM-delens egen speiling av
+      // Profiles.packsState().ids — brukt både i renderInto og import.
+      // Midlertidig sjekkboks-fri liste (Task 3 bygger om menyen helt).
+      function selectedIds() { return Prof.packsState().ids; }
 
       // Kontekst-pillen (kontekstrunden 2026-08-06 §1): kildeseksjonen
       // rendres inn i den delte popoveren av js/context-pill.js via denne
@@ -246,8 +255,8 @@
           d.className = 'ask-pop-sep';
           container.appendChild(d);
         }
-        var st = Prof.packState();
-        pickItem(T('International default'), !st.id, function () { Prof.setPack(null); });
+        var ids = selectedIds();
+        pickItem(T('International default'), !ids.length, function () { Prof.setPacks([]); });
         var entries = P.list();
         var groups = ['builtin', 'imported', 'country'];
         groups.forEach(function (g) {
@@ -255,9 +264,9 @@
           if (!inGroup.length) return;
           sep();
           inGroup.forEach(function (e) {
-            pickItem(e.name, st.id === e.id, function () {
-              Prof.setPack(e.id);
-              P.ensureCurrent();
+            pickItem(e.name, ids.indexOf(e.id) >= 0, function () {
+              Prof.togglePack(e.id);
+              P.ensureSelected();
             });
           });
         });
@@ -311,8 +320,8 @@
       if (expImport) expImport.addEventListener('click', function () {
         if (!expSelected) return;
         P.importPack(expSelected.entry, expSelected.text);
-        Prof.setPack('imported:' + expSelected.entry.id);
-        P.ensureCurrent();
+        Prof.setPacks(selectedIds().concat(['imported:' + expSelected.entry.id]));
+        P.ensureSelected();
         expBackdrop.classList.remove('open');
       });
       if (expClose) expClose.addEventListener('click', function () { expBackdrop.classList.remove('open'); });

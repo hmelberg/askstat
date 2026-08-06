@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { buildSvarSystem, coercePack, coercePreferences, demoteHeadings } from "./svar-prompt.ts";
+import { buildSvarSystem, coercePacks, coercePreferences, demoteHeadings } from "./svar-prompt.ts";
 
 Deno.test("coercePreferences: streng, trim, tak 8000 (profil-tekster)", () => {
   assertEquals(coercePreferences(undefined), "");
@@ -21,14 +21,24 @@ Deno.test("landruting alltid i data-ruten; preferanseblokk kun når satt, sist",
   assert(!buildSvarSystem("utforsk", "python", "", { preferences: "x" }).includes("Brukerens datapreferanser"));
 });
 
-Deno.test("coercePack: navn+tekst m/caps, null ved tomt/ugyldig", () => {
-  assertEquals(coercePack(undefined), null);
-  assertEquals(coercePack("streng"), null);
-  assertEquals(coercePack({ name: "Norway", text: "" }), null);
-  assertEquals(coercePack({ name: "", text: "x" }), null);
-  const p = coercePack({ name: "N".repeat(80), text: "t".repeat(9000) })!;
-  assertEquals(p.name.length, 60);
-  assertEquals(p.text.length, 8000);
+Deno.test("packs-blokk: flere pakker rendres i rekkefølge m/felles intro", () => {
+  const sys = buildSvarSystem("data", "python", "", {
+    packs: [{ name: "Norway", text: "## Preferred\nssb first" },
+            { name: "ESS", text: "ess api" }],
+  });
+  assert(sys.includes("## Aktive kildepakker (valgt av brukeren)"));
+  assert(sys.indexOf("### Kildepakke: Norway") < sys.indexOf("### Kildepakke: ESS"));
+  assert(sys.includes("#### Preferred")); // demotert
+});
+
+Deno.test("coercePacks: caps — navn 60, tekst 8000, maks 20, søppel filtreres", () => {
+  const packs = coercePacks([
+    { name: "N".repeat(80), text: "t".repeat(9000) },
+    { name: "", text: "x" }, null, "streng",
+    ...Array.from({ length: 25 }, (_, i) => ({ name: "p" + i, text: "t" })),
+  ]);
+  assert(packs.length <= 20);
+  assert(packs[0].name.length === 60 && packs[0].text.length === 8000);
 });
 
 Deno.test("demoteHeadings: +2 nivåer, tak 6, rører ikke ikke-headinger", () => {
@@ -38,19 +48,9 @@ Deno.test("demoteHeadings: +2 nivåer, tak 6, rører ikke ikke-headinger", () =>
   assertEquals(demoteHeadings("#uten-mellomrom"), "#uten-mellomrom");
 });
 
-Deno.test("pack-blokk: rendres m/navn etter preferansene, headinger demoteres i begge", () => {
-  const s = buildSvarSystem("data", "python", "## Kilderegister (kuratert)\n\n- x", {
-    preferences: "## Mine regler\nforetrekk SSB",
-    pack: { name: "Norway", text: "## Preferred sources\nssb first" },
-  });
-  assert(s.includes("## Aktiv kildepakke: Norway"));
-  assert(s.includes("#### Preferred sources"));         // pakke demotert
-  assert(s.includes("#### Mine regler"));               // preferanser demotert
-  assert(!s.includes("\n## Preferred sources"));
-  assert(s.indexOf("Aktiv kildepakke") > s.indexOf("Brukerens datapreferanser"),
-    "pakka står ETTER preferansene");
-  const uten = buildSvarSystem("data", "python", "", { pack: { name: "", text: "" } });
-  assert(!uten.includes("Aktiv kildepakke"));
-  assert(!buildSvarSystem("utforsk", "python", "", { pack: { name: "N", text: "t" } })
-    .includes("Aktiv kildepakke"));                     // kun data-ruten
+Deno.test("packs-blokk: tom liste → ingen blokk; utforsk-ruten får den ikke", () => {
+  assert(!buildSvarSystem("data", "python", "", { packs: [] })
+    .includes("Aktive kildepakker"));
+  assert(!buildSvarSystem("utforsk", "python", "", {
+    packs: [{ name: "N", text: "t" }] }).includes("Aktive kildepakker"));
 });

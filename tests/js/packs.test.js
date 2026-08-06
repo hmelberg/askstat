@@ -50,7 +50,7 @@ function fakeFetch(files) {
 }
 
 function fakeProfiles(state) {
-  return { packState: () => state, setAutoPack: () => {}, onChange: () => {} };
+  return { packsState: () => state, setAutoPack: () => {}, onChange: () => {} };
 }
 
 const FILES = {
@@ -61,7 +61,7 @@ const FILES = {
 };
 
 test('autoFrom: region vinner, entydige språk mappes, tvetydige → null', async () => {
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ id: null, auto: false }));
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P.load();
   assert.equal(P.autoFrom('sv-FI'), 'finland');       // region slår språk
   assert.equal(P.autoFrom('nb-NO'), 'norway');        // kuratert pakke for regionen
@@ -77,7 +77,7 @@ test('autoFrom: region vinner, entydige språk mappes, tvetydige → null', asyn
 
 test('resolve: kuratert md hentes og caches; landmal renderes fra countries.json', async () => {
   const s = fakeStorage();
-  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ id: 'norway', auto: false }));
+  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: ['norway'], auto: false }));
   await P.load();
   const no = await P.resolve('norway');
   assert.equal(no.name, 'Norway');
@@ -90,21 +90,28 @@ test('resolve: kuratert md hentes og caches; landmal renderes fra countries.json
   assert.ok(de.text.includes('Germany'));
 });
 
-test('payload: synkron fra cache etter ensureCurrent; undefined uten pakke', async () => {
+test('payload: synkron fra cache etter ensureSelected; array for flere valgte; undefined når tomt', async () => {
   const s = fakeStorage();
-  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ id: 'finland', auto: true }));
+  const P = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: ['finland'], auto: true }));
   await P.load();
   assert.equal(P.payload(), undefined);               // ikke resolvet ennå
-  await P.ensureCurrent();
-  assert.deepEqual(P.payload(), { name: 'Finland', text: '# Finland pack\nUse statfin first.' });
-  const P2 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ id: null, auto: false }));
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [{ name: 'Finland', text: '# Finland pack\nUse statfin first.' }]);
+  const P2 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: ['norway', 'finland'], auto: false }));
   await P2.load();
-  await P2.ensureCurrent();
-  assert.equal(P2.payload(), undefined);              // ingen pakke valgt
+  await P2.ensureSelected();
+  assert.deepEqual(P2.payload(), [
+    { name: 'Norway', text: '# Norway pack\nUse ssb first.' },
+    { name: 'Finland', text: '# Finland pack\nUse statfin first.' },
+  ]);
+  const P3 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
+  await P3.load();
+  await P3.ensureSelected();
+  assert.equal(P3.payload(), undefined);              // ingen pakke valgt
 });
 
 test('list: builtins først, deretter land uten kuratert pakke', async () => {
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ id: null, auto: false }));
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P.load();
   const ids = P.list().map((e) => e.id);
   assert.ok(ids.indexOf('norway') >= 0 && ids.indexOf('finland') >= 0);
@@ -116,9 +123,9 @@ test('list: builtins først, deretter land uten kuratert pakke', async () => {
 
 test('load tåler nett-feil: faller tilbake til storage-cache', async () => {
   const s = fakeStorage();
-  const P1 = makePacks(s, fakeFetch(FILES), fakeProfiles({ id: null, auto: false }));
+  const P1 = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P1.load();                                    // primer storage-cachen
-  const P2 = makePacks(s, fakeFetch({}), fakeProfiles({ id: null, auto: false }));
+  const P2 = makePacks(s, fakeFetch({}), fakeProfiles({ ids: [], auto: false }));
   await P2.load();                                    // alt 404 → cache
   assert.ok(P2.list().some((e) => e.id === 'norway'));
   assert.equal(P2.autoFrom('sv-FI'), 'finland');
@@ -159,7 +166,7 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
     'data/packs/community/us-health-surveys.md': '# US health\nUse ipums.',
   });
   const s = fakeStorage();
-  const P = makePacks(s, fakeFetch(files), fakeProfiles({ id: null, auto: false }));
+  const P = makePacks(s, fakeFetch(files), fakeProfiles({ ids: [], auto: false }));
   await P.load();
   assert.ok(!P.list().some((e) => e.id === 'us-health-surveys'));      // les-før-aktiver
   const comm = P.listCommunity();

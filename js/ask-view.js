@@ -1012,10 +1012,13 @@
         // Aktiv profil skal aldri usynlig forme svar (spec §Fase 1b) —
         // linjen arkiveres til Details sammen med resten av prosess-sporet.
         if (activeProfile) progressLine(t('Profile applied: {name}', { name: activeProfile.name }));
-        // Kildepakke skal heller aldri usynlig forme svar (spec 2026-08-05 §2).
-        var packSt = (window.Profiles && window.Profiles.packState) ? window.Profiles.packState() : null;
-        if (packSt && packSt.id && window.Packs) {
-          progressLine(t('Pack applied: {name}', { name: window.Packs.displayName(packSt.id) }) + (packSt.auto ? t(' (auto)') : ''));
+        // Kildepakker skal heller aldri usynlig forme svar (spec 2026-08-05 §2,
+        // flervalg kontekstrunden fase 2 §2) — én linje PER valgt pakke.
+        var packSt = (window.Profiles && window.Profiles.packsState) ? window.Profiles.packsState() : null;
+        if (packSt && packSt.ids && packSt.ids.length && window.Packs) {
+          packSt.ids.forEach(function (id) {
+            progressLine(t('Pack applied: {name}', { name: window.Packs.displayName(id) }) + (packSt.auto ? t(' (auto)') : ''));
+          });
         }
 
         // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).

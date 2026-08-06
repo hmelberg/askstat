@@ -689,9 +689,10 @@
               // Konto-runden fase 1: preferences = aktiv PROFILS tekst
               // (js/profiles.js erstatter md_ask_prefs; seedes ved oppstart).
               preferences: (window.Profiles && window.Profiles.activeText && window.Profiles.activeText()) || undefined,
-              // Kildepakke (spec 2026-08-05 §2): resolvet {name,text} fra
-              // js/packs.js-cachen — synkron; ensureCurrent preloader ved valg/boot.
-              pack: (window.Packs && window.Packs.payload && window.Packs.payload()) || undefined,
+              // Kildepakker (kontekstrunden fase 2 §2): resolvet [{name,text}]
+              // fra js/packs.js-cachen — synkron; ensureSelected preloader
+              // ved valg/boot.
+              packs: (window.Packs && window.Packs.payload && window.Packs.payload()) || undefined,
               script: params.scriptContext || undefined,
               resume: resume || undefined,
               run_result: runResult == null ? undefined : runResult,

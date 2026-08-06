@@ -21,8 +21,11 @@
     function renderLabel() {
       var parts = [];
       if (P) {
-        var st = Prof.packState();
-        if (st.id) parts.push(P.displayName(st.id) + (st.auto ? T(' (auto)') : ''));
+        var st = Prof.packsState();
+        var lbl = st.ids.length
+          ? P.displayName(st.ids[0]) + (st.ids.length > 1 ? ' +' + (st.ids.length - 1) : '') + (st.auto ? T(' (auto)') : '')
+          : null;
+        if (lbl) parts.push(lbl);
       }
       var a = Prof.active();
       if (a) parts.push(a.name);

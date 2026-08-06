@@ -16,6 +16,7 @@ not change their copy.
   "id": "my-pack",
   "name": "My pack",
   "description": "One sentence on what it covers.",
+  "summary": "≤1500 characters, listing every source the pack covers — used as the short-form version when the model's budget is tight.",
   "file": "community/my-pack.md",
   "community": true,
   "author": "your-github-handle",
@@ -28,8 +29,11 @@ not change their copy.
 
 ## Writing a good pack
 
-- **English, markdown.** Max 8000 characters — the text is injected into
-  the model's prompt verbatim (headings are demoted automatically).
+- **English, markdown.** Full text is capped at 40,000 characters (a summary
+  field, ≤1,500 characters, is used when the model gets a short-form
+  budget) — the text is injected into the model's prompt verbatim (headings
+  are demoted automatically). Keep single-source packs well under the cap;
+  broader topic packs may use more of it.
 - **Point at sources the engine can reach**: registry sources by id
   (`ssb`, `statfin`, `eurostat`, `dbnomics`, …), or plain `https://` URLs
   the model can probe/fetch. Landing pages are fine; direct data URLs are

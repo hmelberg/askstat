@@ -26,18 +26,29 @@ test('index.json: v1, gyldige unike id-er, community har author+updated', () => 
     if (p.community) {
       assert.ok(p.author, `community-pakke uten author: ${p.id}`);
       assert.ok(p.updated, `community-pakke uten updated: ${p.id}`);
+      // kontekstrunden fase 6 (spec §4): summary SKAL finnes og være ≤L1_CAP
+      // (1500 tegn) — L1-nivået i packs.js faller ellers tilbake til første
+      // avsnitt, som ikke er garantert å liste kildene pakken dekker.
+      assert.ok(p.summary, `community-pakke uten summary: ${p.id}`);
+      assert.ok(p.summary.length <= 1500, `${p.id}: summary er ${p.summary.length} tegn (> 1500)`);
     } else {
       assert.ok(p.country, `builtin-pakke uten country: ${p.id}`);
     }
   }
 });
 
-test('pakkefiler: finnes, ≤8000 tegn, ingen nøkkelmønstre, kun https-lenker', () => {
+// PACK_TEXT_MAX (server, svar-prompt.ts) og L3_CAP (klient, packs.js) er
+// begge 40000 — kontekstrunden fase 4/5 hevet taket fra det opprinnelige
+// 8000-hjemmelagde (spec 2026-08-06 §5: "Dagens 8k-tak kutter alle reelle
+// temapakker (3–4× for trangt)"). Denne linten speiler den samme grensen.
+const PACK_TEXT_MAX = 40000;
+
+test(`pakkefiler: finnes, ≤${PACK_TEXT_MAX} tegn, ingen nøkkelmønstre, kun https-lenker`, () => {
   for (const p of index.packs) {
     const file = path.join(PACKS, p.file);
     assert.ok(fs.existsSync(file), `mangler fil: ${p.file}`);
     const text = fs.readFileSync(file, 'utf-8');
-    assert.ok(text.length <= 8000, `${p.file} er ${text.length} tegn (> 8000)`);
+    assert.ok(text.length <= PACK_TEXT_MAX, `${p.file} er ${text.length} tegn (> ${PACK_TEXT_MAX})`);
     assert.equal((text.match(NOKKEL_RE) || []).length, 0, `${p.file} ser ut til å inneholde en nøkkel`);
     for (const m of text.matchAll(/\bhttps?:\/\/\S+/g)) {
       assert.ok(m[0].startsWith('https://'), `${p.file}: ikke-https-lenke ${m[0].slice(0, 40)}`);

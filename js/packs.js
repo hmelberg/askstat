@@ -63,6 +63,10 @@
     var index = null;     // {v, packs:[{id,name,description,file,country}]}
     var countries = null; // {v, countries:{CC:{name,agency,note}}}
     var mem = {};         // id -> {name, text}
+    // Review-funn 2026-08-06 (Task 4-fiks): describe() sin origin-prefiks
+    // (§4) skal oversettes — samme mønster som js/cells.js' DOM-halvdel
+    // (global.t når den finnes, no-op-identitet i node-tester).
+    var t = typeof global.t === 'function' ? global.t : function (s) { return s; };
 
     function readJson(key) {
       try { return JSON.parse(storage.getItem(key) || 'null'); } catch (e) { return null; }
@@ -135,7 +139,7 @@
       if (id.indexOf('user:') === 0) {
         var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
         if (!pr) return '';
-        var pre = pr.origin && pr.origin.source === 'community' ? 'Imported from shared sources. ' : '';
+        var pre = pr.origin && pr.origin.source === 'community' ? t('Imported from shared sources. ') : '';
         return pre + String(pr.text || '').slice(0, 400);
       }
       var c = curated().filter(function (p) { return p.id === id; })[0];

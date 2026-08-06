@@ -298,6 +298,12 @@
           global.SourcesUi.renderLibrary(listEl, { onEdit: openEdit });
           return;
         }
+        // Review-funn 2026-08-06 (Task 4-fiks): SourcesUi.renderLibrary legger
+        // .sources-scroll på listEl (samme DOM-node som profil-grenen bruker,
+        // hentet ÉN gang ved modul-init) og fjerner den aldri selv — uten
+        // dette lekker 300px-taket/scrollbaren inn i Profiles-modalen for
+        // resten av økten så snart «Administrer kilder …» har vært åpnet.
+        listEl.classList.remove('sources-scroll');
         var act = P.active();
         listEl.innerHTML = '';
         if (modalKind === 'profile') {

@@ -123,7 +123,6 @@ window.M2PY_I18N.hi = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "आपकी सिंक की गई API कुंजियाँ किसी अन्य लॉगिन कोड के अंतर्गत सहेजी गई थीं। उन्हें खोलने के लिए वह कोड दर्ज करें, या छोड़ें और कुंजियाँ हाथ से दोबारा दर्ज करें।",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>आपका</strong> — कभी भी कोड दृश्य पर जाकर विश्लेषण संपादित करें और दोबारा चलाएँ।",
   "three-word-code": "तीन-शब्दों-वाला-कोड",
-  "← Back": "← वापस",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ आख़िरी परिष्करण रन विफल रहा — संख्याएँ पहले के सफल रन से हैं",
   "⚠ Not verified with code or data — plain model answer": "⚠ कोड या डेटा से सत्यापित नहीं — केवल मॉडल का उत्तर",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ कोड सफलतापूर्वक नहीं चला — संख्याओं को सावधानी से लें",

@@ -42,10 +42,15 @@
       // Layout er synkron rett etter unhide, så mål-så-flipp fungerer i
       // samme handler. getBoundingClientRect mangler i node-DOM-stubben —
       // guard'en holder testen fra å kaste.
+      // Sluttreview-funn: klassen må nullstilles FØR måling, ikke etter —
+      // ellers rendres åpning nr. 2 nedover (klassen sto igjen fra forrige
+      // åpning), r.top blir ≥ 8, klassen fjernes, og åpning nr. 3 klipper
+      // viewport-toppen igjen. Alternerer for alltid. Fjern først, mål
+      // deretter, legg tilbake KUN hvis fortsatt nødvendig.
       if (!menu.hidden && menu.getBoundingClientRect) {
+        menu.classList.remove('ask-pop-down');
         var r = menu.getBoundingClientRect();
         if (r.top < 8) menu.classList.add('ask-pop-down');
-        else menu.classList.remove('ask-pop-down');
       }
     });
     // Fiks runde 2 (fase 2-runden, re-review-funn): et sjekkboks-/toggle-

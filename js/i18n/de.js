@@ -123,7 +123,6 @@ window.M2PY_I18N.de = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "Deine synchronisierten API-Schlüssel wurden unter einem anderen Login-Code gespeichert. Gib diesen Code ein, um sie freizuschalten, oder überspringe und gib die Schlüssel manuell neu ein.",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>Deins</strong> — wechsle jederzeit zur Code-Ansicht, um die Analyse zu bearbeiten und erneut auszuführen.",
   "three-word-code": "drei-wort-code",
-  "← Back": "← Zurück",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Letzter Feinschliff-Lauf fehlgeschlagen — die Zahlen stammen aus einem früheren erfolgreichen Lauf",
   "⚠ Not verified with code or data — plain model answer": "⚠ Nicht mit Code oder Daten verifiziert — reine Modellantwort",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Der Code lief nicht fehlerfrei — behandle die Zahlen mit Vorsicht",

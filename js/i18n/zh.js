@@ -123,7 +123,6 @@ window.M2PY_I18N.zh = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "你同步的 API 密钥保存在另一个登录码下。输入那个登录码来解锁，或跳过并手动重新输入密钥。",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>属于你</strong>——随时切换到代码视图，编辑并重新运行分析。",
   "three-word-code": "三个单词的登录码",
-  "← Back": "← 返回",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ 最后一次润色运行失败——数字来自先前一次成功的运行",
   "⚠ Not verified with code or data — plain model answer": "⚠ 未经代码或数据验证——纯模型回答",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ 代码未成功运行——请谨慎对待这些数字",

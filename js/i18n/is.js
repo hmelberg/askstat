@@ -123,7 +123,6 @@ window.M2PY_I18N.is = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "Samstilltu API-lyklarnir þínir voru vistaðir undir öðrum innskráningarkóða. Sláðu inn þann kóða til að opna þá, eða slepptu og sláðu lyklana inn handvirkt aftur.",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>Þitt</strong> — skiptu hvenær sem er yfir í kóðasýn til að breyta og keyra greininguna aftur.",
   "three-word-code": "þriggja-orða-kóði",
-  "← Back": "← Til baka",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Síðasta fáguð keyrsla mistókst — tölurnar koma úr fyrri vel heppnaðri keyrslu",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ekki sannreynt með kóða eða gögnum — hreint líkanssvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Kóðinn keyrði ekki án villu — farðu varlega með tölurnar",

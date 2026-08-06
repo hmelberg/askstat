@@ -129,7 +129,6 @@ window.M2PY_I18N.no = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "De synkroniserte API-nøklene dine ble lagret under en annen login-kode. Skriv inn den koden for å låse dem opp, eller hopp over og legg inn nøklene manuelt på nytt.",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>Ditt</strong> — bytt til kodevisningen når som helst for å endre og kjøre analysen på nytt.",
   "three-word-code": "kode-med-tre-ord",
-  "← Back": "← Tilbake",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Siste poleringskjøring feilet — tallene kommer fra en tidligere vellykket kjøring",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ikke verifisert med kode eller data — rent modellsvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koden kjørte ikke vellykket — behandle tallene med varsomhet",

@@ -172,7 +172,13 @@
       Object.keys(map).sort(function (a, b) {
         return map[a].name.localeCompare(map[b].name);
       }).forEach(function (cc) {
-        if (!covered[cc]) out.push({ id: 'country:' + cc, name: map[cc].name, description: '', group: 'country' });
+        if (!covered[cc]) {
+          // Sluttreview-funn: description var alltid '' for land — filterCatalog
+          // (delt av landsøket) matcher kun navn da. agency+note gir treff på
+          // f.eks. «SCB» for Sverige uten å pirke i filterCatalog selv.
+          var desc = (map[cc].agency || '') + (map[cc].note ? ' ' + map[cc].note : '');
+          out.push({ id: 'country:' + cc, name: map[cc].name, description: desc, group: 'country' });
+        }
       });
       // Egne kilder (fritt opprettet ELLER importert fra community) — hentes
       // fra det unifiserte profil-lageret, ikke egen storage-nøkkel lenger.
@@ -545,6 +551,34 @@
       // land-visning→tilbake-runde uten noe mellomliggende onChange (spec §4
       // krever et virkende Rediger/Slett for egne kilder).
       var lastHooks = null;
+      // Sluttreview-funn (finding 4): rows-delen rendres separat fra
+      // back-knappen + søkefeltet, som Explore-mønsteret (expSearch/expList
+      // er faste DOM-noder — kun expList.innerHTML rebygges på input, se
+      // renderExploreList lenger ned). Før denne fiksen kalte søkefeltets
+      // input-lytter renderCountries() på nytt for hvert tastetrykk, som rev
+      // ned og gjenskapte SELVE input-elementet — markøren hoppet til slutten
+      // ved midt-i-strengen-redigering. Nå rendres kun radene på nytt.
+      function renderCountryRows(rowsEl) {
+        rowsEl.innerHTML = '';
+        var ids = Prof.packsState().ids;
+        var all = P.list().filter(function (e) { return e.group === 'country'; });
+        filterCatalog(all, countryQuery).forEach(function (e) {
+          var row = document.createElement('div');
+          row.className = 'sources-row';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = ids.indexOf(e.id) >= 0;
+          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
+          var nm = document.createElement('button');
+          nm.type = 'button';
+          nm.className = 'sources-name';
+          nm.textContent = e.name;
+          nm.addEventListener('click', function () { Prof.togglePack(e.id); P.ensureSelected(); });
+          row.appendChild(cb);
+          row.appendChild(nm);
+          rowsEl.appendChild(row);
+        });
+      }
       function renderCountries(container, hooks) {
         // Smoke-funn (menyopprydding, Task 7 §4): infopanelet fra en tidligere
         // valgt kilde i biblioteksvisningen (med Rediger/Slett) sto synlig
@@ -566,31 +600,16 @@
         search.className = 'sources-search';
         search.placeholder = T('Search…');
         search.value = countryQuery;
+        container.appendChild(search);
+        var rows = document.createElement('div');
+        container.appendChild(rows);
+        // Ingen fokus-dans nødvendig (som i søsken-fiksen over): input-noden
+        // gjenskapes aldri, så den beholder fokus og markørposisjon selv.
         search.addEventListener('input', function () {
           countryQuery = search.value;
-          renderCountries(container, hooks);
-          var s2 = container.querySelector ? container.querySelector('.sources-search') : null;
-          if (s2) s2.focus();
+          renderCountryRows(rows);
         });
-        container.appendChild(search);
-        var ids = Prof.packsState().ids;
-        var all = P.list().filter(function (e) { return e.group === 'country'; });
-        filterCatalog(all, countryQuery).forEach(function (e) {
-          var row = document.createElement('div');
-          row.className = 'sources-row';
-          var cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = ids.indexOf(e.id) >= 0;
-          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
-          var nm = document.createElement('button');
-          nm.type = 'button';
-          nm.className = 'sources-name';
-          nm.textContent = e.name;
-          nm.addEventListener('click', function () { Prof.togglePack(e.id); P.ensureSelected(); });
-          row.appendChild(cb);
-          row.appendChild(nm);
-          container.appendChild(row);
-        });
+        renderCountryRows(rows);
       }
       function renderLibrary(container, hooks) {
         lastHooks = hooks;
@@ -721,9 +740,7 @@
           showExploreStep(true);
         });
       }
-      // preselect (Task 3): en menyrad for en uimportert temapakke åpner
-      // Explore direkte på den posten (les-før-aktiver uten ekstra klikk).
-      function openExplore(preselect) {
+      function openExplore() {
         if (!expBackdrop) return;
         expGen++;
         expSelected = null;
@@ -731,7 +748,6 @@
         showExploreStep(false);
         renderExploreList();
         expBackdrop.classList.add('open');
-        if (preselect) expSelectEntry(preselect);
       }
       if (expSearch) expSearch.addEventListener('input', renderExploreList);
       if (expBack) expBack.addEventListener('click', function () {
@@ -752,7 +768,7 @@
         if (e.target === expBackdrop) { expGen++; expBackdrop.classList.remove('open'); }
       });
       // Biblioteksmanagerens «Importer delte kilder …» (spec §4): åpner
-      // samme Explore-modal som temapakke-radene i popoveren (Task 3).
+      // Explore-modalen.
       var impBtn = document.getElementById('sourcesImportBtn');
       if (impBtn) impBtn.addEventListener('click', function () { openExplore(); });
       // Boot: last katalog, auto-forslag (localeCandidates, hoistet over

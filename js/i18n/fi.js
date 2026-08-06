@@ -123,7 +123,6 @@ window.M2PY_I18N.fi = {
   "Your synced API keys were saved under a different login code. Enter that code to unlock them, or skip and re-enter your keys manually.": "Synkronoidut API-avaimesi tallennettiin eri kirjautumiskoodilla. Syötä se koodi avataksesi ne, tai ohita ja syötä avaimet uudelleen käsin.",
   "Yours — switch to the code view any time to edit and re-run the analysis.": "<strong>Sinun</strong> — vaihda koodinäkymään milloin tahansa muokataksesi ja ajaaksesi analyysin uudelleen.",
   "three-word-code": "kolmen-sanan-koodi",
-  "← Back": "← Takaisin",
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Viimeinen viimeistelyajo epäonnistui — luvut ovat aiemmasta onnistuneesta ajosta",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ei todennettu koodilla tai datalla — pelkkä mallivastaus",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koodi ei ajautunut onnistuneesti — suhtaudu lukuihin varauksella",

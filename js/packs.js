@@ -669,26 +669,12 @@
       var expMeta = document.getElementById('packsExploreMeta');
       var expImport = document.getElementById('packsImportBtn');
       var expClose = document.getElementById('packsExploreCloseBtn');
+      var expSearch = document.getElementById('packsExploreSearch');
+      var expBack = document.getElementById('packsExploreBackBtn');
       var expSelected = null; // {entry, text}
-      function expSelectEntry(e) {
-        P.resolve(e.id).then(function (got) {
-          if (!got) return;
-          expSelected = { entry: e, text: got.text };
-          expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
-          expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
-          expPrevWrap.hidden = false;
-          expImport.hidden = false;
-        });
-      }
-      // preselect (Task 3): en menyrad for en uimportert temapakke åpner
-      // Explore direkte på den posten (les-før-aktiver uten ekstra klikk).
-      function openExplore(preselect) {
-        if (!expBackdrop) return;
-        expSelected = null;
-        expPrevWrap.hidden = true;
-        expImport.hidden = true;
+      function renderExploreList() {
         expList.innerHTML = '';
-        P.listCommunity().forEach(function (e) {
+        filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '').forEach(function (e) {
           var row = document.createElement('button');
           row.type = 'button';
           row.className = 'ask-explore-row';
@@ -701,9 +687,39 @@
           row.addEventListener('click', function () { expSelectEntry(e); });
           expList.appendChild(row);
         });
+      }
+      function showExploreStep(detail) {
+        if (expSearch) expSearch.hidden = detail;
+        expList.hidden = detail;
+        expPrevWrap.hidden = !detail;
+        expImport.hidden = !detail;
+        if (expBack) expBack.hidden = !detail;
+      }
+      function expSelectEntry(e) {
+        P.resolve(e.id).then(function (got) {
+          if (!got) return;
+          expSelected = { entry: e, text: got.text };
+          expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
+          expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
+          showExploreStep(true);
+        });
+      }
+      // preselect (Task 3): en menyrad for en uimportert temapakke åpner
+      // Explore direkte på den posten (les-før-aktiver uten ekstra klikk).
+      function openExplore(preselect) {
+        if (!expBackdrop) return;
+        expSelected = null;
+        if (expSearch) expSearch.value = '';
+        showExploreStep(false);
+        renderExploreList();
         expBackdrop.classList.add('open');
         if (preselect) expSelectEntry(preselect);
       }
+      if (expSearch) expSearch.addEventListener('input', renderExploreList);
+      if (expBack) expBack.addEventListener('click', function () {
+        expSelected = null;
+        showExploreStep(false);
+      });
       if (expImport) expImport.addEventListener('click', function () {
         if (!expSelected) return;
         var newId = P.importPack(expSelected.entry, expSelected.text);

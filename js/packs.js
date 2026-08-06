@@ -672,6 +672,12 @@
       var expSearch = document.getElementById('packsExploreSearch');
       var expBack = document.getElementById('packsExploreBackBtn');
       var expSelected = null; // {entry, text}
+      // Generasjonsteller (review-funn Task 6): P.resolve() er nett-bakket og
+      // kan komme sent — uten denne kan en gammel .then() overstyre en modal
+      // som alt er lukket/gjenåpnet/har fått et nytt valg. Bumpes ved åpning
+      // OG ved alle lukk-veier; expSelectEntry sjekker generasjonen sin før
+      // den rører DOM-en.
+      var expGen = 0;
       function renderExploreList() {
         expList.innerHTML = '';
         filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '').forEach(function (e) {
@@ -696,7 +702,12 @@
         if (expBack) expBack.hidden = !detail;
       }
       function expSelectEntry(e) {
+        expGen++; // eget valg = egen generasjon — ugyldiggjør ethvert tidligere
+        // ventende resolve (også et annet rad-klikk i samme åpne modal, ikke
+        // bare lukk/gjenåpne-tilfellet)
+        var gen = expGen; // fanges FØR resolve — stale svar sjekkes mot dette
         P.resolve(e.id).then(function (got) {
+          if (gen !== expGen) return; // modal lukket/gjenåpnet/nytt valg i mellomtiden
           if (!got) return;
           expSelected = { entry: e, text: got.text };
           expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
@@ -708,6 +719,7 @@
       // Explore direkte på den posten (les-før-aktiver uten ekstra klikk).
       function openExplore(preselect) {
         if (!expBackdrop) return;
+        expGen++;
         expSelected = null;
         if (expSearch) expSearch.value = '';
         showExploreStep(false);
@@ -717,19 +729,21 @@
       }
       if (expSearch) expSearch.addEventListener('input', renderExploreList);
       if (expBack) expBack.addEventListener('click', function () {
+        expGen++;
         expSelected = null;
         showExploreStep(false);
       });
       if (expImport) expImport.addEventListener('click', function () {
         if (!expSelected) return;
+        expGen++;
         var newId = P.importPack(expSelected.entry, expSelected.text);
         if (newId) Prof.togglePack(newId); // fersk id — «toggle» velger den
         P.ensureSelected();
         expBackdrop.classList.remove('open');
       });
-      if (expClose) expClose.addEventListener('click', function () { expBackdrop.classList.remove('open'); });
+      if (expClose) expClose.addEventListener('click', function () { expGen++; expBackdrop.classList.remove('open'); });
       if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
-        if (e.target === expBackdrop) expBackdrop.classList.remove('open');
+        if (e.target === expBackdrop) { expGen++; expBackdrop.classList.remove('open'); }
       });
       // Biblioteksmanagerens «Importer delte kilder …» (spec §4): åpner
       // samme Explore-modal som temapakke-radene i popoveren (Task 3).

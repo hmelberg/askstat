@@ -95,10 +95,10 @@ class FakeEl {
   }
 }
 
-// freshEnv: bygger en minimal side-struktur (knapp + meny m/to seksjoner),
-// stubber Profiles/PacksUi/ProfilesUi, og laster context-pill.js ferskt
-// (closure-tilstand — samme grunn som søsken-stubbene sletter require-cachen
-// per scenario).
+// freshEnv: bygger en minimal side-struktur (knapp + meny m/kildeseksjon +
+// et ekstra tilkoblet barn (profSec) brukt av propagasjonstestene), stubber
+// Profiles/PacksUi, og laster context-pill.js ferskt (closure-tilstand —
+// samme grunn som søsken-stubbene sletter require-cachen per scenario).
 function freshEnv(opts) {
   opts = opts || {};
   delete require.cache[require.resolve(CONTEXT_PILL_PATH)];

@@ -166,7 +166,8 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
     'data/packs/community/us-health-surveys.md': '# US health\nUse ipums.',
   });
   const s = fakeStorage();
-  const P = makePacks(s, fakeFetch(files), fakeProfiles({ ids: [], auto: false }));
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
   await P.load();
   assert.ok(!P.list().some((e) => e.id === 'us-health-surveys'));      // les-før-aktiver
   const comm = P.listCommunity();
@@ -174,8 +175,75 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
   assert.equal(comm[0].author, 'hans');
   const preview = await P.resolve('us-health-surveys');                // preview-vei
   assert.ok(preview.text.includes('ipums'));
-  P.importPack(comm[0], preview.text);
-  assert.ok(P.list().some((e) => e.id === 'imported:us-health-surveys'));
-  const got = await P.resolve('imported:us-health-surveys');
+  const newId = P.importPack(comm[0], preview.text);                   // kontekstrunden fase 3: lagres som kind:source
+  assert.equal(newId.indexOf('user:'), 0);
+  assert.ok(P.list().some((e) => e.id === newId));
+  const got = await P.resolve(newId);
   assert.equal(got.text, '# US health\nUse ipums.');                   // kopi, uten re-fetch
+  assert.equal(prof.get(newId.slice(5)).kind, 'source');
+  assert.deepEqual(prof.get(newId.slice(5)).origin, { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' });
+});
+
+// Kontekstrunden fase 3 (§Unifisert lager): egne kilder bor i Profiles, ikke
+// lenger i en egen md_packs_imported-blob eller 'imported:'-idnavnerom.
+test('user:-pakker resolves fra Profiles-lageret, aldri fetch', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  const sid = prof.create('ESS-kilde', 'yaml her', 'source');
+  let calls = 0;
+  const countingFetch = async (url) => { calls++; return fakeFetch(FILES)(url); };
+  const P = makePacks(s, countingFetch, prof);
+  await P.load();
+  const before = calls;
+  assert.equal(P.displayName('user:' + sid), 'ESS-kilde');
+  const got = await P.resolve('user:' + sid);
+  assert.deepEqual(got, { name: 'ESS-kilde', text: 'yaml her' });
+  assert.equal(calls, before);                                         // resolve() gjorde ALDRI et fetch-kall
+  prof.setPacks(['user:' + sid]);
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [{ name: 'ESS-kilde', text: 'yaml her' }]);
+});
+
+test('migrering: md_packs_imported flyttes til kind:source og velges om valgt', async () => {
+  const s = fakeStorage();
+  s.setItem('md_packs_imported', JSON.stringify({
+    x: { name: 'US health', text: '# US health\nUse ipums.',
+      origin: { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' } },
+  }));
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  prof.setPacks(['imported:x', 'norway']);                             // manuelt valg som refererer den gamle importen
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  P.migrateImported(prof);
+  const sources = prof.list('source');
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].name, 'US health');
+  assert.deepEqual(sources[0].origin, { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' });
+  const st = prof.packsState();
+  assert.ok(st.ids.indexOf('user:' + sources[0].id) >= 0);
+  assert.ok(st.ids.indexOf('norway') >= 0);                            // andre ider urørt
+  assert.equal(st.ids.indexOf('imported:x'), -1);                      // gammel-iden borte
+  assert.equal(s.getItem('md_packs_imported'), null);                  // nøkkelen fjernet
+});
+
+test('migrering: uten manuelt doc.packs skapes intet sett (auto bevares)', async () => {
+  const s = fakeStorage();
+  s.setItem('md_packs_imported', JSON.stringify({
+    x: { name: 'US health', text: 't',
+      origin: { source: 'community', id: 'us-health-surveys', updated: '' } },
+  }));
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  prof.setAutoPack('norway');                                          // KUN auto-forslag, intet manuelt sett
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  P.migrateImported(prof);
+  assert.equal(prof.list('source').length, 1);                        // kilden opprettes uansett
+  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: true }); // uendret — auto overlever
+  assert.equal(s.getItem('md_packs_imported'), null);
+});
+
+test('migrering: ingen md_packs_imported → no-op', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  P.migrateImported(prof);
+  assert.equal(prof.list('source').length, 0);
 });

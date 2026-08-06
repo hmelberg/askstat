@@ -452,7 +452,7 @@
   </div>
   <div class="ai-modal-backdrop" id="profilesBackdrop">
     <div class="ai-modal">
-      <h3 data-i18n>Profiles</h3>
+      <h3 data-i18n id="profilesTitle">Profiles</h3>
       <div class="ai-modal-help" data-i18n>A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
       <div id="profilesList" class="profiles-list"></div>
       <div id="profilesEdit" hidden>
@@ -460,7 +460,7 @@
         <input type="text" id="profileName" maxlength="60">
         <label for="profileText" data-i18n>Text added to every ask</label>
         <textarea id="profileText" rows="7" maxlength="8000"></textarea>
-        <div class="ai-modal-help"><span id="profileCount">0</span> / 8000 — <span data-i18n>Markdown is supported</span></div>
+        <div class="ai-modal-help"><span id="profileCount">0</span> / <span id="profileTextMax">8000</span> — <span data-i18n>Markdown is supported</span></div>
         <details id="profilePreviewWrap">
           <summary data-i18n>Preview</summary>
           <div id="profilePreview" class="ask-md-preview"></div>

@@ -153,6 +153,43 @@ test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
   assert.deepEqual(P.packsState().ids, ['x', 'y']);
 });
 
+// Kontekstrunden fase 3 (§Unifisert lager): kind 'profile'|'source'.
+test('kind: create default profile; sources filtreres; active ser kun profiler', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  const pid = P.create('Meg', 'tekst');
+  const sid = P.create('ESS-kilde', 'yaml her', 'source');
+  assert.deepEqual(P.list('profile').map((x) => x.id), [pid]);
+  assert.deepEqual(P.list('source').map((x) => x.id), [sid]);
+  P.setActive(sid); // avvises — kilder kan ikke være aktiv profil
+  assert.equal(P.active(), null);
+  P.setActive(pid);
+  assert.equal(P.activeText(), 'tekst');
+});
+
+test('kind: origin lagres; legacy-oppføringer uten kind = profile', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  const id = P.create('Import', 't', 'source', { source: 'community', id: 'x' });
+  assert.deepEqual(P.get(id).origin, { source: 'community', id: 'x' });
+  const doc = JSON.parse(s.getItem('md_profiles'));
+  doc.profiles['gammel'] = { name: 'G', text: 't', updated: '2026-01-01T00:00:00.000Z' };
+  s.setItem('md_profiles', JSON.stringify(doc));
+  assert.equal(P.list('profile').some((x) => x.id === 'gammel'), true);
+});
+
+test('kind: source-tekst har romsligere budsjett (40000) enn profil (8000)', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  const sid = P.create('Lang kilde', 'x'.repeat(50000), 'source');
+  assert.equal(P.get(sid).text.length, 40000);
+  const pid = P.create('Lang profil', 'x'.repeat(50000));
+  assert.equal(P.get(pid).text.length, 8000);
+  // update() leser eksisterende kind — budsjettet endres ikke av update:
+  P.update(sid, { text: 'y'.repeat(50000) });
+  assert.equal(P.get(sid).text.length, 40000);
+});
+
 test('packs: gammel doc.pack ignoreres og skrubbes ved neste skriving', () => {
   const s = fakeStorage();
   s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',

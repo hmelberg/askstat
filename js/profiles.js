@@ -9,6 +9,10 @@
   var LEGACY = 'md_ask_prefs';
   var NAME_MAX = 60;
   var TEXT_MAX = 8000;
+  // Kontekstrunden fase 3 (§Unifisert lager): kind:'source'-oppføringer er
+  // egne kilder (opprettet fritt eller importert fra community-pakker) og
+  // får et romsligere tegnbudsjett enn profiler.
+  var SOURCE_TEXT_MAX = 40000;
 
   var PACK_AUTO = 'md_pack_auto';
 
@@ -49,37 +53,57 @@
       if (!opts || !opts.silent) fire();
     }
     function clampName(s) { return String(s || 'Untitled').trim().slice(0, NAME_MAX) || 'Untitled'; }
-    function clampText(s) { return String(s == null ? '' : s).slice(0, TEXT_MAX); }
+    function clampText(s, kind) {
+      var max = kind === 'source' ? SOURCE_TEXT_MAX : TEXT_MAX;
+      return String(s == null ? '' : s).slice(0, max);
+    }
     function live(doc, id) {
       var p = doc.profiles[id];
       return (p && !p.deleted) ? p : null;
     }
+    // kind bor KUN på oppføringen når den er 'source' (sparer bytes — fravær
+    // betyr 'profile', langt det vanlige tilfellet, inkl. alle legacy-data).
+    function kindOf(p) { return (p && p.kind) || 'profile'; }
     return {
       NAME_MAX: NAME_MAX,
       TEXT_MAX: TEXT_MAX,
-      list: function () {
+      SOURCE_TEXT_MAX: SOURCE_TEXT_MAX,
+      // list(kind): uten argument = alle levende oppføringer (profiler OG
+      // kilder); med kind = kun den typen. Kilder kan aldri være aktiv profil
+      // (håndheves i setActive/active/activeText, ikke her).
+      list: function (kind) {
         var doc = readDoc();
-        return Object.keys(doc.profiles).filter(function (id) { return live(doc, id); })
-          .map(function (id) {
-            return Object.assign({ id: id }, doc.profiles[id]);
-          }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+        return Object.keys(doc.profiles).filter(function (id) {
+          var p = live(doc, id);
+          return p && (kind === undefined || kindOf(p) === kind);
+        }).map(function (id) {
+          return Object.assign({ id: id }, doc.profiles[id]);
+        }).sort(function (a, b) { return a.name.localeCompare(b.name); });
       },
       get: function (id) {
         var doc = readDoc();
         return live(doc, id) ? Object.assign({ id: id }, doc.profiles[id]) : null;
       },
-      create: function (name, text) {
+      // create(name, text, kind, origin): kind 'profile'|'source' (default
+      // 'profile'); origin er valgfri og lagres uendret (brukes av
+      // community-import, se packs.js importPack/migrateImported).
+      create: function (name, text, kind, origin) {
         var doc = readDoc();
         var id = newId();
-        doc.profiles[id] = { name: clampName(name), text: clampText(text), updated: now() };
+        var k = kind === 'source' ? 'source' : 'profile';
+        var entry = { name: clampName(name), text: clampText(text, k), updated: now() };
+        if (k === 'source') entry.kind = 'source';
+        if (origin !== undefined) entry.origin = origin;
+        doc.profiles[id] = entry;
         writeDoc(doc);
         return id;
       },
       update: function (id, fields) {
         var doc = readDoc();
         if (!doc.profiles[id]) return;
+        var k = kindOf(doc.profiles[id]);
         if (fields && 'name' in fields) doc.profiles[id].name = clampName(fields.name);
-        if (fields && 'text' in fields) doc.profiles[id].text = clampText(fields.text);
+        if (fields && 'text' in fields) doc.profiles[id].text = clampText(fields.text, k);
         doc.profiles[id].updated = now();
         writeDoc(doc);
       },
@@ -90,21 +114,31 @@
         if (doc.active === id) doc.active = null;
         writeDoc(doc);
       },
+      // setActive: avviser kilder (kind==='source') — de kan aldri være aktiv
+      // profil. active()/activeText() speiler samme vakt i tilfelle doc.active
+      // peker på en oppføring som ble til en kilde (bør ikke skje, men billig).
       setActive: function (id) {
         var doc = readDoc();
-        if (id !== null && !live(doc, id)) return;
+        if (id !== null) {
+          var p = live(doc, id);
+          if (!p || kindOf(p) !== 'profile') return;
+        }
         doc.active = id;
         writeDoc(doc);
       },
       active: function () {
         var doc = readDoc();
-        if (!doc.active || !live(doc, doc.active)) return null;
+        if (!doc.active) return null;
+        var p = live(doc, doc.active);
+        if (!p || kindOf(p) !== 'profile') return null;
         return Object.assign({ id: doc.active }, doc.profiles[doc.active]);
       },
       activeText: function () {
         var doc = readDoc();
-        var p = doc.active && live(doc, doc.active);
-        var t = p && String(p.text || '').trim();
+        if (!doc.active) return undefined;
+        var p = live(doc, doc.active);
+        if (!p || kindOf(p) !== 'profile') return undefined;
+        var t = String(p.text || '').trim();
         return t ? t : undefined;
       },
       // Pakkevalg (kontekstrunden 2026-08-06 §2): FLERVALG. Manuelt sett bor
@@ -221,30 +255,41 @@
       if (!P || !backdrop) return;
       var listEl = document.getElementById('profilesList');
       var editEl = document.getElementById('profilesEdit');
+      var titleEl = document.getElementById('profilesTitle');
       var nameEl = document.getElementById('profileName');
       var textEl = document.getElementById('profileText');
       var countEl = document.getElementById('profileCount');
+      var maxEl = document.getElementById('profileTextMax');
       var newBtn = document.getElementById('profileNewBtn');
       var saveBtn = document.getElementById('profileSaveBtn');
       var delBtn = document.getElementById('profileDeleteBtn');
       var editingId = null; // null = ingen redigering; 'NY' = ny profil
+      // Hvilken kind modalen viser (kontekstrunden fase 3): 'profile' er
+      // standard (Profiles-knappen); 'source' settes av openModal({kind:
+      // 'source'}) — samme modal dobler som kildeeditor (§Unifisert lager).
+      var modalKind = 'profile';
 
       function renderList() {
         var act = P.active();
         listEl.innerHTML = '';
-        var none = document.createElement('label');
-        none.className = 'profiles-row';
-        none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>' + T('No profile') + '</span>';
-        none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
-        listEl.appendChild(none);
-        P.list().forEach(function (pr) {
+        if (modalKind === 'profile') {
+          var none = document.createElement('label');
+          none.className = 'profiles-row';
+          none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>' + T('No profile') + '</span>';
+          none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
+          listEl.appendChild(none);
+        }
+        P.list(modalKind).forEach(function (pr) {
           var row = document.createElement('label');
           row.className = 'profiles-row';
-          var r = document.createElement('input');
-          r.type = 'radio';
-          r.name = 'profileActive';
-          r.checked = !!(act && act.id === pr.id);
-          r.addEventListener('change', function () { P.setActive(pr.id); });
+          if (modalKind === 'profile') {
+            var r = document.createElement('input');
+            r.type = 'radio';
+            r.name = 'profileActive';
+            r.checked = !!(act && act.id === pr.id);
+            r.addEventListener('change', function () { P.setActive(pr.id); });
+            row.appendChild(r);
+          }
           var nm = document.createElement('span');
           nm.textContent = pr.name;
           var edit = document.createElement('button');
@@ -255,7 +300,6 @@
             ev.preventDefault();
             openEdit(pr.id);
           });
-          row.appendChild(r);
           row.appendChild(nm);
           row.appendChild(edit);
           listEl.appendChild(row);
@@ -264,6 +308,12 @@
       function openEdit(id) {
         editingId = id;
         var pr = id === 'NY' ? { name: '', text: '' } : (P.get(id) || { name: '', text: '' });
+        // Tegnbudsjett: NY følger modalens gjeldende kind; en eksisterende
+        // oppføring følger sin EGEN lagrede kind (den endres aldri ved edit).
+        var kind = id === 'NY' ? modalKind : (pr.kind || 'profile');
+        var max = kind === 'source' ? P.SOURCE_TEXT_MAX : P.TEXT_MAX;
+        textEl.maxLength = max;
+        if (maxEl) maxEl.textContent = String(max);
         nameEl.value = pr.name;
         textEl.value = pr.text;
         countEl.textContent = String(textEl.value.length);
@@ -294,8 +344,9 @@
       newBtn.addEventListener('click', function () { openEdit('NY'); });
       saveBtn.addEventListener('click', function () {
         if (editingId === 'NY') {
-          var id = P.create(nameEl.value, textEl.value);
-          if (!P.active()) P.setActive(id); // første profil aktiveres direkte
+          var id = P.create(nameEl.value, textEl.value, modalKind);
+          // Kilder kan aldri være aktiv profil — kun relevant i profile-modus.
+          if (modalKind === 'profile' && !P.active()) P.setActive(id); // første profil aktiveres direkte
         } else if (editingId) {
           P.update(editingId, { name: nameEl.value, text: textEl.value });
         }
@@ -311,9 +362,24 @@
         closeEdit();
         backdrop.classList.remove('open');
       });
-      P.openModal = function () {
-        closeEdit();
-        renderList();
+      // openModal(opts): {kind:'profile'|'source', prefillName, prefillText}.
+      // kind velger tittel/liste/knapp-tekst (§Unifisert lager); prefill*
+      // åpner editEl direkte med gitte verdier (brukes av «lagre som kilde»-
+      // flyter, task 6) i stedet for å vise lista først.
+      P.openModal = function (opts) {
+        opts = opts || {};
+        modalKind = opts.kind === 'source' ? 'source' : 'profile';
+        if (titleEl) titleEl.textContent = modalKind === 'source' ? T('My sources') : T('Profiles');
+        if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
+        if ('prefillName' in opts || 'prefillText' in opts) {
+          openEdit('NY');
+          nameEl.value = opts.prefillName || '';
+          textEl.value = opts.prefillText || '';
+          countEl.textContent = String(textEl.value.length);
+        } else {
+          closeEdit();
+          renderList();
+        }
         backdrop.classList.add('open');
       };
       // Kontekst-pillen (kontekstrunden 2026-08-06 §1): profilseksjonen
@@ -341,7 +407,7 @@
             container.appendChild(b);
           }
           item(T('No profile'), !a, function () { P.setActive(null); });
-          P.list().forEach(function (pr) {
+          P.list('profile').forEach(function (pr) {
             item(pr.name, !!(a && a.id === pr.id), function () { P.setActive(pr.id); });
           });
           item(T('Manage profiles…'), false, function () { P.openModal(); });

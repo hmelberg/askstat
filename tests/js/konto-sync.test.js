@@ -85,6 +85,9 @@ test('merge ved login: remote profiler kommer inn, union pushes', async () => {
     now: (() => { let i = 0; return () => `2026-08-04T00:00:${String(i++).padStart(2, '0')}.000Z`; })(),
   });
   remoteProfiles.create('Fra server', 'r');
+  // kind/origin (kontekstrunden fase 3): riding på entry-objektet — merge
+  // kopierer HELE oppføringen, så en kind:source-post skal overleve intakt.
+  const sid = remoteProfiles.create('Server-kilde', 's', 'source', { source: 'community', id: 'x' });
   const f = fakeFetch({
     profiles: { doc: JSON.stringify(remoteProfiles.exportDoc()), updated: 'x' },
   });
@@ -92,9 +95,11 @@ test('merge ved login: remote profiler kommer inn, union pushes', async () => {
   d.profiles.create('Lokal', 'l');
   KontoSync._configure(d, 1);
   await KontoSync.syncNow();
-  assert.equal(d.profiles.list().length, 2);          // remote merget inn
+  assert.equal(d.profiles.list().length, 3);          // remote merget inn (profil + kilde)
   assert.equal(f.posts.profiles.length, 1);           // union pushet
-  assert.equal(Object.keys(f.posts.profiles[0].profiles).length, 2);
+  assert.equal(Object.keys(f.posts.profiles[0].profiles).length, 3);
+  assert.equal(d.profiles.get(sid).kind, 'source');
+  assert.deepEqual(d.profiles.get(sid).origin, { source: 'community', id: 'x' });
 });
 
 test('keys: nyere remote-blob → dekrypter + replaceAll; re-krypter ved annen kekId', async () => {

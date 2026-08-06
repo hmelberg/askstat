@@ -155,6 +155,8 @@ window.M2PY_I18N.is = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Samhengi — hvaða heimildir eru teknar fram yfir og hvaða prófílleiðbeiningar gilda. Smelltu til að breyta.",
   "Instructions added to every question.": "Leiðbeiningar sem bætt er við hverja spurningu.",
   "Profile": "Prófíll",
+  "Profile — instructions added to every question. Click to manage.": "Prófíll — leiðbeiningar sem bætt er við hverja spurningu. Smelltu til að stjórna.",
+  "Profile: {name}": "Prófíll: {name}",
   "Sources": "Heimildir",
   "Where the AI should look for data.": "Hvar gervigreindin ætti að leita að gögnum.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

@@ -155,6 +155,8 @@ window.M2PY_I18N.zh = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "上下文 — 优先使用哪些来源以及应用哪些个人资料指令。点击调整。",
   "Instructions added to every question.": "添加到每个问题的指令。",
   "Profile": "个人资料",
+  "Profile — instructions added to every question. Click to manage.": "个人资料 — 添加到每个问题的指令。点击以管理。",
+  "Profile: {name}": "个人资料：{name}",
   "Sources": "来源",
   "Where the AI should look for data.": "AI 应该在哪里查找数据。",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

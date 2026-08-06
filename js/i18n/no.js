@@ -79,6 +79,8 @@ window.M2PY_I18N.no = {
   "Profile applied: {name}": "Profil brukt: {name}",
   "Profile — its text is added to every question. Click to choose or manage.": "Profil — teksten legges til hvert spørsmål. Klikk for å velge eller administrere.",
   "Profile": "Profil",
+  "Profile — instructions added to every question. Click to manage.": "Profil — instruksjoner som legges til hvert spørsmål. Klikk for å administrere.",
+  "Profile: {name}": "Profil: {name}",
   "Profiles": "Profiler",
   "Re-run the saved code locally (no AI cost) to regenerate figures and output": "Kjør den lagrede koden på nytt lokalt (ingen KI-kostnad) for å gjenskape figurer og output",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>Ekte kilder</strong> — offisiell statistikk (Eurostat, Verdensbanken, nasjonale statistikkbyråer) søkt live, med lenker.",

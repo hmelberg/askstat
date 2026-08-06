@@ -155,6 +155,8 @@ window.M2PY_I18N.hi = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "संदर्भ — कौन से स्रोतों को प्राथमिकता दी जाए और कौन से प्रोफ़ाइल निर्देश लागू हों। बदलने के लिए क्लिक करें।",
   "Instructions added to every question.": "निर्देश जो हर प्रश्न में जोड़े जाते हैं।",
   "Profile": "प्रोफ़ाइल",
+  "Profile — instructions added to every question. Click to manage.": "प्रोफ़ाइल — हर प्रश्न में जोड़े जाने वाले निर्देश। प्रबंधित करने के लिए क्लिक करें।",
+  "Profile: {name}": "प्रोफ़ाइल: {name}",
   "Sources": "स्रोत",
   "Where the AI should look for data.": "AI को डेटा कहाँ खोजना चाहिए।",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

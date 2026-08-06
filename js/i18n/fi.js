@@ -155,6 +155,8 @@ window.M2PY_I18N.fi = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Konteksti — mitkä lähteet asetetaan etusijalle ja mitkä profiiliohjeet ovat käytössä. Muuta napsauttamalla.",
   "Instructions added to every question.": "Ohjeet, jotka lisätään jokaiseen kysymykseen.",
   "Profile": "Profiili",
+  "Profile — instructions added to every question. Click to manage.": "Profiili — ohjeet, jotka lisätään jokaiseen kysymykseen. Hallinnoi napsauttamalla.",
+  "Profile: {name}": "Profiili: {name}",
   "Sources": "Lähteet",
   "Where the AI should look for data.": "Mistä tekoälyn tulisi etsiä dataa.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

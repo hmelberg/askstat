@@ -155,6 +155,8 @@ window.M2PY_I18N.sv = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Kontext — vilka källor som föredras och vilka profilinstruktioner som gäller. Klicka för att ändra.",
   "Instructions added to every question.": "Instruktioner som läggs till varje fråga.",
   "Profile": "Profil",
+  "Profile — instructions added to every question. Click to manage.": "Profil — instruktioner som läggs till varje fråga. Klicka för att hantera.",
+  "Profile: {name}": "Profil: {name}",
   "Sources": "Källor",
   "Where the AI should look for data.": "Var AI:n bör leta efter data.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

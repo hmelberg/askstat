@@ -156,6 +156,8 @@ window.M2PY_I18N.pt = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "Contexto — quais fontes preferir e quais instruções de perfil aplicar. Clique para ajustar.",
   "Instructions added to every question.": "Instruções adicionadas a cada pergunta.",
   "Profile": "Perfil",
+  "Profile — instructions added to every question. Click to manage.": "Perfil — instruções adicionadas a cada pergunta. Clique para gerenciar.",
+  "Profile: {name}": "Perfil: {name}",
   "Sources": "Fontes",
   "Where the AI should look for data.": "Onde a IA deve procurar dados.",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

@@ -386,6 +386,17 @@
         closeEdit();
         backdrop.classList.remove('open');
       });
+      // Menyopprydding (spec 2026-08-06-menyopprydning §3): profilinngangen
+      // bor i sidemenyen og åpner modalen direkte — radioene der ER velgeren.
+      var sideBtn = document.getElementById('askProfileBtn');
+      var sideLabel = document.getElementById('askProfileLabel');
+      function renderSideLabel() {
+        if (!sideLabel) return;
+        var a = P.active();
+        sideLabel.textContent = a ? T('Profile: {name}', { name: a.name }) : T('Profile');
+      }
+      if (sideBtn) sideBtn.addEventListener('click', function () { P.openModal(); });
+      renderSideLabel();
       // openModal(opts): {kind:'profile'|'source', prefillName, prefillText}.
       // kind velger tittel/liste/knapp-tekst (§Unifisert lager); prefill*
       // åpner editEl direkte med gitte verdier (brukes av «lagre som kilde»-
@@ -438,7 +449,7 @@
           item(T('Manage profiles…'), false, function () { P.openModal(); });
         },
       };
-      P.onChange(function () { renderList(); });
+      P.onChange(function () { renderList(); renderSideLabel(); });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfilesUi);
     else initProfilesUi();

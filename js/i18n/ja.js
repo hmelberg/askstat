@@ -155,6 +155,8 @@ window.M2PY_I18N.ja = {
   "Context — which sources to prefer and which profile instructions to apply. Click to adjust.": "コンテキスト — 優先するソースと適用するプロフィール指示。クリックして変更。",
   "Instructions added to every question.": "すべての質問に追加される指示。",
   "Profile": "プロフィール",
+  "Profile — instructions added to every question. Click to manage.": "プロフィール — すべての質問に追加される指示。クリックして管理します。",
+  "Profile: {name}": "プロフィール：{name}",
   "Sources": "ソース",
   "Where the AI should look for data.": "AIがデータを探す場所。",
   // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):

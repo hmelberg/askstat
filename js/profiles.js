@@ -43,6 +43,7 @@
     }
     function writeDoc(doc, opts) {
       pruneTombstones(doc);
+      delete doc.pack; // kontekstrunden fase 2: gammelt én-pakke-valg droppes
       if (!opts || !opts.keepUpdated) doc.updated = now();
       try { storage.setItem(LS, JSON.stringify(doc)); } catch (e) {}
       if (!opts || !opts.silent) fire();
@@ -106,29 +107,43 @@
         var t = p && String(p.text || '').trim();
         return t ? t : undefined;
       },
-      // Pack-slot (spec 2026-08-05-sprak-pakker-deling §2): kildepakke ved
-      // siden av personlig profil. MANUELT valg bor i doc.pack (synkes);
-      // auto-forslag (fra locale) bor KUN i md_pack_auto (per enhet).
-      // doc.pack = {id:null} betyr manuelt «International» — forskjellig fra
-      // fraværende felt (aldri valgt), som lar auto-forslaget gjelde.
-      packState: function () {
+      // Pakkevalg (kontekstrunden 2026-08-06 §2): FLERVALG. Manuelt sett bor
+      // i doc.packs = {ids, updated} (synkes, hele settet = én verdi); auto-
+      // forslag (fra locale) bor KUN i md_pack_auto (per enhet). Fraværende
+      // doc.packs = aldri berørt → auto-forslaget gjelder; {ids:[]} = manuelt
+      // tomt (internasjonal). Gammelt doc.pack skrubbes i writeDoc.
+      packsState: function () {
         var doc = readDoc();
-        if (doc.pack && typeof doc.pack === 'object') {
-          return { id: doc.pack.id == null ? null : String(doc.pack.id), auto: false };
+        if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) {
+          return { ids: doc.packs.ids.map(String), auto: false };
         }
         var a = null;
         try { a = storage.getItem(PACK_AUTO); } catch (e) {}
-        return a ? { id: String(a), auto: true } : { id: null, auto: false };
+        return a ? { ids: [String(a)], auto: true } : { ids: [], auto: false };
       },
-      setPack: function (id) {
+      setPacks: function (ids) {
         var doc = readDoc();
-        doc.pack = { id: id == null ? null : String(id), updated: now() };
+        var seen = {};
+        var clean = [];
+        (Array.isArray(ids) ? ids : []).forEach(function (id) {
+          var s = String(id);
+          if (!seen[s]) { seen[s] = true; clean.push(s); }
+        });
+        doc.packs = { ids: clean, updated: now() };
         try { storage.removeItem(PACK_AUTO); } catch (e) {}
         writeDoc(doc);
       },
+      togglePack: function (id) {
+        var st = this.packsState();
+        var s = String(id);
+        var ids = st.ids.indexOf(s) >= 0
+          ? st.ids.filter(function (x) { return x !== s; })
+          : st.ids.concat([s]);
+        this.setPacks(ids);
+      },
       setAutoPack: function (id) {
         var doc = readDoc();
-        if (doc.pack && typeof doc.pack === 'object') return; // manuelt valg vinner
+        if (doc.packs && typeof doc.packs === 'object') return; // manuelt valg vinner
         try {
           if (id == null) storage.removeItem(PACK_AUTO);
           else storage.setItem(PACK_AUTO, String(id));
@@ -154,13 +169,15 @@
             changed = true;
           }
         });
-        var rp = remoteDoc.pack;
-        if (rp && typeof rp === 'object') {
-          var lp = doc.pack;
+        var rp = remoteDoc.packs;
+        if (rp && typeof rp === 'object' && Array.isArray(rp.ids)) {
+          var lp = doc.packs;
           var rU = String(rp.updated || '');
+          var rIds = rp.ids.map(String);
           if ((!lp || rU > String(lp.updated || '')) &&
-              (!lp || lp.id !== rp.id || String(lp.updated || '') !== rU)) {
-            doc.pack = { id: rp.id == null ? null : String(rp.id), updated: rU };
+              (!lp || String(lp.updated || '') !== rU ||
+               JSON.stringify(lp.ids) !== JSON.stringify(rIds))) {
+            doc.packs = { ids: rIds, updated: rU };
             changed = true;
           }
         }

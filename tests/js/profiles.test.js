@@ -108,30 +108,61 @@ test('prune: tombstones eldre enn 90 dager fjernes ved skriving', () => {
   assert.equal(p.exportDoc().profiles[id], undefined);
 });
 
-test('pack-slot: manuelt valg vinner over auto, auto aldri i doc', () => {
+test('packs: tomt default; auto-forslag gir ett id m/auto-flagg', () => {
   const s = fakeStorage();
-  const p = makeProfiles(s, { now: () => '2026-08-05T10:00:00.000Z' });
-  assert.deepEqual(p.packState(), { id: null, auto: false });
-  p.setAutoPack('norway');
-  assert.deepEqual(p.packState(), { id: 'norway', auto: true });
-  assert.equal(p.exportDoc().pack, undefined);          // auto aldri i doc
-  p.setPack('finland');
-  assert.deepEqual(p.packState(), { id: 'finland', auto: false });
-  assert.equal(p.exportDoc().pack.id, 'finland');
-  p.setAutoPack('norway');                              // no-op etter manuelt valg
-  assert.deepEqual(p.packState(), { id: 'finland', auto: false });
+  const P = makeProfiles(s);
+  assert.deepEqual(P.packsState(), { ids: [], auto: false });
+  P.setAutoPack('norway');
+  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true });
 });
 
-test('pack-slot: mergeRemote nyeste vinner, fravær bevarer lokal', () => {
-  const p = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
-  p.setPack('norway');
-  p.mergeRemote({ v: 1, updated: '2026-08-06T00:00:00.000Z', profiles: {} }); // uten pack-felt
-  assert.equal(p.packState().id, 'norway');
-  p.mergeRemote({ v: 1, updated: '2026-08-04T00:00:00.000Z', profiles: {},
-    pack: { id: 'finland', updated: '2026-08-04T00:00:00.000Z' } });          // eldre → taper
-  assert.equal(p.packState().id, 'norway');
-  assert.ok(p.mergeRemote({ v: 1, updated: '2026-08-06T00:00:00.000Z', profiles: {},
-    pack: { id: null, updated: '2026-08-06T00:00:00.000Z' } }));              // nyere eksplisitt International
-  assert.deepEqual(p.packState(), { id: null, auto: false });
-  assert.equal(p.exportDoc().pack.id, null);            // manuelt International består i doc
+test('packs: setPacks vinner over auto, rydder md_pack_auto, dedupper', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  P.setAutoPack('norway');
+  P.setPacks(['a', 'b', 'a']);
+  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false });
+  assert.equal(s.getItem('md_pack_auto'), null);
+  P.setAutoPack('norway'); // no-op når manuelt sett finnes
+  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false });
+});
+
+test('packs: togglePack legger til og fjerner; tom liste = manuelt tomt', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  P.togglePack('a');
+  P.togglePack('b');
+  assert.deepEqual(P.packsState().ids, ['a', 'b']);
+  P.togglePack('a');
+  assert.deepEqual(P.packsState().ids, ['b']);
+  P.togglePack('b');
+  assert.deepEqual(P.packsState(), { ids: [], auto: false });
+});
+
+test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
+  const s = fakeStorage();
+  const P = makeProfiles(s);
+  P.setPacks(['a']);
+  const nyere = { v: 1, active: null, updated: '', profiles: {},
+    packs: { ids: ['x', 'y'], updated: '2099-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(nyere), true);
+  assert.deepEqual(P.packsState().ids, ['x', 'y']);
+  const eldre = { v: 1, active: null, updated: '', profiles: {},
+    packs: { ids: ['z'], updated: '2000-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(eldre), false);
+  assert.deepEqual(P.packsState().ids, ['x', 'y']);
+});
+
+test('packs: gammel doc.pack ignoreres og skrubbes ved neste skriving', () => {
+  const s = fakeStorage();
+  s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',
+    profiles: {}, pack: { id: 'country:IT', updated: '2026-08-05T00:00:00.000Z' } }));
+  const P = makeProfiles(s);
+  assert.deepEqual(P.packsState(), { ids: [], auto: false }); // Italia er død
+  P.setPacks(['norway']);
+  const doc = JSON.parse(s.getItem('md_profiles'));
+  assert.equal('pack' in doc, false);
+  // mergeRemote med legacy remote-pack rører ingenting:
+  assert.equal(P.mergeRemote({ v: 1, active: null, updated: '', profiles: {},
+    pack: { id: 'country:IT', updated: '2099-01-01T00:00:00.000Z' } }), false);
 });

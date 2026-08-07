@@ -14,7 +14,7 @@ substantive analysis. Fully CORS-open, keyless.
   lookup_api: "https://www.openml.org/api/v1/json/data/list/data_name/{name}/limit/5"
   gotcha: "free-text search does NOT exist — wrong name gives a 412"
   data_api: "data/{id} -> metadata incl. a direct parquet_url (CORS-open, pandas-ready); data/features/{id} -> per-variable types/values"
-  note: "see the research-repositories pack — OpenML is documented there alongside Dataverse/Zenodo/Figshare, no adapter here to avoid duplication"
+  note: "no search_catalog adapter — use the lookup/data APIs above directly"
 ```
 
 Lookup is by exact name only (`data_name/{name}`) — there is no free-text

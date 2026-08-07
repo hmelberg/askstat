@@ -169,7 +169,84 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-microdata-no",
+      "name": "microdata.no",
+      "description": "Remote-execution platform over Statistics Norway's administrative registers, with output-only anonymised results.",
+      "summary": "Server-side query platform over unmanipulated SSB register microdata (population, education, income/tax, FD-Trygd social security, employment, family/household, criminal justice; some series back to 1964) — health registries are NOT here, that's Helsedata.no. Access is institutional agreement, no per-project ethics application; no bulk export, only anonymised aggregated tables and model output leave the platform. Best for a fast (hours, not months), defensible answer from Norwegian register data when row-level access is not required.",
+      "file": "community/src-microdata-no.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-helsedata-no",
+      "name": "Helsedata.no",
+      "description": "Norway's application portal for individual-level health-registry microdata, delivering to a secure enclave.",
+      "summary": "Single-application gateway to Norwegian health registries (NPR, KUHR, Reseptregisteret, MFR, Kreftregisteret and more), with delivery always to a secure enclave (TSD, SAFE or HUNT Cloud), never a raw file. Requires REK ethics approval, a GDPR legal basis and a DPIA; realistic timelines run 3-6 months and fees range roughly NOK 1,500 up to NOK 60,000 for complex linkage. Foreign researchers effectively need a Norwegian institutional data controller.",
+      "file": "community/src-helsedata-no.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-sikt",
+      "name": "Sikt (Forskningsdatabanken/Surveybanken)",
+      "description": "Norway's national research-data archive, hosting freely downloadable survey data and distributing the European Social Survey.",
+      "summary": "Formerly NSD; distributes freely downloadable survey data from recurring Norwegian surveys, SSB, research institutes and individual deposits, much of it without application. Also hosts and distributes the European Social Survey (ESS) — see the europe-surveys pack for ESS-specific detail.",
+      "file": "community/src-sikt.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ssb-microdata-loan",
+      "name": "SSB \"utlån av data til forskere\"",
+      "description": "Statistics Norway's arrangement for delivering genuine record-level files to a secure enclave, distinct from microdata.no.",
+      "summary": "Genuine record-level SSB register files delivered to a secure enclave (typically TSD) after a full project application — months, not hours — unlike microdata.no's output-only remote execution. Includes FD-Trygd, the linked social-security/labour-market event history (NAV benefit spells, unemployment, sick leave, disability).",
+      "file": "community/src-ssb-microdata-loan.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-dst-forskningsservice",
+      "name": "Danmarks Statistik — Forskningsservice",
+      "description": "Denmark's controlled-environment microdata access service (Forskermaskinen).",
+      "summary": "Genuine microdata access inside a controlled environment (Forskermaskinen), richer than microdata.no's Norwegian anonymised-output-only model. Foreign researchers need collaboration with or sponsorship by a Danish research institution.",
+      "file": "community/src-dst-forskningsservice.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-thl",
+      "name": "THL — Finnish Institute for Health and Welfare",
+      "description": "Finland's health-registry authority, running Hilmo, Cause of Death, Medical Birth and Infectious Diseases registers.",
+      "summary": "Runs Finland's core health registers — Hilmo (hospital discharge), Cause of Death, Medical Birth and Infectious Diseases — and publishes an open-data API for aggregate statistics.",
+      "file": "community/src-thl.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-nordic-commons",
+      "name": "Nordic Commons",
+      "description": "Status note on NordForsk's cross-Nordic register-research initiative — not yet an operational platform.",
+      "summary": "UNVERIFIED — appears to remain a policy vision and funded-pilot stage rather than an operational cross-border query platform. For a real cross-Nordic linked-register study, expect to negotiate separately with each national authority and run harmonised federated scripts; do not promise a single unified cross-country dataset.",
+      "file": "community/src-nordic-commons.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "europe-national-microdata",

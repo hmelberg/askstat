@@ -39,7 +39,6 @@ weights, gotchas) with the get_pack tool using the id in parentheses.
 - **SSB "utlån av data til forskere"** (id: src-ssb-microdata-loan) — genuine record-level files delivered to a secure enclave via full project application, incl. FD-Trygd.
 - **Danmarks Statistik — Forskningsservice** (id: src-dst-forskningsservice) — genuine microdata access inside the Forskermaskinen controlled environment, richer than microdata.no's anonymised-output-only model.
 - **THL** (id: src-thl) — Finnish Institute for Health and Welfare registers (Hilmo, Cause of Death, Medical Birth, Infectious Diseases), open-data API.
-- **Nordic Commons** (id: src-nordic-commons) — NordForsk cross-Nordic register-research initiative; UNVERIFIED, appears to remain a policy vision/funded-pilot stage rather than an operational platform.
 
 ## Other sources (no separate pack)
 
@@ -64,7 +63,7 @@ uniformity.
 
 - HUNT — Trøndelag Health Study — ~250,000 participants, HUNT1-4: questionnaires, clinical measures, accelerometry, biological samples, genomics; requires HUNT Data Access Committee approval and REK approval. Participant withdrawal triggers full data deletion — relevant for longitudinal design.
 - Tromsøundersøkelsen (The Tromsø Study) — population-based repeated survey, 7 waves since 1974 (Tromsø7 2015-16, ~21,000 participants); application via UiT, exact portal UNVERIFIED.
-- data.norge.no — registry source, see the datanorge source guide; national open-data catalog (DCAT-AP-NO), useful as a METADATA source even where the data itself is gated — NPR/MFR/NorPD dataset pages are indexed here.
+- data.norge.no — registry source; national open-data catalog (DCAT-AP-NO), useful as a METADATA source even where the data itself is gated — NPR/MFR/NorPD dataset pages are indexed here.
 
 ### Denmark
 
@@ -87,6 +86,15 @@ StatFin PxWeb (aggregate, open, keyless) is covered in the `finland` pack —
 
 - Statistics Iceland (Hagstofa Íslands) — PxWeb platform, same tooling as SSB/SCB/StatFin.
 - Directorate of Health (Embætti landlæknis) health registers — access UNVERIFIED, expect an application model analogous to other Nordic health-data authorities; linkage via kennitala.
+
+## Nordic Commons — do not oversell
+
+Nordic Commons / NordForsk register-research initiatives: status as of
+2026 is UNVERIFIED — it appears to remain a policy vision and funded-pilot
+stage rather than an operational cross-border query platform. For a real
+cross-Nordic linked-register study, expect to negotiate SEPARATELY with
+each national authority and run harmonised federated scripts. Do not
+promise a single unified cross-country dataset.
 
 ## Cross-cutting notes
 

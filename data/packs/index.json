@@ -238,17 +238,6 @@
       "updated": "2026-08-07"
     },
     {
-      "id": "src-nordic-commons",
-      "name": "Nordic Commons",
-      "description": "Status note on NordForsk's cross-Nordic register-research initiative — not yet an operational platform.",
-      "summary": "UNVERIFIED — appears to remain a policy vision and funded-pilot stage rather than an operational cross-border query platform. For a real cross-Nordic linked-register study, expect to negotiate separately with each national authority and run harmonised federated scripts; do not promise a single unified cross-country dataset.",
-      "file": "community/src-nordic-commons.md",
-      "community": true,
-      "kind": "source",
-      "author": "hans",
-      "updated": "2026-08-07"
-    },
-    {
       "id": "europe-national-microdata",
       "name": "European national statistics microdata, per country",
       "description": "Per-country routes to official-statistics microdata across Europe, faster or richer than the central Eurostat process.",

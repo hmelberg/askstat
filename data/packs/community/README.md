@@ -19,13 +19,49 @@ not change their copy.
   "summary": "≤1500 characters, listing every source the pack covers — used as the short-form version when the model's budget is tight.",
   "file": "community/my-pack.md",
   "community": true,
+  "kind": "source",
   "author": "your-github-handle",
   "updated": "2026-08-05"
 }
 ```
 
+   `kind` is required — `"source"` for a single-source pack (id prefixed
+   `src-`) or `"overview"` for a multi-source topic pack; see below.
+
 3. Open a pull request. CI lints format, size and links; a maintainer
    reviews the content before merge.
+
+## `kind`: source packs vs. overview packs
+
+Every community pack entry in `index.json` needs a `kind` field — the lint
+enforces this. There are two values:
+
+- **`"source"`** — a single-source pack, one source per pack. Its id is
+  prefixed `src-` (e.g. `src-fars`, `src-gss`, `src-share`) to keep it
+  unambiguous from registry-source ids in `get_pack` calls, logs and PRs.
+  Content is written YAML-tight and byte-faithful to the source's own
+  wording where a YAML block already existed for it; otherwise it's
+  prose covering the same ground: what the source is, unit/coverage,
+  honest access status, gotchas, concrete URLs/load examples.
+- **`"overview"`** — a topic pack covering several sources. Its body is a
+  cross-cutting narrative (comparisons, fallback advice) plus one line per
+  source using the notation `**Name** (id: src-name) — one-line summary`.
+  A drift lint checks that every `(id: …)` reference in an overview pack
+  resolves to a real id in `index.json`.
+
+Registry sources (`ssb`, `hf`, `cessda`, `census`, …) never get their own
+`src-` pack — the built-in adapter and, where one exists, the source guide
+already cover them. In pack prose, refer to them as a **"registry
+source"**, and add "see the X source guide" only when
+`data/source-guides/<id>.md` actually exists for that id.
+
+A source shared by multiple overview packs (e.g. `cessda`, `src-hfcs`) is
+written once and referenced from each overview that needs it — never
+duplicated into two packs.
+
+Overview packs that mention a source too small to warrant its own pack
+list it under an **"Other sources"** heading instead — no `(id: …)`
+reference, just 1-2 sentences covering access level and the main caveat.
 
 ## Writing a good pack
 

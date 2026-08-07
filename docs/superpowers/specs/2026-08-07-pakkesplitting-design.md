@@ -1,6 +1,6 @@
 # Pakkesplitting: enkeltkildepakker + tema-oversikter med get_pack
 
-**Dato:** 2026-08-07 · **Status:** utkast til godkjenning (design-samtale 2026-08-07; ingen kode endret)
+**Dato:** 2026-08-07 · **Status:** implementert 2026-08-07 (plan docs/superpowers/plans/2026-08-07-pakkesplitting.md)
 
 ## Bakgrunn og mål
 

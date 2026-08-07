@@ -141,13 +141,101 @@
     {
       "id": "education-skills",
       "name": "Education & skills (PIAAC/PISA/TALIS)",
-      "description": "OECD skills and education microdata: PIAAC per-country CSVs (usable), PISA/TALIS honestly labeled as too heavy.",
-      "summary": "OECD skills and education microdata: PIAAC per-country CSVs are the usable sweet spot (open, no CORS via proxy); PISA and TALIS are open but far too heavy (hundreds of MB) — use OECD aggregate tables instead. Plus NAEP (US, restricted but NAEPprimer open for development), NCES longitudinal studies, the Urban Institute Education Data Portal API, IPEDS, College Scorecard, England's NPD-linked cohorts, Germany's NEPS, and the IEA family (TIMSS/PIRLS/ICILS/ICCS). Explains the plausible-values and replicate-weight rules that apply across the whole domain.",
+      "description": "OECD skills and education microdata plus US/European education administrative and panel sources, split into per-source packs.",
+      "summary": "Cross-cutting guidance on plausible values and replicate weights across the whole domain (NAEP, PISA, PIAAC, TIMSS, PIRLS, ICILS, NEPS). Individual source packs: PIAAC, PISA, TALIS (OECD adult-skills/student-performance/teacher studies), the Urban Institute Education Data Portal, IPEDS, College Scorecard, England's NPD-linked cohorts, and Germany's NEPS. Also covers NAEP, NCES longitudinal studies, SEDA, the IEA family (TIMSS/PIRLS/ICILS/ICCS) and the Eurostat Adult Education Survey.",
       "file": "community/education-skills.md",
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-piaac",
+      "name": "PIAAC",
+      "description": "OECD adult skills survey (literacy, numeracy, problem-solving) for ages 16-65.",
+      "summary": "Open, registration-free per-country CSV downloads on webfs.oecd.org for Cycle 1 and Cycle 2 (2022-23); older /piaac/puf-data/ paths are dead, use the cy1-/cy2- prefixes. Skills are reported as 10 plausible values (PVLIT1-10) — use the mean and say so; weight population estimates with SPFWT0.",
+      "file": "community/src-piaac.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-pisa",
+      "name": "PISA",
+      "description": "OECD study of 15-year-old student performance.",
+      "summary": "Full microdata (SPSS zips) is open but heavy — 682 MB (2022) / 501 MB (2018) — and 2018+ cognitive files use DEFLATE64 compression most unzip tools reject. For lighter alternatives use aggregate country results (oecd source or the PISA Data Explorer) or curated subsets in the R package learningtower.",
+      "file": "community/src-pisa.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-talis",
+      "name": "TALIS",
+      "description": "OECD teachers survey.",
+      "summary": "Open SPSS zip (192 MB, 2018 international file) — too heavy for this app; use OECD aggregate tables instead.",
+      "file": "community/src-talis.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-urban-education-data",
+      "name": "Urban Institute Education Data Portal",
+      "description": "Unified open REST API over US federal education administrative datasets.",
+      "summary": "Unified REST API over CCD, CRDC, IPEDS, College Scorecard, SAIPE and NHGIS at educationdata.urban.org/api/v1/{topic}/{source}/{endpoint}/{year}/, open under licence ODC-By v1.0. The practical programmatic entry point for US education admin data — preferred over any single raw NCES interface.",
+      "file": "community/src-urban-education-data.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ipeds",
+      "name": "IPEDS",
+      "description": "Integrated Postsecondary Education Data System — US institution-level postsecondary data.",
+      "summary": "Institution-level (~6,000+ Title IV institutions) data, NOT student-level; open access. Merge on UNITID — IPEDS has no official queryable REST API of its own, so query it through the Urban Institute Education Data Portal instead.",
+      "file": "community/src-ipeds.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-college-scorecard",
+      "name": "College Scorecard",
+      "description": "US institution- and field-of-study-level cost, completion and earnings outcomes.",
+      "summary": "Institution-year and field-of-study-year data on cost, admissions, completion, post-completion earnings (1/4/10yr by field) and debt/repayment, largely an IRS/NSLDS administrative match. Open API at api.data.gov/ed/collegescorecard/v1/schools with a free key.",
+      "file": "community/src-college-scorecard.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-uk-cohorts-npd",
+      "name": "England NPD and linked cohorts",
+      "description": "England's National Pupil Database plus linked UK birth cohorts (NCDS, BCS70, Next Steps, MCS).",
+      "summary": "The NPD itself requires an ONS Secure Research Service or DfE Data Sharing Service application, project- and variable-specific with no open microdata and months to approve. The linked birth cohorts themselves are mostly Open/EUL or Safeguarded via UK Data Service/Centre for Longitudinal Studies — only NPD- or NHS-linked variables need Secure Lab. Attrition is substantial by later sweeps — apply the supplied longitudinal/attrition weights.",
+      "file": "community/src-uk-cohorts-npd.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-neps",
+      "name": "NEPS",
+      "description": "German National Educational Panel Study.",
+      "summary": "Starting cohorts SC1 (newborns) through SC6 (adults 23-64, linked to the German PIAAC sample). Direct Scientific Use File download after signing a Data Use Agreement — materially easier than the NCES restricted-use equivalent. Version numbering matters (e.g. 13-0-0) — always cite and pin the exact SUF version.",
+      "file": "community/src-neps.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "data-catalogs",

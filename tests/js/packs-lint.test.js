@@ -61,6 +61,22 @@ test(`pakkefiler: finnes, ≤${PACK_TEXT_MAX} tegn, ingen nøkkelmønstre, kun h
   }
 });
 
+// Drift-vern (spec 2026-08-07 §4): hver (id: x)-referanse i en oversikts-
+// pakke MÅ finnes i index.json — oversikter og enkeltkildepakker skal
+// ikke kunne drive fra hverandre (samme mønster som source-guides-drift-
+// testen på serversiden). Skannes KUN i kind:overview-filer; YAML-blokker
+// i enkeltkildepakker bruker `id:` uten parentes og treffes ikke.
+test('oversiktspakker: alle (id: …)-referanser finnes i index.json', () => {
+  const ids = new Set(index.packs.map((p) => p.id));
+  for (const p of index.packs) {
+    if (p.kind !== 'overview') continue;
+    const text = fs.readFileSync(path.join(PACKS, p.file), 'utf-8');
+    for (const m of text.matchAll(/\(id:\s*([a-z0-9-]+)\)/g)) {
+      assert.ok(ids.has(m[1]), `${p.file}: (id: ${m[1]}) finnes ikke i index.json`);
+    }
+  }
+});
+
 test('countries.json: v1, alle oppføringer har name+agency+note, gyldige koder', () => {
   assert.equal(countries.v, 1);
   for (const [cc, e] of Object.entries(countries.countries)) {

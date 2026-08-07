@@ -68,6 +68,6 @@ weights, gotchas) with the get_pack tool using the id in parentheses.
 
 ## Other sources (no separate pack)
 
-- SEER cancer registry — application (registration + signed DUA); population-based registries covering ~48% of the US; SEER-Medicare is a separate, stricter application.
-- CMS DE-SynPUF — open synthetic 2008-2010 Medicare claims; prototype pipelines only, NOT valid for substantive inference (real inference needs CMS LDS/RIF or the VRDC enclave).
-- All of Us — NIH enclave (Researcher Workbench); registered-tier data cannot be downloaded — describe as an enclave, never a downloadable dataset.
+- SEER cancer registry — application (registration + signed DUA). Provider: National Cancer Institute; population-based registries covering ~48% of the US; SEER-Medicare is a separate, stricter application.
+- CMS DE-SynPUF — open synthetic 2008-2010 Medicare claims, safe for any use including LLM ingestion; prototype pipelines only, NOT valid for substantive inference (real inference needs CMS LDS/RIF or the VRDC enclave).
+- All of Us — NIH enclave (Researcher Workbench, cloud Jupyter/RStudio); registered-tier data cannot be downloaded — describe as an enclave, never a downloadable dataset, since outputs pass disclosure review before leaving.

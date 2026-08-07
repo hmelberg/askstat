@@ -15,7 +15,7 @@ is the microdata behind them. Open, no key.
   data_url_pattern: "https://www.cdc.gov/brfss/annual_data/{YEAR}/files/LLCP{YEAR}XPT.zip"
   weight_vars: [_LLCPWT]
   design_vars: [_PSU, _STSTR]
-  use: "state-level chronic-disease prevalence microdata"
+  use: "the only US source giving reliable state-level (and via SMART, some county/MSA) chronic-disease prevalence — cdc source's PLACES/BRFSS tables give the aggregate shortcut; this is the microdata behind them"
   gotcha: "states add optional modules — variable availability varies by state x year; weighting changed to raking + cell phones added in 2011, don't cross that break naively"
 ```
 

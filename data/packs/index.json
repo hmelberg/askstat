@@ -202,7 +202,172 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-hmd",
+      "name": "Human Mortality Database",
+      "description": "Free-registration database of aggregate period/cohort life tables, death counts and exposure for ~41 countries.",
+      "summary": "Aggregate period/cohort life tables, death counts, exposure and births (not individual records) for ~41 countries, with Sweden's series back to 1751 and most others from the early 1900s. Free registration; login moved in ~2022 to mortality.org/Account/Auth, so use HMDHFDplus >= 2.x.",
+      "file": "community/src-hmd.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-stmf",
+      "name": "Short-Term Mortality Fluctuations",
+      "description": "Open weekly all-cause mortality series by country, sex and broad age group from the Human Mortality Database.",
+      "summary": "Weekly all-cause deaths by country/sex/broad age group, open with no login (unlike core HMD) — the fast route for excess-mortality and mortality-shock monitoring. Weekly figures are provisional and revised, and age groups are coarse.",
+      "file": "community/src-stmf.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-un-wpp",
+      "name": "UN World Population Prospects",
+      "description": "UN's aggregate population estimates and projections API and bulk files.",
+      "summary": "Aggregate population estimates 1950-2023 plus projections to 2100, open access via API (population.un.org) or bulk files. CSV responses begin with a 'sep=|' header line to skip; prefer the bulk files or wpp2024 package for a vintage-consistent full indicator set.",
+      "file": "community/src-un-wpp.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ipums-international",
+      "name": "IPUMS International",
+      "description": "Harmonised individual/household census microdata for 90+ countries via the IPUMS extract API.",
+      "summary": "True microdata — harmonised individual/household census records for 90+ countries, covering census rounds from the 1800s to 2020 (most from the 1960s). Registration required, some extracts need extra approval; not every country releases individual-level microdata. Uses the same stateless extract API as the rest of IPUMS.",
+      "file": "community/src-ipums-international.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-insee-fichiers-detail",
+      "name": "France — INSEE census fichiers détail",
+      "description": "INSEE's openly downloadable individual and household census extracts for France.",
+      "summary": "True microdata — individual and household extracts from France's rolling annual census, aggregated to region/department/canton/city geography. Open, freely downloadable from insee.fr. Weight with IPONDI; counts below ~200 are flagged imprecise and zones under 2,000 inhabitants are excluded from complementary tables.",
+      "file": "community/src-insee-fichiers-detail.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-us-decennial-post-dp",
+      "name": "US decennial census — post-DP microdata",
+      "description": "Census's differentially private Privacy-Protected Microdata File, successor to decennial PUMS.",
+      "summary": "Individual-level, differentially private, block-level-geography microdata file (PPMF, released 5 Aug 2024) — Census's stated successor now that the ACS has replaced traditional decennial PUMS. Access tier is UNVERIFIED, likely restricted/approved-researcher; small-area counts show documented accuracy degradation vs pre-2020 products.",
+      "file": "community/src-us-decennial-post-dp.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-mignex",
+      "name": "MIGNEX",
+      "description": "Household survey on migration drivers and aspirations, with an open Zenodo variant.",
+      "summary": "True microdata — household survey on migration drivers and aspirations. An open-access variant is available on Zenodo, though it masks/aggregates some variables (e.g. precise geolocation) relative to the full dataset.",
+      "file": "community/src-mignex.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-hfcs",
+      "name": "ECB Household Finance and Consumption Survey",
+      "description": "ECB's euro-area household wealth, debt, income and consumption microdata.",
+      "summary": "True microdata on household wealth, debt, income and consumption across the euro area, waves in 2010/2014/2017/2021. Access requires application (government photo ID, English CV, request form). Each country-wave ships 5 multiply-imputed implicates — variance needs Rubin's rules, and several countries oversample wealthy households.",
+      "file": "community/src-hfcs.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ahs",
+      "name": "American Housing Survey",
+      "description": "Open US housing-unit and household-level survey on quality, costs, tenure and neighbourhood.",
+      "summary": "True microdata at the housing-unit and household level — housing quality, costs, tenure, mortgages, neighbourhood and climate-risk modules. Open, no registration. Rotating panel with longitudinal housing-unit identifiers — merging across waves needs care with unit-ID continuity.",
+      "file": "community/src-ahs.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-recs",
+      "name": "Residential Energy Consumption Survey",
+      "description": "EIA's open household energy-use and building-characteristics microdata.",
+      "summary": "True microdata on household energy use, appliances and building characteristics. Latest wave (2020, v7) covers ~18,500 households representing 123.5M primary residences, open access. Uses 96 replicate weights (Fay's BRR); sibling survey CBECS covers commercial buildings (latest full wave 2018).",
+      "file": "community/src-recs.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ce-pumd",
+      "name": "Consumer Expenditure Survey PUMD",
+      "description": "BLS's open household expenditure microdata.",
+      "summary": "BLS household expenditure microdata, open access, covering 1980-2024 (no PUMD for 1982-83); state identifiers for CA/FL/NY/TX from 2016.",
+      "file": "community/src-ce-pumd.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-land-registry-ppd",
+      "name": "HM Land Registry Price Paid Data",
+      "description": "Open individual property transaction records for England and Wales.",
+      "summary": "True microdata — individual property transaction records for England & Wales, 1995-present, open under the Open Government Licence v3.0. Excludes some non-market transfers; Scotland and Northern Ireland publish their price-paid data separately.",
+      "file": "community/src-land-registry-ppd.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-hetus",
+      "name": "Harmonised European Time Use Surveys",
+      "description": "Household and individual 10-minute time-diary microdata across Europe.",
+      "summary": "True microdata — household, individual, 10-minute diary records. Round 2 covers reference year 2010 across 17 countries including Norway; Round 3 (HETUS 2020) microdata not expected before 2027. Access requires application (Scientific Use Files); aggregate tables are open in the Eurostat Data Browser.",
+      "file": "community/src-hetus.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-nhgis",
+      "name": "National Historical Geographic Information System",
+      "description": "IPUMS's aggregate US summary tables and GIS boundaries, 1790-present.",
+      "summary": "Aggregate summary tables plus GIS boundaries for the US, 1790-present, via IPUMS (registration required). Boundaries are redrawn each census — match the boundary vintage to your tabulation year.",
+      "file": "community/src-nhgis.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-iom-dtm",
+      "name": "IOM Displacement Tracking Matrix",
+      "description": "IOM's site-level displacement data via API and HDX.",
+      "summary": "Open via API and HDX — mostly site-level aggregate data on displacement, though some Baseline/Household components approach microdata. Coverage is crisis-driven, not a standing global panel.",
+      "file": "community/src-iom-dtm.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "crime-transport-energy-politics",

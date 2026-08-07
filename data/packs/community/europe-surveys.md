@@ -67,10 +67,11 @@ landscape — most need free registration, several are application-gated:
 - **Gateway to Global Aging Data (g2aging)** — harmonisation/metadata hub,
   NOT a primary data host: it does not generally redistribute raw source
   data, so register separately with each underlying study (HRS, ELSA,
-  SHARE, TILDA, NICOLA + the non-European sister studies — see the
-  global-surveys pack). Its value: the same construct (e.g. "difficulty
-  with ADLs") gets the same variable name/coding across every harmonised
-  study, turning a cross-country analysis into a stacking exercise.
+  SHARE, TILDA, NICOLA + the non-European sister studies — CHARLS, LASI,
+  MHAS, KLoSA, JSTAR, HAALSI — see the global-surveys pack). Its value:
+  the same construct (e.g. "difficulty with ADLs") gets the same variable
+  name/coding across every harmonised study, turning a cross-country
+  analysis into a stacking exercise.
 - **ELSA** (English Longitudinal Study of Ageing) — 50+, panel,
   health/work/retirement, the European HRS sister study. UK Data Service,
   series 200011 (EUL/Special Licence/Secure Access tiers) — non-UK

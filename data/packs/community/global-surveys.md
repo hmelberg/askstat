@@ -52,51 +52,51 @@ attitudes.
   answer.
 - Cite the survey program, country and survey year in answers.
 
-## More global development and comparative survey microdata
+## Other sources (no separate pack)
 
 Beyond DHS/wbmicro and the barometers above, a few more sources round out
 this domain — mostly free after registration, one (HAALSI) fully open, and
 one (GBD) a trap worth naming explicitly:
 
-```yaml
-- id: mics
-  name: UNICEF Multiple Indicator Cluster Surveys
-  description: "the complement to DHS — same style of household survey, often covering countries/years DHS does not; strong on child protection, ECD, WASH, education"
-  access: "free-registration, manually mediated by UNICEF and can be slow"
-  harmonized_alternative: "IPUMS MICS (mics.ipums.org) — faster once approved, needs BOTH a UNICEF approval and an IPUMS account"
-  formats: [spss]
-- id: who_sage
-  name: WHO Study on Global AGEing and adult health
-  countries: [China, Ghana, India, Mexico, Russia, South Africa]
-  waves: "Wave 0 (2002-04) through Wave 3 (2018/19)"
-  access: "free microdata request form (sagesurvey@who.int)"
-  note: "some country-years also mirrored in the World Bank Microdata Library"
-- id: who_steps
-  name: WHO STEPwise approach to NCD risk factor surveillance
-  kind: "genuine individual-level microdata (NOT the aggregate WHO GHO)"
-  content: "3-step protocol — behavioural questionnaire, physical measurement, biochemical measurement (BP, anthropometry, glucose, lipids, tobacco, alcohol)"
-  access: "mixed by country-year — open / registration / on request from the national ministry"
-  note: "same NADA catalog software as wbmicro — real individual-level NCD risk-factor data for many countries with no other national health-exam survey"
-- id: haalsi
-  name: Health and Aging in Africa (Agincourt, South Africa)
-  content: "baseline N=5,059 aged 40+, waves 2014-15/2018-19/2021-22"
-  access: "OPEN public-use via ICPSR 36633 — free account, NO institutional affiliation needed"
-  note: "the most openly accessible study in the whole HRS/ageing-panel family — good for testing harmonized-analysis code before applying elsewhere"
-- id: g2aging_lmic
-  name: "Gateway to Global Aging Data — LMIC sister studies"
-  covers: "CHARLS (China), LASI (India), MHAS (Mexico), KLoSA (Korea), JSTAR (Japan), HAALSI (South Africa)"
-  note: "see the europe-surveys pack for the harmonisation-hub description and the European sister studies (ELSA, SHARE, TILDA)"
-- id: wvs
-  name: World Values Survey
-  coverage: "~100 countries, 7 waves since 1981"
-  access: "free registration, direct download (SPSS/Stata/CSV) — no API"
-- id: ghdx_gbd
-  name: "IHME GHDx / Global Burden of Disease"
-  kind: "discovery index (GHDx) and MODELED ESTIMATES (GBD) — NOT microdata"
-  ⚠: "GBD outputs are modelled burden estimates by location-age-sex-year. Cite them for burden comparisons; never present them as observations. For records, use the GBD Data Input Sources Tool to find the cited source survey (usually DHS/MICS/a census/vital registration), then go there."
-- id: global_health
-  name: Global.health
-  content: "open COVID-era line-list microdata — per-case age/gender/symptoms/diagnostics/outcome"
-  access: "open browse; account for the bulk curator portal"
-  status: "UNVERIFIED whether curation is still active in 2026 — treat as a historical archive unless confirmed"
-```
+- **MICS** (UNICEF Multiple Indicator Cluster Surveys) — free-registration,
+  manually mediated by UNICEF and can be slow; SPSS files. The complement
+  to DHS — same style of household survey, often covering countries/years
+  DHS does not; strong on child protection, ECD, WASH, education. IPUMS
+  MICS (mics.ipums.org) is a faster harmonized alternative once approved,
+  but needs BOTH a UNICEF approval and an IPUMS account.
+- **WHO SAGE** (Study on Global AGEing and adult health) — free microdata
+  request form (sagesurvey@who.int); covers China, Ghana, India, Mexico,
+  Russia, South Africa across Wave 0 (2002-04) through Wave 3 (2018/19).
+  Distinct from the `who` registry source's aggregate GHO indicators — this
+  is individual-level ageing/health microdata; some country-years are also
+  mirrored in the World Bank Microdata Library.
+- **WHO STEPS** (STEPwise approach to NCD risk factor surveillance) —
+  access mixed by country-year: open, registration, or on request from the
+  national ministry. Genuine individual-level microdata (NOT the aggregate
+  WHO GHO covered by the `who` registry source) from a 3-step protocol —
+  behavioural questionnaire, physical measurement, biochemical measurement
+  (BP, anthropometry, glucose, lipids, tobacco, alcohol). Same NADA catalog
+  software as wbmicro — real individual-level NCD risk-factor data for many
+  countries with no other national health-exam survey.
+- **HAALSI** (Health and Aging in Africa, Agincourt, South Africa) — OPEN
+  public-use via ICPSR 36633, free account, NO institutional affiliation
+  needed. Baseline N=5,059 aged 40+, waves 2014-15/2018-19/2021-22; the
+  most openly accessible study in the whole HRS/ageing-panel family — good
+  for testing harmonized-analysis code before applying elsewhere.
+- **Gateway to Global Aging Data — LMIC sister studies** (g2aging_lmic) —
+  covers CHARLS (China), LASI (India), MHAS (Mexico), KLoSA (Korea), JSTAR
+  (Japan), HAALSI (South Africa); see the europe-surveys pack for the
+  harmonisation-hub description and the European sister studies (ELSA,
+  SHARE, TILDA).
+- **World Values Survey (WVS)** — free registration, direct download
+  (SPSS/Stata/CSV), no API; ~100 countries across 7 waves since 1981.
+- **IHME GHDx / Global Burden of Disease (GBD)** — GHDx is a discovery
+  index; GBD outputs are MODELLED ESTIMATES, not microdata. GBD outputs
+  are modelled burden estimates by location-age-sex-year — cite them for
+  burden comparisons, never present them as observations; for records, use
+  the GBD Data Input Sources Tool to find the cited source survey (usually
+  DHS/MICS/a census/vital registration), then go there.
+- **Global.health** — open browse, account required for the bulk curator
+  portal; open COVID-era line-list microdata with per-case
+  age/gender/symptoms/diagnostics/outcome. UNVERIFIED whether curation is
+  still active in 2026 — treat as a historical archive unless confirmed.

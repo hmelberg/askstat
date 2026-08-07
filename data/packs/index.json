@@ -246,7 +246,29 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-cros-cimes",
+      "name": "CROS / CIMES country pages",
+      "description": "European Commission index of national microdata-access rules, one page per EU/EEA country.",
+      "summary": "A European Commission web page per EU/EEA country listing that country's current microdata-access portal, tier names and application process. Open, no application to browse the index itself — the underlying national sources each keep their own tiers. Use it as the starting point for any EU/EEA country not covered in detail elsewhere; it is a navigational directory, not a data source itself.",
+      "file": "community/src-cros-cimes.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-adr-uk",
+      "name": "Administrative Data Research UK (ADR UK)",
+      "description": "UK initiative linking administrative and survey data for research access, split across four national governance regimes.",
+      "summary": "A UK-wide research-data-linkage initiative branded as one programme, but access actually routes through four separate regimes depending on which nation's data is needed: ONS SRS (ONS-held data under sharing agreements), NISRA (Northern Ireland government + health data), eDRIS (Scotland), and the SAIL Databank (Wales, billions of anonymised person-records). No single unified application exists — identify the relevant nation's gate first.",
+      "file": "community/src-adr-uk.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "labour-firms",

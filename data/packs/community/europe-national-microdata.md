@@ -25,128 +25,159 @@ Netherlands, Finland, Poland, Czechia, Portugal, Austria all require it);
 **Spain and Italy are the exceptions** — both publish substantial
 anonymised microdata as direct downloads, no application at all.
 
-## Germany
+## Individual source packs
 
-```yaml
-- id: fdz_destatis
-  name: FDZ der Statistischen Ämter des Bundes und der Länder
-  content: "90+ official statistics — Mikrozensus, census, structural business stats, VAT, earnings, DRG hospital stats"
-  tiers: [Public Use File, Campus File, Scientific Use File, Remote Scientific Use File, On-Site Use]
-  directly_downloadable: "YES — PUFs and Campus Files after simple registration"
-  who_may_apply: "the request form asks for the applying scientific institution's name/address; a Germany-location requirement for SUF/remote access is commonly reported but NOT stated on the current request page — UNVERIFIED, ask FDZ staff"
-- id: fdz_iab
-  name: FDZ-BA/IAB — Research Data Centre of the Federal Employment Agency
-  products: [IEB, SIAB, LIAB, BHP]
-  tiers: [Scientific Use File, "On-Site (Nuremberg + guest workplaces in the US/Canada/UK)", Remote Data Access, "Remote Execution via JoSuA"]
-  international_note: "JoSuA remote execution is usable from abroad without extra anonymisation — the best route for non-resident researchers"
-  detail: "see the labour-firms pack for the SIAB/LIAB/BHP content itself"
-- id: fdz_rv
-  name: FDZ der Rentenversicherung
-  content: "insured-person pension records (Versicherungskonto), pension access/stock, rehabilitation"
-  tiers: [Scientific Use File, on-site, off-site on own device]
-- id: gesis_gml
-  name: GESIS German Microdata Lab (MISSY)
-  role: "documentation and distribution layer, NOT the data custodian — German Mikrozensus incl. 1970 census + GDR microdata, plus EU-SILC/EU-LFS/AES/HBS/EHIS documentation"
-  note: "MISSY is the best microdata metadata portal in Europe — use it even when you obtain the data elsewhere"
-```
+Each source below has its own pack — fetch full details (access, URLs,
+weights, gotchas) with the get_pack tool using the id in parentheses.
+
+- **CROS / CIMES country pages** (id: src-cros-cimes) — European Commission
+  index of national microdata-access rules, one page per EU/EEA country;
+  open, navigational, not a data source itself.
+- **Administrative Data Research UK** (id: src-adr-uk) — UK research-data
+  linkage initiative split across four separate national governance
+  regimes (ONS SRS, NISRA, eDRIS, SAIL Databank).
+
+## Other sources (no separate pack)
+
+### Germany
 
 Germany is a network, not one door: social/economic official statistics →
 Destatis FDZ; labour-market administrative → IAB; pensions → FDZ-RV; use
 GESIS/MISSY as the documentation layer regardless of source.
 
-## France
+- FDZ der Statistischen Ämter des Bundes und der Länder — free registration
+  for Public Use Files/Campus Files (direct download); Scientific Use
+  File/Remote Scientific Use File/On-Site tiers need an applying scientific
+  institution. Covers 90+ official statistics: Mikrozensus, census,
+  structural business stats, VAT, earnings, DRG hospital stats.
+- FDZ-BA/IAB (Research Data Centre of the Federal Employment Agency) —
+  Scientific Use File, On-Site (Nuremberg + guest workplaces in the
+  US/Canada/UK), Remote Data Access, or Remote Execution via JoSuA (usable
+  from abroad without extra anonymisation — the best route for
+  non-resident researchers). Covers IEB/SIAB/LIAB/BHP; see the
+  labour-firms pack for the SIAB/LIAB/BHP content itself.
+- FDZ der Rentenversicherung — Scientific Use File, on-site, or off-site on
+  own device, for insured-person pension records (Versicherungskonto,
+  pension access/stock, rehabilitation).
+- GESIS German Microdata Lab (MISSY) — a documentation and distribution
+  layer, not the data custodian: German Mikrozensus (incl. 1970 census +
+  GDR microdata) plus EU-SILC/EU-LFS/AES/HBS/EHIS documentation. The best
+  microdata metadata portal in Europe — worth using even when the data
+  itself comes from elsewhere.
 
-```yaml
-- id: casd
-  name: CASD — Centre d'accès sécurisé aux données
-  content: "~580 sources: INSEE, DGFiP tax data, Justice, Education, Agriculture, hospital-stay (PMSI/ATIH), some private data"
-  access_technology: "SD-Box — proprietary secure terminal with biometric authentication, installed at your hosting institution; ONE in-person biometric enrolment trip to France required"
-  who_may_apply: "French and EU/associated-country researchers; North American researchers via an ICPSR partnership"
-  cross_border: "IDAN network links 6 secure centres across FR/DE/NL/UK"
-  directly_downloadable: false
-- id: adisp_progedo
-  name: ADISP / Quetelet-Progedo Diffusion
-  content: "public statistical survey data plus FPR (Fichiers de Production et de Recherche) — an intermediate tier between public files and CASD-level confidential data"
-  who_may_apply: "explicitly open to French AND foreign researchers, doctoral students, post-docs"
-  steps: "institutional-email account → project description → signed forms; FPR needs Comité du Secret Statistique authorisation"
-  directly_downloadable: "some standard/aggregated files after account creation; FPR requires CSS approval"
-- id: insee_census
-  note: "the rolling-census 'fichiers détail' ARE openly downloadable, no application — see the demography-migration-housing pack"
-```
+### France
 
-## Netherlands
+- CASD — Centre d'accès sécurisé aux données — ~580 sources (INSEE, DGFiP
+  tax data, Justice, Education, Agriculture, hospital-stay PMSI/ATIH, some
+  private data); access via a proprietary SD-Box secure terminal requiring
+  one in-person biometric enrolment trip to France. Open to French and
+  EU/associated-country researchers, North American researchers via an
+  ICPSR partnership; not directly downloadable.
+- ADISP / Quetelet-Progedo Diffusion — public statistical survey data plus
+  FPR (Fichiers de Production et de Recherche), an intermediate tier
+  between public files and CASD-level confidential data; explicitly open
+  to French AND foreign researchers, doctoral students, post-docs, via
+  institutional-email account → project description → signed forms (FPR
+  needs Comité du Secret Statistique authorisation). Some standard/
+  aggregated files are directly downloadable after account creation.
+- INSEE rolling-census "fichiers détail" — openly downloadable, no
+  application — see the demography-migration-housing pack.
 
-```yaml
-id: cbs_microdata
-name: CBS Microdata Services
-content: "population, income, health, education, business registers, tax, labour — linkable via CBS internal keys"
-access: "remote access into a CBS-controlled environment; no raw data leaves"
-two_stage: ["institutional authorisation by the CBS Director-General, valid up to 3 years", "project-level application via the CBS microdata portal"]
-who_may_apply: "only through an authorised institution — individuals cannot apply alone; foreign institutions CAN be authorised"
-shortcut: "ODISSEI member institutions get a streamlined route (odissei-data.nl/facility/microdata-access) — materially faster than applying to CBS cold"
-```
+### Netherlands
 
-## United Kingdom
+- CBS Microdata Services — remote access into a CBS-controlled
+  environment, no raw data leaves; covers population, income, health,
+  education, business registers, tax and labour, linkable via CBS internal
+  keys. Two-stage access (institutional authorisation by the CBS
+  Director-General, valid up to 3 years, then a project-level
+  application) — only through an authorised institution, individuals
+  cannot apply alone, though foreign institutions can be authorised;
+  ODISSEI member institutions get a materially faster route.
 
-```yaml
-- id: ons_srs
-  name: ONS Secure Research Service
-  ⚠_status: "VOLATILE — the SRS→IDS migration has been troubled; SRS remains the route external researchers are directed to. RE-CHECK before relying on this."
-  access: "Accredited Researcher status (Digital Economy Act 2017) + Safe Researcher Training + panel approval; remote secure environment, no download"
-  who_may_apply: "primarily UK-based; international applicants generally need an accredited UK partner"
-- id: uk_data_service
-  tiers: {open: "no registration, direct download, OGL/CC-BY", safeguarded_eul: "free registration + End User Licence", special_licence: "extra forms for detailed geography", controlled_securelab: "Accredited Researcher status, remote SecureLab, no download"}
-  note: "non-UK researchers CAN register; overseas access to safeguarded data is EEA-restricted for some studies"
-- id: adr_uk
-  name: Administrative Data Research UK
-  tres: {ONS_SRS: "all ONS-held data with sharing agreements", NISRA: "N. Ireland gov+health", eDRIS: "Scotland", SAIL_Databank: "Wales, billions of anonymised person-records"}
-  gotcha: "four separate governance regimes under one brand — no single unified application"
-```
+### United Kingdom
 
-## Italy and Spain — the open ones (start here for speed)
+- ONS Secure Research Service — Accredited Researcher status (Digital
+  Economy Act 2017) + Safe Researcher Training + panel approval, remote
+  secure environment, no download; primarily UK-based, international
+  applicants generally need an accredited UK partner. The SRS→IDS
+  migration has been troubled — re-check status before relying on it.
+- UK Data Service — four tiers: open (no registration, direct download,
+  OGL/CC-BY), safeguarded/EUL (free registration + End User Licence),
+  special licence (extra forms for detailed geography), and
+  controlled/SecureLab (Accredited Researcher status, remote SecureLab, no
+  download). Non-UK researchers can register; overseas access to
+  safeguarded data is EEA-restricted for some studies.
 
-```yaml
-- id: istat
-  name: ISTAT microdata programme
-  tiers: [Public Use Files, Standard Files, Scientific Use Files (MFR), "Secure Use Files via Laboratorio ADELE"]
-  directly_downloadable: "YES — Public Use Files and Standard Files, free, for study/research"
-  adele_lab: "for SUF-tier access — applicant institution recognised by Comstat/Eurostat, PI must be a professor, research scientist, grantee, institute director or scientific-society member"
-- id: ine_spain
-  name: INE — Instituto Nacional de Estadística
-  directly_downloadable: "YES — this is INE's distinguishing feature. Anonymised microdata for many major surveys, incl. the Encuesta de Población Activa (EPA), downloads directly."
-  restricted_tier: "~25+ operations with detailed occupation/wage-decile/cause-of-death/nationality detail require application"
-  es_datalab: "newer joint secure-access infrastructure across 9 institutions (incl. INE, tax agency, Banco de España) for cross-linking confidential microdata"
-```
+### Italy and Spain — the open ones (start here for speed)
 
-## Austria, Switzerland, Ireland
+- ISTAT microdata programme — Public Use Files and Standard Files are
+  directly downloadable, free, for study/research; Scientific Use Files
+  (MFR) need Laboratorio ADELE access, restricted to Comstat/Eurostat-
+  recognised institutions with a qualifying PI (professor, research
+  scientist, grantee, institute director, or scientific-society member).
+- INE — Instituto Nacional de Estadística — many major surveys (incl. the
+  Encuesta de Población Activa/EPA) have anonymised microdata as direct
+  downloads, no application; this is INE's distinguishing feature.
+  ~25+ operations with detailed occupation/wage-decile/cause-of-death/
+  nationality detail require application; ES DataLab is a newer joint
+  secure-access infrastructure across 9 institutions (incl. INE, the tax
+  agency, Banco de España) for cross-linking confidential microdata.
 
-```yaml
-- id: amdc
-  name: Austrian Micro Data Center (AMDC)
-  access: "remote access only via virtual desktop — no on-site option, no download"
-  two_stage: ["institutional accreditation (5-year validity)", "project-specific access request"]
-  turnaround: "~1 month project review + ~1 month formal offer"
-- id: bfs_switzerland
-  name: Swiss Federal Statistical Office (BFS/FSO)
-  tiers: [Public Use File, Scientific Use File, Secure Use File]
-  who_may_apply: "students, PhD students, researchers AND foreign researchers eligible for ALL THREE tiers"
-  turnaround: "1 week (well-documented request) to 3 months (if the request needs clarification)"
-  directly_downloadable: "YES — PUFs"
-- id: cso_ireland
-  name: CSO Researcher Microdata Files (RMF)
-  content: "50+ datasets — LFS, Structure of Earnings, Household Budget, SILC, HFCS, Growing Up in Ireland, Sexual Violence Survey"
-  parallel_route: "ISSDA (UCD) is the long-standing academic distribution channel for many of the same files — check both"
-```
+### Austria, Switzerland, Ireland
 
-## Belgium, Portugal, Poland, Czechia, Greece (condensed)
+- Austrian Micro Data Center (AMDC) — remote access only via virtual
+  desktop, no on-site option, no download; two-stage (institutional
+  accreditation, 5-year validity, then a project-specific access request);
+  ~1 month project review + ~1 month formal offer.
+- Swiss Federal Statistical Office (BFS/FSO) — Public Use Files are
+  directly downloadable; Scientific Use File and Secure Use File tiers are
+  open to students, PhD students, researchers AND foreign researchers for
+  all three tiers; turnaround 1 week (well-documented request) to 3
+  months (if clarification is needed).
+- CSO Researcher Microdata Files (RMF) — 50+ datasets: LFS, Structure of
+  Earnings, Household Budget, SILC, HFCS, Growing Up in Ireland, Sexual
+  Violence Survey. ISSDA (UCD) is a parallel, long-standing academic
+  distribution channel for many of the same files — check both.
 
-```yaml
-- {country: Belgium, agency: Statbel, who_may_apply: "public administrations, universities, study departments, international orgs — individuals effectively cannot; PhD students need an institutional guarantor", process: "consult Statbel statisticians → formal application → approval in 2-3 weeks"}
-- {country: Portugal, agency: INE, tiers: "Public Use Files (free download), Scientific Use Files (accredited researchers), Secure Use Files (4 physical safe centres)", turnaround: "~1 week excluding safe-centre use", cost: free}
-- {country: Poland, agency: GUS, tiers: "Scientific Use Files via TransGUS; Secure Use Files on-site", turnaround: "~1 month, can extend"}
-- {country: Czechia, agency: CZSO, tiers: "Scientific Use Files ONLY — on-site SafeCentre or secure-repository remote download", who_may_apply: "PhD students, researchers, foreign researchers; undergraduate theses NOT eligible unless part of funded research"}
-- {country: Greece, agency: ELSTAT, tiers: "Public Use Files, Scientific Use Files, custom anonymised requests", process: "online form → select theme → accept use declarations"}
-```
+### Belgium, Portugal, Poland, Czechia, Greece (condensed)
+
+- Belgium (Statbel) — public administrations, universities, study
+  departments and international orgs may apply (individuals effectively
+  cannot; PhD students need an institutional guarantor); consult Statbel
+  statisticians, then formal application, approval in 2-3 weeks.
+- Portugal (INE) — Public Use Files free download, Scientific Use Files
+  for accredited researchers, Secure Use Files at 4 physical safe centres;
+  turnaround ~1 week excluding safe-centre use, free.
+- Poland (GUS) — Scientific Use Files via TransGUS, Secure Use Files
+  on-site; turnaround ~1 month, can extend.
+- Czechia (CZSO) — Scientific Use Files only, on-site SafeCentre or
+  secure-repository remote download; PhD students, researchers and
+  foreign researchers eligible, undergraduate theses not eligible unless
+  part of funded research.
+- Greece (ELSTAT) — Public Use Files, Scientific Use Files, custom
+  anonymised requests; online form → select theme → accept use
+  declarations.
+
+### EU-level infrastructure
+
+- Eurostat Safe Centres — Scientific Use File (partially anonymised, via
+  S-CIRCABC), Secure Use on-site (non-anonymised, Eurostat Safe Centre
+  Luxembourg only), or Secure Use remote (non-anonymised, accredited
+  remote-access points limited to EU/EEA/Switzerland/EC-adequacy
+  countries); entity recognition ~4 weeks, request via the Microdata
+  Access Portal ~8 weeks incl. national consultation, total realistically
+  3-6 months.
+- CESSDA — registry source, see the cessda source guide; federates
+  national social-science archives (incl. UKDS/GESIS/Sikt/DANS) into a
+  discovery layer — access still routes through the national archive.
+- IZA International Data Service Center — secure remote analysis tooling
+  for sensitive labour-market datasets; often a redistribution/tooling
+  layer — check the underlying custodian's rules too (e.g. IAB).
+- European Health Data Space — Regulation (EU) 2025/327 — in force since
+  ~March 2025, but SECONDARY-USE provisions NOT yet operative (most EHR
+  categories March 2029, genomic data March 2031). Do NOT present EHDS as
+  a current access route — national precursors (Findata, Health Data Hub
+  France, Helsedataservice Norway) are the real channels today.
 
 ## Nordic countries
 
@@ -156,30 +187,6 @@ required), Norway (microdata.no self-service remote execution **and** SSB
 data lending — two parallel routes), Sweden (MONA, Windows remote desktop),
 Finland (FIONA + Findata, Finnish organisation required for foreign
 researchers).
-
-## EU-level infrastructure
-
-```yaml
-- id: eurostat_safe_centres
-  tiers: {scientific_use_file: "partially anonymised, sent via S-CIRCABC", secure_use_on_site: "non-anonymised, Eurostat Safe Centre Luxembourg only", secure_use_remote: "non-anonymised, via accredited remote-access points — limited to EU/EEA/Switzerland/EC-adequacy countries"}
-  entity_recognition: "~4 weeks (main activity must be research, publication record, independence)"
-  request: "via the Microdata Access Portal, ~8 weeks incl. national consultation"
-  total_realistic: ~3-6 months
-- id: cros_cimes
-  name: CROS / CIMES country pages
-  url_pattern: "https://cros.ec.europa.eu/cimes-<country>"
-  why_it_matters: "the single best index of any EU/EEA country's national microdata-access rules not detailed above"
-- id: cessda
-  built_in: "cessda (search_catalog source='cessda') federates national social-science archives (incl. UKDS/GESIS/Sikt/DANS) into a discovery layer — access still routes through the national archive"
-- id: iza_idsc
-  name: IZA International Data Service Center
-  role: "secure remote analysis tooling for sensitive labour-market datasets; often a redistribution/tooling layer — check the underlying custodian's rules too (e.g. IAB)"
-- id: ehds
-  name: European Health Data Space — Regulation (EU) 2025/327
-  status: "in force since ~March 2025, but SECONDARY-USE provisions NOT yet operative"
-  timeline: {most_EHR_categories: "March 2029", genomic_data: "March 2031"}
-  ⚠: "do NOT present EHDS as a current access route. National precursors (Findata, Health Data Hub France, Helsedataservice Norway) are the real channels today."
-```
 
 ## Practical decision tree
 

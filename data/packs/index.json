@@ -29,6 +29,83 @@
       "updated": "2026-08-06"
     },
     {
+      "id": "src-brfss",
+      "name": "BRFSS",
+      "description": "CDC's state-representative annual survey of adult chronic-disease risk factors and behaviors.",
+      "summary": "US state-representative adult health microdata (~400k/yr), open XPT downloads, no key. Best for state-level chronic-disease prevalence; weight with _LLCPWT; 2011 weighting break.",
+      "file": "community/src-brfss.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-nsduh",
+      "name": "NSDUH / SAMHDA",
+      "description": "SAMHSA's national survey of substance use, substance use disorders and mental health, ages 12+.",
+      "summary": "US person-level substance use and mental health microdata (age 12+), open public-use files (SPSS/SAS/Stata) with click-through access; restricted-use with finer geography needs application. Weight with ANALWT_C; no state identifier in public-use files; treat 2020-21 as a COVID-disrupted break.",
+      "file": "community/src-nsduh.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-nvss",
+      "name": "NVSS natality/mortality files",
+      "description": "CDC/NCHS record-level public-use birth and death files.",
+      "summary": "Record-level US birth (~3.6M/yr) and death (~3.3M/yr) public-use files, open (identified/geo-detailed versions need application); mirrored at NBER. Distinct from CDC WONDER, which only returns aggregated tabulated cells.",
+      "file": "community/src-nvss.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-cdc-wonder",
+      "name": "CDC WONDER",
+      "description": "CDC's aggregated-query API for mortality, natality and other public health statistics.",
+      "summary": "CDC's query API returning aggregated, suppressed (<10) tabulated cells — NOT microdata. POST-only with an XML request/response format, no OpenAPI spec; keep automated use to about one query per 2 minutes and confirm the current mortality database id before querying.",
+      "file": "community/src-cdc-wonder.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-hrs",
+      "name": "HRS",
+      "description": "NIA/SSA biennial panel study of US adults aged 50+ covering health, wealth and retirement.",
+      "summary": "US ageing panel (age 50+ and spouses, biennial since 1992) from NIA/SSA/University of Michigan; public files need free registration, restricted biomarker/genetic/geographic files need application. Start from the RAND HRS Longitudinal File, pre-cleaned and harmonized across 15+ waves.",
+      "file": "community/src-hrs.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-hcup",
+      "name": "HCUP",
+      "description": "AHRQ's all-payer US hospital administrative discharge data (NIS/NEDS/KID/SID).",
+      "summary": "The largest US all-payer hospital administrative data (NIS/NEDS/KID/SID) — diagnoses, procedures, charges/costs, length of stay; purchase only (account, training, signed DUA, fee). Weight with DISCWT (TRENDWT for series spanning the 2012 discharge-level redesign); HCUPnet gives a free aggregate alternative.",
+      "file": "community/src-hcup.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-mimic-iv",
+      "name": "MIMIC-IV",
+      "description": "MIT's de-identified critical-care electronic health record database.",
+      "summary": "Critical-care EHR microdata from the MIT Laboratory for Computational Physiology; full access needs PhysioNet credentialing (CITI training, signed DUA, human review), but a ~100-patient demo needs none. Dates are randomly shifted per patient — within-patient intervals are valid, absolute calendar time is not.",
+      "file": "community/src-mimic-iv.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
       "id": "europe-surveys",
       "name": "European survey microdata (ESS/SHARE/GESIS)",
       "description": "European individual-level surveys: ESS via its open API, plus honest guidance for SHARE, GESIS, WVS/EVS and UKDS.",

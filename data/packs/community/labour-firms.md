@@ -62,7 +62,7 @@ no free tier) — mention it exists, do not promise access.
 
 - Structural Business Statistics (SBS) — aggregate tables open; enterprise-level microdata via application or national safe centre.
 - IAB linked employer-employee data (Germany, SIAB/LIAB/BHP) — no open download; access is on-site at IAB Nuremberg, via Scientific Use Files to registered institutions, or via remote execution (JoSuA, usable from abroad, budget two iterations for disclosure-vetted output). SIAB wages are right-censored at the social-security ceiling and need imputation (Card-Heining-Kline/Dustmann) for wage-distribution work; the establishment side (LIAB) is a survey sample needing weights, and BHP establishment IDs (Betriebsnummer) can change on administrative reorganisation.
-- OECD MultiProd/DynEmp — a distributed-computation project, not a downloadable dataset: code travels to the data and results never pool, so get your country's firm register through its own restricted route and run the OECD's published code for comparable output.
+- OECD MultiProd/DynEmp — a distributed-computation project, not a downloadable dataset: the code travels to the data and the data never pools, so get your country's firm register through its own restricted route and run the OECD's published code for comparable output.
 
 ### Firm registers
 

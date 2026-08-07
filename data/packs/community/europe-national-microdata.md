@@ -48,8 +48,10 @@ GESIS/MISSY as the documentation layer regardless of source.
 - FDZ der Statistischen Ämter des Bundes und der Länder — free registration
   for Public Use Files/Campus Files (direct download); Scientific Use
   File/Remote Scientific Use File/On-Site tiers need an applying scientific
-  institution. Covers 90+ official statistics: Mikrozensus, census,
-  structural business stats, VAT, earnings, DRG hospital stats.
+  institution; a Germany-location requirement is commonly reported but NOT
+  stated in the official terms — UNVERIFIED, ask FDZ staff. Covers 90+
+  official statistics: Mikrozensus, census, structural business stats, VAT,
+  earnings, DRG hospital stats.
 - FDZ-BA/IAB (Research Data Centre of the Federal Employment Agency) —
   Scientific Use File, On-Site (Nuremberg + guest workplaces in the
   US/Canada/UK), Remote Data Access, or Remote Execution via JoSuA (usable
@@ -70,9 +72,10 @@ GESIS/MISSY as the documentation layer regardless of source.
 - CASD — Centre d'accès sécurisé aux données — ~580 sources (INSEE, DGFiP
   tax data, Justice, Education, Agriculture, hospital-stay PMSI/ATIH, some
   private data); access via a proprietary SD-Box secure terminal requiring
-  one in-person biometric enrolment trip to France. Open to French and
-  EU/associated-country researchers, North American researchers via an
-  ICPSR partnership; not directly downloadable.
+  one in-person biometric enrolment trip to France; the IDAN network links
+  6 secure centres across FR/DE/NL/UK. Open to French and EU/associated-
+  country researchers, North American researchers via an ICPSR
+  partnership; not directly downloadable.
 - ADISP / Quetelet-Progedo Diffusion — public statistical survey data plus
   FPR (Fichiers de Production et de Recherche), an intermediate tier
   between public files and CASD-level confidential data; explicitly open
@@ -92,7 +95,8 @@ GESIS/MISSY as the documentation layer regardless of source.
   Director-General, valid up to 3 years, then a project-level
   application) — only through an authorised institution, individuals
   cannot apply alone, though foreign institutions can be authorised;
-  ODISSEI member institutions get a materially faster route.
+  ODISSEI member institutions get a streamlined, materially faster route
+  (odissei-data.nl/facility/microdata-access).
 
 ### United Kingdom
 

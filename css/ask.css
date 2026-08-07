@@ -155,6 +155,15 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   margin-bottom: 6px; color: inherit; cursor: pointer; font: inherit; }
 .ask-explore-row:hover { background: var(--bg-code); }
 .ask-explore-row div { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+/* Pakkesplitting (spec 2026-08-07 §3): gruppeoverskrift oversikter/enkeltkilder. */
+.ask-explore-group {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  padding: 10px 4px 4px;
+}
 /* Markdown-preview i profil-/pakkemodalene */
 .ask-md-preview { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
   margin-top: 6px; font-size: 13px; max-height: 240px; overflow-y: auto; }

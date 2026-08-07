@@ -321,7 +321,10 @@
       return curated().filter(function (p) { return p.community; })
         .map(function (p) {
           return { id: p.id, name: p.name, description: p.description || '',
-            author: p.author || '', updated: p.updated || '' };
+            author: p.author || '', updated: p.updated || '',
+            // Pakkesplitting §3: kind styrer Explore-grupperingen — poster
+            // uten eksplisitt kind (eldre data) faller tilbake til 'overview'.
+            kind: p.kind === 'source' ? 'source' : 'overview' };
         });
     }
 
@@ -705,19 +708,31 @@
       var expGen = 0;
       function renderExploreList() {
         expList.innerHTML = '';
-        filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '').forEach(function (e) {
-          var row = document.createElement('button');
-          row.type = 'button';
-          row.className = 'ask-explore-row';
-          var nm = document.createElement('strong');
-          nm.textContent = e.name;
-          var desc = document.createElement('div');
-          desc.textContent = e.description;
-          row.appendChild(nm);
-          row.appendChild(desc);
-          row.addEventListener('click', function () { expSelectEntry(e); });
-          expList.appendChild(row);
-        });
+        var entries = filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '');
+        // Pakkesplitting (spec 2026-08-07 §3): to grupper — oversikter
+        // først, enkeltkilder under. Tomme grupper får ingen overskrift.
+        [['overview', T('Topic overviews')], ['source', T('Individual sources')]]
+          .forEach(function (grp) {
+            var rows = entries.filter(function (e) { return e.kind === grp[0]; });
+            if (!rows.length) return;
+            var head = document.createElement('div');
+            head.className = 'ask-explore-group';
+            head.textContent = grp[1];
+            expList.appendChild(head);
+            rows.forEach(function (e) {
+              var row = document.createElement('button');
+              row.type = 'button';
+              row.className = 'ask-explore-row';
+              var nm = document.createElement('strong');
+              nm.textContent = e.name;
+              var desc = document.createElement('div');
+              desc.textContent = e.description;
+              row.appendChild(nm);
+              row.appendChild(desc);
+              row.addEventListener('click', function () { expSelectEntry(e); });
+              expList.appendChild(row);
+            });
+          });
       }
       function showExploreStep(detail) {
         if (expSearch) expSearch.hidden = detail;

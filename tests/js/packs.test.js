@@ -272,6 +272,28 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
   assert.deepEqual(prof.get(newId.slice(5)).origin, { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' });
 });
 
+// Pakkesplitting (spec 2026-08-07 §3): Explore skal kunne gruppere på
+// kind — listCommunity må derfor sende feltet videre (default 'overview'
+// for community-poster som mangler det eksplisitt).
+test('listCommunity: kind følger med (default overview)', async () => {
+  const IDX4 = { v: 1, packs: INDEX.packs.concat([
+    { id: 'ov', name: 'Ov', description: 'oversikt', file: 'community/ov.md', community: true, kind: 'overview' },
+    { id: 'src-x', name: 'X', description: 'enkeltkilde', file: 'community/src-x.md', community: true, kind: 'source' },
+  ]) };
+  const files = Object.assign({}, FILES, {
+    'data/packs/index.json': IDX4,
+    'data/packs/community/ov.md': '# Ov',
+    'data/packs/community/src-x.md': '# X',
+  });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-06T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  const rows = P.listCommunity();
+  assert.equal(rows.find((r) => r.id === 'ov').kind, 'overview');
+  assert.equal(rows.find((r) => r.id === 'src-x').kind, 'source');
+});
+
 // Review-funn 2026-08-06 #4: hele importstien (resolve → importPack →
 // Profiles.create kind:'source') skal bevare tekst opp til L3_CAP (40000),
 // ikke klippe ved den gamle 8000-grensen. Ekte .md-filer ligger fortsatt

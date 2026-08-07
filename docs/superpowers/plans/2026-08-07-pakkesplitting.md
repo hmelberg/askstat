@@ -55,6 +55,10 @@ application / purchase / enclave).>
 settes til src-id-en (f.eks. `id: src-brfss`)>
 ```
 
+**RULING (Hans, review-porten 2026-08-07): YAML kopieres ALLTID byte-tro**
+(kun id-feltet endres) — felt skal ALDRI forkortes, selv om innholdet
+også gjengis i intro-prosaen. Prosaen kan gjerne oppsummere i tillegg.
+
 <Eventuell prosa fra temapakken som gjelder KUN denne kilden (traps,
 URL-mønstre, vektveiledning). Tverrgående prosa blir i oversikten.>
 ```
@@ -82,8 +86,13 @@ weights, gotchas) with the get_pack tool using the id in parentheses.
 
 ## Other sources (no separate pack)
 
-- <Navn> — tilgangsnivå; én nøkkelfakta. (Linjer for oppføringene som IKKE fikk src-pakke etter R1.)
+- <Navn> — tilgangsnivå; nøkkelfakta. (Linjer for oppføringene som IKKE fikk src-pakke etter R1.)
 ```
+
+**RULING (Hans, review-porten 2026-08-07): «Other sources»-linjer får være
+1–2 setninger.** Tilgangsnivå + viktigste forbehold SKAL alltid med;
+sekundærfakta (provider, bruksbegrensninger à la «safe for LLM ingestion»,
+enclave-detaljer) beholdes når de er beslutningsrelevante.
 
 ### R5 — index.json-post for src-pakke
 

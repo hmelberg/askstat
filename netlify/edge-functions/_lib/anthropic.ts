@@ -356,8 +356,8 @@ export interface AgenticOptions {
   // get_pack har EGEN budsjett-teller (state.getPackCalls), atskilt fra
   // run_code sin runCalls/maxRunCode (funn ved review 2026-08-06: delt
   // teller tømte run_code-budsjettet på 1-2 pakke-hentinger, uten at
-  // modellen fikk kjørt kode i det hele tatt). Default 3 — nok til et par
-  // kortform-pakker uten å kunne loope til maxTurns.
+  // modellen fikk kjørt kode i det hele tatt). Default 5 (pakkesplitting
+  // 2026-08-07: et spørsmål kan trenge 2–3 enkeltkilder pluss re-henting).
   maxGetPack?: number;
   deps?: RetryDeps;
 }
@@ -375,7 +375,9 @@ export interface AgenticResumeState {
   runCalls?: number;
   // getPackCalls: EGEN teller for get_pack (review-fiks 2026-08-06) — holdes
   // atskilt fra runCalls slik at pakke-henting aldri spiser av run_code sitt
-  // budsjett. Må rekonstrueres av svar.ts på lik linje med runCalls.
+  // budsjett. Må rekonstrueres av svar.ts på lik linje med runCalls. Default
+  // 5 (pakkesplitting 2026-08-07: et spørsmål kan trenge 2–3 enkeltkilder
+  // pluss re-henting).
   getPackCalls?: number;
   // name: hvilket klientverktøy vi venter på ('run_code'/'get_pack') —
   // avgjør hvilket resume-felt (runResult/getPackResult) som fletter inn
@@ -565,7 +567,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
       const turnsPerCall = opts.turnsPerCall ?? 1;
       const clientToolNames = new Set(opts.clientTools ?? []);
       const maxRunCode = opts.maxRunCode ?? 2;
-      const maxGetPack = opts.maxGetPack ?? 3;
+      const maxGetPack = opts.maxGetPack ?? 5;
       // A pause_turn segment's text is scratch work just like a tool_use
       // segment's — but turnHadText is scoped per for-iteration, so text
       // streamed before a pause_turn would otherwise be forgotten by the time

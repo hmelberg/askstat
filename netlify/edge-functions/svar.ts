@@ -177,8 +177,11 @@ export default async (request: Request): Promise<Response> => {
   const depth = coerceDepth(body.depth);
 
   // get_pack er kun aktuelt i data-ruten (packs-blokka rendres KUN der, se
-  // buildSvarSystem) og KUN når minst én valgt pakke ikke fikk full tekst.
-  const needsGetPack = route === "data" && coercePacks(body.packs).some((p) => p.level !== "full");
+  // buildSvarSystem). Pakkesplitting (spec 2026-08-07 §2): verktøyet følger
+  // nå ALLE valgte pakker — oversiktspakker refererer enkeltkildepakker med
+  // (id: src-…)-notasjon som modellen skal kunne hente uavhengig av
+  // nedgradering.
+  const needsGetPack = route === "data" && coercePacks(body.packs).length > 0;
   const withGetPackTool = (tools: unknown[]): unknown[] =>
     needsGetPack ? [...tools, GET_PACK_TOOL] : tools;
 

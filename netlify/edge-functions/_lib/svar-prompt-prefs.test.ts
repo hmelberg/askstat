@@ -84,15 +84,16 @@ Deno.test("renderPacksBlock (via buildSvarSystem): nivåmerker på manifest/summ
   assert(!restEtterA.includes("hent full tekst"));
 });
 
-Deno.test("packs-blokk: get_pack-setningen KUN når minst én pakke ikke er full", () => {
+Deno.test("packs-blokk: get_pack-setningen alltid; kortform-halen kun ved nedgradering", () => {
   const alleFull = buildSvarSystem("data", "python", "", {
     packs: [{ id: "a", name: "A", text: "x", level: "full" }],
   });
-  assert(!alleFull.includes("get_pack-verktøyet"));
+  assert(alleFull.includes("get_pack-verktøyet"));
+  assert(!alleFull.includes("kortform/maskinutdrag"));
   const enKort = buildSvarSystem("data", "python", "", {
     packs: [{ id: "a", name: "A", text: "x", level: "summary" }],
   });
-  assert(enKort.includes("get_pack-verktøyet"));
+  assert(enKort.includes("kortform/maskinutdrag"));
 });
 
 Deno.test("GET_PACK_TOOL: navn og input_schema", () => {

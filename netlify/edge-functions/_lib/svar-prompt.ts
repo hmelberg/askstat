@@ -95,10 +95,12 @@ function renderPacksBlock(packs: RenderedPack[]): string {
         : "";
     return `### Kildepakke: ${p.name} (id: ${p.id})${note}\n\n${demoteHeadings(p.text)}`;
   });
-  const getPackNote = anyShort
-    ? " Pakker merket kortform/maskinutdrag kan hentes i full tekst med" +
-      " get_pack-verktøyet (id står i overskriften)."
-    : "";
+  const getPackNote =
+    " Enkeltkildepakker referert i pakkene med (id: …)-notasjon kan hentes i" +
+    " full tekst med get_pack-verktøyet" +
+    (anyShort
+      ? "; det samme gjelder pakker merket kortform/maskinutdrag (id-en står i overskriften)."
+      : ".");
   return `## Aktive kildepakker (valgt av brukeren)
 
 Brukeren har valgt disse kildepakkene. Bruk den eller de som er relevante
@@ -955,14 +957,15 @@ export const RUN_CODE_TOOL = {
 };
 
 // Klientutført verktøy (kontekstrunden fase 2 §4), speiler run_code-mønsteret
-// (svar.ts legger den KUN til når minst én valgt pakke ikke er 'full').
+// (svar.ts legger den til for ALLE valgte pakker i data-ruten —
+// pakkesplitting 2026-08-07; før: kun ved nedgradering.)
 export const GET_PACK_TOOL = {
   name: "get_pack",
   description:
-    "Hent FULL tekst for en kildepakke som ble sendt i kortform eller som maskinutdrag (id-en står i pakkens overskrift i 'Aktive kildepakker'-blokka: '### Kildepakke: navn (id: <id>)').",
+    "Hent FULL tekst for en kildepakke: en pakke sendt i kortform/maskinutdrag (id-en står i pakkens overskrift: '### Kildepakke: navn (id: <id>)'), ELLER en enkeltkildepakke referert i en oversiktspakke med '(id: src-…)'-notasjon.",
   input_schema: {
     type: "object",
-    properties: { id: { type: "string", description: "pakkens id, fra overskriften" } },
+    properties: { id: { type: "string", description: "pakkens id, fra overskriften eller (id: …)-referansen" } },
     required: ["id"],
   },
 };

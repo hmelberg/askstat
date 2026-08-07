@@ -22,8 +22,14 @@ Token-økonomi var IKKE hovedmotivasjonen — tre-nivå-komponeringen
 
 ## Beslutninger (Hans, design-samtalen 2026-08-07)
 
-- **Full splitting:** alle ~60–80 kilder i de 11 temapakkene blir egne
-  enkeltkildepakker. Ikke selektiv utrekking av tungvektere.
+- **Full splitting med substans-terskel:** opptelling under
+  planleggingen viste 179 kildeoppføringer i de 12 temapakkene (ikke
+  60–80 som først anslått). Besluttet (Hans, 2026-08-07): kilder med
+  reelt innhold (tilgangsdetaljer, gotchas, URL-er — anslått ~90–110)
+  blir egne enkeltkildepakker; små 4–5-linjers oppføringer blir stående
+  som linjer i oversikten UTEN `(id:)`-referanse. Kilder som går igjen
+  i flere temapakker (`uk_data_service`, `cessda`, `hfcs`/`ecb_hfcs`)
+  dedupliseres til ÉN pakke referert fra flere oversikter.
 - **Konsum-modell «oversikt + get_pack»:** brukeren velger typisk en
   tema-oversikt; modellen henter relevante enkeltpakker selv via
   `get_pack`. Enkeltpakker kan OGSÅ importeres direkte i Explore.

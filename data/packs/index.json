@@ -1049,7 +1049,40 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-dataverse",
+      "name": "Dataverse",
+      "description": "Harvard Dataverse and ~100 other installations — the largest research-data repository, dominated by social-science replication data.",
+      "summary": "Harvard Dataverse (plus ~100 other installations), ~300k datasets, dominated by social-science replication data behind published studies. No CORS on the API (always via /api/hent); search and file-access endpoints are documented. Expect 403s on many restricted replication files — probe first, degrade honestly.",
+      "file": "community/src-dataverse.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-zenodo",
+      "name": "Zenodo",
+      "description": "CERN-run, DOI-first research-data repository, fully CORS-open with no auth.",
+      "summary": "~670k dataset-type records (CERN-run, DOI-first). Search and file downloads are fully CORS-open with no auth, so direct ost.read works without a proxy — the cheapest of the research repositories to use. Rate limit ~30 searches/min; quality varies (many hits are PDFs or zips), so filter on file extension before promising data.",
+      "file": "community/src-zenodo.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-figshare",
+      "name": "Figshare",
+      "description": "Article-supplement repository (figures, PDFs, .sav) — mostly skip in favor of Zenodo/Dataverse.",
+      "summary": "Hosts article supplements (figures, PDFs, .sav files). Search API is POST-only and missing CORS headers; downloads work but signed URLs expire in ~10 seconds. Prefer Zenodo/Dataverse; use Figshare only when a specific DOI points there.",
+      "file": "community/src-figshare.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     }
   ]
 }

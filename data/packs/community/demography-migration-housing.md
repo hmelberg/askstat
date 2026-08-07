@@ -60,11 +60,11 @@ weights, gotchas) with the get_pack tool using the id in parentheses.
 
 ### Mortality, fertility and life tables
 
-- Human Fertility Database — aggregate period/cohort fertility rates, births and exposure for 30+ countries, most from the 1950s; free registration with SEPARATE credentials from HMD.
+- Human Fertility Database — aggregate period/cohort fertility rates, births and exposure for 30+ countries, many from the 1950s; free registration with SEPARATE credentials from HMD.
 
 ### Census and population microdata
 
-- UK census microdata — three tiers: open teaching sample (UKDS study 9202, 2021, OGL), safeguarded individual/household samples at Region/Grouped-LA level (registration), and a secure ~9% sample via ONS SecureLab only.
+- UK census microdata — three tiers: open teaching sample (UKDS study 9202, 2021, OGL), safeguarded individual/household samples at Region/Grouped-LA level (registration), and a secure sample of up to ~9% via ONS SecureLab only.
 - Spain — INE census microdata — open for public-use files, application for detailed files; a 2021 public sample analogous to 2011 is UNVERIFIED, check IPUMS International as a fallback.
 - American Community Survey PUMS — registry source, see the census source guide; the ongoing open US person/household workhorse (weights PWGTP/WGTP, needs CENSUS_API_KEY) — full detail in the us-social-surveys pack.
 

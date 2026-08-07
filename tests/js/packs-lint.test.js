@@ -61,15 +61,17 @@ test(`pakkefiler: finnes, ≤${PACK_TEXT_MAX} tegn, ingen nøkkelmønstre, kun h
   }
 });
 
-// Drift-vern (spec 2026-08-07 §4): hver (id: x)-referanse i en oversikts-
-// pakke MÅ finnes i index.json — oversikter og enkeltkildepakker skal
-// ikke kunne drive fra hverandre (samme mønster som source-guides-drift-
-// testen på serversiden). Skannes KUN i kind:overview-filer; YAML-blokker
-// i enkeltkildepakker bruker `id:` uten parentes og treffes ikke.
-test('oversiktspakker: alle (id: …)-referanser finnes i index.json', () => {
+// Drift-vern (spec 2026-08-07 §4): hver (id: x)-referanse i en pakkefil MÅ
+// finnes i index.json — oversikter og enkeltkildepakker skal ikke kunne
+// drive fra hverandre (samme mønster som source-guides-drift-testen på
+// serversiden). Skannes i ALLE community-pakkefiler: src-filers prosa
+// siterer også naboer med (id: …) (f.eks. src-fars → src-crss), ikke bare
+// oversiktene. YAML-blokker i enkeltkildepakker bruker `id:` uten parentes
+// og treffes ikke.
+test('community-pakker: alle (id: …)-referanser finnes i index.json', () => {
   const ids = new Set(index.packs.map((p) => p.id));
   for (const p of index.packs) {
-    if (p.kind !== 'overview') continue;
+    if (!p.community) continue;
     const text = fs.readFileSync(path.join(PACKS, p.file), 'utf-8');
     for (const m of text.matchAll(/\(id:\s*([a-z0-9-]+)\)/g)) {
       assert.ok(ids.has(m[1]), `${p.file}: (id: ${m[1]}) finnes ikke i index.json`);

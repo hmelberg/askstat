@@ -47,7 +47,7 @@ no free tier) — mention it exists, do not promise access.
 
 - **EU-EFIGE / Bruegel-UniCredit dataset** (id: src-eu-efige) — manufacturing-firm survey, 7 countries, open, single wave.
 - **ECB SAFE** (id: src-ecb-safe) — SME/firm access-to-finance survey, free registration.
-- **ECB HFCS** (id: src-hfcs) — household wealth/debt/income/consumption microdata with individual-level labour/income detail per member; application required (government photo ID, English CV, request form to hfcs.access@ecb.europa.eu). See the demography-migration-housing pack for the full HFCS pack.
+- **ECB HFCS** (id: src-hfcs) — household wealth/debt/income/consumption microdata with individual-level labour/income detail per member; application required (government photo ID, English CV, request form to hfcs.access@ecb.europa.eu).
 
 ## Other sources (no separate pack)
 

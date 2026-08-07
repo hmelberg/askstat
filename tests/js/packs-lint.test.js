@@ -31,6 +31,11 @@ test('index.json: v1, gyldige unike id-er, community har author+updated', () => 
       // avsnitt, som ikke er garantert å liste kildene pakken dekker.
       assert.ok(p.summary, `community-pakke uten summary: ${p.id}`);
       assert.ok(p.summary.length <= 1500, `${p.id}: summary er ${p.summary.length} tegn (> 1500)`);
+      // Pakkesplitting (spec 2026-08-07 §1): kind skiller tema-oversikter
+      // fra enkeltkildepakker — Explore grupperer på den og drift-linten
+      // skanner oversikter for (id: …)-referanser.
+      assert.ok(p.kind === 'overview' || p.kind === 'source',
+        `community-pakke uten gyldig kind: ${p.id} (fikk: ${p.kind})`);
     } else {
       assert.ok(p.country, `builtin-pakke uten country: ${p.id}`);
     }

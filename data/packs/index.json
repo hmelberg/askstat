@@ -24,6 +24,7 @@
       "summary": "US individual-level health data: IPUMS Health Surveys (NHIS/MEPS, needs a user key), NCHS direct files (NHANES, NHIS one-year CSV, no key), MEPS Stata files, CDC aggregate fallbacks (BRFSS/PLACES); plus BRFSS microdata, NSDUH/SAMHDA (substance use), NVSS + CDC WONDER, HRS (ageing panel), SEER (cancer registry), HCUP (hospital discharge, purchase), CMS DE-SynPUF (synthetic claims for prototyping), MIMIC-IV/eICU (critical care, demo open) and All of Us (enclave). Covers the 2025-26 CDC/NCHS suspensions (PRAMS, NAMCS/NHAMCS). Use for health status, insurance, healthcare use, expenditure, ageing and mortality questions.",
       "file": "community/us-health-surveys.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -34,6 +35,7 @@
       "summary": "European individual-level survey data: ESS (machine-reachable API, needs a free user ID) and CESSDA (metadata search) first; SHARE (with easySHARE as the recommended entry point) and its g2aging harmonisation hub, SOEP, Understanding Society, ELSA, TILDA, GGP, GESIS holdings (Eurobarometer/ISSP/ALLBUS/EVS), UK Data Service, WVS, Eurostat EHIS/EU-SILC and LIS — login- or form-walled sources are described honestly with fallbacks to Eurostat/OECD aggregates. Use for attitudes, welfare, health, ageing, values.",
       "file": "community/europe-surveys.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -44,6 +46,7 @@
       "summary": "Households and individuals in low- and middle-income countries: DHS indicator API and World Bank Microdata Library (wbmicro, metadata search) are machine-reachable and keyless; MICS (UNICEF), WHO STEPS (NADA-based NCD microdata), WHO SAGE, HAALSI (fully open ageing panel), the g2aging LMIC sister studies (CHARLS/LASI/MHAS/KLoSA/JSTAR), World Values Survey, Afrobarometer/Latinobarometro/Arab/Asian Barometer and Global.health; GBD/GHDx flagged as modelled estimates, not microdata. Worldbank/WHO/OWID as aggregate fallback.",
       "file": "community/global-surveys.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -54,6 +57,7 @@
       "summary": "US attitudes, demographics and social behavior at the individual level: Census PUMS (ACS/CPS, needs CENSUS_API_KEY) and GSS (open Stata downloads, no key) are machine-reachable; Pew Research is login-walled. For US health surveys, use the separate 'US health surveys' pack instead.",
       "file": "community/us-social-surveys.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -64,6 +68,7 @@
       "summary": "OECD skills and education microdata: PIAAC per-country CSVs are the usable sweet spot (open, no CORS via proxy); PISA and TALIS are open but far too heavy (hundreds of MB) — use OECD aggregate tables instead. Plus NAEP (US, restricted but NAEPprimer open for development), NCES longitudinal studies, the Urban Institute Education Data Portal API, IPEDS, College Scorecard, England's NPD-linked cohorts, Germany's NEPS, and the IEA family (TIMSS/PIRLS/ICILS/ICCS). Explains the plausible-values and replicate-weight rules that apply across the whole domain.",
       "file": "community/education-skills.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -74,6 +79,7 @@
       "summary": "Discovery and catalog-search infrastructure, not a source of values itself: the NADA family (wbmicro/ihsn built-in adapters, plus the shared API behind ILO/FAO/UNHCR/WHO STEPS instances), Dateno and dataportals-registry for cross-catalog search, government open-data portals (CKAN, Socrata — cdc is a built-in example, data.europa.eu), ML hubs (hf and kaggle built-in adapters; OpenML/UCI), and social-science archives (ICPSR, UK Data Service, GESIS, CESSDA built-in adapter). Use to find where data lives before reading it through the app's own tools.",
       "file": "community/data-catalogs.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -84,6 +90,7 @@
       "summary": "Norwegian, Danish, Swedish, Finnish and Icelandic register microdata: Norway's three access routes (microdata.no remote execution with its query language, Helsedata.no application costs/timelines, SSB data lending) and the health registries under it (NPR, KUHR, Reseptregisteret/NorPD, MFR, Dødsårsaksregisteret, Kreftregisteret, MoBa, CONOR, HUNT, Tromsø); Denmark (Forskermaskinen, Sundhedsdatastyrelsen); Sweden (MONA, Socialstyrelsen); Finland (Findata, THL); Iceland (Statistics Iceland, Landlæknir); the Nordic Commons policy vision. None of this is downloadable — always remote execution, enclave delivery, or application.",
       "file": "community/nordic-microdata.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -94,6 +101,7 @@
       "summary": "Per-country routes to European official-statistics microdata (distinct from the slower central Eurostat process): Germany (FDZ Destatis, IAB, FDZ-RV, GESIS MISSY), France (CASD, ADISP/Progedo), Netherlands (CBS Microdata, ODISSEI), UK (ONS SRS, UK Data Service, ADR UK), Italy and Spain (directly downloadable — the open exceptions), Austria (AMDC), Switzerland (BFS), Ireland (CSO RMF/ISSDA), Belgium/Portugal/Poland/Czechia/Greece, plus EU-level infrastructure (Eurostat safe centres, CESSDA, IZA IDSC, the not-yet-operative EHDS). Nordic countries are covered in the nordic-microdata pack.",
       "file": "community/europe-national-microdata.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -104,6 +112,7 @@
       "summary": "Worker, job, establishment and firm microdata. US openly downloadable: LODES, QWI, BDS, CPS-ORG, QCEW, OEWS, JOLTS, O*NET, OSHA ITA, H-1B/PERM disclosure data; enclave-only: LBD/FSRDC. Europe: IAB SIAB/LIAB/BHP (JoSuA remote execution for non-residents), EU-LFS/SBS/CIS (aggregate open, microdata gated), open firm registers (GLEIF, UK Companies House, Norway's Enhetsregisteret, Denmark's CVR, Sweden's Bolagsverket), commercial ORBIS, EU-EFIGE and ECB SAFE/HFCS firm/household surveys, OECD MultiProd/DynEmp distributed computation, and the Nordic linked employer-employee registers.",
       "file": "community/labour-firms.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -114,6 +123,7 @@
       "summary": "Population structure, mortality/fertility, migration, housing and time use. Warns which sources are aggregate-only (HMD/HFD/STMF, UN WPP, Eurostat demo_*/migr_*, OECD DIOC, every population grid) versus true microdata: census microdata (IPUMS International, UK/France/Spain national releases, US post-differential-privacy PPMF), migration surveys (UNHCR Microdata Library, IOM DTM, MAFE, MIGNEX), housing/consumption (ECB HFCS, Eurostat HBS, American Housing Survey, RECS, Consumer Expenditure Survey, UK Land Registry Price Paid), and time use (MTUS, HETUS, ATUS).",
       "file": "community/demography-migration-housing.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -124,6 +134,7 @@
       "summary": "Crime/justice, transport safety, energy/environment exposure and political behaviour — the domain with the most openly-downloadable microdata: NCVS, NIBRS, FJC Integrated Database, Stanford Open Policing (crime); FARS, CRSS, NHTS, BTS DB1B (transport); EPA AQS, EEA air quality, ERA5/CAMS exposure layers, and the EJScreen removal (energy/environment); ANES, CES, MEDSL, CSES, Manifesto Project, ParlSpeech/ParlGov (politics); plus a closed-since-2023 digital-trace landscape (Reddit/Common Crawl/GDELT open, Twitter/CrowdTangle closed).",
       "file": "community/crime-transport-energy-politics.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     },
@@ -134,6 +145,7 @@
       "summary": "Replication and long-tail research data: Zenodo (fully CORS-open, DOI-first) is cheapest to use; Dataverse (largest, ~300k datasets, needs proxy, expect 403s) and OpenML (ML benchmarks, exact-name lookup only) are usable; Figshare mostly skip (no CORS, signed URLs expire fast).",
       "file": "community/research-repositories.md",
       "community": true,
+      "kind": "overview",
       "author": "hans",
       "updated": "2026-08-06"
     }

@@ -76,7 +76,9 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
       };
       const clientToolNames = new Set(opts.clientTools ?? []);
       const maxRunCode = opts.maxRunCode ?? 2;
-      const maxGetPack = opts.maxGetPack ?? 3;
+      // Default 5 (pakkesplitting 2026-08-07: et spørsmål kan trenge 2–3
+      // enkeltkilder pluss re-henting). BYOK-løpet synkroniseres med anthropic.ts.
+      const maxGetPack = opts.maxGetPack ?? 5;
 
       try {
         // Resume etter run_code/get_pack: flett klientens resultat inn som

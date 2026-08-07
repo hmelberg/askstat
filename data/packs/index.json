@@ -136,7 +136,18 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-gss",
+      "name": "GSS",
+      "description": "US General Social Survey — nationally-representative attitudes and social-behavior survey, 1972-2024.",
+      "summary": "US attitudes and social-behavior microdata, ~72k cumulative respondents (1972-2024). Open per-year Stata zip downloads, no registration. Weight with wtssall (pre-2021) / wtssnrps (2021+ web-mode redesign); the NORC CDN intermittently returns an empty HTTP 204 — retry once.",
+      "file": "community/src-gss.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "education-skills",

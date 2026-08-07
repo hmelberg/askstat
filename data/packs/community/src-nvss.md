@@ -17,6 +17,6 @@ which only returns tabulated, suppressed cells.
 
 The NBER mirror above is a convenient bulk-download path for the natality
 public-use files. See the US health surveys overview pack for the standing
-CDC/NCHS 2025-26 caveat — NVSS download infrastructure is confirmed live
-as of Aug 2026. For aggregated queries instead of record-level files, see
-CDC WONDER (id: src-cdc-wonder).
+CDC/NCHS 2025-26 caveat before promising a download from any CDC-hosted
+file. For aggregated queries instead of record-level files, see CDC
+WONDER (id: src-cdc-wonder).

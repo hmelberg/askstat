@@ -64,12 +64,12 @@ weights, gotchas) with the get_pack tool using the id in parentheses.
 - EEA Air Quality Download Service — open, no login; covers EU/EEA air quality from ~2013. The portal hostname has been restructured repeatedly — resolve the current URL via eea.europa.eu/en/datahub rather than hardcoding.
 - Copernicus Atmosphere Monitoring Service (CAMS) — open, free registration; gridded reanalysis/forecast for NO2, PM2.5, PM10 and O3.
 - ERA5 / Copernicus Climate Data Store — open, free registration; gridded hourly climate reanalysis from 1940-present, the standard exposure layer for linking temperature/weather to health or economic microdata.
-- EPA EJScreen — removed from the official EPA website (v2.3 was the last release, taken down in 2024; a lawsuit over the removal was dismissed 13 March 2026; CEQ's CEJST was also removed). Community mirrors exist (e.g. screening-tools.com/epa-ejscreen) but flag the non-official provenance explicitly.
+- EPA EJScreen — removed from the official EPA website (v2.3 released mid-2024, then taken down; a lawsuit over the removal was dismissed 13 March 2026; CEQ's CEJST was also removed). Community mirrors exist (e.g. screening-tools.com/epa-ejscreen) but flag the non-official provenance explicitly.
 
 ### Political behaviour and elections
 
 - British Election Study and Norwegian Election Study — both free registration; BES via UK Data Service, Norwegian Election Study via Institute for Social Research/SSB archived at Sikt Surveybanken with waves back to 1957.
-- ParlSpeech (6.3M parliamentary speeches, 9 democracies), ParlGov (party/election/cabinet composition) and the Comparative Agendas Project (harmonised policy-issue-coded datasets, ~20 countries + EU/US states) — all openly downloadable via Harvard Dataverse, no registration; ParlSpeech is a snapshot as of ~2020, not continuously updated.
+- ParlSpeech (6.3M parliamentary speeches, 9 democracies) — openly downloadable via Harvard Dataverse, snapshot as of ~2020, not continuously updated; ParlGov (party/election/cabinet composition database) — openly downloadable, no registration; Comparative Agendas Project (harmonised policy-issue-coded datasets, ~20 countries + EU/US states) — openly downloadable.
 - US voter files — not openly downloadable; raw state files are public records in most states but need a per-state request and fee, with heavy legal variation in permitted use, and vendor-enhanced files are commercial.
 
 ## Digital trace — mostly closed since 2023

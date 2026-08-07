@@ -40,101 +40,27 @@ candid about this and exposes it in metadata. wbmicro and ihsn cover the same
 software family the World Bank/ILO/FAO/UNHCR/WHO STEPS run — see the
 `global-surveys` pack for wbmicro in a development-survey context.
 
-## Dateno — cross-catalog search (verify before relying on it)
+## Individual source packs
 
-```yaml
-id: dateno
-name: Dateno
-kind: cross-catalog dataset search engine
-api_base: https://api.dateno.io/
-auth: API key from my.dateno.io
-scale: "19M+ dataset records indexed across thousands of catalogs (per the dateno-public repo)"
-role: "discovery layer — indexes metadata and links back to the source portal; does not host files"
-python_client: UNVERIFIED — no confirmed PyPI package; treat as REST-only
-free_tier: UNVERIFIED — pricing page could not be read reliably
-```
+Each source below has its own pack — fetch full details (access, URLs,
+weights, gotchas) with the get_pack tool using the id in parentheses.
 
-No registry adapter exists for Dateno. If the user has a key, probe
-`https://api.dateno.io/` directly before building a query against it — the
-docs page is JS-rendered and its exact contract was not independently
-confirmed.
+- **Dateno** (id: src-dateno) — cross-catalog dataset search engine, ~19M records indexed, API key required, discovery layer only (does not host files).
+- **dataportals-registry** (id: src-dataportals-registry) — registry of ~13,877 data portals (bulk files, no public API yet); finds which catalog to query.
+- **CKAN** (id: src-ckan) — catalog software family behind data.gov, data.gov.uk and hundreds of other government portals; open, no key.
+- **Socrata** (id: src-socrata) — catalog software family behind cdc and other SODA portals; open, no key, X-App-Token optional.
+- **data.europa.eu** (id: src-data-europa) — EU open-data portal search + SPARQL over DCAT-AP metadata; open, no key.
+- **OpenML** (id: src-openml) — ML benchmark dataset repository, CORS-open, keyless; classic example datasets, not primary statistical sources.
+- **UCI Machine Learning Repository** (id: src-uci) — classic benchmark datasets for teaching examples, not primary statistical sources.
+- **ICPSR** (id: src-icpsr) — tens of thousands of social-science studies, 250,000+ files; free account + click-through, restricted-use needs a DUA or enclave.
 
-## dataportals-registry — find which catalog to query
+## Other sources (no separate pack)
 
-```yaml
-id: dataportals_registry
-name: commondataio/dataportals-registry
-kind: registry of PORTALS, not datasets
-repo: https://github.com/commondataio/dataportals-registry
-scale: "~13,877 catalog/portal records; 136 software-platform definitions, sliced by country x type"
-bulk_files: [catalogs.jsonl, full.parquet, datasets.duckdb]
-public_api: "announced but not shipped — consume the bulk files"
-use: "answers 'find every microdata portal in country X' or 'which portals run NADA' — filter the bulk export by type=microdata or software=NADA"
-```
-
-## Government open-data portals
-
-```yaml
-- id: ckan
-  kind: catalog software family
-  api_pattern: "GET https://{portal}/api/3/action/package_search?q=<terms>&rows=10"
-  other_actions: [package_show, resource_show, datastore_search]
-  auth: none for read
-  deployments: [catalog.data.gov, data.gov.uk, hundreds of national/city portals]
-- id: socrata
-  kind: catalog software family (built-in example: the cdc source)
-  discovery_api: "GET https://api.us.socrata.com/api/catalog/v1?q=<terms>&limit=10"
-  data_api: "GET https://{domain}/resource/{4x4_id}.json?$where=…   # SoQL"
-  auth: "none required; free X-App-Token header avoids throttling"
-  built_in_example: "cdc (search_catalog source='cdc') is a Socrata/SODA domain — same query shape works on any other Socrata portal you find via the discovery API"
-  flow: "two steps — Discovery API tells you the hosting domain + resource id, then query that domain's SODA endpoint directly"
-- id: data_europa
-  name: data.europa.eu
-  search_api: "https://data.europa.eu/api/hub/search/search?page=0&limit=100&q=<terms>"
-  sparql: https://data.europa.eu/sparql
-  metadata: DCAT-AP
-  auth: none
-```
-
-## ML-oriented hubs — use the built-in adapters where they exist
-
-```yaml
-- id: huggingface
-  built_in: "hf (search_catalog source='hf') — search + typed preview + auto-converted parquet, all CORS-open, no key. Prefer this over documenting the raw datasets-server.huggingface.co API by hand."
-  caveat: "much of the content is unofficial copies of primary data — prefer primary sources and check licence/provenance before citing"
-- id: kaggle
-  built_in: "kaggle (search_catalog source='kaggle') — needs a user key for private/competition data; open datasets work keyless. Catalog search verified keyless+CORS-open 2026-08-06."
-  caveat: "downloads are often uncredited re-uploads of someone else's data — prefer the primary source when one exists"
-- id: openml
-  note: "see the research-repositories pack — OpenML is documented there alongside Dataverse/Zenodo/Figshare, no adapter here to avoid duplication"
-- id: uci
-  name: UCI Machine Learning Repository
-  landing: https://archive.ics.uci.edu/
-  packages: {python: [ucimlrepo]}
-  use: "classic benchmark datasets for teaching examples, not primary statistical sources"
-```
-
-## Social science archives (metadata layer — data usually lives elsewhere)
-
-```yaml
-- id: icpsr
-  name: ICPSR
-  scale: "tens of thousands of studies, 250,000+ files"
-  ⚠_deprecation: "legacy OAI-PMH/DDI-XML bulk export was RETIRED, guaranteed only 'until at least August 2026' — may already be gone. Do not build new integrations on it."
-  current_api: https://icpsr.github.io/metadata/icpsr_metadata_api/
-  access: "free account + click-through for most studies; restricted-use needs a DUA or enclave"
-- id: uk_data_service
-  name: UK Data Service
-  role: "UK national social/economic microdata archive"
-  access_tiers: [End User Licence (free registration), Special Licence, Secure Lab]
-  note: "non-UK researchers CAN register"
-- id: gesis
-  name: GESIS
-  holdings: [ISSP, Eurobarometer, EVS, ALLBUS, German EU-SILC access]
-  note: "no usable public search API (bot-walled) — see the europe-surveys pack for the fuller GESIS/CESSDA picture"
-- id: cessda
-  built_in: "cessda (search_catalog source='cessda') is already an adapter — see the europe-surveys pack. It federates UKDS/GESIS/Sikt/DANS discovery into one search; download still happens at the origin archive."
-```
+- Hugging Face Hub — registry source, see the hf source guide; the built-in `hf` adapter (search_catalog source='hf') gives search, typed preview and auto-converted parquet, all CORS-open, no key, and is preferred over hand-rolling the raw datasets-server API. Much of the content is unofficial copies of primary data — prefer primary sources and check licence/provenance before citing.
+- Kaggle — registry source; the built-in `kaggle` adapter (search_catalog source='kaggle') needs a user key for private/competition data, but open datasets work keyless — catalog search verified keyless and CORS-open as of 2026-08-06. Downloads are often uncredited re-uploads of someone else's data — prefer the primary source when one exists.
+- CESSDA — registry source, see the cessda source guide; the built-in `cessda` adapter (also detailed in the europe-surveys pack) federates UKDS/GESIS/Sikt/DANS discovery into one search — download still happens at the origin archive.
+- UK Data Service — UK national social/economic microdata archive; access tiers: End User Licence (free registration), Special Licence, Secure Lab. Non-UK researchers can register.
+- GESIS (general holdings) — ISSP, Eurobarometer, EVS, ALLBUS, German EU-SILC access; no usable public search API (bot-walled). See the europe-surveys pack for the fuller GESIS/CESSDA picture.
 
 ## Practical rules
 

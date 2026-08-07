@@ -158,7 +158,95 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-dateno",
+      "name": "Dateno",
+      "description": "Cross-catalog dataset search engine indexing ~19M dataset records across thousands of catalogs.",
+      "summary": "A discovery layer that indexes ~19M dataset records across thousands of catalogs and links back to the source portal — it does not host files itself. Requires an API key from my.dateno.io; no built-in adapter exists, so probe the API directly. Python client and free-tier terms unverified.",
+      "file": "community/src-dateno.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-dataportals-registry",
+      "name": "dataportals-registry",
+      "description": "Registry of ~13,877 data portals (not datasets), searchable via bulk export files.",
+      "summary": "A registry of data PORTALS, not datasets: ~13,877 catalog/portal records and 136 software-platform definitions, sliced by country and type. No public API yet — consume the bulk files (catalogs.jsonl/full.parquet/datasets.duckdb) and filter by type=microdata or software=NADA to find which catalog to query next.",
+      "file": "community/src-dataportals-registry.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-ckan",
+      "name": "CKAN",
+      "description": "Catalog software family behind government open-data portals (data.gov, data.gov.uk, and hundreds more).",
+      "summary": "Open-data catalog software running data.gov, data.gov.uk and hundreds of national/city portals. Open read access, no key. Query any deployment's package_search API for discovery, then resource_show/datastore_search to reach the actual file or table.",
+      "file": "community/src-ckan.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-socrata",
+      "name": "Socrata",
+      "description": "Catalog software family behind SODA/Socrata open-data portals; the cdc registry source is a built-in example.",
+      "summary": "Open-data catalog software (SODA) behind portals such as the built-in cdc source. Open, no key required (a free X-App-Token avoids throttling). Two-step flow: the discovery API returns the hosting domain + resource id, then query that domain's SODA endpoint directly with a $where filter.",
+      "file": "community/src-socrata.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-data-europa",
+      "name": "data.europa.eu",
+      "description": "The EU's open-data portal — search API plus SPARQL over DCAT-AP metadata.",
+      "summary": "The EU's open-data portal, covering member-state and EU-institution datasets. Open, no key. Use the search API for keyword discovery, or query the DCAT-AP metadata directly via SPARQL for structured filtering (e.g. by publisher or theme).",
+      "file": "community/src-data-europa.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-openml",
+      "name": "OpenML",
+      "description": "ML benchmark dataset repository with parquet downloads and variable metadata.",
+      "summary": "ML benchmark dataset repository with 6,400 active datasets, overwhelmingly classic ML benchmarks (UCI classics, Kaggle mirrors) rather than primary statistical sources — use only for teaching/example datasets. Fully CORS-open and keyless; lookup is exact-name only (data_name/{name}, wrong name gives a 412), then data/{id} for metadata plus a direct parquet_url.",
+      "file": "community/src-openml.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-uci",
+      "name": "UCI Machine Learning Repository",
+      "description": "Classic benchmark datasets used for teaching examples.",
+      "summary": "Classic machine-learning benchmark datasets — useful for teaching examples, not a primary statistical source. Open landing page; the ucimlrepo Python package gives programmatic access instead of scraping the page.",
+      "file": "community/src-uci.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
+    },
+    {
+      "id": "src-icpsr",
+      "name": "ICPSR",
+      "description": "Large social-science data archive: tens of thousands of studies, 250,000+ files.",
+      "summary": "A large social-science data archive with tens of thousands of studies and 250,000+ files. Most studies need only a free account and click-through; restricted-use files need a Data Use Agreement or a secure enclave. The legacy OAI-PMH/DDI-XML bulk export is retired (guaranteed only until at least August 2026) — use the current metadata API instead.",
+      "file": "community/src-icpsr.md",
+      "community": true,
+      "kind": "source",
+      "author": "hans",
+      "updated": "2026-08-07"
     },
     {
       "id": "nordic-microdata",

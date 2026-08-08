@@ -12,6 +12,22 @@
   'use strict';
 
   // ---- Ren del: dialogens ENESTE listelogikk (node-testes direkte).
+  // filterByTags: OG-semantikk (ALLE valgte tags må finnes), ingen sortering —
+  // delt av kilde-dialogens filterEntries og Import-utforskerens filterrad
+  // (spec §2: «samme filterrad gjenbrukes»), der katalogens egen rekkefølge og
+  // filterCatalog sitt navn+beskrivelse-søk beholdes.
+  function filterByTags(entries, tags) {
+    var want = tags || [];
+    if (!want.length) return entries.slice();
+    return entries.filter(function (e) {
+      var et = e.tags || [];
+      for (var i = 0; i < want.length; i++) {
+        if (et.indexOf(want[i]) < 0) return false;
+      }
+      return true;
+    });
+  }
+
   // entries: [{id,name,kind,tags}] — kind mangler på legacy-oppføringer og
   // teller da som 'source' (spec §3, samme default som Packs.list()).
   // state: {tab:'overview'|'source', q, tags:[…]} — tags har OG-semantikk.
@@ -26,14 +42,10 @@
     // lærdommen i js/profiles.js) — ingen arvede Object.prototype-treff.
     var checked = Object.create(null);
     (checkedIds || []).forEach(function (id) { checked[String(id)] = true; });
-    var out = entries.filter(function (e) {
+    var out = filterByTags(entries, tags).filter(function (e) {
       var kind = e.kind === 'overview' ? 'overview' : 'source';
       if (kind !== tab) return false;
       if (q && String(e.name || '').toLowerCase().indexOf(q) < 0) return false;
-      var et = e.tags || [];
-      for (var i = 0; i < tags.length; i++) {
-        if (et.indexOf(tags[i]) < 0) return false;
-      }
       return true;
     });
     // .filter ga en NY liste — sorteringen muterer aldri kallerens entries.
@@ -77,6 +89,8 @@
       var discoverCb = document.getElementById('sourcesDiscoverCb');
       var tabOverviewBtn = document.getElementById('sourcesTabOverview');
       var tabSourceBtn = document.getElementById('sourcesTabSource');
+      var tabOverviewCount = document.getElementById('sourcesTabOverviewCount');
+      var tabSourceCount = document.getElementById('sourcesTabSourceCount');
       var tabsEl = tabOverviewBtn ? tabOverviewBtn.parentNode : null;
       var searchEl = document.getElementById('sourcesSearch');
       var chipsEl = document.getElementById('sourcesTagChips');
@@ -184,33 +198,42 @@
       function renderDiscover() {
         if (discoverCb) discoverCb.checked = readDiscover();
       }
-      function renderTabs() {
+      // Faneetikettenes antall (spec §2) bor i egne spann inni knappene —
+      // tallet er TOTALEN i fanen, uavhengig av søk/chip-filter, så brukeren
+      // ser at det finnes noe i den andre fanen selv midt i et søk.
+      function renderTabs(entries) {
         if (tabOverviewBtn) tabOverviewBtn.className = 'sources-tab' + (tab === 'overview' ? ' active' : '');
         if (tabSourceBtn) tabSourceBtn.className = 'sources-tab' + (tab === 'source' ? ' active' : '');
+        if (tabOverviewCount) tabOverviewCount.textContent = ' (' + filterEntries(entries, { tab: 'overview' }, []).length + ')';
+        if (tabSourceCount) tabSourceCount.textContent = ' (' + filterEntries(entries, { tab: 'source' }, []).length + ')';
       }
-      function renderChips(entries) {
-        if (!chipsEl) return;
-        chipsEl.innerHTML = '';
-        // Chips regnes ut fra FANENS entries (før søk/tag-filter) — ellers
-        // ville en aktiv chip fjerne sine egne søsken og låse filteret.
-        var tabEntries = filterEntries(entries, { tab: tab }, []);
-        var tags = topTags(tabEntries, 12);
-        // En aktiv tag som ikke lenger finnes i fanen skal fortsatt kunne
+      // Delt chip-rad (spec §2: «samme filterrad gjenbrukes i import-
+      // utforskeren»). pool = settet chipsene UTLEDES fra (før søk/tag-filter
+      // — ellers ville en aktiv chip fjerne sine egne søsken og låse filteret);
+      // active = tilstandslista som muteres på plass; onChange = re-rendring.
+      function renderChipRow(container, pool, active, onChange) {
+        if (!container) return;
+        container.innerHTML = '';
+        var tags = topTags(pool, 12);
+        // En aktiv tag som ikke lenger finnes i settet skal fortsatt kunne
         // slås AV — legg den til bakerst.
-        activeTags.forEach(function (t) { if (tags.indexOf(t) < 0) tags.push(t); });
+        active.forEach(function (t) { if (tags.indexOf(t) < 0) tags.push(t); });
         tags.forEach(function (t) {
           var b = document.createElement('button');
           b.type = 'button';
-          b.className = 'sources-chip' + (activeTags.indexOf(t) >= 0 ? ' active' : '');
+          b.className = 'sources-chip' + (active.indexOf(t) >= 0 ? ' active' : '');
           b.textContent = t;
           b.addEventListener('click', function () {
-            var i = activeTags.indexOf(t);
-            if (i >= 0) activeTags.splice(i, 1);
-            else activeTags.push(t);
-            renderAll();
+            var i = active.indexOf(t);
+            if (i >= 0) active.splice(i, 1);
+            else active.push(t);
+            onChange();
           });
-          chipsEl.appendChild(b);
+          container.appendChild(b);
         });
+      }
+      function renderChips(entries) {
+        renderChipRow(chipsEl, filterEntries(entries, { tab: tab }, []), activeTags, renderAll);
       }
       function badge(text, cls) {
         var s = document.createElement('span');
@@ -320,7 +343,7 @@
         }
         renderCountry();
         renderDiscover();
-        renderTabs();
+        renderTabs(entries);
         renderChips(entries);
         renderList(entries, checked);
         renderInfo();
@@ -501,8 +524,10 @@
       var expImport = document.getElementById('packsImportBtn');
       var expClose = document.getElementById('packsExploreCloseBtn');
       var expSearch = document.getElementById('packsExploreSearch');
+      var expTagChips = document.getElementById('packsExploreTagChips');
       var expBack = document.getElementById('packsExploreBackBtn');
       var expSelected = null; // {entry, text}
+      var expTags = [];       // Explore har sin EGEN chip-tilstand (nullstilles ved åpning)
       // Generasjonsteller (review-funn Task 6, kildevelger-runde 2): P.resolve()
       // er nett-bakket og kan komme sent — uten denne kan en gammel .then()
       // overstyre en modal som alt er lukket/gjenåpnet/har fått et nytt valg.
@@ -511,7 +536,14 @@
       var expGen = 0;
       function renderExploreList() {
         expList.innerHTML = '';
-        var entries = P.filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '');
+        var catalog = P.listCommunity();
+        // Samme filterrad som kilde-dialogen (spec §2): fritekstsøket er
+        // fortsatt filterCatalog (navn OG beskrivelse — katalogposter selges
+        // på beskrivelsen sin), tag-chipsene legger OG-filteret oppå.
+        // Chipsene utledes fra HELE katalogen, ikke det søkte utvalget.
+        renderChipRow(expTagChips, catalog, expTags, renderExploreList);
+        var entries = filterByTags(
+          P.filterCatalog(catalog, expSearch ? expSearch.value : ''), expTags);
         // Pakkesplitting (spec 2026-08-07 §3): to grupper — oversikter
         // først, enkeltkilder under. Tomme grupper får ingen overskrift.
         [['overview', T('Topic overviews')], ['source', T('Individual sources')]]
@@ -539,6 +571,7 @@
       }
       function showExploreStep(detail) {
         if (expSearch) expSearch.hidden = detail;
+        if (expTagChips) expTagChips.hidden = detail;
         expList.hidden = detail;
         expPrevWrap.hidden = !detail;
         expImport.hidden = !detail;
@@ -563,6 +596,7 @@
         expGen++;
         expSelected = null;
         if (expSearch) expSearch.value = '';
+        expTags = []; // fersk filterrad hver gang utforskeren åpnes
         showExploreStep(false);
         renderExploreList();
         expBackdrop.classList.add('open');
@@ -607,6 +641,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { filterEntries: filterEntries, topTags: topTags };
+    module.exports = { filterEntries: filterEntries, topTags: topTags, filterByTags: filterByTags };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

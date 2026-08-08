@@ -6,7 +6,7 @@
 // bak document-guard er ikke lastet her (samme idiom som packs.js/profiles.js).
 const test = require('node:test');
 const assert = require('node:assert');
-const { filterEntries, topTags } = require('../../js/sources-modal.js');
+const { filterEntries, topTags, filterByTags } = require('../../js/sources-modal.js');
 
 // Blandet sett: to temaer, tre enkeltkilder (én uten kind-felt = legacy).
 const ENTRIES = [
@@ -76,6 +76,28 @@ test('filterEntries: tåler tomme/manglende felt og lar input-lista være urørt
   assert.deepEqual(filterEntries([], { tab: 'overview', q: 'x', tags: ['mikro'] }, []), []);
   // state uten q/tags oppfører seg som «ingen filtre»
   assert.equal(filterEntries(ENTRIES, { tab: 'source' }, []).length, 3);
+});
+
+// filterByTags er tag-halvdelen av filterEntries, delt med Import-utforskeren
+// (fikserunde 1): der beholdes filterCatalog for fritekst (navn+beskrivelse) og
+// katalogens egen rekkefølge, så bare tag-filteret gjenbrukes.
+test('filterByTags: OG-semantikk, tom tagliste = alt, rekkefølge bevart', () => {
+  const cat = [
+    { id: 'a', name: 'Nordic', tags: ['makro', 'norge'] },
+    { id: 'b', name: 'Survey', tags: ['mikro'] },
+    { id: 'c', name: 'Uten tags' },
+  ];
+  assert.deepEqual(filterByTags(cat, []).map((e) => e.id), ['a', 'b', 'c']);
+  assert.deepEqual(filterByTags(cat, null).map((e) => e.id), ['a', 'b', 'c']);
+  assert.deepEqual(filterByTags(cat, ['makro']).map((e) => e.id), ['a']);
+  assert.deepEqual(filterByTags(cat, ['makro', 'norge']).map((e) => e.id), ['a']);
+  assert.deepEqual(filterByTags(cat, ['makro', 'mikro']), []);
+  assert.deepEqual(filterByTags(cat, ['mikro']).map((e) => e.id), ['b']);
+  // ingen sortering: katalogens rekkefølge er bevart (motsatt av filterEntries)
+  assert.deepEqual(
+    filterByTags([{ id: 'z', tags: ['x'] }, { id: 'y', tags: ['x'] }], ['x']).map((e) => e.id),
+    ['z', 'y'],
+  );
 });
 
 // Tag-chipsene over lista: hyppigst først, tak på antall.

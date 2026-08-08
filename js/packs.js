@@ -497,8 +497,6 @@
       // internt-rullende .ask-ctx-scroll-div under.
       function renderInto(container, close) {
         container.innerHTML = '';
-        var st = Prof.packsState();
-        var ids = st.ids;
 
         // Sjekkboks-rad: klikk toggler valget og RE-RENDRER via
         // Prof.togglePack → Profiles.onChange → context-pill (IKKE close()).
@@ -561,43 +559,44 @@
           container.appendChild(b);
         }
 
-        // Faste valg (spec menyopprydding §1): alltid øverst, ruller aldri vekk.
-        function standardRow() {
-          var b = document.createElement('button');
-          b.type = 'button';
-          var check = document.createElement('span');
-          check.className = 'ask-pop-check';
-          check.textContent = st.manual ? '' : '✓';
-          var nm = document.createElement('span');
-          nm.textContent = T('Standard (automatic)');
-          b.appendChild(check);
-          b.appendChild(nm);
-          b.addEventListener('click', function () {
-            if (!st.manual) return;
-            Prof.setPacksAuto();            // fyrer onChange → re-render
-            P.onLangChange(localeCandidates); // gjenoppretter md_pack_auto + preloader
-          });
-          container.appendChild(b);
-        }
-        standardRow();
+        // Faste valg (spec menyopprydding §1): alltid øverst, ruller aldri
+        // vekk. Standard (automatic)-raden er FJERNET (kildevelger-runde 2
+        // Task 5) — funksjonen bor nå i landvelgerens «Automatic» (Task 4);
+        // Prof.setPacksAuto finnes ikke lenger.
         discoverRow();
         modalRow(T('Manage sources…'), function () { Prof.openModal({ kind: 'source' }); });
         sep();
 
-        // Biblioteket: KUN sjekkboksrader, i egen rulle-div (§1).
+        // Biblioteket: KUN sjekkboksrader, i egen rulle-div (§1), gruppert
+        // som Explore-lista (Task 5 §Designavgjørelser: «Topic overviews» /
+        // «Individual sources» / «My sources» — tomme grupper får ingen
+        // overskrift). Landrader er FJERNET herfra — landet eies av
+        // landvelger-sidemenyknappen (Task 4), ikke lenger av denne popoveren.
         var scroll = document.createElement('div');
         scroll.className = 'ask-ctx-scroll';
         container.appendChild(scroll);
         var entries = P.list();
-        entries.filter(function (e) { return e.group === 'builtin'; }).forEach(function (e) {
-          checkRow(scroll, e.id, e.name, ids.indexOf(e.id) >= 0);
-        });
-        entries.filter(function (e) { return e.group === 'imported'; }).forEach(function (e) {
-          checkRow(scroll, e.id, e.name, ids.indexOf(e.id) >= 0);
-        });
-        ids.filter(function (id) { return id.indexOf('country:') === 0; }).forEach(function (id) {
-          checkRow(scroll, id, P.displayName(id), true);
-        });
+        var checkedIds = Prof.packsState().ids;
+        [['overview', T('Topic overviews')], ['src', T('Individual sources')], ['mine', T('My sources')]]
+          .forEach(function (grp) {
+            var rows = entries.filter(function (e) { return e.group === grp[0]; });
+            if (!rows.length) return;
+            var head = document.createElement('div');
+            head.className = 'ask-pop-group';
+            head.textContent = grp[1];
+            scroll.appendChild(head);
+            rows.forEach(function (e) {
+              checkRow(scroll, e.id, e.name, checkedIds.indexOf(e.id) >= 0);
+            });
+          });
+        // Tomt bibliotek (ingen entries i det hele tatt, ikke bare én tom
+        // gruppe) — dempet hint i stedet for en blank rulle-flate.
+        if (!entries.length) {
+          var emptyHint = document.createElement('div');
+          emptyHint.className = 'ask-pop-hint';
+          emptyHint.textContent = T('No sources in your library — add some via Manage sources…');
+          scroll.appendChild(emptyHint);
+        }
 
         // Budsjett-hint (kontekstrunden fase 2 §4): vises når 80k-budsjettet
         // tvang én eller flere valgte pakker ned til manifest/summary-nivå.

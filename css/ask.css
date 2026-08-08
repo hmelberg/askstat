@@ -177,6 +177,18 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   font-weight: 700; }
 .ask-pop-sep { border-top: 1px solid var(--border); margin: 4px 6px; }
 .ask-pop-hint { padding: 6px 10px 2px; font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
+/* Kildevelger-runde 2 (Task 5): gruppeoverskrifter i popover-scrollen —
+   samme stil som .ask-explore-group, men med popoverens 10px sidepadding
+   (.ask-pop-menu button bruker padding: 8px 10px) i stedet for Explore-
+   modalens 4px. */
+.ask-pop-group {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  padding: 8px 10px 4px;
+}
 /* Kontekst-pillen (kontekstrunden §1): seksjonsoverskrifter m/forklaringslinje */
 .ask-context-menu { min-width: 280px; }
 .ask-ctx-head { display: flex; align-items: center; gap: 7px; padding: 8px 10px 2px;

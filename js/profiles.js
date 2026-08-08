@@ -20,6 +20,23 @@
   var COUNTRY_CC_RE = /^[A-Z]{2}$/;
   var SOURCES_OFF_ID_RE = /^[a-z0-9_-]{1,32}$/;
   var SOURCES_OFF_MAX = 40;
+  // Kilder-profil-output (2026-08-08, Task 1): tag-clamp — delt ren funksjon
+  // (ingen storage-avhengighet, derfor på modulnivå som packs.js sin
+  // compose()). Aksepterer array ELLER kommaseparert streng.
+  var TAG_RE = /^[a-zæøåa-z0-9_-]{1,24}$/;
+  var TAG_MAX = 8;
+  function cleanTags(input) {
+    var arr = Array.isArray(input) ? input : String(input == null ? '' : input).split(',');
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < arr.length && out.length < TAG_MAX; i++) {
+      var t = String(arr[i] == null ? '' : arr[i]).trim().toLowerCase();
+      if (!t || !TAG_RE.test(t) || seen[t]) continue;
+      seen[t] = true;
+      out.push(t);
+    }
+    return out;
+  }
 
   function makeProfiles(storage, opts) {
     var now = (opts && opts.now) || function () { return new Date().toISOString(); };
@@ -107,6 +124,7 @@
       NAME_MAX: NAME_MAX,
       TEXT_MAX: TEXT_MAX,
       SOURCE_TEXT_MAX: SOURCE_TEXT_MAX,
+      cleanTags: cleanTags,
       // list(kind): uten argument = alle levende oppføringer (profiler OG
       // kilder); med kind = kun den typen. Kilder kan aldri være aktiv profil
       // (håndheves i setActive/active/activeText, ikke her).
@@ -123,16 +141,20 @@
         var doc = readDoc();
         return live(doc, id) ? Object.assign({ id: id }, doc.profiles[id]) : null;
       },
-      // create(name, text, kind, origin): kind 'profile'|'source' (default
-      // 'profile'); origin er valgfri og lagres uendret (brukes av
-      // community-import, se packs.js importPack/migrateImported).
-      create: function (name, text, kind, origin) {
+      // create(name, text, kind, origin, tags): kind 'profile'|'source'
+      // (default 'profile'); origin er valgfri og lagres uendret (brukes av
+      // community-import, se packs.js importPack/migrateImported). tags
+      // (kildevelger-runde, kilder-profil-output-runden) clampes via
+      // cleanTags og lagres KUN når resultatet ikke er tomt.
+      create: function (name, text, kind, origin, tags) {
         var doc = readDoc();
         var id = newId();
         var k = kind === 'source' ? 'source' : 'profile';
         var entry = { name: clampName(name), text: clampText(text, k), updated: now() };
         if (k === 'source') entry.kind = 'source';
         if (origin !== undefined) entry.origin = origin;
+        var ct = cleanTags(tags);
+        if (ct.length) entry.tags = ct;
         doc.profiles[id] = entry;
         writeDoc(doc);
         return id;
@@ -143,6 +165,13 @@
         var k = kindOf(doc.profiles[id]);
         if (fields && 'name' in fields) doc.profiles[id].name = clampName(fields.name);
         if (fields && 'text' in fields) doc.profiles[id].text = clampText(fields.text, k);
+        // tags ERSTATTES (ikke merges) når feltet er med — tomt resultat
+        // fjerner feltet helt (samme «kun ikke-tom»-konvensjon som create).
+        if (fields && 'tags' in fields) {
+          var ct = cleanTags(fields.tags);
+          if (ct.length) doc.profiles[id].tags = ct;
+          else delete doc.profiles[id].tags;
+        }
         doc.profiles[id].updated = now();
         writeDoc(doc);
       },

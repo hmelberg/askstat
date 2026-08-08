@@ -322,6 +322,52 @@ test('sources_off: toggleSourceOff avviser ugyldige id-er og håndhever tak 40',
   assert.equal(P.sourcesOff().length, 39);
 });
 
+// Kilder-profil-output (2026-08-08, Task 1 §Interfaces): cleanTags — delt
+// ren tag-clamp-funksjon, eksportert som Profiles.cleanTags. Aksepterer
+// array ELLER kommaseparert streng; trim, lowercase, regex-filter, dedup,
+// max 8.
+test('cleanTags: trim, lowercase, filter, dedup (kommaseparert streng)', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(P.cleanTags('Mikro, MAKRO, x  ,mikro'), ['mikro', 'makro', 'x']);
+});
+
+test('cleanTags: array-input, ugyldige tegn/lengde filtreres bort', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(P.cleanTags(['A', 'b!', 'c'.repeat(30), 'ok', 'a']), ['a', 'ok']);
+  assert.deepEqual(P.cleanTags(''), []);
+  assert.deepEqual(P.cleanTags(undefined), []);
+  assert.deepEqual(P.cleanTags(null), []);
+});
+
+test('cleanTags: maks 8 tagger', () => {
+  const P = makeProfiles(fakeStorage());
+  const many = Array.from({ length: 12 }, (_, i) => 't' + i);
+  assert.deepEqual(P.cleanTags(many), many.slice(0, 8));
+});
+
+test('create: tags lagres clampet på oppføringen (kun når ikke-tom)', () => {
+  const P = makeProfiles(fakeStorage());
+  const id = P.create('Navn', 'tekst', 'source', undefined, 'Mikro, MAKRO, x  ,mikro');
+  assert.deepEqual(P.get(id).tags, ['mikro', 'makro', 'x']);
+  const id2 = P.create('Uten tags', 'tekst');
+  assert.equal('tags' in P.get(id2), false);
+  const id3 = P.create('Kun ugyldige tags', 'tekst', 'profile', undefined, '   , !!!');
+  assert.equal('tags' in P.get(id3), false);
+});
+
+test('update: tags erstattes (ikke merges) når feltet er med i fields', () => {
+  const P = makeProfiles(fakeStorage());
+  const id = P.create('Navn', 'tekst', 'profile', undefined, ['a', 'b']);
+  assert.deepEqual(P.get(id).tags, ['a', 'b']);
+  P.update(id, { tags: ['c'] });
+  assert.deepEqual(P.get(id).tags, ['c']);
+  P.update(id, { name: 'Nytt navn' });          // tags ikke i fields → uendret
+  assert.deepEqual(P.get(id).tags, ['c']);
+  assert.equal(P.get(id).name, 'Nytt navn');
+  P.update(id, { tags: [] });                   // tomt sett → feltet fjernes
+  assert.equal('tags' in P.get(id), false);
+});
+
 test('sources_off: mergeRemote hele-verdien-nyeste-vinner; likhet → uendret', () => {
   const P = makeProfiles(fakeStorage());
   P.toggleSourceOff('dbnomics');

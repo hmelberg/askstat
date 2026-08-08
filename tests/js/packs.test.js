@@ -156,14 +156,14 @@ test('payload: synkron fra cache etter ensureSelected; array for flere valgte; u
   assert.equal(P.payload(), undefined);               // ikke resolvet ennå
   await P.ensureSelected();
   assert.deepEqual(P.payload(), [
-    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full', kind: 'overview', tags: [] },
   ]);
   const P2 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: ['norway', 'finland'], auto: false }));
   await P2.load();
   await P2.ensureSelected();
   assert.deepEqual(P2.payload(), [
-    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full' },
-    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
+    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full', kind: 'overview', tags: [] },
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full', kind: 'overview', tags: [] },
   ]);
   const P3 = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
   await P3.load();
@@ -222,6 +222,31 @@ test('list(): kun egne kilder, gruppert etter opprinnelse (mine/overview/src)', 
   assert.equal(P.list().length, 3);                    // ingen builtin-/country-rader lenger
 });
 
+// Kilder-profil-output (Task 1 §Interfaces): list() får kind/tags/imported —
+// kind fra origin.kind, default 'source' for oppføringer uten origin (også
+// legacy-data fra før denne runden); imported = origin.source==='community'.
+test('list(): kind/tags/imported — default kind "source" uten origin.kind', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  const ownId = prof.create('Egen kilde', 'tekst', 'source', undefined, ['a', 'b']);
+  const ovId = prof.create('Importert oversikt', 'tekst', 'source',
+    { source: 'community', id: 'ov1', updated: '', kind: 'overview' });
+  const srcId = prof.create('Importert enkeltkilde', 'tekst', 'source',
+    { source: 'community', id: 'src1', updated: '', kind: 'source' });
+  const byId = {};
+  P.list().forEach((e) => { byId[e.id] = e; });
+  assert.equal(byId['user:' + ownId].kind, 'source');          // ingen origin → default 'source'
+  assert.deepEqual(byId['user:' + ownId].tags, ['a', 'b']);
+  assert.equal(byId['user:' + ownId].imported, false);
+  assert.equal(byId['user:' + ovId].kind, 'overview');
+  assert.deepEqual(byId['user:' + ovId].tags, []);
+  assert.equal(byId['user:' + ovId].imported, true);
+  assert.equal(byId['user:' + srcId].kind, 'source');
+  assert.equal(byId['user:' + srcId].imported, true);
+});
+
 // Task 2: load() henter OGSÅ data/data-sources.json (registry) — samme
 // nett-først/storage-fallback-mønster som index/countries. list() surfacer
 // ikke lenger builtins (§over), så beviset for at index-cachen overlevde
@@ -238,7 +263,7 @@ test('load tåler nett-feil: faller tilbake til storage-cache (index/countries/r
   assert.equal(P2.autoFrom('sv-FI'), 'finland');       // index-cache overlevde
   assert.ok(P2.countryOptions().some((o) => o.name === 'Norway' && o.packId === 'norway')); // countries-cache overlevde
   assert.deepEqual(P2.listRegistry(), [
-    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', off: false },
+    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', tags: [], off: false },
   ]);                                                  // registry-cache overlevde
 });
 
@@ -384,7 +409,7 @@ test('user:-pakker resolves fra Profiles-lageret, aldri fetch', async () => {
   assert.equal(calls, before);                                         // resolve() gjorde ALDRI et fetch-kall
   prof.setPacks(['user:' + sid]);
   await P.ensureSelected();
-  assert.deepEqual(P.payload(), [{ id: 'user:' + sid, name: 'ESS-kilde', text: 'yaml her', level: 'full' }]);
+  assert.deepEqual(P.payload(), [{ id: 'user:' + sid, name: 'ESS-kilde', text: 'yaml her', level: 'full', kind: 'source', tags: [] }]);
 });
 
 test('migrering: md_packs_imported flyttes til kind:source og velges om valgt', async () => {
@@ -541,8 +566,24 @@ test('listRegistry: navn/beskrivelse + av-status fra Profiles.sourcesOff(); tål
   const P = makePacks(s, fakeFetch(files), prof);
   await P.load();
   assert.deepEqual(P.listRegistry(), [
-    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', off: false },
-    { id: 'dbnomics', name: 'DBnomics', description: '', off: true },
+    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', tags: [], off: false },
+    { id: 'dbnomics', name: 'DBnomics', description: '', tags: [], off: true },
+  ]);
+});
+
+test('listRegistry: tags følger med fra data-sources.json når feltet finnes', async () => {
+  const REG = [
+    { id: 'ssb', navn: 'SSB', beskrivelse: 'Statistics Norway', tags: ['official', 'nordic'] },
+    { id: 'dbnomics', navn: 'DBnomics' },
+  ];
+  const files = Object.assign({}, FILES, { 'data/data-sources.json': REG });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  assert.deepEqual(P.listRegistry(), [
+    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', tags: ['official', 'nordic'], off: false },
+    { id: 'dbnomics', name: 'DBnomics', description: '', tags: [], off: false },
   ]);
 });
 
@@ -574,7 +615,73 @@ test('payload: inkluderer landpakketekst FØRST når et landvalg er satt', async
   prof.setCountry('cc', 'NO');
   await P.ensureSelected();
   assert.deepEqual(P.payload(), [
-    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full' },
-    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
+    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full', kind: 'overview', tags: [] },
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full', kind: 'overview', tags: [] },
+  ]);
+});
+
+// Kilder-profil-output (2026-08-08, Task 1 §Interfaces): compose() bærer
+// kind/tags gjennom UENDRET (verdiene kommer fra input-objektene, ikke
+// beregnet i compose selv — det er rawSelected()s jobb å slå dem opp).
+test('compose: kind/tags følger med gjennom, uendret fra input', () => {
+  const out = compose([
+    { id: 'a', name: 'A', text: 'x'.repeat(100), kind: 'source', tags: ['t1', 't2'] },
+    { id: 'b', name: 'B', text: 'y'.repeat(100), kind: 'overview', tags: [] },
+  ]);
+  assert.deepEqual(out.map((p) => ({ id: p.id, kind: p.kind, tags: p.tags })), [
+    { id: 'a', kind: 'source', tags: ['t1', 't2'] },
+    { id: 'b', kind: 'overview', tags: [] },
+  ]);
+});
+
+// Kilder-profil-output (Task 1 §Interfaces): rawSelected()/payload() slår
+// opp kind/tags per gren — kuratert (fra entry.kind/entry.tags i index.json).
+test('rawSelected/payload: kuratert pakke med kind=source og tags i index.json', async () => {
+  const IDX = { v: 1, packs: INDEX.packs.concat([
+    { id: 'ess', name: 'ESS', description: 'European Social Survey', file: 'ess.md',
+      kind: 'source', tags: ['survey', 'europe'] },
+  ]) };
+  const files = Object.assign({}, FILES, {
+    'data/packs/index.json': IDX,
+    'data/packs/ess.md': '# ESS\nUse ESS rounds.',
+  });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  prof.setPacks(['ess']);
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [
+    { id: 'ess', name: 'ESS', text: '# ESS\nUse ESS rounds.', level: 'full', kind: 'source', tags: ['survey', 'europe'] },
+  ]);
+});
+
+// country: gren — kind='overview', tags=[] alltid (landmalen har ingen
+// katalogpost å hente tags/kind fra).
+test('rawSelected/payload: country:-gren gir kind=overview, tags=[]', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  prof.setCountry('cc', 'SE');                          // generisk landmal, ingen kuratert pakke
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [
+    { id: 'country:SE', name: 'Sweden', text: P.payload()[0].text, level: 'full', kind: 'overview', tags: [] },
+  ]);
+});
+
+// user: gren — kind fra origin.kind (default 'source' uten origin), tags fra
+// profiloppføringens tags-felt.
+test('rawSelected/payload: user:-gren henter kind fra origin.kind og tags fra profiloppføringen', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  const ovId = prof.create('Oversikt', 'yaml', 'source',
+    { source: 'community', id: 'ov1', updated: '', kind: 'overview' }, ['x']);
+  prof.setPacks(['user:' + ovId]);
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [
+    { id: 'user:' + ovId, name: 'Oversikt', text: 'yaml', level: 'full', kind: 'overview', tags: ['x'] },
   ]);
 });

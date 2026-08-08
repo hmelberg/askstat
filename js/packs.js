@@ -59,7 +59,8 @@
       byId[p.id] = pick;
     }
     return list.map(function (p) {
-      return { id: p.id, name: p.name, text: byId[p.id].text, level: byId[p.id].level };
+      return { id: p.id, name: p.name, text: byId[p.id].text, level: byId[p.id].level,
+        kind: p.kind, tags: p.tags };
     });
   }
 
@@ -190,7 +191,15 @@
           if (pr.origin && pr.origin.source === 'community') {
             group = pr.origin.kind === 'source' ? 'src' : 'overview';
           }
-          out.push({ id: 'user:' + pr.id, name: pr.name, description: '', group: group });
+          // kind/tags/imported (kilder-profil-output-runden §Interfaces):
+          // kind fra origin.kind, default 'source' (spec §3, legacy uten
+          // origin — også oppføringer skrevet FØR denne runden).
+          out.push({
+            id: 'user:' + pr.id, name: pr.name, description: '', group: group,
+            kind: (pr.origin && pr.origin.kind) || 'source',
+            tags: pr.tags || [],
+            imported: !!(pr.origin && pr.origin.source === 'community'),
+          });
         });
       }
       return out;
@@ -257,7 +266,8 @@
     function listRegistry() {
       var off = profiles && profiles.sourcesOff ? profiles.sourcesOff() : [];
       return (registry || []).map(function (r) {
-        return { id: r.id, name: r.navn, description: r.beskrivelse || '', off: off.indexOf(r.id) >= 0 };
+        return { id: r.id, name: r.navn, description: r.beskrivelse || '',
+          tags: r.tags || [], off: off.indexOf(r.id) >= 0 };
       });
     }
 
@@ -312,22 +322,31 @@
     function rawSelected() {
       var out = [];
       effectiveIds().forEach(function (id) {
-        var got = null, summary;
+        var got = null, summary, kind, tags;
         if (id.indexOf('user:') === 0) {
           var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
-          if (pr) got = { name: pr.name, text: pr.text };
+          if (pr) {
+            got = { name: pr.name, text: pr.text };
+            // kind fra origin.kind, default 'source' — samme regel som list().
+            kind = (pr.origin && pr.origin.kind) || 'source';
+            tags = pr.tags || [];
+          }
         } else {
           got = mem[id] || readJson(TXT_CACHE + id);
           if (got) {
             if (id.indexOf('country:') === 0) {
               summary = 'Prefer national sources for ' + got.name + '.';
+              kind = 'overview';
+              tags = [];
             } else {
               var entry = curated().filter(function (p) { return p.id === id; })[0];
               if (entry && entry.summary) summary = entry.summary;
+              kind = entry && entry.kind === 'source' ? 'source' : 'overview';
+              tags = (entry && entry.tags) || [];
             }
           }
         }
-        if (got) out.push({ id: id, name: got.name, text: got.text, summary: summary });
+        if (got) out.push({ id: id, name: got.name, text: got.text, summary: summary, kind: kind, tags: tags });
       });
       return out;
     }
@@ -393,7 +412,8 @@
             author: p.author || '', updated: p.updated || '',
             // Pakkesplitting §3: kind styrer Explore-grupperingen — poster
             // uten eksplisitt kind (eldre data) faller tilbake til 'overview'.
-            kind: p.kind === 'source' ? 'source' : 'overview' };
+            kind: p.kind === 'source' ? 'source' : 'overview',
+            tags: p.tags || [] };
         });
     }
 
@@ -408,7 +428,8 @@
       // importer i riktig popover/manager-gruppe.
       var id = profiles.create(entry.name || entry.id, text, 'source',
         { source: 'community', id: entry.id, updated: entry.updated || '',
-          kind: entry.kind === 'source' ? 'source' : 'overview' });
+          kind: entry.kind === 'source' ? 'source' : 'overview' },
+        entry.tags);
       return 'user:' + id;
     }
 

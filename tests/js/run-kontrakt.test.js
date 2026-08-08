@@ -41,15 +41,17 @@ test('get_pack: tomt svar erstattes med en markørstreng, aldri en tom streng', 
     'klientens fallback for tomt get_pack-svar mangler/endret');
 });
 
-// Utvidet søk-kontrakten (kontekstrunden fase 2 §5): js/packs.js sin
-// bryter-rad og js/ai-chat.js sin payload MÅ dele NØYAKTIG samme
-// localStorage-nøkkel — ingen felles konstant på tvers av filer i dette
-// ES5-oppsettet (samme risiko som get_pack-kontrakten over: et navnesprik
-// ville dødd stille, bryteren huker av men payloaden sender aldri discover).
-test('utvidet søk-kontrakten består: samme localStorage-nøkkel i packs.js og ai-chat.js', () => {
-  const packsJs = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'packs.js'), 'utf8');
+// Utvidet søk-kontrakten (kontekstrunden fase 2 §5): bryteren (nå
+// #sourcesDiscoverCb i js/sources-modal.js — flyttet dit fra packs.js sin
+// popover i kilder-profil-output-runden, Task 5) og js/ai-chat.js sin payload
+// MÅ dele NØYAKTIG samme localStorage-nøkkel — ingen felles konstant på tvers
+// av filer i dette ES5-oppsettet (samme risiko som get_pack-kontrakten over:
+// et navnesprik ville dødd stille, bryteren huker av men payloaden sender
+// aldri discover).
+test('utvidet søk-kontrakten består: samme localStorage-nøkkel i sources-modal.js og ai-chat.js', () => {
+  const modalJs = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'sources-modal.js'), 'utf8');
   const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
-  assert.ok(packsJs.includes("'md_ask_discover'"), 'packs.js bruker ikke lenger nøkkelen md_ask_discover');
+  assert.ok(modalJs.includes("'md_ask_discover'"), 'sources-modal.js bruker ikke lenger nøkkelen md_ask_discover');
   assert.ok(aiChat.includes("localStorage.getItem('md_ask_discover') === '1'"),
     'ai-chat.js leser ikke lenger md_ask_discover NØYAKTIG slik svar.ts/coercing forventer');
   assert.ok(aiChat.includes('discover:'), 'ai-chat.js payload mangler discover-feltet');

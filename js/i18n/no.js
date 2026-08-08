@@ -183,4 +183,17 @@ window.M2PY_I18N.no = {
   "← Back to list": "← Tilbake til lista",
   // Smoke-funn (menyopprydding, Task 7 §2):
   "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "Kildebiblioteket ditt. Avkryssede kilder er aktive og sendes med hvert spørsmål. Klikk på et navn for detaljer; importer delte kilder eller legg til land nedenfor.",
+  // Kilde-dialogen (spec 2026-08-08-kilder-profil-output §2, Task 4 markup +
+  // Task 5 logikk). Full 13-språks-sweep gjøres i Task 12.
+  "Pick which sources the AI may use. Topics are curated menus of sources; single sources are direct instructions.": "Velg hvilke kilder KI-en kan bruke. Temaer er kuraterte menyer over kilder; enkeltkilder er direkte instrukser.",
+  "Topics": "Temaer",
+  "Single sources": "Enkeltkilder",
+  "Single source": "Enkeltkilde",
+  "Topic (collection)": "Tema (samling)",
+  "Tags (comma-separated)": "Tagger (kommaseparert)",
+  "Import new sources…": "Importer nye kilder …",
+  "New…": "Ny …",
+  "Nothing here — clear the search or import new sources.": "Ingenting her — tøm søket eller importer nye kilder.",
+  "built-in": "innebygd",
+  "mine": "min",
 };

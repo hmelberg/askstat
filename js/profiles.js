@@ -182,6 +182,18 @@
           if (ct.length) doc.profiles[id].tags = ct;
           else delete doc.profiles[id].tags;
         }
+        // originKind (kilder-profil-output-runden, Task 5): kilde-dialogen lar
+        // brukeren flytte en egen kilde mellom fanene tema/enkeltkilde uten å
+        // slette og lage den på nytt. Kun origin.kind skrives — resten av
+        // origin (source/id/updated, satt ved import) er URØRT, og et helt
+        // manglende origin fylles med {source:'own'} slik egenskrevne kilder
+        // ellers får det av create-kallet i dialogen.
+        if (fields && 'originKind' in fields) {
+          var ok = fields.originKind === 'overview' ? 'overview' : 'source';
+          var org = doc.profiles[id].origin;
+          if (!org || typeof org !== 'object') org = doc.profiles[id].origin = { source: 'own' };
+          org.kind = ok;
+        }
         doc.profiles[id].updated = now();
         writeDoc(doc);
       },
@@ -400,16 +412,6 @@
       var modalKind = 'profile';
 
       function renderList() {
-        if (modalKind === 'source' && global.SourcesUi) {
-          global.SourcesUi.renderLibrary(listEl, { onEdit: openEdit });
-          return;
-        }
-        // Review-funn 2026-08-06 (Task 4-fiks): SourcesUi.renderLibrary legger
-        // .sources-scroll på listEl (samme DOM-node som profil-grenen bruker,
-        // hentet ÉN gang ved modul-init) og fjerner den aldri selv — uten
-        // dette lekker 300px-taket/scrollbaren inn i Profiles-modalen for
-        // resten av økten så snart «Administrer kilder …» har vært åpnet.
-        listEl.classList.remove('sources-scroll');
         var act = P.active();
         listEl.innerHTML = '';
         if (modalKind === 'profile') {
@@ -520,33 +522,13 @@
       P.openModal = function (opts) {
         opts = opts || {};
         modalKind = opts.kind === 'source' ? 'source' : 'profile';
-        if (modalKind === 'source' && global.SourcesUi && global.SourcesUi.reset) global.SourcesUi.reset();
         if (titleEl) titleEl.textContent = modalKind === 'source' ? T('Sources') : T('Profiles');
         if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
-        // Landvelger-knappen («Add country…») er flyttet til sidemenyens
-        // #askCountryBtn (kildevelger-runde 2, Task 4) — ingen ctyBtn-
-        // synlighet å styre her lenger.
-        var impBtn = document.getElementById('sourcesImportBtn');
-        if (impBtn) impBtn.hidden = modalKind !== 'source';
-        // Kildevelger-runde 2 (Task 6): ryddeknappene følger samme mønster —
-        // hidden by default i markup, vist KUN i kildemodus.
-        var deselectBtn = document.getElementById('sourcesDeselectBtn');
-        var removeImportedBtn = document.getElementById('sourcesRemoveImportedBtn');
-        if (deselectBtn) deselectBtn.hidden = modalKind !== 'source';
-        if (removeImportedBtn) removeImportedBtn.hidden = modalKind !== 'source';
-        // Smoke-funn (menyopprydding, Task 7 §2): profilhjelpeteksten sto
-        // synlig i kildemodus også — de to hjelpetekstene toggler nå speilvendt.
-        var profilesHelp = document.getElementById('profilesHelp');
-        var sourcesHelp = document.getElementById('sourcesHelp');
-        if (profilesHelp) profilesHelp.hidden = (modalKind === 'source');
-        if (sourcesHelp) sourcesHelp.hidden = (modalKind !== 'source');
-        // sourcesInfo lever utenfor listEl (SourcesUi styrer den KUN i
-        // source-modus) — skjul den eksplisitt her, ellers lekker en
-        // tidligere valgt kildes infopanel inn i profil-modalen.
-        if (modalKind !== 'source') {
-          var infoEl = document.getElementById('sourcesInfo');
-          if (infoEl) infoEl.hidden = true;
-        }
+        // Kilde-elementene (#sourcesImportBtn/#sourcesInfo/ryddeknappene/
+        // hjelpeteksten) styres IKKE herfra lenger: kildebiblioteket flyttet
+        // til sin egen dialog i js/sources-modal.js (kilder-profil-output-
+        // runden, Task 5). Denne modalen eier kun profiler — modalKind selv
+        // ryddes bort i Task 7.
         if ('prefillName' in opts || 'prefillText' in opts) {
           renderList();
           openEdit('NY');

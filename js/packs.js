@@ -4,8 +4,8 @@
 // KLIENTSIDE og sendes som packs-felt ([{name,text}]) til /api/svar
 // (ai-chat.js) — serveren rendrer blokka.
 // Valg-tilstanden bor i Profiles (packsState/setPacks/togglePack/setAutoPack);
-// denne fila eier innhold, katalog og cache. DOM-delen (velger-pille) bak
-// document-guard.
+// denne fila eier innhold, katalog og cache. All kilde-UI bor i
+// js/sources-modal.js; DOM-delen her er redusert til boot + locale-kandidater.
 (function (global) {
   'use strict';
   var IDX_CACHE = 'md_packs_index';
@@ -467,6 +467,9 @@
       displayName: displayName, describe: describe, migrateImported: migrateImported,
       effectiveIds: effectiveIds, countryPackId: countryPackId,
       countryOptions: countryOptions, listRegistry: listRegistry,
+      // filterCatalog eksponeres på instansen fordi Import-utforskeren bor i
+      // js/sources-modal.js (Task 5) og ikke har tilgang til modul-scopet her.
+      filterCatalog: filterCatalog,
     };
   }
 
@@ -474,495 +477,37 @@
     global.Packs = makePacks(global.localStorage, fetch.bind(global), global.Profiles);
   }
 
-  // ---- DOM: velger-pille i input-kortet (samme anatomi som profilvelgeren).
+  // ---- DOM: kun boot + locale-kandidatene. HELE kilde-UI-en (popover,
+  // biblioteksmanager, landmodal, Import-utforsker) er flyttet til
+  // js/sources-modal.js (kilder-profil-output-runden, Task 5) — denne fila
+  // eier igjen bare data: katalog, registry, payload og oppstart.
   if (typeof document !== 'undefined' && document.getElementById) {
-    var T = function (k, p) { return global.t ? global.t(k, p) : k; };
-    var initPacksUi = function () {
+    var initPacksBoot = function () {
       var P = global.Packs;
       var Prof = global.Profiles;
       if (!P || !Prof) return;
 
-      // Flervalg (kontekstrunden fase 2 §2): DOM-delens egen speiling av
-      // Profiles.packsState().ids — brukt både i renderInto og import.
-      function selectedIds() { return Prof.packsState().ids; }
-
-      // Utvidet søk (kontekstrunden fase 2 §5): sticky PER ENHET — bor i
-      // localStorage ALENE (ALDRI i doc.packs/synk, i motsetning til
-      // pakkevalget over). js/ai-chat.js sin payload leser NØYAKTIG denne
-      // nøkkelen direkte (se run-kontrakt.test.js) — ingen felles konstant
-      // på tvers av filer i dette ES5-oppsettet, så navnet er literal begge
-      // steder med VILJE.
-      var DISCOVER_KEY = 'md_ask_discover';
-      function readDiscover() {
-        try { return global.localStorage.getItem(DISCOVER_KEY) === '1'; } catch (e) { return false; }
-      }
-      function writeDiscover(on) {
-        try {
-          if (on) global.localStorage.setItem(DISCOVER_KEY, '1');
-          else global.localStorage.removeItem(DISCOVER_KEY);
-        } catch (e) {}
-      }
-
       // Boot-lokalisering (spec 2026-08-05 §4): lagret UI-språk → navigator-
-      // locale. Hoistet HIT (Task 3) — Standard-raden bruker samme kandidat-
-      // liste ved gjenoppretting (P.onLangChange), P.boot() nederst likeså.
+      // locale. Eksponeres som P.localeCandidates() fordi land-dropdownen i
+      // js/sources-modal.js må sende NØYAKTIG samme kandidatliste inn i
+      // P.onLangChange() når brukeren velger «Automatic» igjen.
       var storedLang = null;
       try { storedLang = global.localStorage.getItem('microdata_ui_lang'); } catch (e) {}
       var localeCandidates = [storedLang || '', (typeof navigator !== 'undefined' && navigator.language) || ''];
+      P.localeCandidates = function () { return localeCandidates.slice(); };
 
-      // Ren kildepille (spec 2026-08-06-menyopprydding §3): kildeseksjonen
-      // rendres inn i den delte popoveren av js/context-pill.js via denne
-      // kroken; etiketten eies av context-pill.js. Faste valg (Standard/
-      // Utvidet søk/Administrer kilder) ligger ALLTID øverst på container og
-      // ruller aldri vekk; biblioteket (sjekkbokser) ligger i en egen
-      // internt-rullende .ask-ctx-scroll-div under.
-      function renderInto(container, close) {
-        container.innerHTML = '';
-
-        // Sjekkboks-rad: klikk toggler valget og RE-RENDRER via
-        // Prof.togglePack → Profiles.onChange → context-pill (IKKE close()).
-        function checkRow(container, id, name, checked) {
-          var b = document.createElement('button');
-          b.type = 'button';
-          var check = document.createElement('span');
-          check.className = 'ask-pop-check';
-          check.textContent = checked ? '✓' : '';
-          var nm = document.createElement('span');
-          nm.textContent = name;
-          b.appendChild(check);
-          b.appendChild(nm);
-          b.addEventListener('click', function () {
-            Prof.togglePack(id);
-            P.ensureSelected();
-          });
-          container.appendChild(b);
-        }
-        // Navigasjonsrad — brukes av modalRow under.
-        function navRow(text, onClick) {
-          var b = document.createElement('button');
-          b.type = 'button';
-          var check = document.createElement('span');
-          check.className = 'ask-pop-check';
-          var nm = document.createElement('span');
-          nm.textContent = text;
-          b.appendChild(check);
-          b.appendChild(nm);
-          b.addEventListener('click', onClick);
-          container.appendChild(b);
-        }
-        // Rad som åpner en modal (Administrer kilder …): lukker popoveren først.
-        function modalRow(text, onClick) {
-          navRow(text, function () { close(); onClick(); });
-        }
-        function sep() {
-          var d = document.createElement('div');
-          d.className = 'ask-pop-sep';
-          container.appendChild(d);
-        }
-        // Utvidet søk-raden (kontekstrunden fase 2 §5): egen sjekkboks-rad,
-        // IKKE et pakkevalg — klikk toggler localStorage direkte og
-        // re-rendrer LOKALT (samme IKKE-close-oppførsel som checkRow, men
-        // uten omveien om Prof.togglePack/ensureSelected).
-        function discoverRow() {
-          var b = document.createElement('button');
-          b.type = 'button';
-          var check = document.createElement('span');
-          check.className = 'ask-pop-check';
-          check.textContent = readDiscover() ? '✓' : '';
-          var nm = document.createElement('span');
-          nm.textContent = T('Extended internet search — also look beyond the built-in sources (slower)');
-          b.appendChild(check);
-          b.appendChild(nm);
-          b.addEventListener('click', function () {
-            writeDiscover(!readDiscover());
-            renderInto(container, close);
-          });
-          container.appendChild(b);
-        }
-
-        // Faste valg (spec menyopprydding §1): alltid øverst, ruller aldri
-        // vekk. Standard (automatic)-raden er FJERNET (kildevelger-runde 2
-        // Task 5) — funksjonen bor nå i landvelgerens «Automatic» (Task 4);
-        // Prof.setPacksAuto finnes ikke lenger.
-        discoverRow();
-        modalRow(T('Manage sources…'), function () { Prof.openModal({ kind: 'source' }); });
-        sep();
-
-        // Biblioteket: KUN sjekkboksrader, i egen rulle-div (§1), gruppert
-        // som Explore-lista (Task 5 §Designavgjørelser: «Topic overviews» /
-        // «Individual sources» / «My sources» — tomme grupper får ingen
-        // overskrift). Landrader er FJERNET herfra — landet eies av
-        // landvelger-sidemenyknappen (Task 4), ikke lenger av denne popoveren.
-        var scroll = document.createElement('div');
-        scroll.className = 'ask-ctx-scroll';
-        container.appendChild(scroll);
-        var entries = P.list();
-        var checkedIds = Prof.packsState().ids;
-        [['overview', T('Topic overviews')], ['src', T('Individual sources')], ['mine', T('My sources')]]
-          .forEach(function (grp) {
-            var rows = entries.filter(function (e) { return e.group === grp[0]; });
-            if (!rows.length) return;
-            var head = document.createElement('div');
-            head.className = 'ask-pop-group';
-            head.textContent = grp[1];
-            scroll.appendChild(head);
-            rows.forEach(function (e) {
-              checkRow(scroll, e.id, e.name, checkedIds.indexOf(e.id) >= 0);
-            });
-          });
-        // Tomt bibliotek (ingen entries i det hele tatt, ikke bare én tom
-        // gruppe) — dempet hint i stedet for en blank rulle-flate.
-        if (!entries.length) {
-          var emptyHint = document.createElement('div');
-          emptyHint.className = 'ask-pop-hint';
-          emptyHint.textContent = T('No sources in your library — add some via Manage sources…');
-          scroll.appendChild(emptyHint);
-        }
-
-        // Budsjett-hint (kontekstrunden fase 2 §4): vises når 80k-budsjettet
-        // tvang én eller flere valgte pakker ned til manifest/summary-nivå.
-        var info = P.composeInfo();
-        if (info.shortForm > 0) {
-          var hint = document.createElement('div');
-          hint.className = 'ask-pop-hint';
-          hint.textContent = T('{short} of {total} packs sent in short form',
-            { short: info.shortForm, total: info.total });
-          container.appendChild(hint);
-        }
-      }
-      global.PacksUi = { renderInto: renderInto };
-
-      // Biblioteksmanageren (spec menyopprydding §4): profilesBackdrop i
-      // source-modus. selectedInfoId overlever re-render (P.onChange).
-      var selectedInfoId = null;
-      // Radbygger delt av de manuelt valgbare gruppene (Topic overviews/
-      // Individual sources/My sources) og Built-in data sources-gruppen —
-      // eneste forskjell er checked-kilden og change-handleren (togglePack
-      // vs. toggleSourceOff), begge sendt inn av kalleren.
-      function libraryRow(container, hooks, id, name, checked, onToggle) {
-        var row = document.createElement('div');
-        row.className = 'sources-row' + (selectedInfoId === id ? ' active' : '');
-        var cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = checked;
-        cb.addEventListener('change', onToggle);
-        var nm = document.createElement('button');
-        nm.type = 'button';
-        nm.className = 'sources-name';
-        nm.textContent = name;
-        nm.addEventListener('click', function () {
-          selectedInfoId = selectedInfoId === id ? null : id;
-          renderLibrary(container, hooks);
-        });
-        row.appendChild(cb);
-        row.appendChild(nm);
-        container.appendChild(row);
-      }
-      function renderLibrary(container, hooks) {
-        container.innerHTML = '';
-        container.classList.add('sources-scroll');
-        var infoEl = document.getElementById('sourcesInfo');
-        var ids = Prof.packsState().ids;
-        var entries = P.list();
-        // Samme grupperingsidiom som popoveren (renderInto over, Task 5):
-        // «Topic overviews» / «Individual sources» / «My sources» — tomme
-        // grupper får ingen overskrift. Overskriftsklassen er ask-explore-
-        // group (Explore-modalens, 4px sidepadding) — IKKE ask-pop-group
-        // (popoverens 10px), for manageren er en vanlig .ai-modal-liste.
-        [['overview', T('Topic overviews')], ['src', T('Individual sources')], ['mine', T('My sources')]]
-          .forEach(function (grp) {
-            var rows = entries.filter(function (e) { return e.group === grp[0]; });
-            if (!rows.length) return;
-            var head = document.createElement('div');
-            head.className = 'ask-explore-group';
-            head.textContent = grp[1];
-            container.appendChild(head);
-            rows.forEach(function (e) {
-              libraryRow(container, hooks, e.id, e.name, ids.indexOf(e.id) >= 0, function () {
-                Prof.togglePack(e.id);
-                P.ensureSelected();
-              });
-            });
-          });
-        // Built-in data sources (Task 6 §Designavgjørelser): registryets
-        // av/på-toggler nederst — checked speiler !off, navneklikk åpner
-        // infopanelet (reg:<id>, describe() under). Rediger/Slett gjelder
-        // ALDRI disse radene (kun user:-kilder, se infopanel-blokka under).
-        var regEntries = P.listRegistry();
-        if (regEntries.length) {
-          var regHead = document.createElement('div');
-          regHead.className = 'ask-explore-group';
-          regHead.textContent = T('Built-in data sources');
-          container.appendChild(regHead);
-          regEntries.forEach(function (e) {
-            libraryRow(container, hooks, 'reg:' + e.id, e.name, !e.off, function () {
-              Prof.toggleSourceOff(e.id); // fyrer onChange → renderList → hit (etablert mønster)
-            });
-          });
-        }
-        if (infoEl) {
-          infoEl.hidden = !selectedInfoId;
-          infoEl.innerHTML = '';
-          if (selectedInfoId) {
-            var txt = document.createElement('div');
-            txt.textContent = P.describe(selectedInfoId) || '';
-            infoEl.appendChild(txt);
-            if (selectedInfoId.indexOf('user:') === 0) {
-              var pid = selectedInfoId.slice(5);
-              var actions = document.createElement('div');
-              actions.className = 'sources-info-actions';
-              var edit = document.createElement('button');
-              edit.type = 'button';
-              edit.className = 'ai-codeblock-btn';
-              edit.textContent = T('Edit');
-              edit.addEventListener('click', function () { hooks.onEdit(pid); });
-              var del = document.createElement('button');
-              del.type = 'button';
-              del.className = 'ai-codeblock-btn';
-              del.textContent = T('Delete');
-              del.addEventListener('click', function () {
-                selectedInfoId = null;
-                Prof.remove(pid);           // fyrer onChange → profiles.js renderList → hit
-              });
-              actions.appendChild(edit);
-              actions.appendChild(del);
-              infoEl.appendChild(actions);  // knapperad — «Del …» kan legges til her senere
-            }
-          }
-        }
-      }
-      // Ryddeknapper (Task 6 §Designavgjørelser — Hans' beslutning: knapper,
-      // ikke automigrering). «Deselect all» rører KUN doc.packs (det manuelle
-      // pakkevalget) — landvalg (doc.country) og av-skrudde standardkilder
-      // (doc.sources_off) er UBERØRT. Rydder også opp gamle synkede
-      // {auto:true}/land-ider som kan ligge i doc.packs.ids fra før denne
-      // runden (writeDoc-skrubben dekker {auto:true}-formen; denne knappen
-      // dekker resten — se plan §Kjente feller).
-      var deselectBtn = document.getElementById('sourcesDeselectBtn');
-      if (deselectBtn) deselectBtn.addEventListener('click', function () { Prof.setPacks([]); });
-      // «Remove imported» sletter ALLE community-importerte kilder (både
-      // oversikter og enkeltkilder) — egenskrevne kilder (uten origin.source
-      // === 'community') beholdes. Prof.remove() rydder doc.packs.ids selv
-      // (se profiles.js remove()), så ingen egen opprydding trengs her.
-      var removeImportedBtn = document.getElementById('sourcesRemoveImportedBtn');
-      if (removeImportedBtn) removeImportedBtn.addEventListener('click', function () {
-        if (!global.confirm(T('Remove all imported sources? Your own written sources are kept.'))) return;
-        Prof.list('source').forEach(function (pr) {
-          if (pr.origin && pr.origin.source === 'community') {
-            // Samme forsiktighet som enkelt-Slett-knappen over: ikke la
-            // infopanelet henge igjen på en id som akkurat ble borte.
-            if (selectedInfoId === 'user:' + pr.id) selectedInfoId = null;
-            Prof.remove(pr.id);
-          }
-        });
-      });
-      global.SourcesUi = {
-        renderLibrary: renderLibrary,
-        reset: function () { selectedInfoId = null; },
-      };
-
-      // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
-      // rendret preview FØR import; import = kopi som aktiveres.
-      var expBackdrop = document.getElementById('packsExploreBackdrop');
-      var expList = document.getElementById('packsExploreList');
-      var expPrevWrap = document.getElementById('packsExplorePreviewWrap');
-      var expPrev = document.getElementById('packsExplorePreview');
-      var expMeta = document.getElementById('packsExploreMeta');
-      var expImport = document.getElementById('packsImportBtn');
-      var expClose = document.getElementById('packsExploreCloseBtn');
-      var expSearch = document.getElementById('packsExploreSearch');
-      var expBack = document.getElementById('packsExploreBackBtn');
-      var expSelected = null; // {entry, text}
-      // Generasjonsteller (review-funn Task 6): P.resolve() er nett-bakket og
-      // kan komme sent — uten denne kan en gammel .then() overstyre en modal
-      // som alt er lukket/gjenåpnet/har fått et nytt valg. Bumpes ved åpning
-      // OG ved alle lukk-veier; expSelectEntry sjekker generasjonen sin før
-      // den rører DOM-en.
-      var expGen = 0;
-      function renderExploreList() {
-        expList.innerHTML = '';
-        var entries = filterCatalog(P.listCommunity(), expSearch ? expSearch.value : '');
-        // Pakkesplitting (spec 2026-08-07 §3): to grupper — oversikter
-        // først, enkeltkilder under. Tomme grupper får ingen overskrift.
-        [['overview', T('Topic overviews')], ['source', T('Individual sources')]]
-          .forEach(function (grp) {
-            var rows = entries.filter(function (e) { return e.kind === grp[0]; });
-            if (!rows.length) return;
-            var head = document.createElement('div');
-            head.className = 'ask-explore-group';
-            head.textContent = grp[1];
-            expList.appendChild(head);
-            rows.forEach(function (e) {
-              var row = document.createElement('button');
-              row.type = 'button';
-              row.className = 'ask-explore-row';
-              var nm = document.createElement('strong');
-              nm.textContent = e.name;
-              var desc = document.createElement('div');
-              desc.textContent = e.description;
-              row.appendChild(nm);
-              row.appendChild(desc);
-              row.addEventListener('click', function () { expSelectEntry(e); });
-              expList.appendChild(row);
-            });
-          });
-      }
-      function showExploreStep(detail) {
-        if (expSearch) expSearch.hidden = detail;
-        expList.hidden = detail;
-        expPrevWrap.hidden = !detail;
-        expImport.hidden = !detail;
-        if (expBack) expBack.hidden = !detail;
-      }
-      function expSelectEntry(e) {
-        expGen++; // eget valg = egen generasjon — ugyldiggjør ethvert tidligere
-        // ventende resolve (også et annet rad-klikk i samme åpne modal, ikke
-        // bare lukk/gjenåpne-tilfellet)
-        var gen = expGen; // fanges FØR resolve — stale svar sjekkes mot dette
-        P.resolve(e.id).then(function (got) {
-          if (gen !== expGen) return; // modal lukket/gjenåpnet/nytt valg i mellomtiden
-          if (!got) return;
-          expSelected = { entry: e, text: got.text };
-          expMeta.textContent = T('by {author}, updated {updated}', { author: e.author || '?', updated: e.updated || '?' });
-          expPrev.innerHTML = global.mdAskMarkdown ? global.mdAskMarkdown(got.text) : '';
-          showExploreStep(true);
-        });
-      }
-      function openExplore() {
-        if (!expBackdrop) return;
-        expGen++;
-        expSelected = null;
-        if (expSearch) expSearch.value = '';
-        showExploreStep(false);
-        renderExploreList();
-        expBackdrop.classList.add('open');
-      }
-      if (expSearch) expSearch.addEventListener('input', renderExploreList);
-      if (expBack) expBack.addEventListener('click', function () {
-        expGen++;
-        expSelected = null;
-        showExploreStep(false);
-      });
-      if (expImport) expImport.addEventListener('click', function () {
-        if (!expSelected) return;
-        expGen++;
-        var newId = P.importPack(expSelected.entry, expSelected.text);
-        if (newId) Prof.togglePack(newId); // fersk id — «toggle» velger den
-        P.ensureSelected();
-        expBackdrop.classList.remove('open');
-      });
-      if (expClose) expClose.addEventListener('click', function () { expGen++; expBackdrop.classList.remove('open'); });
-      if (expBackdrop) expBackdrop.addEventListener('click', function (e) {
-        if (e.target === expBackdrop) { expGen++; expBackdrop.classList.remove('open'); }
-      });
-      // Biblioteksmanagerens «Importer delte kilder …» (spec §4): åpner
-      // Explore-modalen.
-      var impBtn = document.getElementById('sourcesImportBtn');
-      if (impBtn) impBtn.addEventListener('click', function () { openExplore(); });
-
-      // Landvelgeren (kildevelger-runde 2, Task 4): sidemeny-knappen
-      // #askCountryBtn åpner #countryBackdrop — samme fast-input-node-mønster
-      // som Explore-modalen over (expSearch/expList): kun radene i
-      // #countryList rebygges på hvert tastetrykk, søkefeltet selv gjenskapes
-      // aldri (markørfiksen). Radioradene speiler Prof.countryState():
-      // Automatic/None er ALLTID øverst og upåvirket av søket — kun
-      // land-radene (P.countryOptions()) filtreres.
-      var ctyBackdrop = document.getElementById('countryBackdrop');
-      var ctySearch = document.getElementById('countrySearch');
-      var ctyList = document.getElementById('countryList');
-      var ctyCloseBtn = document.getElementById('countryCloseBtn');
-      var askCountryBtn = document.getElementById('askCountryBtn');
-      var askCountryLabel = document.getElementById('askCountryLabel');
-
-      function closeCountryModal() {
-        if (ctyBackdrop) ctyBackdrop.classList.remove('open');
-      }
-      // Én radiorad — checked-tilstand og navn kommer fra kalleren, endring
-      // utfører valget og lukker modalen (spec §Task 4: «Valg lukker»).
-      function countryRadioRow(listEl, checked, name, onSelect) {
-        var row = document.createElement('label');
-        row.className = 'profiles-row';
-        var r = document.createElement('input');
-        r.type = 'radio';
-        r.name = 'countryChoice';
-        r.checked = checked;
-        // Klikk på en rad som ALT er valgt endrer ikke radioens tilstand, så
-        // 'change' fyrer aldri — modalen ble stående åpen (sluttreview-funn).
-        // 'click' dispatches derimot alltid, og FØR default-handlingen
-        // (checked-oppdateringen) kjører — r.checked her er dermed ennå den
-        // GAMLE verdien. Er den alt sann, lukk modalen direkte uten å kjøre
-        // onSelect() på nytt (billig fiks, ingen re-kjøring av setCountry).
-        r.addEventListener('click', function () {
-          if (r.checked) closeCountryModal();
-        });
-        r.addEventListener('change', function () {
-          onSelect();
-          closeCountryModal();
-        });
-        var nm = document.createElement('span');
-        nm.textContent = name;
-        row.appendChild(r);
-        row.appendChild(nm);
-        listEl.appendChild(row);
-      }
-      function renderCountryRows(listEl, q) {
-        listEl.innerHTML = '';
-        var st = Prof.countryState();
-        countryRadioRow(listEl, st.mode === 'auto', T('Automatic (from your language)'), function () {
-          Prof.setCountry('auto');
-          P.onLangChange(localeCandidates); // samme kandidatliste som ved boot
-        });
-        countryRadioRow(listEl, st.mode === 'none', T('None (international)'), function () {
-          Prof.setCountry('none');
-        });
-        filterCatalog(P.countryOptions(), q).forEach(function (o) {
-          countryRadioRow(listEl, st.mode === 'cc' && st.cc === o.cc, o.name, function () {
-            Prof.setCountry('cc', o.cc);
-            P.ensureSelected();
-          });
-        });
-      }
-      // Sidemeny-etiketten (renderSideLabel-idiomet, js/profiles.js sin
-      // askProfileLabel): none → «Country: none»; ellers landets EFFEKTIVE
-      // pakke — countryPackId() er null i auto-modus når ingen locale-
-      // kandidat traff (§Designavgjørelser), da vises kun «Country».
-      function renderCountryLabel() {
-        if (!askCountryLabel) return;
-        var st = Prof.countryState();
-        if (st.mode === 'none') { askCountryLabel.textContent = T('Country: none'); return; }
-        var id = P.countryPackId();
-        askCountryLabel.textContent = id
-          ? T('Country: {name}', { name: P.displayName(id) })
-          : T('Country');
-      }
-      if (askCountryBtn) askCountryBtn.addEventListener('click', function () {
-        if (ctySearch) ctySearch.value = '';
-        if (ctyList) renderCountryRows(ctyList, '');
-        if (ctyBackdrop) ctyBackdrop.classList.add('open');
-      });
-      if (ctySearch) ctySearch.addEventListener('input', function () {
-        renderCountryRows(ctyList, ctySearch.value);
-      });
-      if (ctyCloseBtn) ctyCloseBtn.addEventListener('click', closeCountryModal);
-      if (ctyBackdrop) ctyBackdrop.addEventListener('click', function (e) {
-        if (e.target === ctyBackdrop) closeCountryModal();
-      });
-      Prof.onChange(renderCountryLabel);
-
-      // Boot: last katalog, auto-forslag (localeCandidates, hoistet over
-      // renderInto), preload gjeldende tekst. Etikettene re-rendres etterpå —
-      // displayName trenger katalogen for kuraterte pakker; renderCountryLabel
-      // trenger den samme (§over) for landets pakke-id.
-      function refreshPill() {
-        if (global.ContextPill) global.ContextPill.refresh();
-        renderCountryLabel();
+      // Boot: last katalog, auto-forslag, preload gjeldende tekst. Kilde-
+      // dialogen re-rendres etterpå — den trenger katalogen for landnavn og
+      // pakketitler, og kan stå åpen alt (brukeren rekker å klikke).
+      function refreshUi() {
+        if (global.SourcesModal) global.SourcesModal.refresh();
       }
       P.boot(localeCandidates)
-        .then(refreshPill)
-        .catch(refreshPill);
+        .then(refreshUi)
+        .catch(refreshUi);
     };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPacksUi);
-    else initPacksUi();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPacksBoot);
+    else initPacksBoot();
   }
 
   if (typeof module !== 'undefined' && module.exports) {

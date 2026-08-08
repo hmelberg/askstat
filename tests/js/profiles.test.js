@@ -387,6 +387,36 @@ test('update: tags erstattes (ikke merges) når feltet er med i fields', () => {
   assert.equal('tags' in P.get(id), false);
 });
 
+// originKind (kilder-profil-output, Task 5 §Interfaces): kilde-dialogens
+// kind-radio flytter en egen kilde mellom fanene tema/enkeltkilde.
+test('update: originKind skriver origin.kind uten å røre resten av origin', () => {
+  const P = makeProfiles(fakeStorage());
+  const id = P.create('Egen', 'tekst', 'source', { source: 'own', kind: 'source' });
+  P.update(id, { originKind: 'overview' });
+  assert.deepEqual(P.get(id).origin, { source: 'own', kind: 'overview' });
+  // importert kilde: origin-metadataene (id/updated) overlever en kind-endring
+  const imp = P.create('Importert', 'tekst', 'source',
+    { source: 'community', id: 'nordic', updated: '2026-01-01', kind: 'overview' });
+  P.update(imp, { name: 'Nytt navn', originKind: 'source' });
+  assert.deepEqual(P.get(imp).origin,
+    { source: 'community', id: 'nordic', updated: '2026-01-01', kind: 'source' });
+  assert.equal(P.get(imp).name, 'Nytt navn');
+});
+
+test('update: originKind på oppføring UTEN origin oppretter {source:"own", kind}', () => {
+  const P = makeProfiles(fakeStorage());
+  const id = P.create('Gammel kilde uten origin', 'tekst', 'source');
+  assert.equal('origin' in P.get(id), false);
+  P.update(id, { originKind: 'overview' });
+  assert.deepEqual(P.get(id).origin, { source: 'own', kind: 'overview' });
+  // ugyldig/ukjent verdi faller tilbake til 'source' (samme default som ellers)
+  P.update(id, { originKind: 'tull' });
+  assert.equal(P.get(id).origin.kind, 'source');
+  // originKind ikke i fields → origin urørt
+  P.update(id, { text: 'ny tekst' });
+  assert.equal(P.get(id).origin.kind, 'source');
+});
+
 test('sources_off: mergeRemote hele-verdien-nyeste-vinner; likhet → uendret', () => {
   const P = makeProfiles(fakeStorage());
   P.toggleSourceOff('dbnomics');

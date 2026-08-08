@@ -171,9 +171,9 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span class="ask-side-label" id="askProfileLabel">Profile</span>
         </button>
-        <!-- Landvelger (kildevelger-runde 2, Task 4): erstatter det gamle
-             «Add country …»-underpanelet i kildemanageren — landvalget er nå
-             en egen sidemeny-knapp m/egen modal (#countryBackdrop under). -->
+        <!-- Landvelgeren er flyttet inn i kilde-dialogen som
+             #sourcesCountrySelect (kilder-profil-output-runden, Task 5) —
+             denne knappen har ingen wiring igjen og fjernes helt i Task 6. -->
         <button type="button" class="ask-side-btn" id="askCountryBtn" data-i18n-title title="Country — prefer this country's statistical sources. Click to change.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           <span class="ask-side-label" id="askCountryLabel">Country</span>
@@ -215,20 +215,14 @@
         <textarea id="askInput" class="ask-input" rows="2" data-i18n-placeholder placeholder="What do you want to find out?"></textarea>
         <div class="ask-input-tools">
           <div class="ask-tools-left">
+            <!-- Kildepillen (kilder-profil-output-runden, Task 5): ren
+                 åpne-dialog-knapp — popoveren (#askContextMenu) er borte,
+                 klikk åpner #sourcesBackdrop via js/sources-modal.js. -->
             <div class="ask-picker-wrap">
               <button type="button" class="ask-pill-btn" id="askContextBtn" data-i18n-title title="Sources — where the AI should look for data. Click to adjust.">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-                <span id="askContextLabel">Sources</span>
-                <svg class="ask-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                <span data-i18n>Sources</span>
               </button>
-              <div class="ask-pop-menu ask-context-menu" id="askContextMenu" hidden>
-                <div class="ask-ctx-head">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  <span data-i18n>Sources</span>
-                </div>
-                <div class="ask-ctx-explain" data-i18n>Where the AI should look for data.</div>
-                <div id="askCtxPackSection"></div>
-              </div>
             </div>
           </div>
           <div class="ask-tools-right">
@@ -12720,7 +12714,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/ask-history.js"></script>
   <script src="js/profiles.js"></script>
   <script src="js/packs.js"></script>
-  <script src="js/context-pill.js"></script>
+  <script src="js/sources-modal.js"></script>
   <script src="js/keys-crypto.js"></script>
   <script src="js/login.js"></script>
   <script src="js/konto-sync.js"></script>

@@ -508,10 +508,11 @@
       // bor i sidemenyen og åpner modalen direkte — radioene der ER velgeren.
       var sideBtn = document.getElementById('askProfileBtn');
       var sideLabel = document.getElementById('askProfileLabel');
+      // Sidemeny-omrokkering (Task 6): knappen heter «Instructions» og teksten
+      // er statisk uansett aktiv profil — profilnavnet vises ikke lenger her.
       function renderSideLabel() {
         if (!sideLabel) return;
-        var a = P.active();
-        sideLabel.textContent = a ? T('Profile: {name}', { name: a.name }) : T('Profile');
+        sideLabel.textContent = T('Instructions');
       }
       if (sideBtn) sideBtn.addEventListener('click', function () { P.openModal(); });
       renderSideLabel();

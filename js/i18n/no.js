@@ -51,6 +51,8 @@ window.M2PY_I18N.no = {
   "I already have a code": "Jeg har allerede en kode",
   "I found out a friend is cheating on his wife — should I tell her?": "Jeg har oppdaget at en venn er utro mot kona — bør jeg si det til henne?",
   "Individual sources": "Enkeltkilder",
+  "Instructions": "Instruksjoner",
+  "Instructions — added to every question. Click to manage.": "Instruksjoner — legges til hvert spørsmål. Klikk for å administrere.",
   "International": "Internasjonal",
   "International default": "Internasjonal standard",
   "Interpreting the question …": "Tolker spørsmålet …",

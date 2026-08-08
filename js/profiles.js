@@ -397,7 +397,6 @@
       if (!P || !backdrop) return;
       var listEl = document.getElementById('profilesList');
       var editEl = document.getElementById('profilesEdit');
-      var titleEl = document.getElementById('profilesTitle');
       var nameEl = document.getElementById('profileName');
       var textEl = document.getElementById('profileText');
       var countEl = document.getElementById('profileCount');
@@ -406,32 +405,24 @@
       var saveBtn = document.getElementById('profileSaveBtn');
       var delBtn = document.getElementById('profileDeleteBtn');
       var editingId = null; // null = ingen redigering; 'NY' = ny profil
-      // Hvilken kind modalen viser (kontekstrunden fase 3): 'profile' er
-      // standard (Profiles-knappen); 'source' settes av openModal({kind:
-      // 'source'}) — samme modal dobler som kildeeditor (§Unifisert lager).
-      var modalKind = 'profile';
 
       function renderList() {
         var act = P.active();
         listEl.innerHTML = '';
-        if (modalKind === 'profile') {
-          var none = document.createElement('label');
-          none.className = 'profiles-row';
-          none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>' + T('No profile') + '</span>';
-          none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
-          listEl.appendChild(none);
-        }
-        P.list(modalKind).forEach(function (pr) {
+        var none = document.createElement('label');
+        none.className = 'profiles-row';
+        none.innerHTML = '<input type="radio" name="profileActive"' + (act ? '' : ' checked') + '> <span>' + T('No instruction') + '</span>';
+        none.querySelector('input').addEventListener('change', function () { P.setActive(null); });
+        listEl.appendChild(none);
+        P.list('profile').forEach(function (pr) {
           var row = document.createElement('label');
           row.className = 'profiles-row';
-          if (modalKind === 'profile') {
-            var r = document.createElement('input');
-            r.type = 'radio';
-            r.name = 'profileActive';
-            r.checked = !!(act && act.id === pr.id);
-            r.addEventListener('change', function () { P.setActive(pr.id); });
-            row.appendChild(r);
-          }
+          var r = document.createElement('input');
+          r.type = 'radio';
+          r.name = 'profileActive';
+          r.checked = !!(act && act.id === pr.id);
+          r.addEventListener('change', function () { P.setActive(pr.id); });
+          row.appendChild(r);
           var nm = document.createElement('span');
           nm.textContent = pr.name;
           var edit = document.createElement('button');
@@ -450,9 +441,11 @@
       function openEdit(id) {
         editingId = id;
         var pr = id === 'NY' ? { name: '', text: '' } : (P.get(id) || { name: '', text: '' });
-        // Tegnbudsjett: NY følger modalens gjeldende kind; en eksisterende
-        // oppføring følger sin EGEN lagrede kind (den endres aldri ved edit).
-        var kind = id === 'NY' ? modalKind : (pr.kind || 'profile');
+        // Tegnbudsjett: NY er alltid en profil nå (kilder redigeres i sin
+        // egen dialog, js/sources-modal.js, Task 5); en eksisterende
+        // oppføring følger likevel sin EGEN lagrede kind — billig vakt mot
+        // en source-rest (bør ikke skje, men skader ikke).
+        var kind = id === 'NY' ? 'profile' : (pr.kind || 'profile');
         var max = kind === 'source' ? P.SOURCE_TEXT_MAX : P.TEXT_MAX;
         textEl.maxLength = max;
         if (maxEl) maxEl.textContent = String(max);
@@ -486,9 +479,8 @@
       newBtn.addEventListener('click', function () { openEdit('NY'); });
       saveBtn.addEventListener('click', function () {
         if (editingId === 'NY') {
-          var id = P.create(nameEl.value, textEl.value, modalKind);
-          // Kilder kan aldri være aktiv profil — kun relevant i profile-modus.
-          if (modalKind === 'profile' && !P.active()) P.setActive(id); // første profil aktiveres direkte
+          var id = P.create(nameEl.value, textEl.value);
+          if (!P.active()) P.setActive(id); // første profil aktiveres direkte
         } else if (editingId) {
           P.update(editingId, { name: nameEl.value, text: textEl.value });
         }
@@ -516,30 +508,13 @@
       }
       if (sideBtn) sideBtn.addEventListener('click', function () { P.openModal(); });
       renderSideLabel();
-      // openModal(opts): {kind:'profile'|'source', prefillName, prefillText}.
-      // kind velger tittel/liste/knapp-tekst (§Unifisert lager); prefill*
-      // åpner editEl direkte med gitte verdier (brukes av «lagre som kilde»-
-      // flyter, task 6) i stedet for å vise lista først.
-      P.openModal = function (opts) {
-        opts = opts || {};
-        modalKind = opts.kind === 'source' ? 'source' : 'profile';
-        if (titleEl) titleEl.textContent = modalKind === 'source' ? T('Sources') : T('Profiles');
-        if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
-        // Kilde-elementene (#sourcesImportBtn/#sourcesInfo/ryddeknappene/
-        // hjelpeteksten) styres IKKE herfra lenger: kildebiblioteket flyttet
-        // til sin egen dialog i js/sources-modal.js (kilder-profil-output-
-        // runden, Task 5). Denne modalen eier kun profiler — modalKind selv
-        // ryddes bort i Task 7.
-        if ('prefillName' in opts || 'prefillText' in opts) {
-          renderList();
-          openEdit('NY');
-          nameEl.value = opts.prefillName || '';
-          textEl.value = opts.prefillText || '';
-          countEl.textContent = String(textEl.value.length);
-        } else {
-          closeEdit();
-          renderList();
-        }
+      // openModal(): modalen viser KUN profiler nå — kildebiblioteket flyttet
+      // til sin egen dialog i js/sources-modal.js (Task 5). kind-grenene og
+      // prefill-opsjonene som fantes her er fjernet i Task 7: «lagre som
+      // kilde» går nå direkte til SourcesModal.openWithPrefill (ask-view.js).
+      P.openModal = function () {
+        closeEdit();
+        renderList();
         backdrop.classList.add('open');
       };
       P.onChange(function () { renderList(); renderSideLabel(); });

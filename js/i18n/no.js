@@ -198,4 +198,13 @@ window.M2PY_I18N.no = {
   "Nothing here — clear the search or import new sources.": "Ingenting her — tøm søket eller importer nye kilder.",
   "built-in": "innebygd",
   "mine": "min",
+  // Instruksjoner (spec 2026-08-08-kilder-profil-output §5, Task 7): ny
+  // hjelpetekst + rename av «New profile»/«No profile»/«Profile applied».
+  // De gamle nøklene («New profile», «No profile», «Profile applied: {name}»,
+  // «Profiles», «Profile», …) er ikke lenger brukt av appen, men står igjen
+  // her til den 13-ordboks-sweepen (Task 12) rydder dem overalt samtidig.
+  "Instructions are added to every question you ask. Use them to steer how answers are made — language, form, method or emphasis. They can adjust or override the app's default behaviour. Examples: «Always answer briefly, in Norwegian», «Always show uncertainty and cite sources», «Use R instead of Python», «Prefer tables over charts», «I am a researcher — use technical terminology».": "Instruksjoner legges automatisk til hvert spørsmål. Bruk dem til å styre hvordan svarene lages — språk, form, metode eller vektlegging. De kan justere eller overstyre appens standardoppførsel. Eksempler: «Svar alltid kort og på norsk», «Vis alltid usikkerhet og oppgi kilder», «Bruk R i stedet for Python», «Foretrekk tabeller fremfor grafer», «Jeg er forsker — bruk fagterminologi».",
+  "New instruction": "Ny instruksjon",
+  "No instruction": "Ingen instruksjon",
+  "Instructions applied: {name}": "Instruksjoner brukt: {name}",
 };

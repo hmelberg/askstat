@@ -863,11 +863,10 @@
     // render, så én listener på svar-beholderen dekker dem alle.
     answerBox.addEventListener('click', function (e) {
       var btn = e.target.closest && e.target.closest('.ask-save-source-btn');
-      if (!btn || !window.Profiles || !window.Profiles.openModal) return;
-      window.Profiles.openModal({
-        kind: 'source',
-        prefillName: btn.dataset.packName || t('New source'),
-        prefillText: btn.dataset.packText || '',
+      if (!btn || !window.SourcesModal || !window.SourcesModal.openWithPrefill) return;
+      window.SourcesModal.openWithPrefill({
+        name: btn.dataset.packName || t('New source'),
+        text: btn.dataset.packText || '',
       });
     });
     // «Full output»: vis alt kjøringen produserte uten å forlate ask-visningen.
@@ -1059,7 +1058,7 @@
         progressLine(t('Route: {route}. Interpretation: {tolkning}', { route: route.rute, tolkning: route.tolkning || '—' }));
         // Aktiv profil skal aldri usynlig forme svar (spec §Fase 1b) —
         // linjen arkiveres til Details sammen med resten av prosess-sporet.
-        if (activeProfile) progressLine(t('Profile applied: {name}', { name: activeProfile.name }));
+        if (activeProfile) progressLine(t('Instructions applied: {name}', { name: activeProfile.name }));
         // Kildepakker skal heller aldri usynlig forme svar (spec 2026-08-05 §2,
         // flervalg kontekstrunden fase 2 §2, Task 7 §2) — én linje PER valgt pakke
         // fra payload-sannheten effectiveIds. '(auto)'-suffiks BARE på landpakka når

@@ -126,6 +126,7 @@ window.M2PY_I18N.no = {
   "Unlock synced keys": "Lås opp synkroniserte nøkler",
   "Verifiable — every number comes from code and data you can inspect.": "<strong>Etterprøvbart</strong> — hvert tall kommer fra kode og data du kan undersøke.",
   "View code": "Vis koden",
+  "View code and data": "Se kode og data",
   "We sent a code to": "Vi sendte en kode til",
   "We'll email you a 3-word login code. Your keys, history and profiles then follow you across devices — nothing is uploaded until you log in.": "Vi sender deg en login-kode på tre ord. Nøkler, historikk og profiler følger deg da på tvers av enheter — ingenting lastes opp før du logger inn.",
   "Weekday of 17 May 1814": "Ukedag 17. mai 1814",

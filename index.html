@@ -240,11 +240,10 @@
           <summary data-i18n>Full output</summary>
           <div id="askFullOutputHost"></div>
         </details>
-        <div class="ask-answer-actions">
+        <div id="askAnswerActions" class="ask-answer-actions" hidden>
           <button type="button" class="ai-response-insert-btn" data-i18n id="askCopyBtn">Copy answer</button>
-          <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" data-i18n data-i18n-title title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code</button>
+          <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" data-i18n data-i18n-title title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code and data</button>
           <button type="button" class="ai-codeblock-btn" id="askFullOutputBtn" hidden data-i18n data-i18n-title title="Show everything the code produced, without leaving this view">Full output</button>
-          <button type="button" class="ai-codeblock-btn" id="askRerunBtn" hidden data-i18n data-i18n-title title="Re-run the saved code locally (no AI cost) to regenerate figures and output">Run code again</button>
         </div>
       </div>
       <details id="askDetails" class="ask-details" hidden>

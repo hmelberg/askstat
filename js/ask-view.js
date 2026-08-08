@@ -608,6 +608,9 @@
     var statusBox = document.getElementById('askStatus');
     var answerCard = document.getElementById('askAnswerCard');
     var answerBox = document.getElementById('askAnswer');
+    // Knapperaden under svaret (Copy/View code/Full output) vises kun når et
+    // svar står ferdig — se showAnswer() — og skjules mens noe kjører.
+    var actionsRow = document.getElementById('askAnswerActions');
     var detailsEl = document.getElementById('askDetails');
     var processBox = document.getElementById('askProcess');
     var running = false;
@@ -765,15 +768,13 @@
       renderHistoryList();
     });
     // Gjenoppretting fra historikk (spec §Fase 1a): lagret markdown vises
-    // med [fig N]-klammer; «Run code again» re-kjører det lagrede scriptet
-    // LOKALT (pyodide — null LLM-kostnad) og resolver {{fig:N}} på nytt.
-    var rerunBtn = document.getElementById('askRerunBtn');
-    var restoredEntry = null;
+    // med [fig N]-klammer, resolvet mot tidligere lagret kilde-/badge-data.
+    // showAnswer() viser knapperaden (svaret er «ferdig» — historikk-
+    // gjenoppretting er en ferdig-svar-vei på lik linje med et ferskt svar).
     function restoreEntry(id) {
       if (running) return;
       var e = window.AskHistory && window.AskHistory.get(id);
       if (!e) return;
-      restoredEntry = e;
       stopReResolveObserver();
       unmountLiveOutput();
       fullOutBtn.hidden = true;
@@ -792,63 +793,7 @@
       note.textContent = '↩ Restored from history (asked ' + String(e.ts).slice(0, 10) + ')';
       processBox.appendChild(note);
       detailsEl.hidden = false;
-      rerunBtn.hidden = !e.script;
     }
-    async function rerunRestored() {
-      var e = restoredEntry;
-      if (!e || !e.script || running || !window.mdAskExecuteScript) return;
-      running = true;
-      sendBtn.disabled = true;
-      rerunBtn.disabled = true;
-      abortBtn.style.display = '';
-      var ctrl = new AbortController();
-      var onAbort = function () { ctrl.abort(); };
-      abortBtn.addEventListener('click', onAbort);
-      progressLine(t('Running the code …'));
-      try {
-        var r = await window.mdAskExecuteScript(e.script, ctrl.signal);
-        archiveStatus();
-        if (r.ok) {
-          // Samme montering som ok-grenen i runAskFlow: rå markdown m/
-          // {{fig:N}} → levende slots (ref-nummerering er deterministisk
-          // DOM-orden i classifyAskOutput).
-          renderMd(answerBox, e.markdown);
-          if (e.badgeText) {
-            var b = document.createElement('div');
-            b.className = 'ask-badge' + (e.badgeWarn ? ' ask-badge-warn' : '');
-            b.textContent = e.badgeText;
-            answerBox.insertBefore(b, answerBox.firstChild);
-          }
-          lastAnswerMd = e.markdown;
-          renderSources(e.sources);
-          fullOutBtn.hidden = false;
-          if (resolveAnswerRefs() > 0) {
-            mountFullOutput();
-            startReResolveObserver();
-          } else {
-            mountLiveOutput();
-          }
-          sweepUnresolvedRefs();
-          maybeRenderMath(e.markdown);
-        } else {
-          var d = document.createElement('div');
-          d.className = 'ai-progress-line';
-          d.textContent = '✗ Run failed — the restored text above is unchanged. ' +
-            String((r && r.result) || '').slice(0, 300);
-          processBox.appendChild(d);
-          detailsEl.hidden = false;
-          detailsEl.open = true;
-        }
-      } catch (err) { /* abort → stille; teksten står */ }
-      finally {
-        abortBtn.removeEventListener('click', onAbort);
-        abortBtn.style.display = 'none';
-        sendBtn.disabled = false;
-        rerunBtn.disabled = false;
-        running = false;
-      }
-    }
-    rerunBtn.addEventListener('click', rerunRestored);
     renderHistoryList();
 
     document.getElementById('askSwitchCode').addEventListener('click', switchToEditor);
@@ -894,8 +839,7 @@
       detailsEl.hidden = true;
       detailsEl.open = false;
       lastAnswerMd = '';
-      rerunBtn.hidden = true;
-      restoredEntry = null;
+      actionsRow.hidden = true;
       input.value = '';
       input.focus();
     });
@@ -952,6 +896,10 @@
         b.textContent = badgeText;
         answerBox.insertBefore(b, answerBox.firstChild);
       }
+      // Svaret står nå ferdig (frisk kjøring, historikk-gjenoppretting,
+      // språk-rute eller nøkkelfeil) — vis knapperaden. onDelta-strømming
+      // kaller ALDRI showAnswer, så raden forblir skjult mens det jobbes.
+      actionsRow.hidden = false;
     }
     // S2-porten er PÅ KUN ved eksplisitt opt-in (localStorage.md_ask_confirm='1')
     // — ask auto-kjører som standard (Hans 2026-07-29). Injeksjonsrisikoen fra
@@ -999,8 +947,7 @@
       detailsEl.hidden = true;
       detailsEl.open = false;
       lastAnswerMd = '';
-      rerunBtn.hidden = true;
-      restoredEntry = null;
+      actionsRow.hidden = true;
       var ctrl = new AbortController();
       var onAbort = function () { ctrl.abort(); };
       abortBtn.addEventListener('click', onAbort);

@@ -1304,6 +1304,30 @@ test('W5.2: renderEventResult figur — ingen global.Plotly: figur-div opprettes
   await wait(10); // deferred setTimeout skal ikke kaste selv uten Plotly
 });
 
+// SDD 10 (plotly automargin + seksjonsvis layout-merge): spec.layout.xaxis/
+// yaxis kan komme fra modellen med KUN f.eks. `title` satt — den seksjonsvise
+// mergen (Object.assign PER delobjekt, ikke Object.assign(baseLayout, ...) på
+// toppnivå) skal la baseLayout sin automargin:true overleve i stedet for at
+// modellens delobjekt sletter hele xaxis/yaxis.
+test('Ui.renderPayload figur: automargin i xaxis/yaxis overlever når spec.layout kun setter xaxis.title/yaxis.title (seksjonsvis merge)', async () => {
+  const { Ui, bodyEl } = freshEnv({ cellIdx: 0 });
+  const calls = [];
+  global.Plotly = { newPlot: (...args) => calls.push(args) };
+
+  Ui.renderPayload({
+    kind: 'figure',
+    spec: { data: [{ y: [1, 2] }], layout: { xaxis: { title: 'X' }, yaxis: { title: 'Y' } } },
+  }, bodyEl);
+
+  await wait(10);
+  assert.strictEqual(calls.length, 1);
+  const layout = calls[0][2];
+  assert.strictEqual(layout.xaxis.automargin, true, 'baseLayout automargin overlever xaxis.title fra modellen');
+  assert.strictEqual(layout.xaxis.title, 'X', 'modellens xaxis.title vinner');
+  assert.strictEqual(layout.yaxis.automargin, true, 'baseLayout automargin overlever yaxis.title fra modellen');
+  assert.strictEqual(layout.yaxis.title, 'Y', 'modellens yaxis.title vinner');
+});
+
 // ── dash-absorpsjon 5a Task 1: Ui.renderPayload sitt fulle vokabular, kalt
 // DIREKTE (ikke via renderEventResult) — kpi/markdown/image/table/ukjent.
 // Figur og text/error/table-via-renderEventResult er allerede dekket over;

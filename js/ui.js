@@ -1879,13 +1879,26 @@
       } else if (kind === 'figure') {
         node = _el('div', 'ui-figure');
         var spec = p.spec || {};
-        var layout = Object.assign({
+        var baseLayout = {
           autosize: true,
           margin: { t: 28, r: 12, b: 36, l: 44 },
           paper_bgcolor: 'rgba(0,0,0,0)',
           plot_bgcolor: 'rgba(0,0,0,0)',
-          font: { color: themeColor('--text', '#333') }
-        }, spec.layout || {});
+          font: { color: themeColor('--text', '#333') },
+          xaxis: { automargin: true },
+          yaxis: { automargin: true }
+        };
+        // Seksjonsvis merge (som i mdRenderPlotlyFigure/index.html): modellens
+        // layout-JSON overstyrer per nøkkel, men sletter ikke hele delobjekter
+        // som xaxis/yaxis — automargin overlever selv om modellen bare setter
+        // f.eks. xaxis.title.
+        var spec_layout = spec.layout || {};
+        var layout = Object.assign({}, baseLayout, spec_layout);
+        ['margin', 'xaxis', 'yaxis', 'font'].forEach(function (k) {
+          if (baseLayout[k] && typeof baseLayout[k] === 'object') {
+            layout[k] = Object.assign({}, baseLayout[k], spec_layout[k]);
+          }
+        });
         // 5a review Minor (dash-absorpsjon 5b-oppfølging): luk ut frakoblede
         // oppføringer VED PUSH også, ikke bare inni temabytte-observerens
         // callback (installThemeObserver over) — uten dette vokser _figures

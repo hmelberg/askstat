@@ -822,7 +822,10 @@ DESIGN OUTPUT FOR SVARET: en liten oppsummeringstabell (≤ ~10 rader) laget
 for svaret slår en rå ramme-dump; velg plotly fremfor statisk matplotlib
 når zoom/hover gir verdi (begge refereres som {{fig:n}}); i simuleringer:
 referer #@param-stripen som {{controls:n}} rett ved figuren den driver;
-ipywidgets ({{widget:n}}) for finkornet interaktivitet uten re-kjøring.`;
+ipywidgets ({{widget:n}}) for finkornet interaktivitet uten re-kjøring.
+Bruk plotly.express der det rekker (px håndterer akser/labels automatisk);
+hold akse- og tick-labels korte; ved mange serier: legend under plottet
+(legend=dict(orientation="h", yanchor="top", y=-0.25)).`;
 
 const MODE_R = `\
 ## Modus: R (WebR)

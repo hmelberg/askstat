@@ -154,6 +154,33 @@ Deno.test("renderRegistryBlock: valgfri-kilde markeres som brukbar uten nøkkel"
   if (!med.includes("valgfri (registrert)")) throw new Error("mangler registrert-markering:\n" + med);
 });
 
+// tags (kilder-profil-output-runden 2026-08-08 Task 2/3): registerposter kan
+// bære tags (Task 3 fyller feltet i data-sources.json) — renderRegistryBlock
+// leser feltet DEFENSIVT: fravær = ingen suffiks, aldri en kastet feil.
+Deno.test("renderRegistryBlock: kilde MED tags får ' [tag1] [tag2]'-suffiks", () => {
+  const reg = parseRegistry([{ ...VALID[0], tags: ["makro", "offisiell-stat"] }]) as DataSource[];
+  const block = renderRegistryBlock(reg);
+  if (!block.includes("[makro] [offisiell-stat]")) throw new Error("mangler tag-suffiks:\n" + block);
+});
+
+Deno.test("renderRegistryBlock: kilde UTEN tags (fravær) får ingen suffiks", () => {
+  const reg = parseRegistry(VALID) as DataSource[];
+  const block = renderRegistryBlock(reg);
+  if (block.includes("[")) throw new Error("uventet '['-tegn uten tags:\n" + block);
+});
+
+Deno.test("renderRegistryBlock: tomt tags-array og ikke-string-elementer håndteres defensivt", () => {
+  const reg = parseRegistry([
+    { ...VALID[0], tags: [] },
+    { ...VALID[1], tags: ["mikro", 42, null, "  "] as unknown as string[] },
+  ]) as DataSource[];
+  const block = renderRegistryBlock(reg);
+  if (!block.includes("[mikro]")) throw new Error("gyldig tag droppet:\n" + block);
+  if (block.includes("[42]") || block.includes("[null]")) {
+    throw new Error("ikke-string tag lekket inn:\n" + block);
+  }
+});
+
 Deno.test("renderRegistryBlock marks kind=apd as søkbar even without sok_endepunkt", () => {
   const reg = parseRegistry([{
     id: "apd", navn: "APD", utgiver: "apd-core", beskrivelse: "Awesome Public Datasets.",

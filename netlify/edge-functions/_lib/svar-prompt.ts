@@ -36,6 +36,8 @@ export interface RenderedPack {
   name: string;
   text: string;
   level: "full" | "manifest" | "summary";
+  kind: "overview" | "source";
+  tags: string[];
 }
 
 // Tak (kontekstrunden fase 2 §4/§5): klienten budsjetterer innenfor
@@ -47,9 +49,31 @@ const PACK_TEXT_MAX = 40000;
 const PACKS_SUM_MAX = 100000;
 const PACKS_MAX = 20;
 
+// Tags (kilder-profil-output-runden 2026-08-08 Task 2): SAMME regex/tak som
+// klienten håndhever (js/profiles.js TAG_RE/TAG_MAX, Task 1) — serveren
+// stoler ALDRI på klienten og saneres på nytt her uavhengig av hva som kom
+// inn i payloaden.
+const TAG_RE = /^[a-zæøåa-z0-9_-]{1,24}$/;
+const TAGS_MAX = 8;
+
+function coerceTags(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of v) {
+    if (out.length >= TAGS_MAX) break;
+    const t = String(item ?? "").trim().toLowerCase();
+    if (!t || !TAG_RE.test(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
 /** Kildepakker fra klienten (js/packs.js: Packs.payload()/compose()):
- *  [{id, name, text, level}]. Defensive caps — klienten budsjetterer,
- *  serveren begrenser (spec 2026-08-06 §4). */
+ *  [{id, name, text, level, kind, tags}]. Defensive caps — klienten
+ *  budsjetterer, serveren begrenser (spec 2026-08-06 §4; kind/tags: spec
+ *  2026-08-08 §Interfaces). */
 export function coercePacks(p: unknown): RenderedPack[] {
   if (!Array.isArray(p)) return [];
   const out: RenderedPack[] = [];
@@ -64,7 +88,9 @@ export function coercePacks(p: unknown): RenderedPack[] {
     const id = String(rec.id ?? "").replace(/[^A-Za-z0-9:_-]/g, "").slice(0, PACK_ID_MAX);
     const level: RenderedPack["level"] =
       rec.level === "manifest" || rec.level === "summary" ? rec.level : "full";
-    out.push({ id, name, text, level });
+    const kind: RenderedPack["kind"] = rec.kind === "overview" ? "overview" : "source";
+    const tags = coerceTags(rec.tags);
+    out.push({ id, name, text, level, kind, tags });
     sum += text.length;
   }
   return out;
@@ -93,7 +119,12 @@ function renderPacksBlock(packs: RenderedPack[]): string {
       : p.level === "summary"
         ? "\n*(kortform — hent full tekst med get_pack)*"
         : "";
-    return `### Kildepakke: ${p.name} (id: ${p.id})${note}\n\n${demoteHeadings(p.text)}`;
+    // kind (Task 2 §Interfaces): TEMA (samling, kind='overview') er en meny
+    // over enkeltkilder; ENKELTKILDE (kind='source', default) er én direkte
+    // kildeinstruks — se forklaringssetningen i ingressen under.
+    const heading = p.kind === "overview" ? "Tema (samling)" : "Enkeltkilde";
+    const tagSuffix = p.tags.length ? " " + p.tags.map((t) => `[${t}]`).join(" ") : "";
+    return `### ${heading}: ${p.name} (id: ${p.id})${tagSuffix}${note}\n\n${demoteHeadings(p.text)}`;
   });
   const getPackNote =
     " Enkeltkildepakker referert i pakkene med (id: …)-notasjon kan hentes i" +
@@ -104,9 +135,11 @@ function renderPacksBlock(packs: RenderedPack[]): string {
   return `## Aktive kildepakker (valgt av brukeren)
 
 Brukeren har valgt disse kildepakkene. Bruk den eller de som er relevante
-for spørsmålet; ignorer pakker som ikke angår det. De har forrang over
-landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
-fabrikasjonsvern, budsjettene).${getPackNote}
+for spørsmålet; ignorer pakker som ikke angår det. Et TEMA (samling) er en
+meny over kilder — hent detaljer med get_pack ved behov. En ENKELTKILDE er
+en direkte instruks om én kilde. De har forrang over landrutingen — men
+opphever ALDRI ærlighetsreglene (probe-✅, fabrikasjonsvern,
+budsjettene).${getPackNote}
 
 ${parts.join("\n\n")}`;
 }
@@ -501,6 +534,19 @@ Velg kilder etter spørsmålets GEOGRAFI, ikke etter språket det er stilt på:
 Angir brukerens datapreferanser et standardland/-region eller foretrukne
 kilder, har DE forrang over denne tabellen.`;
 
+// Mikro/makro-rutingsregel (kilder-profil-output-runden 2026-08-08 Task 2):
+// registerkilder OG pakker kan bære [mikro]/[makro]-tags (renderRegistryBlock
+// i registry.ts, renderPacksBlock over) — denne blokka sier modellen HVORDAN
+// den skal lese merket. Kun data-ruten (se buildSvarSystem under).
+const MIKRO_MAKRO = `\
+## Mikro- vs. makrodata
+
+Kilder er merket [mikro] (individdata: surveyer, registerdata på personnivå)
+eller [makro] (aggregert statistikk). Bruk [mikro]-kilder KUN når spørsmålet
+gjelder individnivå (fordelinger innen undergrupper, surveysvar,
+personnivå-sammenhenger) eller brukeren ber om det — ellers foretrekk
+[makro]-kilder.`;
+
 const KODEBOK = `\
 ## Kodebok (survey-/individ-/forskningsdata)
 
@@ -874,7 +920,7 @@ export function buildSvarSystem(
   const blocks = [INTRO, DEPTH[depth], DELIVERY, QUERYLOGIC, SCIENCE, INLINE, MULTI, MODE[mode], ROUTING, metaSearch(discoverOn), KODEBOK, RUN, PARTIAL];
   if (discoverOn) blocks.push(DISCOVER);
   if (opts?.memoryUrls) blocks.push(MEMORY_URLS);
-  blocks.push(registryBlock);
+  blocks.push(MIKRO_MAKRO, registryBlock);
   const prefBlock = renderPreferencesBlock(coercePreferences(opts?.preferences));
   if (prefBlock) blocks.push(prefBlock);
   const packsBlock = renderPacksBlock(coercePacks(opts?.packs));
@@ -962,7 +1008,7 @@ export const RUN_CODE_TOOL = {
 export const GET_PACK_TOOL = {
   name: "get_pack",
   description:
-    "Hent FULL tekst for en kildepakke: en pakke sendt i kortform/maskinutdrag (id-en står i pakkens overskrift: '### Kildepakke: navn (id: <id>)'), ELLER en enkeltkildepakke referert i en oversiktspakke med '(id: src-…)'-notasjon.",
+    "Hent FULL tekst for en kildepakke: et TEMA (samling — overskrift '### Tema (samling): navn (id: <id>)') eller en ENKELTKILDE ('### Enkeltkilde: …'), eller en enkeltkilde referert i et tema med '(id: …)'-notasjon. Gjelder også brukerens egne kilder.",
   input_schema: {
     type: "object",
     properties: { id: { type: "string", description: "pakkens id, fra overskriften eller (id: …)-referansen" } },

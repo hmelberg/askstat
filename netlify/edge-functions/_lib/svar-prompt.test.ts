@@ -163,6 +163,24 @@ Deno.test("buildRouteToolDefs(utforsk, hostedWeb:false): kun run_code", () => {
   assertEquals(defs.map((d) => d.name), ["run_code"]);
 });
 
+// Mikro/makro-rutingsregel (kilder-profil-output-runden 2026-08-08 Task 2):
+// KUN data-ruten (registerkilder/pakker er der de aktuelle [mikro]/[makro]-
+// merkede elementene lever) — de tre andre rutene har verken register eller
+// pakker, og skal derfor heller ikke få regelen.
+Deno.test("buildSvarSystem(data): Mikro/makro-blokk til stede, plassert før registerblokka", () => {
+  const s = buildSvarSystem("data", "python", "REGISTERBLOKK-MARKØR");
+  assert(s.includes("## Mikro- vs. makrodata"));
+  assert(s.includes("[mikro]") && s.includes("[makro]"));
+  assert(s.indexOf("## Mikro- vs. makrodata") < s.indexOf("REGISTERBLOKK-MARKØR"),
+    "mikro/makro-blokka skal stå RETT FØR registerblokka");
+});
+
+Deno.test("buildSvarSystem: Mikro/makro-blokk FRAVÆRENDE i beregning/oppslag/utforsk", () => {
+  assert(!buildSvarSystem("beregning", "python", "").includes("Mikro- vs. makrodata"));
+  assert(!buildSvarSystem("oppslag", "python", "").includes("Mikro- vs. makrodata"));
+  assert(!buildSvarSystem("utforsk", "python", "", { depth: "standard" }).includes("Mikro- vs. makrodata"));
+});
+
 Deno.test("buildSvarSystem(data): DELIVERY dokumenterer auto-connect (registerid rett som receiver)", () => {
   // Kodekontrakt siden 2026-08-01 (DataDirectives.resolve, synket fra openstat):
   // en registerkilde-id som receiver er en implisitt connect. Verktøyhintene

@@ -27,8 +27,37 @@ Deno.test("packs-blokk: flere pakker rendres i rekkefølge m/felles intro, id i 
             { id: "ess", name: "ESS", text: "ess api", level: "full" }],
   });
   assert(sys.includes("## Aktive kildepakker (valgt av brukeren)"));
-  assert(sys.indexOf("### Kildepakke: Norway (id: norway)") < sys.indexOf("### Kildepakke: ESS (id: ess)"));
+  // default kind (ingen kind sendt) → 'source' → overskrift "Enkeltkilde".
+  assert(sys.indexOf("### Enkeltkilde: Norway (id: norway)") < sys.indexOf("### Enkeltkilde: ESS (id: ess)"));
   assert(sys.includes("#### Preferred")); // demotert
+});
+
+// kind/tags (kilder-profil-output-runden 2026-08-08 Task 2): default kind er
+// 'source' (uansett hva klienten sendte utover 'overview'); tags saneres med
+// samme regex/tak som klienten (js/profiles.js TAG_RE/TAG_MAX, Task 1) og
+// rendres som ' [tag1] [tag2]'-suffiks rett etter (id: …).
+Deno.test("packs-blokk: kind='overview' → 'Tema (samling)'-overskrift; kind ukjent/mangler → 'Enkeltkilde'", () => {
+  const sys = buildSvarSystem("data", "python", "", {
+    packs: [
+      { id: "temaX", name: "TemaX", text: "x", level: "full", kind: "overview" },
+      { id: "kildeY", name: "KildeY", text: "y", level: "full", kind: "source" },
+      { id: "kildeZ", name: "KildeZ", text: "z", level: "full", kind: "noe-ukjent" },
+    ],
+  });
+  assert(sys.includes("### Tema (samling): TemaX (id: temaX)"));
+  assert(sys.includes("### Enkeltkilde: KildeY (id: kildeY)"));
+  assert(sys.includes("### Enkeltkilde: KildeZ (id: kildeZ)")); // ukjent kind → default 'source'
+});
+
+Deno.test("packs-blokk: tags rendres som ' [tag1] [tag2]'-suffiks i overskriften; ingen tags → ingen suffiks", () => {
+  const sys = buildSvarSystem("data", "python", "", {
+    packs: [
+      { id: "a", name: "A", text: "x", level: "full", tags: ["mikro", "survey"] },
+      { id: "b", name: "B", text: "y", level: "full" },
+    ],
+  });
+  assert(sys.includes("### Enkeltkilde: A (id: a) [mikro] [survey]"));
+  assert(sys.includes("### Enkeltkilde: B (id: b)\n\n")); // ingen tags → rett til note/tekst, ingen '['
 });
 
 Deno.test("coercePacks: caps — navn 60, tekst 40000, maks 20, søppel filtreres, id sanert, level validert", () => {
@@ -41,6 +70,37 @@ Deno.test("coercePacks: caps — navn 60, tekst 40000, maks 20, søppel filtrere
   assert(packs[0].name.length === 60 && packs[0].text.length === 40000);
   assertEquals(packs[0].id, "abc"); // [A-Za-z0-9:_-] — mellomrom/skilletegn borte
   assertEquals(packs[0].level, "full"); // ingen level oppgitt → default 'full'
+  assertEquals(packs[0].kind, "source"); // ingen kind oppgitt → default 'source'
+  assertEquals(packs[0].tags, []); // ingen tags oppgitt → tom liste
+});
+
+Deno.test("coercePacks: kind='overview' beholdes; alt annet (inkl. fravær) → 'source'", () => {
+  const packs = coercePacks([
+    { id: "a", name: "A", text: "t", kind: "overview" },
+    { id: "b", name: "B", text: "t", kind: "source" },
+    { id: "c", name: "C", text: "t", kind: "noe-ukjent" },
+    { id: "d", name: "D", text: "t" },
+  ]);
+  assertEquals(packs.map((p) => p.kind), ["overview", "source", "source", "source"]);
+});
+
+Deno.test("coercePacks: tags saneres — regex, lowercase, dedup, tak 8", () => {
+  const packs = coercePacks([{
+    id: "a", name: "A", text: "t",
+    tags: ["Mikro", "MIKRO", "  survey  ", "har mellomrom", "æøå-ok", "x".repeat(25),
+      "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9-over-taket"],
+  }]);
+  // "Mikro"/"MIKRO"/"  survey  " → lowercase+trim; dedup fjerner andre "mikro";
+  // "har mellomrom" og "x".repeat(25) (>24 tegn) forkastes av regex.
+  assertEquals(packs[0].tags.slice(0, 3), ["mikro", "survey", "æøå-ok"]);
+  assert(packs[0].tags.length <= 8);
+  assert(!packs[0].tags.includes("har mellomrom"));
+  assert(!packs[0].tags.includes("x".repeat(25)));
+});
+
+Deno.test("coercePacks: ikke-array tags → tom liste (aldri kast)", () => {
+  const packs = coercePacks([{ id: "a", name: "A", text: "t", tags: "mikro" }]);
+  assertEquals(packs[0].tags, []);
 });
 
 Deno.test("coercePacks: id-tak 100 tegn; level-verdier godtas/avvises", () => {
@@ -79,7 +139,7 @@ Deno.test("renderPacksBlock (via buildSvarSystem): nivåmerker på manifest/summ
   assert(sys.includes("*(maskinutdrag — hent full tekst med get_pack)*"));
   assert(sys.includes("*(kortform — hent full tekst med get_pack)*"));
   // 'A' er full — ingen merke rett etter DENS overskrift.
-  const aHeader = sys.indexOf("### Kildepakke: A (id: a)");
+  const aHeader = sys.indexOf("### Enkeltkilde: A (id: a)");
   const restEtterA = sys.slice(aHeader, aHeader + 60);
   assert(!restEtterA.includes("hent full tekst"));
 });
@@ -99,6 +159,29 @@ Deno.test("packs-blokk: get_pack-setningen alltid; kortform-halen kun ved nedgra
 Deno.test("GET_PACK_TOOL: navn og input_schema", () => {
   assertEquals(GET_PACK_TOOL.name, "get_pack");
   assertEquals(GET_PACK_TOOL.input_schema.required, ["id"]);
+});
+
+// GET_PACK_TOOL.description (Task 2 §Interfaces): må nevne begge formene
+// (TEMA/ENKELTKILDE) og (id: …)-notasjonen — modellen leser KUN denne
+// teksten for å vite hva get_pack gjør, ingen kode leser strengen.
+Deno.test("GET_PACK_TOOL: beskrivelsen nevner TEMA (samling) og ENKELTKILDE", () => {
+  assert(GET_PACK_TOOL.description.includes("TEMA (samling"));
+  assert(GET_PACK_TOOL.description.includes("ENKELTKILDE"));
+  assert(GET_PACK_TOOL.description.includes("(id: …)"));
+});
+
+// Ingress-forklaringen (Task 2 §Interfaces): TEMA vs. ENKELTKILDE forklares
+// FØR pakkelisten, uavhengig av hvilke kind-er som faktisk er sendt.
+Deno.test("packs-blokk: ingressen forklarer TEMA (samling) vs. ENKELTKILDE", () => {
+  const sys = buildSvarSystem("data", "python", "", {
+    packs: [{ id: "a", name: "A", text: "x", level: "full" }],
+  });
+  // to substrings (ikke én lang streng): kilden brytes over linjeskift i
+  // svar-prompt.ts sin kildetekst, og en enkelt streng ville krysset det.
+  assert(sys.includes("Et TEMA (samling) er en"));
+  assert(sys.includes("meny over kilder"));
+  assert(sys.includes("En ENKELTKILDE er"));
+  assert(sys.includes("en direkte instruks om én kilde"));
 });
 
 Deno.test("demoteHeadings: +2 nivåer, tak 6, rører ikke ikke-headinger", () => {

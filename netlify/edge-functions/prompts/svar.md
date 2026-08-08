@@ -708,11 +708,19 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 | beregning | INTRO_CALC + MODE[mode] + RUN |
 | utforsk | INTRO_UTFORSK + DEPTH_UTFORSK[depth] + UTFORSK_DATA + MODE[mode] + RUN |
 | oppslag | INTRO_LOOKUP + RUN |
-| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + ROUTING + metaSearch(discover) + KODEBOK + RUN + PARTIAL + (DISCOVER hvis `opts.discover===true`) + (MEMORY_URLS hvis `opts.memoryUrls`) + registerblokk |
+| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + ROUTING + metaSearch(discover) + KODEBOK + RUN + PARTIAL + (DISCOVER hvis `opts.discover===true`) + (MEMORY_URLS hvis `opts.memoryUrls`) + MIKRO_MAKRO + registerblokk |
 
 - `MODE[mode]` = MODE_PY / MODE_R / MODE_DUCK, valgt av datamodus (python/r/duckdb).
 - `DEPTH[depth]` = DEPTH_STANDARD / DEPTH_DEEP, valgt av dybdevalget (standard er default; «Deep» i nedtrekket).
-- `registerblokk` = `renderRegistryBlock` fra `_lib/registry.ts` (kilderegisteret; egen fil, ikke gjengitt her).
+- `MIKRO_MAKRO` (kilder-profil-output-runden Task 2, 2026-08-08): statisk
+  block-konstant, KUN data-ruten, rett FØR registerblokka. Sier modellen
+  hvordan den skal lese `[mikro]`/`[makro]`-tags på register-/pakkelinjer:
+  foretrekk `[makro]` med mindre spørsmålet gjelder individnivå eller
+  brukeren ber om det eksplisitt.
+- `registerblokk` = `renderRegistryBlock` fra `_lib/registry.ts` (kilderegisteret; egen fil, ikke gjengitt her). Hver kildelinje kan nå ende med
+  ` [tag1] [tag2]` når registerposten har et `tags`-felt (Task 3 fyller
+  feltet i `data/data-sources.json`; `renderRegistryBlock` leser det
+  defensivt — fravær = ingen suffiks).
 - Kildepakkeblokka (`## Aktive kildepakker …`, `renderPacksBlock`) og
   preferanseblokka (`renderPreferencesBlock`) er dynamisk generert fra
   klientdata (`opts.packs`/`opts.preferences`) — IKKE statiske
@@ -720,14 +728,22 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
   (samme grunn som registerblokka). Kontekstrunden Task 5 (2026-08-06):
   kildepakker kan sendes i tre detaljnivåer (full/manifest/summary — klienten
   budsjetterer i js/packs.js sin `compose()`, L1_CAP=1500/L3_CAP=40000/
-  TOTAL_BUDGET=80000); en pakke under full får overskriften
-  `### Kildepakke: <navn> (id: <id>)` etterfulgt av en fotnote
+  TOTAL_BUDGET=80000); en pakke under full får en fotnote
   (*maskinutdrag*/*kortform* — «hent full tekst med get_pack»), og
   intro-avsnittet legger til én setning om get_pack-verktøyet KUN når minst
   én valgt pakke ikke er full. Serverens `coercePacks` (`_lib/svar-prompt.ts`)
   håndhever egne, grovere tak: per pakke ≤40 000 tegn, sum ≤100 000, maks 20
   pakker, id sanert til `[A-Za-z0-9:_-]` ≤100 tegn, level validert
-  (default `'full'`).
+  (default `'full'`). Kilder-profil-output-runden Task 2 (2026-08-08): hver
+  pakke bærer nå `kind` (`'overview'`|`'source'`, default `'source'`) og
+  `tags` (samme regex/tak≤8 som klienten, js/profiles.js TAG_RE/TAG_MAX).
+  Overskriften er `### Tema (samling): <navn> (id: <id>)` for
+  `kind:'overview'` eller `### Enkeltkilde: <navn> (id: <id>)` for
+  `kind:'source'`, etterfulgt av ` [tag1] [tag2]` når pakken har tags —
+  ordren er heading, tag-suffiks, så evt. nivåfotnote. Ingress-avsnittet
+  forklarer forskjellen («Et TEMA (samling) er en meny over kilder …» / «En
+  ENKELTKILDE er en direkte instruks om én kilde»), og `GET_PACK_TOOL`
+  sin beskrivelse er omskrevet til samme vokabular.
 - **Utvidet søk** (kontekstrunden Task 6, 2026-08-06): `metaSearch(discover)`
   er nå en FUNKSJON, ikke en statisk konstant — punkt 6 i lista over
   («Hvis ingen registerkilde dekker spørsmålet …») vises KUN når
@@ -760,6 +776,26 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-08 (kilder-profil-output-runden Task 2 — tema/enkeltkilde + tags i prompten, mikro/makro-rutingsregel)
+
+`RenderedPack` (og dermed `coercePacks`) fikk to nye felt, speilet defensivt
+fra klientens payload (Task 1, `js/packs.js compose()`): `kind`
+(`'overview'`|`'source'`, default `'source'` uansett hva klienten sendte
+utover nøyaktig `'overview'`) og `tags` (samme regex/tak≤8 som
+`js/profiles.js` sin `TAG_RE`/`TAG_MAX`, sanert på nytt server-side —
+lowercase, dedup, aldri stol på klienten). Pakkeoverskriften i
+`renderPacksBlock` byttet fra det generiske `### Kildepakke: …` til
+`### Tema (samling): …` / `### Enkeltkilde: …` avhengig av `kind`, med et
+nytt ` [tag1] [tag2]`-suffiks når pakken har tags. Ingress-avsnittet fikk en
+forklarende setning om TEMA vs. ENKELTKILDE, og `GET_PACK_TOOL.description`
+er omskrevet til samme vokabular. Ny statisk block-konstant `MIKRO_MAKRO`
+(data-ruten, rett før registerblokka) forklarer `[mikro]`/`[makro]`-tags og
+sier modellen å foretrekke `[makro]` med mindre spørsmålet gjelder
+individnivå. `renderRegistryBlock` (`_lib/registry.ts`) leser et nytt,
+valgfritt `DataSource.tags`-felt defensivt og legger på samme
+` [tag1] [tag2]`-suffiks når feltet finnes — `data/data-sources.json` får
+selve tag-innholdet i Task 3.
 
 ### 2026-08-06 (kontekstrunden Task 6 — utvidet søk-bryter, oppdagelses-playbook, lagre-som-kilde)
 

@@ -29,6 +29,9 @@ export interface DataSource {
   nokkel_hint?: string;
   quirks?: string;
   guide?: boolean;  // true = data/source-guides/<id>.md finnes; se source-guides.ts
+  tags?: string[];  // fritekst-etiketter, f.eks. "mikro"/"makro" (kilder-profil-output-runden
+                     // 2026-08-08 Task 3 fyller feltet inn i data-sources.json); leses
+                     // defensivt her — fravær = ingen tags, ingen validering påkrevd ennå.
 }
 
 const TILLIT = new Set(["offisiell", "etablert", "funnet"]);
@@ -144,7 +147,14 @@ export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []):
     if (!s.cors) bits.push("ikke CORS → /api/hent");
     if (s.join_nokler?.length) bits.push(`join: ${s.join_nokler.join(", ")}`);
     const quirks = s.quirks ? ` — ${s.quirks}` : "";
-    return `- **${s.id}** (${s.navn}; ${s.tillit}): ${bits.join("; ")}${quirks}`;
+    // tags (Task 3 fyller feltet i data-sources.json; MIKRO_MAKRO-blokka i
+    // svar-prompt.ts forklarer [mikro]/[makro]) — lest defensivt: fravær
+    // eller feil form gir ingen suffiks, aldri en kastet feil.
+    const tags = Array.isArray(s.tags)
+      ? s.tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+      : [];
+    const tagSuffix = tags.length ? " " + tags.map((t) => `[${t}]`).join(" ") : "";
+    return `- **${s.id}** (${s.navn}; ${s.tillit}): ${bits.join("; ")}${quirks}${tagSuffix}`;
   });
   return `## Kilderegister (kuratert)\n\n${lines.join("\n")}`;
 }

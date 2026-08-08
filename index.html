@@ -1548,7 +1548,13 @@
 
       document.getElementById('menuSave').addEventListener('click', function() {
         const name = (scriptName.value || 'script').trim().replace(/\.txt$/i, '') + '.txt';
-        const blob = new Blob([scriptInput.value], { type: 'text/plain' });
+        // Skrubb før nedlasting (fikserunde 1, selv-review-funn — konsistent
+        // med delelenke/GitHub-lagring i js/github-storage.js): en egne
+        // nøkler-injisert KEYS = {...}-linje skal aldri havne i en lastet
+        // ned fil i klartekst.
+        const content = (window.DataDirectives && window.DataDirectives.scrubKeys)
+          ? window.DataDirectives.scrubKeys(scriptInput.value) : scriptInput.value;
+        const blob = new Blob([content], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = name;
@@ -1994,7 +2000,16 @@
       if (!outText) { alert(t('Ingen output å tolke. Kjør et script først.')); return; }
       if (outText.length > 30000) outText = outText.slice(0, 30000) + '\n…(forkortet)';
       var si = document.getElementById('scriptInput');
-      var script = (si && si.value || '').trim().slice(0, 20000);
+      // Skrubb FØR kapping (fikserunde 1, CRITICAL selv-review-funn): en
+      // egne nøkler-injisert KEYS = {...}-linje (js/ai-chat.js sin
+      // mdAskExecuteScript) kan stå igjen i editoren etter en tidligere
+      // kjøring — uten dette gikk den rå verdien urørt til /api/tolk-resultat
+      // og videre til LLM-leverandøren ved ett klikk på «Tolk resultat».
+      // Samme husregel som scrubScript i js/ai-chat.js / DataDirectives sin
+      // scrubKeys (secret_key= OG KEYS = {...}).
+      var script = (si && si.value || '').trim();
+      if (window.DataDirectives && window.DataDirectives.scrubKeys) script = window.DataDirectives.scrubKeys(script);
+      script = script.slice(0, 20000);
       var lang = (typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'auto';
       var outputsLine = '';
       if (outEl && window.mdClassifyAskOutput && window.mdAskManifest) {
@@ -3734,13 +3749,37 @@
     // uteblir naturlig (innholdet matcher ikke lenger eksempelteksten).
     const DRAFT_PREFIX = 'md_draft_' + (window.M2PY_APP || 'app') + '_';
     function draftKey(mode) { return DRAFT_PREFIX + mode; }
+    // Skrubb egne nøkler-injiserte KEYS = {...}-linjer FØR de persisteres i
+    // et utkast (fikserunde 1, selv-review-funn): uten dette overlevde en
+    // slik linje «Fjern nøkkel» i AI-innstillingene (verdien var borte fra
+    // window.Keys, men den GAMLE, allerede-injiserte linja lå fortsatt igjen
+    // i det autolagrede utkastet). Denne inline <script>-blokka (starter
+    // L907, se <script src>-rekkefølgen mot slutten av body) kjører FØR
+    // js/data-directives.js har lastet, så restoreDrafts() under kan IKKE
+    // stole på window.DataDirectives ennå — bruker den defensivt hvis den
+    // likevel skulle finnes, ellers samme KEYS = {...}-mønster
+    // (KEYS_LINE_RE i js/data-directives.js sin scrubKeys) duplisert lokalt.
+    // Selve input-lytteren under kjører derimot alltid LENGE etter boot, så
+    // den treffer den kanoniske scrubKeys (inkl. secret_key=) for gratis.
+    function scrubDraftKeysLine(s) {
+      var text = String(s == null ? '' : s);
+      if (window.DataDirectives && window.DataDirectives.scrubKeys) return window.DataDirectives.scrubKeys(text);
+      return text.replace(/^[ \t]*KEYS[ \t]*=[ \t]*\{.*\}[ \t]*$/gm, 'KEYS = {"***": "***"}');
+    }
     (function restoreDrafts() {
       try {
         Object.keys(editorContent).forEach(function (m) {
-          var d = localStorage.getItem(draftKey(m));
+          var raw = localStorage.getItem(draftKey(m));
+          if (raw == null) return;
+          var d = scrubDraftKeysLine(raw);
+          if (d !== raw) { try { localStorage.setItem(draftKey(m), d); } catch (e2) {} } // rens lagret kopi
           if (d && d.trim() && !editorContent[m]) editorContent[m] = d;
         });
-        var bootDraft = localStorage.getItem(draftKey(activeEditorMode));
+        var bootDraftRaw = localStorage.getItem(draftKey(activeEditorMode));
+        var bootDraft = bootDraftRaw == null ? null : scrubDraftKeysLine(bootDraftRaw);
+        if (bootDraft != null && bootDraft !== bootDraftRaw) {
+          try { localStorage.setItem(draftKey(activeEditorMode), bootDraft); } catch (e2) {}
+        }
         if (bootDraft && bootDraft.trim() && !scriptInput.value.trim()) {
           scriptInput.value = bootDraft;
           if (window.updateLineNumbers) window.updateLineNumbers();
@@ -3756,7 +3795,8 @@
       if (_draftTimer) clearTimeout(_draftTimer);
       _draftTimer = setTimeout(function () {
         try {
-          if (_v && _v.trim()) localStorage.setItem(draftKey(_m), _v);
+          var _vs = scrubDraftKeysLine(_v);
+          if (_vs && _vs.trim()) localStorage.setItem(draftKey(_m), _vs);
           else localStorage.removeItem(draftKey(_m));
         } catch (e) { /* full/utilgjengelig — stille */ }
       }, 800);

@@ -719,7 +719,13 @@
               // av window.Keys her). Serveren (svar-prompt.ts sin
               // renderUserKeysBlock) forteller AI-en at verdien finnes i
               // generert Python-kode som KEYS['<navn>'] via mdAskExecuteScript.
-              user_keys: (mdUserKeysMeta().length ? mdUserKeysMeta().map(function (k) { return { navn: k.navn, notat: k.notat }; }) : undefined),
+              // navn = userKeyCanonicalName(k) (SLUGEN, id.slice(4)) — IKKE
+              // k.navn (fri visningstekst) — fikserunde 1, funn #2: må være
+              // BYTE-LIK det KEYS-injeksjonen faktisk setter som dict-nøkkel
+              // (samme funksjon brukt begge steder), ellers kan modellen bli
+              // fortalt et navn som ikke finnes i kjøretidsdicten (KeyError)
+              // eller motsatt.
+              user_keys: (mdUserKeysMeta().length ? mdUserKeysMeta().map(function (k) { return { navn: userKeyCanonicalName(k), notat: k.notat }; }) : undefined),
               // Utvidet søk (kontekstrunden fase 2 §5): true|undefined —
               // svar.ts coercer med === true (aldri stol på en tilfeldig
               // truthy verdi over nettet).
@@ -1340,26 +1346,59 @@
         });
       }
 
-      // Egne nøkler v1 (innstillinger-runden, Task 11): brukeren registrerer
-      // vilkårlige tjenester (f.eks. kaggle) selv — ingen registeroppføring
-      // nødvendig (kontrast til renderSourceKeys over, som er registerstyrt).
+      // Egne nøkler v1 (innstillinger-runden, Task 11; fikserunde 1 —
+      // sikkerhetsfokusert review): brukeren registrerer vilkårlige
+      // tjenester (f.eks. kaggle) selv — ingen registeroppføring nødvendig
+      // (kontrast til renderSourceKeys over, som er registerstyrt).
       // Metadata (id/navn/notat — ALDRI verdien) i md_user_keys; selve
       // verdien i det felles nøkkellageret (window.Keys, id 'usr-<slug>').
       // mdUserKeysMeta() er den eneste leseveien — payloaden til /api/svar
       // (runSvarLoop under) og KEYS-injeksjonen (mdAskExecuteScript) bruker
       // begge denne, så et format-avvik kan aldri oppstå mellom dem.
       var LS_USER_KEYS = 'md_user_keys';
+      // Fikserunde 1, funn #5: md_user_keys synkes IKKE på tvers av enheter
+      // (kun window.Keys-VERDIENE gjør, via konto-synkens krypterte
+      // md_keys-dokument) — en usr-<slug>-id kan derfor dukke opp i
+      // window.Keys på enhet 2 UTEN tilhørende metadata fra enhet 1. Uten
+      // dette ble nøkkelen usynlig og ufjernbar i denne UI-en, selv om
+      // verdien fortsatt fantes og ble brukt (KEYS-injeksjonen under bryr
+      // seg ikke om metadata finnes). Selvhelbreder ved hvert kall: enhver
+      // usr-*-id i Keys.registered() UTEN en md_user_keys-oppføring får en
+      // minimal {id, navn: id.slice(4), notat:''} rekonstruert og
+      // PERSISTERT tilbake — idempotent (neste kall finner intet nytt å
+      // rekonstruere, ingen ny skriving). Denne bruken av registered() er
+      // UAVHENGIG av available_keys-filteret i runSvarLoop under (det
+      // filteret gjelder KUN hvilke ider som sendes i payload-feltet
+      // available_keys — det skjuler ingenting for Keys.registered() selv).
       function mdUserKeysMeta() {
+        var list;
         try {
-          var list = JSON.parse(localStorage.getItem(LS_USER_KEYS) || '[]');
-          return Array.isArray(list) ? list : [];
-        } catch (e) { return []; }
+          list = JSON.parse(localStorage.getItem(LS_USER_KEYS) || '[]');
+          if (!Array.isArray(list)) list = [];
+        } catch (e) { list = []; }
+        var known = {};
+        list.forEach(function (k) { if (k && k.id) known[k.id] = true; });
+        var ids = (window.Keys ? window.Keys.registered() : []);
+        var healed = false;
+        ids.forEach(function (id) {
+          if (id.indexOf('usr-') === 0 && !known[id]) {
+            list.push({ id: id, navn: id.slice(4), notat: '' });
+            healed = true;
+          }
+        });
+        if (healed) saveUserKeysMeta(list);
+        return list;
       }
       function saveUserKeysMeta(list) {
         try { localStorage.setItem(LS_USER_KEYS, JSON.stringify(list)); } catch (e) {}
       }
+      // Kappet til 28 tegn: server (coerceUserKeys, USER_KEY_NAME_RE) tillater
+      // maks 32 — resten av rommet er reservert til uniqueUserKeyId sin
+      // «-N»-kollisjonssuffiks, slik at det slugifiserte navnet ALDRI kan bli
+      // for langt til å passere server-regexen (fikserunde 1, funn #2 —
+      // samme sprik-klasse som store/små bokstaver, se under).
       function slugifyUserKeyName(navn) {
-        return String(navn || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        return String(navn || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 28);
       }
       // Kollisjon (to nøkler som slugifiserer likt) → -2, -3, … til ledig id.
       function uniqueUserKeyId(slug, existingIds) {
@@ -1369,6 +1408,18 @@
         while (existingIds.indexOf('usr-' + slug + '-' + n) !== -1) n++;
         return 'usr-' + slug + '-' + n;
       }
+      // Fikserunde 1, funn #2: `navn` i md_user_keys er FRI TEKST (som
+      // brukeren skrev den, f.eks. «Kaggle API» — kun til VISNING i lista
+      // under). Prompten (renderUserKeysBlock) og KEYS-injeksjonen
+      // (mdAskExecuteScript) må derfor ALDRI bruke k.navn direkte — kun
+      // slugen (id uten 'usr-'-prefikset, alltid [a-z0-9_-] og ≤32 tegn,
+      // se slugifyUserKeyName) er kanonisk og GARANTERT identisk på begge
+      // sider av kontrakten (server-regexen USER_KEY_NAME_RE matcher den
+      // alltid). Uten dette kunne serveren fortelle AI-en å bruke
+      // KEYS['kaggle'] mens runtime-dicten faktisk het {"Kaggle": …}
+      // (KeyError), eller (navn med mellomrom) droppe oppføringen fra
+      // prompten stille mens runtime fortsatt hadde den.
+      function userKeyCanonicalName(k) { return String(k.id || '').slice(4); } // 'usr-'.length === 4
       function renderUserKeys() {
         var box = dom.aiCfgUserKeyList;
         if (!box) return;
@@ -1379,7 +1430,8 @@
           wrap.style.margin = '6px 0 10px';
           var lab = document.createElement('div');
           lab.className = 'ai-modal-help';
-          lab.textContent = k.navn + ' — ' + T('nøkkel registrert') + (k.notat ? ' (' + k.notat + ')' : '');
+          lab.textContent = (k.navn || userKeyCanonicalName(k)) + ' — ' + T('nøkkel registrert') +
+            (k.notat ? ' (' + k.notat + ')' : '');
           wrap.appendChild(lab);
           var rm = document.createElement('button');
           rm.type = 'button';
@@ -1403,7 +1455,7 @@
         var list = mdUserKeysMeta();
         var id = uniqueUserKeyId(slug, list.map(function (x) { return x.id; }));
         window.Keys.set(id, value);
-        list.push({ id: id, navn: navn, notat: notat });
+        list.push({ id: id, navn: navn, notat: notat }); // navn: rå visningstekst — se userKeyCanonicalName
         saveUserKeysMeta(list);
         if (dom.userKeyName) dom.userKeyName.value = '';
         if (dom.userKeyValue) dom.userKeyValue.value = '';
@@ -1650,7 +1702,11 @@
           var userKeys = {};
           mdUserKeysMeta().forEach(function (k) {
             var v = window.Keys && window.Keys.get(k.id);
-            if (v) userKeys[k.navn] = v;
+            // userKeyCanonicalName(k) (SLUGEN) — IKKE k.navn — fikserunde 1,
+            // funn #2: må matche EKSAKT det serveren fikk i user_keys-
+            // payloaden over, ellers peker KEYS['<navn>'] i prompten på en
+            // annen dict-nøkkel enn den som faktisk finnes her.
+            if (v) userKeys[userKeyCanonicalName(k)] = v;
           });
           if (Object.keys(userKeys).length && mode === 'python') {
             script = 'KEYS = ' + JSON.stringify(userKeys) + '\n' + script;

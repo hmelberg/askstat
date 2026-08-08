@@ -72,6 +72,40 @@ Deno.test("datacommons-armen er stille fraværende uten DATACOMMONS_API_KEY (ekt
   }
 });
 
+Deno.test("sourcesOff: dropper direktearmen (ekte buildCatalogs, sluttreview-funn)", async () => {
+  // worldbank/eurostat/dbnomics/owid/datacommons/cessda kaller katalog-
+  // adapterne direkte og leser IKKE `registry` — sources_off-filtreringen
+  // (filtrerAvslatte i svar.ts) treffer derfor ALDRI disse armene med mindre
+  // buildCatalogs selv sjekker deps.sourcesOff. Denne testen øver akkurat
+  // det: off=['dbnomics'] skal gjøre arm-navnet fraværende (verken i hits
+  // eller failed), mens andre armer (inkl. zenodo/datacite som IKKE er
+  // registry-ider) er upåvirket.
+  const failFetch = (() =>
+    Promise.resolve(new Response("nope", { status: 500 }))) as unknown as typeof fetch;
+  const res = await searchDatasets("population", "all", {
+    registry: [], origin: "https://x.example", fetchImpl: failFetch,
+    sourcesOff: ["dbnomics"],
+  });
+  assertEquals(res.failed.includes("dbnomics"), false, "dbnomics skal være FRAVÆRENDE, ikke feilet");
+  assertEquals(res.hits.some((h) => h.source === "dbnomics"), false);
+  // Andre direktearmer upåvirket av off=['dbnomics'] — de er registrert
+  // (og feiler her pga. failFetch, som er forventet og greit).
+  for (const arm of ["worldbank", "eurostat", "owid", "zenodo", "datacite", "dataeuropa"]) {
+    assertEquals(res.failed.includes(arm), true, `${arm} skulle vært registrert (og feilet via failFetch)`);
+  }
+});
+
+Deno.test("sourcesOff: tom liste filtrerer ingenting (alle armer som før)", async () => {
+  const failFetch = (() =>
+    Promise.resolve(new Response("nope", { status: 500 }))) as unknown as typeof fetch;
+  const res = await searchDatasets("population", "stats", {
+    registry: [], origin: "https://x.example", fetchImpl: failFetch, sourcesOff: [],
+  });
+  for (const arm of ["worldbank", "eurostat", "dbnomics", "owid"]) {
+    assertEquals(res.failed.includes(arm), true, `${arm} skulle vært registrert som før (tom off)`);
+  }
+});
+
 Deno.test("research-scope inneholder mikrodata-armene (ekte buildCatalogs; alle feiler → failed-listen)", async () => {
   // spec 2026-08-06-mikrodata-oppdagelse: cessda/zenodo/wbmicro/ihsn skal
   // være registrert i research-scope. failFetch lar alle armene feile —

@@ -191,6 +191,10 @@ export default async (request: Request): Promise<Response> => {
   const origin = new URL(request.url).origin;
   let registryBlock = "";
   let registry: Awaited<ReturnType<typeof loadRegistry>> | null = null;
+  // sourcesOff: coercet ÉN gang her (gjenbrukes av search_datasets-deps
+  // under) — å kalle coerceSourcesOff(body.sources_off) på nytt der ville
+  // vært en unødvendig dobbel-parsing av samme rå body-felt.
+  let sourcesOff: string[] = [];
   if (route === "data") {
     try { registry = await loadRegistry(origin); } catch (e) {
       console.error("svar: registry load failed:", e);
@@ -207,7 +211,8 @@ export default async (request: Request): Promise<Response> => {
     // edge-instans) og returnerer samme referanse når ingen kilder er
     // skrudd av. hent.ts (den separate proxy-funksjonen) er UBERØRT — den
     // kjenner ikke sources_off og skal ikke gjøre det (Designavgjørelser).
-    registry = filtrerAvslatte(registry, coerceSourcesOff(body.sources_off));
+    sourcesOff = coerceSourcesOff(body.sources_off);
+    registry = filtrerAvslatte(registry, sourcesOff);
     const availableKeys = Array.isArray(body.available_keys)
       ? (body.available_keys as unknown[])
         .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))
@@ -243,8 +248,12 @@ export default async (request: Request): Promise<Response> => {
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_datasets" && registry) {
+      // sourcesOff: samme av-skrudde kilde-ider som filtrerAvslatte brukte på
+      // registeret over — search_datasets har EGNE direktearmer (worldbank/
+      // eurostat/dbnomics/owid/datacommons/cessda) som ikke leser `registry`
+      // og derfor ikke automatisk respekterer filtreringen (sluttreview-funn).
       return JSON.stringify(await searchDatasets(
-        String(input.query ?? ""), coerceScope(input.scope), { registry, origin },
+        String(input.query ?? ""), coerceScope(input.scope), { registry, origin, sourcesOff },
       ));
     }
     if (name === "search_catalog" && registry) {

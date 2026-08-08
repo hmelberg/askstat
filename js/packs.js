@@ -865,6 +865,15 @@
         r.type = 'radio';
         r.name = 'countryChoice';
         r.checked = checked;
+        // Klikk på en rad som ALT er valgt endrer ikke radioens tilstand, så
+        // 'change' fyrer aldri — modalen ble stående åpen (sluttreview-funn).
+        // 'click' dispatches derimot alltid, og FØR default-handlingen
+        // (checked-oppdateringen) kjører — r.checked her er dermed ennå den
+        // GAMLE verdien. Er den alt sann, lukk modalen direkte uten å kjøre
+        // onSelect() på nytt (billig fiks, ingen re-kjøring av setCountry).
+        r.addEventListener('click', function () {
+          if (r.checked) closeCountryModal();
+        });
         r.addEventListener('change', function () {
           onSelect();
           closeCountryModal();

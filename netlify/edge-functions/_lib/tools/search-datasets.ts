@@ -40,6 +40,14 @@ interface Deps {
   fetchImpl?: typeof fetch;
   _catalogsForTest?: Record<string, () => Promise<DatasetHit[]>>;
   _timeoutMs?: number;
+  // sources_off (sluttreview-funn, kildevelger-runde 2): direktearmene under
+  // (worldbank/eurostat/dbnomics/owid/datacommons/cessda) kaller katalog-
+  // adapterne direkte og leser IKKE `registry` — de omgikk derfor
+  // sources_off-filtreringen som ellers skjer via filtrerAvslatte i svar.ts.
+  // buildCatalogs dropper nå en arm når arm-navnet (= registry-id-en) står
+  // her. Udefinert/tom = ingen filtrering (bakoverkompatibelt for tester som
+  // ikke sender feltet).
+  sourcesOff?: string[];
 }
 
 // Gjenbruk av eksisterende enkeltkilde-søk: CatalogHit → DatasetHit.
@@ -66,17 +74,25 @@ function viaSearchCatalog(
 
 function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<string, () => Promise<DatasetHit[]>> {
   const f = deps.fetchImpl ?? fetch;
-  const stats: Record<string, () => Promise<DatasetHit[]>> = {
-    ssb: viaSearchCatalog("ssb", query, deps, (id) =>
-      `table_metadata('ssb', '${id}') → # s = ssb.read("${id}", years=…)`),
-    worldbank: () => worldbankSearch(query, deps.origin, f),
-    eurostat: () => eurostatSearch(query, deps.origin, f),
-    dbnomics: () => dbnomicsSearch(query, f),
-    oecd: viaSearchCatalog("oecd", query, deps, (id) =>
-      `table_metadata('oecd', '${id}') → # o = oecd.read("${id}", years=…, countries=…)`),
-    apd: viaSearchCatalog("apd", query, deps, () => `probe URL-en fra treffet før bruk`),
-    owid: () => owidSearch(query, deps.origin, f),
-  };
+  // off: registry-ider brukeren har skrudd av (sources_off). Kun ARM-NAVN
+  // som faktisk ER registry-ider skal sjekkes mot denne — datacite/
+  // dataeuropa/zenodo er IKKE registry-ider (ingen tilsvarende kilde i
+  // data-sources.json) og skal derfor ALDRI filtreres her.
+  const off = new Set(deps.sourcesOff ?? []);
+  const stats: Record<string, () => Promise<DatasetHit[]>> = {};
+  if (!off.has("ssb")) {
+    stats.ssb = viaSearchCatalog("ssb", query, deps, (id) =>
+      `table_metadata('ssb', '${id}') → # s = ssb.read("${id}", years=…)`);
+  }
+  if (!off.has("worldbank")) stats.worldbank = () => worldbankSearch(query, deps.origin, f);
+  if (!off.has("eurostat")) stats.eurostat = () => eurostatSearch(query, deps.origin, f);
+  if (!off.has("dbnomics")) stats.dbnomics = () => dbnomicsSearch(query, f);
+  if (!off.has("oecd")) {
+    stats.oecd = viaSearchCatalog("oecd", query, deps, (id) =>
+      `table_metadata('oecd', '${id}') → # o = oecd.read("${id}", years=…, countries=…)`);
+  }
+  if (!off.has("apd")) stats.apd = viaSearchCatalog("apd", query, deps, () => `probe URL-en fra treffet før bruk`);
+  if (!off.has("owid")) stats.owid = () => owidSearch(query, deps.origin, f);
   // Data Commons: env-betinget arm (Task 5-checkpoint, DATACOMMONS_API_KEY
   // ennå ikke satt globalt). Uten nøkkel skal armen være STILLE FRAVÆRENDE —
   // aldri i failed-listen, aldri i hits — så vi registrerer den kun når
@@ -84,20 +100,24 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
   // buildCatalogs har ingen egen env-tilgang i Deps; enklest er å lese
   // Deno.env direkte her (samme mønster som auth.ts).
   const dcKey = Deno.env.get("DATACOMMONS_API_KEY");
-  if (dcKey) stats.datacommons = () => dcSearch(query, dcKey, f);
+  if (dcKey && !off.has("datacommons")) stats.datacommons = () => dcSearch(query, dcKey, f);
   const research: Record<string, () => Promise<DatasetHit[]>> = {
+    // datacite/dataeuropa/zenodo: ALDRI filtrert (ingen registry-id, se off
+    // over).
     datacite: () => dataciteSearch(query, f),
     dataeuropa: () => dataeuropaSearch(query, f),
-    // Mikrodata-oppdagelse (spec 2026-08-06): CESSDA/Zenodo direkte;
-    // WB via nada-kind-adapteren. IHSN har INGEN arm: verten serverer en
-    // TLS-kjede Deno/rustls ikke støtter (målt 2026-08-06) — alle
-    // server-side-kall feiler; kilden nås kun nettleser-direkte (guiden).
-    cessda: () => cessdaSearch(query, f),
     zenodo: () => zenodoSearch(query, f),
-    wbmicro: viaSearchCatalog("wbmicro", query, deps, (id) =>
-      `table_metadata('wbmicro', '${id}') → variabelordbok (spørsmålstekst/etiketter); datafiler krever WB-login — metadata er ikke data`,
-      "landing-page"),
   };
+  // Mikrodata-oppdagelse (spec 2026-08-06): CESSDA/Zenodo direkte; WB via
+  // nada-kind-adapteren. IHSN har INGEN arm: verten serverer en TLS-kjede
+  // Deno/rustls ikke støtter (målt 2026-08-06) — alle server-side-kall
+  // feiler; kilden nås kun nettleser-direkte (guiden).
+  if (!off.has("cessda")) research.cessda = () => cessdaSearch(query, f);
+  if (!off.has("wbmicro")) {
+    research.wbmicro = viaSearchCatalog("wbmicro", query, deps, (id) =>
+      `table_metadata('wbmicro', '${id}') → variabelordbok (spørsmålstekst/etiketter); datafiler krever WB-login — metadata er ikke data`,
+      "landing-page");
+  }
   if (scope === "stats") return stats;
   if (scope === "research") return research;
   return { ...stats, ...research };

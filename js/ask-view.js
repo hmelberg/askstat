@@ -1061,12 +1061,20 @@
         // linjen arkiveres til Details sammen med resten av prosess-sporet.
         if (activeProfile) progressLine(t('Profile applied: {name}', { name: activeProfile.name }));
         // Kildepakker skal heller aldri usynlig forme svar (spec 2026-08-05 §2,
-        // flervalg kontekstrunden fase 2 §2) — én linje PER valgt pakke.
-        var packSt = (window.Profiles && window.Profiles.packsState) ? window.Profiles.packsState() : null;
-        if (packSt && packSt.ids && packSt.ids.length && window.Packs) {
-          packSt.ids.forEach(function (id) {
-            progressLine(t('Pack applied: {name}', { name: window.Packs.displayName(id) }) + (packSt.auto ? t(' (auto)') : ''));
-          });
+        // flervalg kontekstrunden fase 2 §2, Task 7 §2) — én linje PER valgt pakke
+        // fra payload-sannheten effectiveIds. '(auto)'-suffiks BARE på landpakka når
+        // countryState().mode === 'auto'.
+        if (window.Packs && window.Packs.effectiveIds && window.Profiles) {
+          var effIds = window.Packs.effectiveIds();
+          var countryId = window.Packs.countryPackId ? window.Packs.countryPackId() : null;
+          var countryMode = window.Profiles.countryState ? (window.Profiles.countryState().mode) : null;
+          if (effIds && effIds.length) {
+            effIds.forEach(function (id) {
+              var isCountryPack = (countryId && id === countryId);
+              var autoSuffix = (isCountryPack && countryMode === 'auto') ? t(' (auto)') : '';
+              progressLine(t('Pack applied: {name}', { name: window.Packs.displayName(id) }) + autoSuffix);
+            });
+          }
         }
 
         // 2) Språk-ruten: direkte svar med merking, ingen kode (uendret).

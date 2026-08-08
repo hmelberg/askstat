@@ -126,7 +126,8 @@ function freshEnv(opts) {
 
   var onChangeCb = null;
   var Prof = {
-    packsState: function () { return { ids: [], auto: false }; },
+    packsState: function () { return { ids: [] }; },
+    countryState: function () { return { mode: 'none', cc: null, updated: 0 }; },
     active: function () { return null; },
     onChange: function (cb) { onChangeCb = cb; },
     // simulerer den ekte Profiles.togglePack: muterer og fyrer onChange
@@ -260,4 +261,62 @@ test('context-pill: klikk på et FORTSATT tilkoblet element inni menyen (f.eks. 
   fireClick(menu, evt); // profSec er et ekte barn av menu — bobler gjennom menu-lytteren i ekte DOM
   fireDocClick(docListeners, evt);
   assert.strictEqual(menu.hidden, false, 'et tilkoblet mål inni menyen skal aldri lukke den');
+});
+
+test('context-pill: pille-etiketten viser KUN manuelt valgte pakker (packsState), ikke effectiveIds (som inkluderer land)', () => {
+  // Task 7 §1: etiketten skal bygges fra packsState().ids alene, IKKE fra
+  // effectiveIds som inkluderer landpakka. Selv om effectiveIds = landpakka +
+  // [manuelle], skal etiketten bare vise de manuelle.
+  delete require.cache[require.resolve(CONTEXT_PILL_PATH)];
+
+  var btn = new FakeEl('button');
+  var labelEl = new FakeEl('span');
+  var menu = new FakeEl('div');
+  menu.hidden = true;
+  menu.__docRoot = true;
+  var packSec = new FakeEl('div');
+  menu.appendChild(packSec);
+
+  var idIndex = {
+    askContextBtn: btn, askContextLabel: labelEl, askContextMenu: menu,
+    askCtxPackSection: packSec, askCtxProfileSection: null,
+  };
+  var docListeners = {};
+  global.document = {
+    readyState: 'complete',
+    getElementById: function (id) { return idIndex[id] || null; },
+    addEventListener: function (type, fn) { (docListeners[type] = docListeners[type] || []).push(fn); },
+  };
+
+  var manualIds = ['dbnomics', 'ssb'];
+  var countryId = 'country:no';
+  var Prof = {
+    packsState: function () { return { ids: manualIds }; },
+    countryState: function () { return { mode: 'auto', cc: 'no' }; },
+    onChange: function () {},
+  };
+  global.Profiles = Prof;
+
+  // Packs stub: effectiveIds returnerer countryId + manualIds (som skulle være
+  // tilfellet i payload), men displayName skal BARE brukes på manualIds
+  global.Packs = {
+    displayName: function (id) {
+      var names = {
+        'dbnomics': 'DBnomics',
+        'ssb': 'Statistics Norway',
+        'country:no': 'Norway (auto)', // dette skal IKKE vises i etiketten
+      };
+      return names[id] || id;
+    },
+    effectiveIds: function () { return [countryId].concat(manualIds); },
+    countryPackId: function () { return countryId; },
+  };
+
+  global.t = function (k) { return k; };
+
+  require(CONTEXT_PILL_PATH);
+
+  // Verifiser at etiketten viser BARE de manuelle pakker, ikke landpakka
+  assert.strictEqual(labelEl.textContent, 'DBnomics +1',
+    'etiketten skal bare vise manuelle ids fra packsState, ikke effectiveIds (som inkluderer landpakka)');
 });

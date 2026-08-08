@@ -585,8 +585,8 @@
     btn.type = 'button';
     btn.id = 'topbarAskSwitch';
     btn.className = 'topbar-ask-switch';
-    btn.textContent = 'Ask mode';
-    btn.title = 'Back to the ask view';
+    btn.textContent = t('Back to Ask');
+    btn.title = t('Back to the ask view');
     btn.addEventListener('click', switchToAsk);
     topbar.appendChild(btn);
   }

@@ -1707,7 +1707,11 @@
           var out = String(text == null ? '' : text);
           mdUserKeysMeta().forEach(function (k) {
             var v = window.Keys && window.Keys.get(k.id);
-            if (v) out = out.split(v).join('•••');
+            // Minstelengde-guard (re-review-restpunkt #2): en 1-2-tegns
+            // nøkkelverdi ville truffet nesten hvilken som helst output
+            // (split/join på f.eks. "a" makulerer teksten) — reell risiko
+            // er lengre hemmeligheter, ikke korte tilfeldige tegn.
+            if (v && v.length >= 6) out = out.split(v).join('•••');
           });
           return out;
         }

@@ -794,6 +794,12 @@
       // aldri e.script. window.mdAskInsertScript (ai-chat.js sin
       // insertScriptIntoEditor, samme mekanisme en fersk kjøring bruker)
       // setter den lagrede koden inn nå, ikke lazy ved knappklikk.
+      // Re-review-restpunkt #1: må bytte til svarets LAGREDE modus FØR
+      // innsetting — ellers lander et R/duckdb-svar fra historikken i
+      // python-editoren. switchEditorMode er synkron og tar vare på
+      // avtroppende modus' innhold i editorContent (index.html) — samme
+      // bare-identifier-guard som currentAskMode() over bruker.
+      if (e.mode && e.mode !== currentAskMode() && typeof switchEditorMode === 'function') switchEditorMode(e.mode);
       if (e.script && window.mdAskInsertScript) window.mdAskInsertScript(e.script);
       var note = document.createElement('div');
       note.className = 'ai-progress-line';

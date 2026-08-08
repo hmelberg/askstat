@@ -15,6 +15,11 @@
   var SOURCE_TEXT_MAX = 40000;
 
   var PACK_AUTO = 'md_pack_auto';
+  // Kildevelger-runde 2 (§Designavgjørelser): landvalg og av-skrudde
+  // standardkilder er nye synkede hel-verdi-felt på profiles-dokumentet.
+  var COUNTRY_CC_RE = /^[A-Z]{2}$/;
+  var SOURCES_OFF_ID_RE = /^[a-z0-9_-]{1,32}$/;
+  var SOURCES_OFF_MAX = 40;
 
   function makeProfiles(storage, opts) {
     var now = (opts && opts.now) || function () { return new Date().toISOString(); };
@@ -48,6 +53,10 @@
     function writeDoc(doc, opts) {
       pruneTombstones(doc);
       delete doc.pack; // kontekstrunden fase 2: gammelt én-pakke-valg droppes
+      // Kildevelger-runde 2: gammel {auto:true}-variant av doc.packs skrubbes
+      // — auto-landvalget bor nå i doc.country (synket) + md_pack_auto
+      // (device-lokalt resultat); doc.packs er heretter rent manuelt flervalg.
+      if (doc.packs && doc.packs.auto === true) delete doc.packs;
       if (!opts || !opts.keepUpdated) doc.updated = now();
       try { storage.setItem(LS, JSON.stringify(doc)); } catch (e) {}
       if (!opts || !opts.silent) fire();
@@ -64,6 +73,36 @@
     // kind bor KUN på oppføringen når den er 'source' (sparer bytes — fravær
     // betyr 'profile', langt det vanlige tilfellet, inkl. alle legacy-data).
     function kindOf(p) { return (p && p.kind) || 'profile'; }
+    // Hel-verdi-felt (packs/country/sources_off, kildevelger-runde 2): HELE
+    // feltet er én enhet — ikke felt-vis merge. Nyeste `updated` vinner; ved
+    // likhet beholdes lokal verdi URØRT (ellers ville changed=true blitt
+    // markert for en no-op skriving). isPresent avviser fraværende/
+    // feilformede remote-verdier stille — dekker bl.a. gamle {auto:true}-
+    // pakkedokumenter fra før denne runden (bevisst ingen automigrering).
+    function mergeWholeField(doc, remoteVal, field, normalize, isPresent) {
+      if (!isPresent(remoteVal)) return false;
+      var lVal = doc[field];
+      var rN = normalize(remoteVal);
+      if ((!lVal || rN.updated > String(lVal.updated || '')) &&
+          JSON.stringify(lVal ? normalize(lVal) : null) !== JSON.stringify(rN)) {
+        doc[field] = rN;
+        return true;
+      }
+      return false;
+    }
+    function normalizePacks(p) { return { ids: (p.ids || []).map(String), updated: String(p.updated || '') }; }
+    function isPacksValue(p) { return !!p && typeof p === 'object' && Array.isArray(p.ids); }
+    function normalizeCountry(c) {
+      var m = (c.mode === 'none' || c.mode === 'cc') ? c.mode : 'auto';
+      var out = { mode: m, updated: String(c.updated || '') };
+      if (m === 'cc' && c.cc) out.cc = String(c.cc).toUpperCase();
+      return out;
+    }
+    function isCountryValue(c) {
+      return !!c && typeof c === 'object' && (c.mode === 'auto' || c.mode === 'none' || c.mode === 'cc');
+    }
+    function normalizeSourcesOff(s) { return { ids: (s.ids || []).map(String), updated: String(s.updated || '') }; }
+    function isSourcesOffValue(s) { return !!s && typeof s === 'object' && Array.isArray(s.ids); }
     return {
       NAME_MAX: NAME_MAX,
       TEXT_MAX: TEXT_MAX,
@@ -152,20 +191,17 @@
         var t = String(p.text || '').trim();
         return t ? t : undefined;
       },
-      // Pakkevalg (kontekstrunden 2026-08-06 §2): FLERVALG. Manuelt sett bor
-      // i doc.packs = {ids, updated} (synkes, hele settet = én verdi); auto-
-      // forslag (fra locale) bor KUN i md_pack_auto (per enhet). Fraværende
-      // doc.packs = aldri berørt → auto-forslaget gjelder; {ids:[]} = manuelt
-      // tomt (internasjonal). Gammelt doc.pack skrubbes i writeDoc.
+      // Pakkevalg (kildevelger-runde 2: forenklet til RENT manuelt flervalg).
+      // doc.packs = {ids, updated} (synkes, hele settet = én verdi). Landets
+      // auto-forslag hører IKKE lenger hjemme her — VALGET (auto/none/cc)
+      // synkes via doc.country (§under), og auto-RESULTATET (hvilken pakke-
+      // id locale pekte på) bor device-lokalt i md_pack_auto, lest av
+      // packs.js kun når countryState().mode==='auto'. Fraværende doc.packs
+      // = tomt manuelt sett. Gammelt doc.pack OG gammel {auto:true}-variant
+      // av doc.packs skrubbes i writeDoc.
       packsState: function () {
         var doc = readDoc();
-        if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) {
-          return { ids: doc.packs.ids.map(String), auto: false, manual: true };
-        }
-        var a = null;
-        try { a = storage.getItem(PACK_AUTO); } catch (e) {}
-        return a ? { ids: [String(a)], auto: true, manual: false }
-                 : { ids: [], auto: false, manual: false };
+        return isPacksValue(doc.packs) ? { ids: doc.packs.ids.map(String) } : { ids: [] };
       },
       setPacks: function (ids) {
         var doc = readDoc();
@@ -176,16 +212,6 @@
           if (!seen[s]) { seen[s] = true; clean.push(s); }
         });
         doc.packs = { ids: clean, updated: now() };
-        try { storage.removeItem(PACK_AUTO); } catch (e) {}
-        writeDoc(doc);
-      },
-      // «Standard (automatisk)» (spec 2026-08-06-menyopprydding §2): auto
-      // gjenopprettes som EKSPLISITT verdi {auto:true} — å slette doc.packs
-      // ville blitt resurrektert av mergeRemote (remote manuelt sett med
-      // timestamp vinner alltid over et fraværende lokalt felt).
-      setPacksAuto: function () {
-        var doc = readDoc();
-        doc.packs = { auto: true, updated: now() };
         writeDoc(doc);
       },
       togglePack: function (id) {
@@ -196,14 +222,64 @@
           : st.ids.concat([s]);
         this.setPacks(ids);
       },
+      // setAutoPack: device-lokalt cache av landets auto-RESULTAT (§over) —
+      // vedlikeholdes ALLTID, uansett hva doc.packs/doc.country inneholder
+      // (den forrige manuelt-valg-vakten hørte til {auto:true}-varianten av
+      // doc.packs, som er borte). Det er packs.js (kun når
+      // countryState().mode==='auto') som avgjør om verdien faktisk brukes.
       setAutoPack: function (id) {
-        var doc = readDoc();
-        if (doc.packs && typeof doc.packs === 'object' && Array.isArray(doc.packs.ids)) return; // manuelt valg vinner
         try {
           if (id == null) storage.removeItem(PACK_AUTO);
           else storage.setItem(PACK_AUTO, String(id));
         } catch (e) {}
         fire();
+      },
+      // Landvalg (kildevelger-runde 2, §Designavgjørelser): doc.country =
+      // {mode:'auto'|'none'|'cc', cc?, updated}. Fraværende felt tolkes som
+      // {mode:'auto'}. Alltid EKSPLISITT skrevet (aldri delete) — ellers
+      // ville et fraværende felt bli resurrektert til en tilfeldig eldre
+      // remote-verdi ved neste merge (samme resurreksjonsvern som packs/
+      // {auto:true} løste tidligere med setPacksAuto, nå droppet).
+      countryState: function () {
+        var doc = readDoc();
+        return isCountryValue(doc.country) ? Object.assign({}, doc.country) : { mode: 'auto' };
+      },
+      setCountry: function (mode, cc) {
+        var m = (mode === 'none' || mode === 'cc') ? mode : 'auto';
+        var entry = { mode: m, updated: now() };
+        if (m === 'cc') {
+          var up = String(cc || '').toUpperCase();
+          if (!COUNTRY_CC_RE.test(up)) return; // ugyldig landkode — ignoreres stille
+          entry.cc = up;
+        }
+        var doc = readDoc();
+        doc.country = entry;
+        writeDoc(doc);
+      },
+      // Av-skrudde standardkilder (kildevelger-runde 2, §Designavgjørelser):
+      // doc.sources_off = {ids, updated} — synkes; id-ene er registry-nøkler
+      // (f.eks. 'dbnomics'), klient-clampet mot samme regex/tak som serveren
+      // håndhever i registry.ts (Task 3). Fraværende felt = ingen kilder
+      // avskrudd.
+      sourcesOff: function () {
+        var doc = readDoc();
+        return isSourcesOffValue(doc.sources_off) ? doc.sources_off.ids.map(String) : [];
+      },
+      toggleSourceOff: function (id) {
+        var s = String(id);
+        if (!SOURCES_OFF_ID_RE.test(s)) return; // ugyldig id — ignoreres stille
+        var doc = readDoc();
+        var cur = isSourcesOffValue(doc.sources_off) ? doc.sources_off.ids.map(String) : [];
+        var idx = cur.indexOf(s);
+        var next;
+        if (idx >= 0) {
+          next = cur.filter(function (x) { return x !== s; });
+        } else {
+          if (cur.length >= SOURCES_OFF_MAX) return; // tak nådd — nye av-skruinger ignoreres stille
+          next = cur.concat([s]);
+        }
+        doc.sources_off = { ids: next, updated: now() };
+        writeDoc(doc);
       },
       onChange: function (cb) { listeners.push(cb); },
       // Fase 2-synk: exportDoc/mergeRemote brukes av konto-sync.js.
@@ -224,21 +300,12 @@
             changed = true;
           }
         });
-        var rp = remoteDoc.packs;
-        if (rp && typeof rp === 'object' && (Array.isArray(rp.ids) || rp.auto === true)) {
-          var normPacks = function (p) {
-            return p.auto === true
-              ? { auto: true, updated: String(p.updated || '') }
-              : { ids: (p.ids || []).map(String), updated: String(p.updated || '') };
-          };
-          var lp = doc.packs;
-          var rN = normPacks(rp);
-          if ((!lp || rN.updated > String(lp.updated || '')) &&
-              JSON.stringify(lp ? normPacks(lp) : null) !== JSON.stringify(rN)) {
-            doc.packs = rN;
-            changed = true;
-          }
-        }
+        // Hel-verdi-armer (§mergeWholeField over): packs/country/sources_off.
+        // rp med gammel {auto:true}-form (uten .ids) blir avvist av
+        // isPacksValue → arm no-op'er (bevisst ingen automigrering).
+        if (mergeWholeField(doc, remoteDoc.packs, 'packs', normalizePacks, isPacksValue)) changed = true;
+        if (mergeWholeField(doc, remoteDoc.country, 'country', normalizeCountry, isCountryValue)) changed = true;
+        if (mergeWholeField(doc, remoteDoc.sources_off, 'sources_off', normalizeSourcesOff, isSourcesOffValue)) changed = true;
         if (String(remoteDoc.updated || '') > String(doc.updated || '')) {
           var remoteActive = remoteDoc.active || null;
           if (doc.active !== remoteActive) { doc.active = remoteActive; changed = true; }

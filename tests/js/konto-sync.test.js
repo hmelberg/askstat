@@ -166,5 +166,38 @@ test('pakkevalg synkes: pushes uten profiler, merges inn hos B', async () => {
   assert.deepEqual(pushed.packs.ids, ['finland']);
   const B = makeProfiles(fakeStorage(), { now: () => '2026-08-01T00:00:00.000Z' });
   B.mergeRemote(pushed);
-  assert.deepEqual(B.packsState(), { ids: ['finland'], auto: false, manual: true });
+  assert.deepEqual(B.packsState(), { ids: ['finland'] });
+});
+
+// Kildevelger-runde 2: doc.country og doc.sources_off er nye hel-verdi-
+// synkfelt (§Task 1) — push-vakten (konto-sync.js) skal utløse push av
+// profiles-dokumentet også når KUN et av dem er satt (ingen profiler/pakker).
+test('landvalg synkes: pushes uten profiler, merges inn hos B', async () => {
+  const f = fakeFetch({});
+  const d = makeDeps({ fetchImpl: f.impl });
+  KontoSync._configure(d, 1);
+  d.profiles.setCountry('cc', 'no');                    // manuelt valg, INGEN profiler/pakker
+  await KontoSync.syncNow();
+  assert.ok(f.posts.profiles && f.posts.profiles.length >= 1); // pushet likevel
+  const pushed = f.posts.profiles[f.posts.profiles.length - 1];
+  assert.equal(pushed.country.mode, 'cc');
+  assert.equal(pushed.country.cc, 'NO');
+  const B = makeProfiles(fakeStorage(), { now: () => '2026-08-01T00:00:00.000Z' });
+  B.mergeRemote(pushed);
+  assert.equal(B.countryState().mode, 'cc');
+  assert.equal(B.countryState().cc, 'NO');
+});
+
+test('avskrudde kilder synkes: pushes uten profiler, merges inn hos B', async () => {
+  const f = fakeFetch({});
+  const d = makeDeps({ fetchImpl: f.impl });
+  KontoSync._configure(d, 1);
+  d.profiles.toggleSourceOff('dbnomics');               // manuelt valg, INGEN profiler/pakker
+  await KontoSync.syncNow();
+  assert.ok(f.posts.profiles && f.posts.profiles.length >= 1); // pushet likevel
+  const pushed = f.posts.profiles[f.posts.profiles.length - 1];
+  assert.deepEqual(pushed.sources_off.ids, ['dbnomics']);
+  const B = makeProfiles(fakeStorage(), { now: () => '2026-08-01T00:00:00.000Z' });
+  B.mergeRemote(pushed);
+  assert.deepEqual(B.sourcesOff(), ['dbnomics']);
 });

@@ -71,8 +71,9 @@
     if (remote.doc) { try { remoteDoc = JSON.parse(remote.doc); } catch (e) {} }
     if (remoteDoc) store.mergeRemote(remoteDoc);
     var out = store.exportDoc(exportOpts);
-    // out.packs: manuelt kildepakke-valg skal synkes også uten profiler
-    if (!remoteDoc && !Object.keys(entryMap(out)).length && !out.packs) return 'uptodate';
+    // out.packs/out.country/out.sources_off: kildevelger-tilstand skal synkes
+    // også uten profiler — noen av dem alene er nok til å utløse en push.
+    if (!remoteDoc && !Object.keys(entryMap(out)).length && !out.packs && !out.country && !out.sources_off) return 'uptodate';
     if (remoteDoc && stableStringify(out) === stableStringify(remoteDoc)) return 'uptodate';
     await postDoc(d, name, out);
     return 'pushed';

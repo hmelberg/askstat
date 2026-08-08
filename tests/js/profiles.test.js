@@ -108,23 +108,29 @@ test('prune: tombstones eldre enn 90 dager fjernes ved skriving', () => {
   assert.equal(p.exportDoc().profiles[id], undefined);
 });
 
-test('packs: tomt default; auto-forslag gir ett id m/auto-flagg', () => {
+// Kildevelger-runde 2: packsState() forenklet til rent manuelt {ids} — auto/
+// manual-flaggene og md_pack_auto-lesingen er ute (auto-VALGET bor nå i
+// doc.country, se lenger ned; setPacksAuto er slettet).
+test('packs: tomt default; setPacks setter/dedupper ids', () => {
   const s = fakeStorage();
   const P = makeProfiles(s);
-  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: false });
-  P.setAutoPack('norway');
-  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true, manual: false });
+  assert.deepEqual(P.packsState(), { ids: [] });
+  P.setPacks(['a', 'b', 'a']);
+  assert.deepEqual(P.packsState(), { ids: ['a', 'b'] });
 });
 
-test('packs: setPacks vinner over auto, rydder md_pack_auto, dedupper', () => {
+test('packs: setAutoPack er device-lokalt og uavhengig av doc.packs (vedlikeholdes alltid)', () => {
   const s = fakeStorage();
   const P = makeProfiles(s);
   P.setAutoPack('norway');
-  P.setPacks(['a', 'b', 'a']);
-  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false, manual: true });
+  assert.equal(s.getItem('md_pack_auto'), 'norway');
+  assert.deepEqual(P.packsState(), { ids: [] });        // packsState ser IKKE md_pack_auto lenger
+  P.setPacks(['a']);
+  assert.equal(s.getItem('md_pack_auto'), 'norway');    // setPacks rører den ikke lenger
+  P.setAutoPack('finland');                             // fortsatt vedlikeholdt selv med manuelt sett
+  assert.equal(s.getItem('md_pack_auto'), 'finland');
+  P.setAutoPack(null);
   assert.equal(s.getItem('md_pack_auto'), null);
-  P.setAutoPack('norway'); // no-op når manuelt sett finnes
-  assert.deepEqual(P.packsState(), { ids: ['a', 'b'], auto: false, manual: true });
 });
 
 test('packs: togglePack legger til og fjerner; tom liste = manuelt tomt', () => {
@@ -136,7 +142,7 @@ test('packs: togglePack legger til og fjerner; tom liste = manuelt tomt', () => 
   P.togglePack('a');
   assert.deepEqual(P.packsState().ids, ['b']);
   P.togglePack('b');
-  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: true });
+  assert.deepEqual(P.packsState(), { ids: [] });
 });
 
 test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
@@ -151,32 +157,30 @@ test('packs: mergeRemote hele-settet-nyeste-vinner; likhet → uendret', () => {
     packs: { ids: ['z'], updated: '2000-01-01T00:00:00.000Z' } };
   assert.equal(P.mergeRemote(eldre), false);
   assert.deepEqual(P.packsState().ids, ['x', 'y']);
+  assert.equal(P.mergeRemote(nyere), false);            // likt innhold igjen → uendret
 });
 
-test('packs: setPacksAuto gjenoppretter auto som eksplisitt, synkbar verdi', () => {
-  const s = fakeStorage();
-  const P = makeProfiles(s);
-  P.setAutoPack('norway');
-  P.setPacks(['a']);
-  assert.deepEqual(P.packsState(), { ids: ['a'], auto: false, manual: true });
-  P.setPacksAuto();
-  assert.equal(P.exportDoc().packs.auto, true);        // eksplisitt verdi, ikke slettet felt
-  P.setAutoPack('norway');                             // ikke lenger blokkert av doc.packs
-  assert.deepEqual(P.packsState(), { ids: ['norway'], auto: true, manual: false });
-});
-
-test('packs: mergeRemote — nyere {auto:true} vinner over eldre manuelt sett, og omvendt', () => {
+// Ingen automigrering (plan §Oppgaver): gamle synkede dokumenter kan ha
+// {auto:true} i doc.packs. writeDoc skrubber den lokalt (test lenger ned);
+// mergeRemote skal aldri adoptere den varianten fra en remote heller.
+test('packs: mergeRemote ignorerer gammel {auto:true}-variant fra remote', () => {
   const P = makeProfiles(fakeStorage());
   P.setPacks(['a']);
-  const autoNyere = { v: 1, active: null, updated: '', profiles: {},
+  const legacyAuto = { v: 1, active: null, updated: '', profiles: {},
     packs: { auto: true, updated: '2099-01-01T00:00:00.000Z' } };
-  assert.equal(P.mergeRemote(autoNyere), true);
-  assert.deepEqual(P.packsState().ids, []);            // auto uten md_pack_auto = tomt her
-  assert.equal(P.packsState().manual, false);
-  const manueltEldre = { v: 1, active: null, updated: '', profiles: {},
-    packs: { ids: ['z'], updated: '2000-01-01T00:00:00.000Z' } };
-  assert.equal(P.mergeRemote(manueltEldre), false);    // eldre taper — ingen resurreksjon
-  assert.equal(P.packsState().manual, false);
+  assert.equal(P.mergeRemote(legacyAuto), false);
+  assert.deepEqual(P.packsState().ids, ['a']);
+});
+
+test('packs: writeDoc skrubber lokal {auto:true}-variant av doc.packs ved neste skriving', () => {
+  const s = fakeStorage();
+  s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',
+    profiles: {}, packs: { auto: true, updated: '2026-08-05T00:00:00.000Z' } }));
+  const P = makeProfiles(s);
+  assert.deepEqual(P.packsState(), { ids: [] });        // {auto:true} har ingen .ids
+  P.setPacks(['norway']);                               // enhver skriving trigger skrubb
+  const doc = JSON.parse(s.getItem('md_profiles'));
+  assert.deepEqual(doc.packs, { ids: ['norway'], updated: doc.packs.updated });
 });
 
 // Kontekstrunden fase 3 (§Unifisert lager): kind 'profile'|'source'.
@@ -239,11 +243,95 @@ test('packs: gammel doc.pack ignoreres og skrubbes ved neste skriving', () => {
   s.setItem('md_profiles', JSON.stringify({ v: 1, active: null, updated: '',
     profiles: {}, pack: { id: 'country:IT', updated: '2026-08-05T00:00:00.000Z' } }));
   const P = makeProfiles(s);
-  assert.deepEqual(P.packsState(), { ids: [], auto: false, manual: false }); // Italia er død
+  assert.deepEqual(P.packsState(), { ids: [] }); // Italia er død
   P.setPacks(['norway']);
   const doc = JSON.parse(s.getItem('md_profiles'));
   assert.equal('pack' in doc, false);
   // mergeRemote med legacy remote-pack rører ingenting:
   assert.equal(P.mergeRemote({ v: 1, active: null, updated: '', profiles: {},
     pack: { id: 'country:IT', updated: '2099-01-01T00:00:00.000Z' } }), false);
+});
+
+// Kildevelger-runde 2 (§Designavgjørelser): doc.country = {mode, cc?, updated}.
+// VALGET synces her; auto-RESULTATET (hvilken pakke locale pekte på) forblir
+// device-lokalt i md_pack_auto (dekket av setAutoPack-testen over).
+test('country: default {mode:"auto"} når fraværende; setCountry skriver alltid eksplisitt', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(P.countryState(), { mode: 'auto' });
+  P.setCountry('none');
+  const st = P.countryState();
+  assert.equal(st.mode, 'none');
+  assert.ok(st.updated);                                 // alltid eksplisitt — aldri delete
+  P.setCountry('auto');
+  assert.equal(P.countryState().mode, 'auto');
+  assert.ok(P.exportDoc().country);                       // feltet finnes fortsatt (ikke slettet)
+});
+
+test('country: setCountry cc uppercases og validerer ^[A-Z]{2}$', () => {
+  const P = makeProfiles(fakeStorage());
+  P.setCountry('cc', 'no');
+  const st = P.countryState();
+  assert.equal(st.mode, 'cc');
+  assert.equal(st.cc, 'NO');
+  const before = st;
+  P.setCountry('cc', 'xyz');                               // ugyldig (3 tegn) — ignoreres stille
+  assert.deepEqual(P.countryState(), before);
+  P.setCountry('cc', '1a');                                 // ugyldig (ikke bokstaver) — ignoreres stille
+  assert.deepEqual(P.countryState(), before);
+});
+
+test('country: mergeRemote hele-verdien-nyeste-vinner; likhet → uendret', () => {
+  const P = makeProfiles(fakeStorage());
+  P.setCountry('cc', 'no');
+  const nyere = { v: 1, active: null, updated: '', profiles: {},
+    country: { mode: 'none', updated: '2099-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(nyere), true);
+  assert.equal(P.countryState().mode, 'none');
+  const eldre = { v: 1, active: null, updated: '', profiles: {},
+    country: { mode: 'cc', cc: 'SE', updated: '2000-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(eldre), false);
+  assert.equal(P.countryState().mode, 'none');
+  assert.equal(P.mergeRemote(nyere), false);               // likt innhold → uendret
+});
+
+// Kildevelger-runde 2 (§Designavgjørelser): doc.sources_off = {ids, updated}
+// — av-skrudde registry-kilder, klient-clampet.
+test('sources_off: tomt default; toggleSourceOff legger til og fjerner', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(P.sourcesOff(), []);
+  P.toggleSourceOff('dbnomics');
+  assert.deepEqual(P.sourcesOff(), ['dbnomics']);
+  P.toggleSourceOff('ssb');
+  assert.deepEqual(P.sourcesOff(), ['dbnomics', 'ssb']);
+  P.toggleSourceOff('dbnomics');
+  assert.deepEqual(P.sourcesOff(), ['ssb']);
+});
+
+test('sources_off: toggleSourceOff avviser ugyldige id-er og håndhever tak 40', () => {
+  const P = makeProfiles(fakeStorage());
+  P.toggleSourceOff('UPPER');                              // regex krever småbokstaver
+  P.toggleSourceOff('has space');
+  P.toggleSourceOff('x'.repeat(33));                        // over 32 tegn
+  assert.deepEqual(P.sourcesOff(), []);
+  for (let i = 0; i < 40; i++) P.toggleSourceOff('s' + i);
+  assert.equal(P.sourcesOff().length, 40);
+  P.toggleSourceOff('s40');                                 // tak nådd — ignoreres
+  assert.equal(P.sourcesOff().length, 40);
+  assert.ok(!P.sourcesOff().includes('s40'));
+  P.toggleSourceOff('s0');                                  // fjerning virker fortsatt ved tak
+  assert.equal(P.sourcesOff().length, 39);
+});
+
+test('sources_off: mergeRemote hele-verdien-nyeste-vinner; likhet → uendret', () => {
+  const P = makeProfiles(fakeStorage());
+  P.toggleSourceOff('dbnomics');
+  const nyere = { v: 1, active: null, updated: '', profiles: {},
+    sources_off: { ids: ['ssb', 'fhi'], updated: '2099-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(nyere), true);
+  assert.deepEqual(P.sourcesOff(), ['ssb', 'fhi']);
+  const eldre = { v: 1, active: null, updated: '', profiles: {},
+    sources_off: { ids: ['x'], updated: '2000-01-01T00:00:00.000Z' } };
+  assert.equal(P.mergeRemote(eldre), false);
+  assert.deepEqual(P.sourcesOff(), ['ssb', 'fhi']);
+  assert.equal(P.mergeRemote(nyere), false);                // likt innhold → uendret
 });

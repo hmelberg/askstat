@@ -614,80 +614,6 @@
       // Biblioteksmanageren (spec menyopprydding §4): profilesBackdrop i
       // source-modus. selectedInfoId overlever re-render (P.onChange).
       var selectedInfoId = null;
-      // Landvisning (spec menyopprydding §5–6): egen view-tilstand inni
-      // SourcesUi — 'library' er biblioteklista, 'countries' er «Legg til
-      // land …»-undervisningen med søk. countryQuery nullstilles ved åpning
-      // (reset() under, kalt fra profiles.js openModal).
-      var managerView = 'library'; // 'library' | 'countries'
-      var countryQuery = '';
-      // Review-funn (task 5 self-review, 2026-08-07): renderLibrary ALLTID
-      // mottar de ekte hooks'ene fra js/profiles.js sin renderList(); husk
-      // dem her slik at #sourcesCountryBtn (som ikke går via renderList) kan
-      // gjenbruke et ekte onEdit i stedet for en blindpassasjer-dummy —
-      // ellers blir «Rediger» på egne kilder en stille no-op etter en
-      // land-visning→tilbake-runde uten noe mellomliggende onChange (spec §4
-      // krever et virkende Rediger/Slett for egne kilder).
-      var lastHooks = null;
-      // Sluttreview-funn (finding 4): rows-delen rendres separat fra
-      // back-knappen + søkefeltet, som Explore-mønsteret (expSearch/expList
-      // er faste DOM-noder — kun expList.innerHTML rebygges på input, se
-      // renderExploreList lenger ned). Før denne fiksen kalte søkefeltets
-      // input-lytter renderCountries() på nytt for hvert tastetrykk, som rev
-      // ned og gjenskapte SELVE input-elementet — markøren hoppet til slutten
-      // ved midt-i-strengen-redigering. Nå rendres kun radene på nytt.
-      function renderCountryRows(rowsEl) {
-        rowsEl.innerHTML = '';
-        var ids = Prof.packsState().ids;
-        var all = P.list().filter(function (e) { return e.group === 'country'; });
-        filterCatalog(all, countryQuery).forEach(function (e) {
-          var row = document.createElement('div');
-          row.className = 'sources-row';
-          var cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = ids.indexOf(e.id) >= 0;
-          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
-          var nm = document.createElement('button');
-          nm.type = 'button';
-          nm.className = 'sources-name';
-          nm.textContent = e.name;
-          nm.addEventListener('click', function () { Prof.togglePack(e.id); P.ensureSelected(); });
-          row.appendChild(cb);
-          row.appendChild(nm);
-          rowsEl.appendChild(row);
-        });
-      }
-      function renderCountries(container, hooks) {
-        // Smoke-funn (menyopprydding, Task 7 §4): infopanelet fra en tidligere
-        // valgt kilde i biblioteksvisningen (med Rediger/Slett) sto synlig
-        // under landlista — landene har intet infopanel av sitt eget.
-        var infoEl = document.getElementById('sourcesInfo');
-        if (infoEl) { infoEl.hidden = true; }
-        container.innerHTML = '';
-        var back = document.createElement('button');
-        back.type = 'button';
-        back.className = 'sources-name';
-        back.textContent = T('← Back to list');
-        back.addEventListener('click', function () {
-          managerView = 'library';
-          renderLibrary(container, hooks);
-        });
-        container.appendChild(back);
-        var search = document.createElement('input');
-        search.type = 'search';
-        search.className = 'sources-search';
-        search.placeholder = T('Search…');
-        search.value = countryQuery;
-        container.appendChild(search);
-        var rows = document.createElement('div');
-        container.appendChild(rows);
-        // Ingen fokus-dans nødvendig (som i søsken-fiksen over): input-noden
-        // gjenskapes aldri, så den beholder fokus og markørposisjon selv.
-        search.addEventListener('input', function () {
-          countryQuery = search.value;
-          renderCountryRows(rows);
-        });
-        renderCountryRows(rows);
-      }
       // Radbygger delt av de manuelt valgbare gruppene (Topic overviews/
       // Individual sources/My sources) og Built-in data sources-gruppen —
       // eneste forskjell er checked-kilden og change-handleren (togglePack
@@ -712,8 +638,6 @@
         container.appendChild(row);
       }
       function renderLibrary(container, hooks) {
-        lastHooks = hooks;
-        if (managerView === 'countries') return renderCountries(container, hooks);
         container.innerHTML = '';
         container.classList.add('sources-scroll');
         var infoEl = document.getElementById('sourcesInfo');
@@ -786,14 +710,6 @@
           }
         }
       }
-      var ctyBtn = document.getElementById('sourcesCountryBtn');
-      if (ctyBtn) ctyBtn.addEventListener('click', function () {
-        managerView = 'countries';
-        countryQuery = '';
-        selectedInfoId = null; // smoke-funn Task 7 §4 — se renderCountries
-        var listEl = document.getElementById('profilesList');
-        if (listEl) renderCountries(listEl, lastHooks || { onEdit: function () {} });
-      });
       // Ryddeknapper (Task 6 §Designavgjørelser — Hans' beslutning: knapper,
       // ikke automigrering). «Deselect all» rører KUN doc.packs (det manuelle
       // pakkevalget) — landvalg (doc.country) og av-skrudde standardkilder
@@ -821,7 +737,7 @@
       });
       global.SourcesUi = {
         renderLibrary: renderLibrary,
-        reset: function () { managerView = 'library'; selectedInfoId = null; countryQuery = ''; },
+        reset: function () { selectedInfoId = null; },
       };
 
       // Explore-modalen (deling v1, spec §5): les-før-aktiver — beskrivelse +
@@ -922,11 +838,94 @@
       // Explore-modalen.
       var impBtn = document.getElementById('sourcesImportBtn');
       if (impBtn) impBtn.addEventListener('click', function () { openExplore(); });
+
+      // Landvelgeren (kildevelger-runde 2, Task 4): sidemeny-knappen
+      // #askCountryBtn åpner #countryBackdrop — samme fast-input-node-mønster
+      // som Explore-modalen over (expSearch/expList): kun radene i
+      // #countryList rebygges på hvert tastetrykk, søkefeltet selv gjenskapes
+      // aldri (markørfiksen). Radioradene speiler Prof.countryState():
+      // Automatic/None er ALLTID øverst og upåvirket av søket — kun
+      // land-radene (P.countryOptions()) filtreres.
+      var ctyBackdrop = document.getElementById('countryBackdrop');
+      var ctySearch = document.getElementById('countrySearch');
+      var ctyList = document.getElementById('countryList');
+      var ctyCloseBtn = document.getElementById('countryCloseBtn');
+      var askCountryBtn = document.getElementById('askCountryBtn');
+      var askCountryLabel = document.getElementById('askCountryLabel');
+
+      function closeCountryModal() {
+        if (ctyBackdrop) ctyBackdrop.classList.remove('open');
+      }
+      // Én radiorad — checked-tilstand og navn kommer fra kalleren, endring
+      // utfører valget og lukker modalen (spec §Task 4: «Valg lukker»).
+      function countryRadioRow(listEl, checked, name, onSelect) {
+        var row = document.createElement('label');
+        row.className = 'profiles-row';
+        var r = document.createElement('input');
+        r.type = 'radio';
+        r.name = 'countryChoice';
+        r.checked = checked;
+        r.addEventListener('change', function () {
+          onSelect();
+          closeCountryModal();
+        });
+        var nm = document.createElement('span');
+        nm.textContent = name;
+        row.appendChild(r);
+        row.appendChild(nm);
+        listEl.appendChild(row);
+      }
+      function renderCountryRows(listEl, q) {
+        listEl.innerHTML = '';
+        var st = Prof.countryState();
+        countryRadioRow(listEl, st.mode === 'auto', T('Automatic (from your language)'), function () {
+          Prof.setCountry('auto');
+          P.onLangChange(localeCandidates); // samme kandidatliste som ved boot
+        });
+        countryRadioRow(listEl, st.mode === 'none', T('None (international)'), function () {
+          Prof.setCountry('none');
+        });
+        filterCatalog(P.countryOptions(), q).forEach(function (o) {
+          countryRadioRow(listEl, st.mode === 'cc' && st.cc === o.cc, o.name, function () {
+            Prof.setCountry('cc', o.cc);
+            P.ensureSelected();
+          });
+        });
+      }
+      // Sidemeny-etiketten (renderSideLabel-idiomet, js/profiles.js sin
+      // askProfileLabel): none → «Country: none»; ellers landets EFFEKTIVE
+      // pakke — countryPackId() er null i auto-modus når ingen locale-
+      // kandidat traff (§Designavgjørelser), da vises kun «Country».
+      function renderCountryLabel() {
+        if (!askCountryLabel) return;
+        var st = Prof.countryState();
+        if (st.mode === 'none') { askCountryLabel.textContent = T('Country: none'); return; }
+        var id = P.countryPackId();
+        askCountryLabel.textContent = id
+          ? T('Country: {name}', { name: P.displayName(id) })
+          : T('Country');
+      }
+      if (askCountryBtn) askCountryBtn.addEventListener('click', function () {
+        if (ctySearch) ctySearch.value = '';
+        if (ctyList) renderCountryRows(ctyList, '');
+        if (ctyBackdrop) ctyBackdrop.classList.add('open');
+      });
+      if (ctySearch) ctySearch.addEventListener('input', function () {
+        renderCountryRows(ctyList, ctySearch.value);
+      });
+      if (ctyCloseBtn) ctyCloseBtn.addEventListener('click', closeCountryModal);
+      if (ctyBackdrop) ctyBackdrop.addEventListener('click', function (e) {
+        if (e.target === ctyBackdrop) closeCountryModal();
+      });
+      Prof.onChange(renderCountryLabel);
+
       // Boot: last katalog, auto-forslag (localeCandidates, hoistet over
-      // renderInto), preload gjeldende tekst. Etiketten re-rendres etterpå —
-      // displayName trenger katalogen for kuraterte pakker.
+      // renderInto), preload gjeldende tekst. Etikettene re-rendres etterpå —
+      // displayName trenger katalogen for kuraterte pakker; renderCountryLabel
+      // trenger den samme (§over) for landets pakke-id.
       function refreshPill() {
         if (global.ContextPill) global.ContextPill.refresh();
+        renderCountryLabel();
       }
       P.boot(localeCandidates)
         .then(refreshPill)

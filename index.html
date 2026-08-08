@@ -171,6 +171,13 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span class="ask-side-label" id="askProfileLabel">Profile</span>
         </button>
+        <!-- Landvelger (kildevelger-runde 2, Task 4): erstatter det gamle
+             «Add country …»-underpanelet i kildemanageren — landvalget er nå
+             en egen sidemeny-knapp m/egen modal (#countryBackdrop under). -->
+        <button type="button" class="ask-side-btn" id="askCountryBtn" data-i18n-title title="Country — prefer this country's statistical sources. Click to change.">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span class="ask-side-label" id="askCountryLabel">Country</span>
+        </button>
         <button type="button" class="ask-side-btn" id="askSettingsBtn" data-i18n-title title="API key &amp; settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span class="ask-side-label" data-i18n>API key &amp; settings</span>
@@ -449,6 +456,22 @@
       </div>
     </div>
   </div>
+  <!-- Landvelger (kildevelger-runde 2, Task 4): åpnes fra sidemenyens
+       #askCountryBtn. Samme mønster som Explore-modalen over — fast
+       søkefelt-node (#countrySearch), kun radene i #countryList rebygges på
+       input (markørfiksen). Radioradene (Automatic/None/land) rendres av
+       js/packs.js sin renderCountryRows; valg lukker modalen. -->
+  <div class="ai-modal-backdrop" id="countryBackdrop">
+    <div class="ai-modal">
+      <h3 data-i18n>Country</h3>
+      <div class="ai-modal-help" data-i18n>Prefer this country's statistical sources when a question doesn't name one — pick Automatic, None, or a specific country.</div>
+      <input type="search" id="countrySearch" class="sources-search" data-i18n-placeholder placeholder="Search…">
+      <div id="countryList" class="profiles-list"></div>
+      <div class="ai-modal-actions">
+        <button type="button" class="ai-modal-btn" data-i18n id="countryCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
   <div class="ai-modal-backdrop" id="profilesBackdrop">
     <div class="ai-modal">
       <h3 data-i18n id="profilesTitle">Profiles</h3>
@@ -469,10 +492,11 @@
       </div>
       <div class="ai-modal-actions">
         <button type="button" class="ai-modal-btn" data-i18n id="sourcesImportBtn" hidden>Import shared sources…</button>
-        <button type="button" class="ai-modal-btn" data-i18n id="sourcesCountryBtn" hidden>Add country…</button>
         <!-- Kildevelger-runde 2 (Task 6): ryddeknapper, kun synlige i kildemodus
-             (samme hidden-mønster som sourcesImportBtn/sourcesCountryBtn over,
-             styrt av profiles.js sin openModal). -->
+             (samme hidden-mønster som sourcesImportBtn over, styrt av
+             profiles.js sin openModal). Landvalget («Add country…») er
+             FLYTTET til sidemenyens #askCountryBtn (Task 4) — se
+             #countryBackdrop. -->
         <button type="button" class="ai-modal-btn" data-i18n id="sourcesDeselectBtn" hidden>Deselect all</button>
         <button type="button" class="ai-modal-btn" data-i18n id="sourcesRemoveImportedBtn" hidden>Remove imported</button>
         <button type="button" class="ai-modal-btn" data-i18n id="profileNewBtn">New profile</button>

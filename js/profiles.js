@@ -484,10 +484,11 @@
         if (modalKind === 'source' && global.SourcesUi && global.SourcesUi.reset) global.SourcesUi.reset();
         if (titleEl) titleEl.textContent = modalKind === 'source' ? T('Sources') : T('Profiles');
         if (newBtn) newBtn.textContent = modalKind === 'source' ? T('New source') : T('New profile');
+        // Landvelger-knappen («Add country…») er flyttet til sidemenyens
+        // #askCountryBtn (kildevelger-runde 2, Task 4) — ingen ctyBtn-
+        // synlighet å styre her lenger.
         var impBtn = document.getElementById('sourcesImportBtn');
-        var ctyBtn = document.getElementById('sourcesCountryBtn');
         if (impBtn) impBtn.hidden = modalKind !== 'source';
-        if (ctyBtn) ctyBtn.hidden = modalKind !== 'source';
         // Kildevelger-runde 2 (Task 6): ryddeknappene følger samme mønster —
         // hidden by default i markup, vist KUN i kildemodus.
         var deselectBtn = document.getElementById('sourcesDeselectBtn');

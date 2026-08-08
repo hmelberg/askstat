@@ -339,6 +339,11 @@ test('cleanTags: array-input, ugyldige tegn/lengde filtreres bort', () => {
   assert.deepEqual(P.cleanTags(null), []);
 });
 
+test('cleanTags: "constructor" er en gyldig tag (ikke en arvet Object.prototype-kollisjon)', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(P.cleanTags(['constructor', '__proto__', 'ok']), ['constructor', '__proto__', 'ok']);
+});
+
 test('cleanTags: maks 8 tagger', () => {
   const P = makeProfiles(fakeStorage());
   const many = Array.from({ length: 12 }, (_, i) => 't' + i);

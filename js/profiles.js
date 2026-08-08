@@ -31,7 +31,10 @@
     var out = [];
     for (var i = 0; i < arr.length && out.length < TAG_MAX; i++) {
       var t = String(arr[i] == null ? '' : arr[i]).trim().toLowerCase();
-      if (!t || !TAG_RE.test(t) || seen[t]) continue;
+      // hasOwnProperty-sjekk (ikke bare seen[t]): en tag som "constructor"
+      // eller "__proto__" ville ellers lest en arvet Object.prototype-verdi
+      // og blitt stille forkastet som "duplikat" på FØRSTE forekomst.
+      if (!t || !TAG_RE.test(t) || Object.prototype.hasOwnProperty.call(seen, t)) continue;
       seen[t] = true;
       out.push(t);
     }

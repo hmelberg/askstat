@@ -688,36 +688,73 @@
         });
         renderCountryRows(rows);
       }
+      // Radbygger delt av de manuelt valgbare gruppene (Topic overviews/
+      // Individual sources/My sources) og Built-in data sources-gruppen —
+      // eneste forskjell er checked-kilden og change-handleren (togglePack
+      // vs. toggleSourceOff), begge sendt inn av kalleren.
+      function libraryRow(container, hooks, id, name, checked, onToggle) {
+        var row = document.createElement('div');
+        row.className = 'sources-row' + (selectedInfoId === id ? ' active' : '');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = checked;
+        cb.addEventListener('change', onToggle);
+        var nm = document.createElement('button');
+        nm.type = 'button';
+        nm.className = 'sources-name';
+        nm.textContent = name;
+        nm.addEventListener('click', function () {
+          selectedInfoId = selectedInfoId === id ? null : id;
+          renderLibrary(container, hooks);
+        });
+        row.appendChild(cb);
+        row.appendChild(nm);
+        container.appendChild(row);
+      }
       function renderLibrary(container, hooks) {
         lastHooks = hooks;
         if (managerView === 'countries') return renderCountries(container, hooks);
         container.innerHTML = '';
         container.classList.add('sources-scroll');
         var infoEl = document.getElementById('sourcesInfo');
-        var st = Prof.packsState();
-        var ids = st.ids;
-        var entries = P.list().filter(function (e) {
-          return e.group !== 'country' || ids.indexOf(e.id) >= 0; // land: kun valgte (§4)
-        });
-        entries.forEach(function (e) {
-          var row = document.createElement('div');
-          row.className = 'sources-row' + (selectedInfoId === e.id ? ' active' : '');
-          var cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = ids.indexOf(e.id) >= 0;
-          cb.addEventListener('change', function () { Prof.togglePack(e.id); P.ensureSelected(); });
-          var nm = document.createElement('button');
-          nm.type = 'button';
-          nm.className = 'sources-name';
-          nm.textContent = e.name;
-          nm.addEventListener('click', function () {
-            selectedInfoId = selectedInfoId === e.id ? null : e.id;
-            renderLibrary(container, hooks);
+        var ids = Prof.packsState().ids;
+        var entries = P.list();
+        // Samme grupperingsidiom som popoveren (renderInto over, Task 5):
+        // «Topic overviews» / «Individual sources» / «My sources» — tomme
+        // grupper får ingen overskrift. Overskriftsklassen er ask-explore-
+        // group (Explore-modalens, 4px sidepadding) — IKKE ask-pop-group
+        // (popoverens 10px), for manageren er en vanlig .ai-modal-liste.
+        [['overview', T('Topic overviews')], ['src', T('Individual sources')], ['mine', T('My sources')]]
+          .forEach(function (grp) {
+            var rows = entries.filter(function (e) { return e.group === grp[0]; });
+            if (!rows.length) return;
+            var head = document.createElement('div');
+            head.className = 'ask-explore-group';
+            head.textContent = grp[1];
+            container.appendChild(head);
+            rows.forEach(function (e) {
+              libraryRow(container, hooks, e.id, e.name, ids.indexOf(e.id) >= 0, function () {
+                Prof.togglePack(e.id);
+                P.ensureSelected();
+              });
+            });
           });
-          row.appendChild(cb);
-          row.appendChild(nm);
-          container.appendChild(row);
-        });
+        // Built-in data sources (Task 6 §Designavgjørelser): registryets
+        // av/på-toggler nederst — checked speiler !off, navneklikk åpner
+        // infopanelet (reg:<id>, describe() under). Rediger/Slett gjelder
+        // ALDRI disse radene (kun user:-kilder, se infopanel-blokka under).
+        var regEntries = P.listRegistry();
+        if (regEntries.length) {
+          var regHead = document.createElement('div');
+          regHead.className = 'ask-explore-group';
+          regHead.textContent = T('Built-in data sources');
+          container.appendChild(regHead);
+          regEntries.forEach(function (e) {
+            libraryRow(container, hooks, 'reg:' + e.id, e.name, !e.off, function () {
+              Prof.toggleSourceOff(e.id); // fyrer onChange → renderList → hit (etablert mønster)
+            });
+          });
+        }
         if (infoEl) {
           infoEl.hidden = !selectedInfoId;
           infoEl.innerHTML = '';
@@ -756,6 +793,31 @@
         selectedInfoId = null; // smoke-funn Task 7 §4 — se renderCountries
         var listEl = document.getElementById('profilesList');
         if (listEl) renderCountries(listEl, lastHooks || { onEdit: function () {} });
+      });
+      // Ryddeknapper (Task 6 §Designavgjørelser — Hans' beslutning: knapper,
+      // ikke automigrering). «Deselect all» rører KUN doc.packs (det manuelle
+      // pakkevalget) — landvalg (doc.country) og av-skrudde standardkilder
+      // (doc.sources_off) er UBERØRT. Rydder også opp gamle synkede
+      // {auto:true}/land-ider som kan ligge i doc.packs.ids fra før denne
+      // runden (writeDoc-skrubben dekker {auto:true}-formen; denne knappen
+      // dekker resten — se plan §Kjente feller).
+      var deselectBtn = document.getElementById('sourcesDeselectBtn');
+      if (deselectBtn) deselectBtn.addEventListener('click', function () { Prof.setPacks([]); });
+      // «Remove imported» sletter ALLE community-importerte kilder (både
+      // oversikter og enkeltkilder) — egenskrevne kilder (uten origin.source
+      // === 'community') beholdes. Prof.remove() rydder doc.packs.ids selv
+      // (se profiles.js remove()), så ingen egen opprydding trengs her.
+      var removeImportedBtn = document.getElementById('sourcesRemoveImportedBtn');
+      if (removeImportedBtn) removeImportedBtn.addEventListener('click', function () {
+        if (!global.confirm(T('Remove all imported sources? Your own written sources are kept.'))) return;
+        Prof.list('source').forEach(function (pr) {
+          if (pr.origin && pr.origin.source === 'community') {
+            // Samme forsiktighet som enkelt-Slett-knappen over: ikke la
+            // infopanelet henge igjen på en id som akkurat ble borte.
+            if (selectedInfoId === 'user:' + pr.id) selectedInfoId = null;
+            Prof.remove(pr.id);
+          }
+        });
       });
       global.SourcesUi = {
         renderLibrary: renderLibrary,

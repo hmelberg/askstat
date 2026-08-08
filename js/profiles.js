@@ -488,6 +488,12 @@
         var ctyBtn = document.getElementById('sourcesCountryBtn');
         if (impBtn) impBtn.hidden = modalKind !== 'source';
         if (ctyBtn) ctyBtn.hidden = modalKind !== 'source';
+        // Kildevelger-runde 2 (Task 6): ryddeknappene følger samme mønster —
+        // hidden by default i markup, vist KUN i kildemodus.
+        var deselectBtn = document.getElementById('sourcesDeselectBtn');
+        var removeImportedBtn = document.getElementById('sourcesRemoveImportedBtn');
+        if (deselectBtn) deselectBtn.hidden = modalKind !== 'source';
+        if (removeImportedBtn) removeImportedBtn.hidden = modalKind !== 'source';
         // Smoke-funn (menyopprydding, Task 7 §2): profilhjelpeteksten sto
         // synlig i kildemodus også — de to hjelpetekstene toggler nå speilvendt.
         var profilesHelp = document.getElementById('profilesHelp');

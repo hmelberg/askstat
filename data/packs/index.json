@@ -7,7 +7,11 @@
       "description": "Norwegian sources first: SSB, FHI and Norges Bank, with search tips and known gaps.",
       "summary": "Norwegian sources first: SSB and FHI (first-class adapters via search_catalog), Norges Bank for rates/FX. Use for questions about Norway or with no explicit geography.",
       "file": "norway.md",
-      "country": "NO"
+      "country": "NO",
+      "tags": [
+        "makro",
+        "norge"
+      ]
     },
     {
       "id": "finland",
@@ -15,7 +19,11 @@
       "description": "Finnish sources first: Statistics Finland (StatFin), with Eurostat and DBnomics for comparisons.",
       "summary": "Finnish sources first: StatFin (Statistics Finland, via search_catalog), Eurostat for EU/NUTS comparisons, DBnomics/ECB for cross-country and euro-area rates. Use for questions about Finland or with no explicit geography.",
       "file": "finland.md",
-      "country": "FI"
+      "country": "FI",
+      "tags": [
+        "makro",
+        "finland"
+      ]
     },
     {
       "id": "us-health-surveys",
@@ -26,7 +34,11 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-06"
+      "updated": "2026-08-06",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-brfss",
@@ -37,7 +49,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-nsduh",
@@ -48,7 +64,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-nvss",
@@ -59,7 +79,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-cdc-wonder",
@@ -70,7 +94,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-hrs",
@@ -81,7 +109,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-hcup",
@@ -92,7 +124,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-mimic-iv",
@@ -103,7 +139,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "europe-surveys",
@@ -114,7 +154,10 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "global-surveys",
@@ -125,7 +168,10 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "us-social-surveys",
@@ -136,7 +182,11 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-gss",
@@ -147,7 +197,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "education-skills",
@@ -169,7 +223,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-pisa",
@@ -180,7 +237,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-talis",
@@ -191,7 +251,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-urban-education-data",
@@ -202,7 +265,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-ipeds",
@@ -213,7 +279,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-college-scorecard",
@@ -224,7 +293,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-uk-cohorts-npd",
@@ -235,7 +307,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "storbritannia"
+      ]
     },
     {
       "id": "src-neps",
@@ -246,7 +322,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "tyskland"
+      ]
     },
     {
       "id": "data-catalogs",
@@ -345,7 +425,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "nordic-microdata",
@@ -356,7 +439,10 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-microdata-no",
@@ -367,7 +453,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "norge"
+      ]
     },
     {
       "id": "src-helsedata-no",
@@ -378,7 +468,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "norge"
+      ]
     },
     {
       "id": "src-sikt",
@@ -389,7 +483,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "norge"
+      ]
     },
     {
       "id": "src-ssb-microdata-loan",
@@ -400,7 +498,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "norge"
+      ]
     },
     {
       "id": "src-dst-forskningsservice",
@@ -411,7 +513,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "danmark"
+      ]
     },
     {
       "id": "src-thl",
@@ -422,7 +528,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "finland"
+      ]
     },
     {
       "id": "europe-national-microdata",
@@ -433,7 +543,10 @@
       "community": true,
       "kind": "overview",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-cros-cimes",
@@ -455,7 +568,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "storbritannia"
+      ]
     },
     {
       "id": "labour-firms",
@@ -477,7 +594,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-qwi",
@@ -488,7 +609,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-bds",
@@ -499,7 +624,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-cps-org",
@@ -510,7 +639,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-qcew",
@@ -521,7 +654,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-oews",
@@ -532,7 +669,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-jolts",
@@ -543,7 +684,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-bls-api",
@@ -554,7 +699,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-osha-ita",
@@ -565,7 +714,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-h1b-perm",
@@ -576,7 +728,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-eu-lfs",
@@ -587,7 +743,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-cis",
@@ -620,7 +779,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "storbritannia"
+      ]
     },
     {
       "id": "src-bronnoysund",
@@ -631,7 +793,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "norge"
+      ]
     },
     {
       "id": "src-orbis",
@@ -686,7 +851,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro"
+      ]
     },
     {
       "id": "src-stmf",
@@ -697,7 +865,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro"
+      ]
     },
     {
       "id": "src-un-wpp",
@@ -708,7 +879,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro"
+      ]
     },
     {
       "id": "src-ipums-international",
@@ -719,7 +893,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-insee-fichiers-detail",
@@ -730,7 +907,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "frankrike"
+      ]
     },
     {
       "id": "src-us-decennial-post-dp",
@@ -741,7 +922,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-mignex",
@@ -752,7 +937,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-hfcs",
@@ -763,7 +951,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-ahs",
@@ -774,7 +965,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-recs",
@@ -785,7 +980,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-ce-pumd",
@@ -796,7 +995,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-land-registry-ppd",
@@ -807,7 +1010,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "storbritannia"
+      ]
     },
     {
       "id": "src-hetus",
@@ -818,7 +1024,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-nhgis",
@@ -829,7 +1038,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-iom-dtm",
@@ -840,7 +1053,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro"
+      ]
     },
     {
       "id": "crime-transport-energy-politics",
@@ -862,7 +1078,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-nibrs",
@@ -873,7 +1093,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-ncrp",
@@ -884,7 +1108,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-fjc-idb",
@@ -895,7 +1123,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-open-policing",
@@ -906,7 +1137,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-csew",
@@ -917,7 +1152,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "storbritannia"
+      ]
     },
     {
       "id": "src-nhts",
@@ -928,7 +1167,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-fars",
@@ -939,7 +1182,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-crss",
@@ -950,7 +1197,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-bts-airline",
@@ -961,7 +1212,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-eia-api",
@@ -972,7 +1226,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-epa-aqs",
@@ -983,7 +1241,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "usa"
+      ]
     },
     {
       "id": "src-anes",
@@ -994,7 +1255,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-ces",
@@ -1005,7 +1270,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro",
+        "usa"
+      ]
     },
     {
       "id": "src-medsl",
@@ -1016,7 +1285,11 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro",
+        "usa"
+      ]
     },
     {
       "id": "src-cses",
@@ -1027,7 +1300,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "mikro"
+      ]
     },
     {
       "id": "src-manifesto-project",
@@ -1038,7 +1314,10 @@
       "community": true,
       "kind": "source",
       "author": "hans",
-      "updated": "2026-08-07"
+      "updated": "2026-08-07",
+      "tags": [
+        "makro"
+      ]
     },
     {
       "id": "research-repositories",

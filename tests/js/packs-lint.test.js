@@ -10,6 +10,7 @@ const ROOT = path.join(__dirname, '..', '..');
 const PACKS = path.join(ROOT, 'data', 'packs');
 const index = JSON.parse(fs.readFileSync(path.join(PACKS, 'index.json'), 'utf-8'));
 const countries = JSON.parse(fs.readFileSync(path.join(PACKS, 'countries.json'), 'utf-8'));
+const dataSources = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'data-sources.json'), 'utf-8'));
 
 // Samme mønster som js/feil-telemetri.js sin NOKKEL_RE — pakker skal aldri
 // bære nøkler (README: referer som key(name)).
@@ -84,5 +85,40 @@ test('countries.json: v1, alle oppføringer har name+agency+note, gyldige koder'
   for (const [cc, e] of Object.entries(countries.countries)) {
     assert.match(cc, /^[A-Z]{2}$/, `ugyldig landkode: ${cc}`);
     assert.ok(e.name && e.agency && e.note, `ufullstendig oppføring: ${cc}`);
+  }
+});
+
+// Kilder-profil-output (2026-08-08 Task 3): tags-kontrakten fra Task 1
+// (js/profiles.js sin TAG_RE/TAG_MAX) og Task 2 (samme regex speilet server-
+// side i svar-prompt.ts) — SAMME regex/tak, håndhevet her på begge datafiler
+// siden serverens registerblokk ikke saneres (review-funn Task 2: datafilene
+// er eneste vern for lowercase/unikt/≤8/regex-gyldig).
+const TAG_RE = /^[a-zæøåa-z0-9_-]{1,24}$/;
+const TAG_MAX = 8;
+
+function assertValidTags(tags, label) {
+  assert.ok(Array.isArray(tags), `${label}: tags er ikke et array`);
+  assert.ok(tags.length > 0, `${label}: tags er tomt array (skal utelates i stedet)`);
+  assert.ok(tags.length <= TAG_MAX, `${label}: ${tags.length} tagger (> ${TAG_MAX})`);
+  const seen = new Set();
+  for (const t of tags) {
+    assert.equal(typeof t, 'string', `${label}: ikke-streng tag ${JSON.stringify(t)}`);
+    assert.equal(t, t.toLowerCase(), `${label}: tag ikke lowercase: ${t}`);
+    assert.match(t, TAG_RE, `${label}: ugyldig tag: ${t}`);
+    assert.ok(!seen.has(t), `${label}: duplisert tag: ${t}`);
+    seen.add(t);
+  }
+}
+
+test('data-sources.json: tags (der de finnes) følger kontrakten — regex/lowercase/unikt/tak 8', () => {
+  assert.ok(Array.isArray(dataSources) && dataSources.length > 0);
+  for (const s of dataSources) {
+    if ('tags' in s) assertValidTags(s.tags, `data-sources.json:${s.id}`);
+  }
+});
+
+test('packs/index.json: tags (der de finnes) følger kontrakten — regex/lowercase/unikt/tak 8', () => {
+  for (const p of index.packs) {
+    if ('tags' in p) assertValidTags(p.tags, `packs/index.json:${p.id}`);
   }
 });

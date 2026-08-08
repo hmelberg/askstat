@@ -17,7 +17,11 @@
       "år"
     ],
     "sporrings_url_mal": "https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv",
-    "quirks": "GET med valueCodes per dimensjon; outputFormat=csv gir CSV direkte. Verifisert 2026-07-25: /v2-beta/ svarer 503 på ALT (søk, metadata, data) — SSB har fullført migreringen; hele oppføringen flyttet til /v2/ (som svarer 200 på tables/metadata/data). Data-endepunktet sender ingen Access-Control-Allow-Origin, så uttrekk MÅ gå via /api/hent-proxy uansett hva denne cors-flagget sier andre steder i registeret."
+    "quirks": "GET med valueCodes per dimensjon; outputFormat=csv gir CSV direkte. Verifisert 2026-07-25: /v2-beta/ svarer 503 på ALT (søk, metadata, data) — SSB har fullført migreringen; hele oppføringen flyttet til /v2/ (som svarer 200 på tables/metadata/data). Data-endepunktet sender ingen Access-Control-Allow-Origin, så uttrekk MÅ gå via /api/hent-proxy uansett hva denne cors-flagget sier andre steder i registeret.",
+    "tags": [
+      "makro",
+      "norge"
+    ]
   },
   {
     "id": "eurostat",
@@ -35,7 +39,10 @@
     ],
     "sporrings_url_mal": "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&{dim}={kode}",
     "quirks": "kind(eurostat): json-stat2 via statistics/1.0/data/<kode>?format=JSON&lang=en + direkte dimensjonsfiltre (geo=NO&na_item=B1GQ — ikke valueCodes); sinceTimePeriod/untilTimePeriod for tid; katalog-proben bruker lastTimePeriod=1 og 400-er kombinert med brukerens tidsfiltre (strippes av proben). base_url endret 2026-07-25 til data-endepunktet (før: dissemination-roten) så «connect eurostat» virker uten full URL.",
-    "kind": "eurostat"
+    "kind": "eurostat",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "worldbank",
@@ -53,7 +60,10 @@
     ],
     "sporrings_url_mal": "https://api.worldbank.org/v2/country/{land}/indicator/{id}?format=json&per_page=20000",
     "quirks": "JSON er [meta, rader]; per_page-default er 50 — adapteren setter 20000 og følger meta.pages (tak 10 sider); land som ISO-koder adskilt med ; eller 'all'; feilform [{message:[…]}] surfaces som norsk feil. Utenfor openstat: python-pakkene wbgapi/dbnomics.",
-    "kind": "worldbank"
+    "kind": "worldbank",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "oecd",
@@ -70,7 +80,10 @@
       "TIME_PERIOD"
     ],
     "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow> på KOMMA-form (slash-form 404-er: «Could not find Dataflow», målt 2026-08-01) — search_catalog/search_datasets gir id-en ferdig på denne formen. Utvalg skrives ALLTID med det kanoniske vokabularet (years=/countries=/indicators=/filters={}); lasteren bygger den punktumdelte nøkkelen selv fra kildens egen CSV-header. Skriv ALDRI startPeriod=/endPeriod= som kwarg (parseren avviser dem — years= oversettes til dem) og bygg ikke nøkkelstien for hånd. Adapteren henter CSV via Accept-header (application/vnd.sdmx.data+csv;labels=id — verifisert 2026-07-25); c[DIM]=filtre ignoreres STILLE (SDMX 3.0-syntaks, API-et er 2.1). CORS: reflektert origin.",
-    "kind": "sdmx"
+    "kind": "sdmx",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "who",
@@ -85,7 +98,10 @@
       "SpatialDim (ISO3)",
       "TimeDim (år)"
     ],
-    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste"
+    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "owid",
@@ -101,7 +117,10 @@
       "Year"
     ],
     "sporrings_url_mal": "https://ourworldindata.org/grapher/{slug}.csv?csvType=filtered",
-    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; UTEN csvType=filtered IGNORERES country=/time= STILLE — svaret blir byte-likt hele datasettet (målt 2026-08-04); note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk"
+    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; UTEN csvType=filtered IGNORERES country=/time= STILLE — svaret blir byte-likt hele datasettet (målt 2026-08-04); note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "fred",
@@ -121,7 +140,10 @@
       "env": "FRED_API_KEY",
       "plassering": "query:api_key"
     },
-    "quirks": "krever api_key (injiseres av /api/hent); file_type=json"
+    "quirks": "krever api_key (injiseres av /api/hent); file_type=json",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "norgesbank",
@@ -136,7 +158,11 @@
       "TIME_PERIOD"
     ],
     "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen fra search_catalog (NB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette.",
-    "kind": "sdmx"
+    "kind": "sdmx",
+    "tags": [
+      "makro",
+      "norge"
+    ]
   },
   {
     "id": "ecb",
@@ -151,7 +177,10 @@
     "join_nokler": [
       "TIME_PERIOD"
     ],
-    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/D.USD.EUR.SP00.A); komma-formen fra search_catalog (ECB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: 406 på sdmx-csv-Accept — adapterens format=csvdata-fallback tar den. CORS *."
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/D.USD.EUR.SP00.A); komma-formen fra search_catalog (ECB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: 406 på sdmx-csv-Accept — adapterens format=csvdata-fallback tar den. CORS *.",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "datanorge",
@@ -163,7 +192,10 @@
     "base_url": "https://data.norge.no/",
     "sok_endepunkt": "https://search.api.fellesdatakatalog.digdir.no/search",
     "cors": true,
-    "quirks": "katalog over datasett fra offentlige etater; selve datafilene ligger hos utgiver (probe før bruk); søke-API: POST-body bruker felt 'q' (ikke 'query'), og filters.type.value='datasets' må settes — uten dette domineres treff av CONCEPT/andre entitetstyper"
+    "quirks": "katalog over datasett fra offentlige etater; selve datafilene ligger hos utgiver (probe før bruk); søke-API: POST-body bruker felt 'q' (ikke 'query'), og filters.type.value='datasets' må settes — uten dette domineres treff av CONCEPT/andre entitetstyper",
+    "tags": [
+      "norge"
+    ]
   },
   {
     "id": "githubraw",
@@ -226,7 +258,11 @@
       "kön"
     ],
     "sporrings_url_mal": "https://api.scb.se/ov0104/v2beta/api/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv&lang=sv",
-    "quirks": "Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {\"tables\":[{id,label,firstPeriod,lastPeriod,...}]} — adapter-kompatibel; i motsetning til SSB virker /data på SAMME v2beta-sti (ingen v2/v2-beta-splitt); outputFormat=csv gir CSV direkte uten filter, og med valueCodes[dim]=kode når man vil begrense; dataendepunktet sender Access-Control-Allow-Origin: * (CORS OK, verifisert med curl -sI mot .../data); valueCodes-nøkler må være metadata-dimensjonskoder (f.eks. 'Alder', 'Kon', 'Tid' — fra /tables/{id}/metadata), IKKE søkeresultatets variableNames-etiketter (som er små bokstaver, f.eks. 'region', 'år', 'kön'); mangler obligatorisk dimensjon gir HTTP 400 'Missing selection for mandantory variable'."
+    "quirks": "Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {\"tables\":[{id,label,firstPeriod,lastPeriod,...}]} — adapter-kompatibel; i motsetning til SSB virker /data på SAMME v2beta-sti (ingen v2/v2-beta-splitt); outputFormat=csv gir CSV direkte uten filter, og med valueCodes[dim]=kode når man vil begrense; dataendepunktet sender Access-Control-Allow-Origin: * (CORS OK, verifisert med curl -sI mot .../data); valueCodes-nøkler må være metadata-dimensjonskoder (f.eks. 'Alder', 'Kon', 'Tid' — fra /tables/{id}/metadata), IKKE søkeresultatets variableNames-etiketter (som er små bokstaver, f.eks. 'region', 'år', 'kön'); mangler obligatorisk dimensjon gir HTTP 400 'Missing selection for mandantory variable'.",
+    "tags": [
+      "makro",
+      "sverige"
+    ]
   },
   {
     "id": "statfin",
@@ -242,7 +278,11 @@
       "Vuosi (år)",
       "Alue (region)"
     ],
-    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk."
+    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk.",
+    "tags": [
+      "makro",
+      "finland"
+    ]
   },
   {
     "id": "dst",
@@ -259,7 +299,11 @@
       "OMRÅDE"
     ],
     "sporrings_url_mal": "https://api.statbank.dk/v1/data/{tabell}/CSV?{var}={koder}",
-    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog."
+    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog.",
+    "tags": [
+      "makro",
+      "danmark"
+    ]
   },
   {
     "id": "fhi",
@@ -276,7 +320,11 @@
       "GEO"
     ],
     "sporrings_url_mal": "https://statistikk-data.fhi.no/api/open/v1/{register}/table/{tabell}/data",
-    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw"
+    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw",
+    "tags": [
+      "makro",
+      "norge"
+    ]
   },
   {
     "id": "dbnomics",
@@ -293,7 +341,10 @@
       "period",
       "series_code"
     ],
-    "quirks": "Ressurssti = <provider>/<dataset> (f.eks. IMF/WEO:latest) med filters={\"<dimensjon>\": \"<kode>\"} — oversettes til ?dimensions=<url-enkodet JSON> (verifisert live 2026-08-01: IMF/WEO ufiltrert = 8624 serier mot 1000-taket → hard feil; med filters={\"weo-country\": \"NOR\"} = 44). Dimensjons- og verdikodene kommer fra table_metadata. Serie-masken (IMF/WEO:latest/NOR.NGDP_RPCH) virker fortsatt når man kjenner den eksakte koden. :latest 302-redirecter til versjonert dataset (fetch følger). Adapteren tvinger observations=1 og flater til langt format (series_code + dimensjoner + period + value). years= filtreres KLIENT-side (API-et har ingen tidsvindu-parametre). Datafriskhet avhenger av DBnomics' høsting. Utenfor openstat: python-pakken dbnomics, R-pakken rdbnomics.; per-produsent-speil kan henge etter kilden (OECD-speilet frosset siden 2024-10 etter OECDs API-omlegging) — «sist indeksert» vises i søketreff/metadata; sjekk den"
+    "quirks": "Ressurssti = <provider>/<dataset> (f.eks. IMF/WEO:latest) med filters={\"<dimensjon>\": \"<kode>\"} — oversettes til ?dimensions=<url-enkodet JSON> (verifisert live 2026-08-01: IMF/WEO ufiltrert = 8624 serier mot 1000-taket → hard feil; med filters={\"weo-country\": \"NOR\"} = 44). Dimensjons- og verdikodene kommer fra table_metadata. Serie-masken (IMF/WEO:latest/NOR.NGDP_RPCH) virker fortsatt når man kjenner den eksakte koden. :latest 302-redirecter til versjonert dataset (fetch følger). Adapteren tvinger observations=1 og flater til langt format (series_code + dimensjoner + period + value). years= filtreres KLIENT-side (API-et har ingen tidsvindu-parametre). Datafriskhet avhenger av DBnomics' høsting. Utenfor openstat: python-pakken dbnomics, R-pakken rdbnomics.; per-produsent-speil kan henge etter kilden (OECD-speilet frosset siden 2024-10 etter OECDs API-omlegging) — «sist indeksert» vises i søketreff/metadata; sjekk den",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "apd",
@@ -323,7 +374,10 @@
       "plassering": "query:key"
     },
     "guide": true,
-    "quirks": "søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden"
+    "quirks": "søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden",
+    "tags": [
+      "makro"
+    ]
   },
   {
     "id": "ipums",
@@ -341,7 +395,10 @@
     },
     "guide": true,
     "nokkel_hint": "gratis konto på ipums.org → API key",
-    "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres"
+    "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "ess",
@@ -358,7 +415,10 @@
       "plassering": "query:userId"
     },
     "guide": true,
-    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden"
+    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "census",
@@ -375,7 +435,11 @@
       "plassering": "query:key"
     },
     "guide": true,
-    "quirks": "ekte personnivå-rader (PUMS) som JSON-matrise; variables.json (kodebok + vekter) er nøkkelfri og CORS-åpen, datakall krever nøkkel; vekt PWGTP + 80 replikatvekter — se guiden"
+    "quirks": "ekte personnivå-rader (PUMS) som JSON-matrise; variables.json (kodebok + vekter) er nøkkelfri og CORS-åpen, datakall krever nøkkel; vekt PWGTP + 80 replikatvekter — se guiden",
+    "tags": [
+      "mikro",
+      "usa"
+    ]
   },
   {
     "id": "nchs",
@@ -387,7 +451,11 @@
     "base_url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/",
     "cors": false,
     "guide": true,
-    "quirks": "åpne helse-mikrodatafiler uten registrering; NHANES: XPT-filer (0,5–15 MB) via pandas.read_sas — GAMMEL sti gir 200-med-HTML (soft-404, sjekk content-type!); NHIS: csv-zip på ftp.cdc.gov — se guiden"
+    "quirks": "åpne helse-mikrodatafiler uten registrering; NHANES: XPT-filer (0,5–15 MB) via pandas.read_sas — GAMMEL sti gir 200-med-HTML (soft-404, sjekk content-type!); NHIS: csv-zip på ftp.cdc.gov — se guiden",
+    "tags": [
+      "mikro",
+      "usa"
+    ]
   },
   {
     "id": "wbmicro",
@@ -400,7 +468,10 @@
     "base_url": "https://microdata.worldbank.org/index.php/api/",
     "cors": true,
     "guide": true,
-    "quirks": "søk (7000+ surveys) + FULL variabelordbok (spørsmålstekst, verdietiketter) er åpne og nøkkelfrie; selve datafilene er login-gated — metadata må ALDRI presenteres som dataverdier; samme API hos IHSN/FAO — se guiden"
+    "quirks": "søk (7000+ surveys) + FULL variabelordbok (spørsmålstekst, verdietiketter) er åpne og nøkkelfrie; selve datafilene er login-gated — metadata må ALDRI presenteres som dataverdier; samme API hos IHSN/FAO — se guiden",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "cessda",
@@ -413,7 +484,10 @@
     "base_url": "https://datacatalogue.cessda.eu/api/DataSets/v2/",
     "cors": true,
     "guide": true,
-    "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden"
+    "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "ihsn",
@@ -425,7 +499,10 @@
     "base_url": "https://catalog.ihsn.org/index.php/api/",
     "cors": true,
     "guide": true,
-    "quirks": "~5 400 surveys aggregert fra nasjonale statistikkbyrå-arkiver — metadata-pekere: data hos produsentarkivet (ofte login); samme NADA-API som wbmicro. NB: serverside-henting (search_catalog//api/hent) FEILER mot denne verten (TLS-kjede Deno ikke støtter, målt 2026-08-06) — bruk DIREKTE ost.read fra nettleseren (CORS-åpen), se guiden"
+    "quirks": "~5 400 surveys aggregert fra nasjonale statistikkbyrå-arkiver — metadata-pekere: data hos produsentarkivet (ofte login); samme NADA-API som wbmicro. NB: serverside-henting (search_catalog//api/hent) FEILER mot denne verten (TLS-kjede Deno ikke støtter, målt 2026-08-06) — bruk DIREKTE ost.read fra nettleseren (CORS-åpen), se guiden",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "dhs",
@@ -437,7 +514,10 @@
     "base_url": "https://api.dhsprogram.com/rest/dhs/",
     "cors": true,
     "guide": true,
-    "quirks": "helse-/demografiindikatorer fra 374 surveys i 90+ lav-/mellominntektsland (aggregert, CORS-åpen, nøkkelfri); survey-mikrodataene krever søknad+godkjenning — se guiden"
+    "quirks": "helse-/demografiindikatorer fra 374 surveys i 90+ lav-/mellominntektsland (aggregert, CORS-åpen, nøkkelfri); survey-mikrodataene krever søknad+godkjenning — se guiden",
+    "tags": [
+      "mikro"
+    ]
   },
   {
     "id": "cdc",
@@ -450,7 +530,11 @@
     "cors": true,
     "guide": true,
     "sporrings_url_mal": "https://data.cdc.gov/resource/{id}.json?$limit=1000",
-    "quirks": "1078 datasett (BRFSS/PLACES-prevalens, dødelighet, vaksinasjon, kroniske sykdommer) — aggregert statistikk, IKKE mikrodata; SoQL ($where/$select/$group) server-side; nøkkelfri + CORS-åpen — se guiden"
+    "quirks": "1078 datasett (BRFSS/PLACES-prevalens, dødelighet, vaksinasjon, kroniske sykdommer) — aggregert statistikk, IKKE mikrodata; SoQL ($where/$select/$group) server-side; nøkkelfri + CORS-åpen — se guiden",
+    "tags": [
+      "makro",
+      "usa"
+    ]
   },
   {
     "id": "hf",
@@ -462,6 +546,9 @@
     "base_url": "https://datasets-server.huggingface.co/",
     "cors": true,
     "guide": true,
-    "quirks": "søk + typet forhåndsvisning + auto-konvertert parquet, alt CORS-åpent uten nøkkel; mye er uoffisielle kopier — foretrekk primærkilder og sjekk lisens/proveniens; gated datasett støttes ikke — se guiden"
+    "quirks": "søk + typet forhåndsvisning + auto-konvertert parquet, alt CORS-åpent uten nøkkel; mye er uoffisielle kopier — foretrekk primærkilder og sjekk lisens/proveniens; gated datasett støttes ikke — se guiden",
+    "tags": [
+      "mikro"
+    ]
   }
 ]

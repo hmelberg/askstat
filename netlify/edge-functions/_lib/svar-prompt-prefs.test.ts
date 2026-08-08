@@ -275,6 +275,14 @@ Deno.test("renderUserKeysBlock (via buildSvarSystem): kun i data-ruten, kun når
     .includes("Brukerens egne API-nøkler"));
   assert(!buildSvarSystem("oppslag", "python", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
     .includes("Brukerens egne API-nøkler"));
+  // Sluttreview-fiksebølge #7: blokka lover KEYS['<navn>'] i "generert
+  // Python-kode" — KEYS-injeksjonen (js/ai-chat.js sin mdAskExecuteScript)
+  // skjer KUN i python-modus, så blokka skal aldri rendres for r/duckdb
+  // selv når data-ruten treffes med gyldige userKeys.
+  assert(!buildSvarSystem("data", "r", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
+    .includes("Brukerens egne API-nøkler"), "user_keys-blokka skal IKKE rendres i r-modus");
+  assert(!buildSvarSystem("data", "duckdb", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
+    .includes("Brukerens egne API-nøkler"), "user_keys-blokka skal IKKE rendres i duckdb-modus");
   // ugyldig navn → filtrert bort av coerceUserKeys → ingen blokk i det hele tatt
   const ugyldig = buildSvarSystem("data", "python", "", { userKeys: [{ navn: "har mellomrom", notat: "x" }] });
   assert(!ugyldig.includes("Brukerens egne API-nøkler"));

@@ -788,6 +788,13 @@
       sweepUnresolvedRefs();
       renderSources(e.sources);
       maybeRenderMath(e.markdown);
+      // Sluttreview-fiksebølge #1 (spec §6 «Se kode og data» → kjør i
+      // editoren): et gjenopprettet svar hadde mistet veien til sin egen
+      // kode — editoren fortsatt viste hva som helst som sto der fra før,
+      // aldri e.script. window.mdAskInsertScript (ai-chat.js sin
+      // insertScriptIntoEditor, samme mekanisme en fersk kjøring bruker)
+      // setter den lagrede koden inn nå, ikke lazy ved knappklikk.
+      if (e.script && window.mdAskInsertScript) window.mdAskInsertScript(e.script);
       var note = document.createElement('div');
       note.className = 'ai-progress-line';
       note.textContent = '↩ Restored from history (asked ' + String(e.ts).slice(0, 10) + ')';
@@ -957,7 +964,10 @@
       var lastSources = [];
       var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
       // Konto-runden fase 1: historikk-fangst. Profilen leses ved flytstart
-      // (proveniens); siste VELLYKKEDE script lagres for «Run code again».
+      // (proveniens); siste VELLYKKEDE script lagres i historikk-oppføringen
+      // (saveHistory under, feltet script) — IKKE for gjenkjøring her og nå,
+      // men slik at en SENERE gjenoppretting fra historikken (restoreEntry)
+      // kan sette riktig kode inn i editoren igjen («Se kode og data»).
       var lastOkScript = null;
       var activeProfile = (window.Profiles && window.Profiles.active && window.Profiles.active()) || null;
       function saveHistory(markdown, badge, badgeText, badgeWarn, script, sources) {

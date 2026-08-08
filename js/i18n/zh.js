@@ -67,7 +67,6 @@ window.M2PY_I18N.zh = {
   "Population growth in Oslo": "奥斯陆人口增长",
   "Preview": "预览",
   "Previous login code": "先前的登录码",
-  "Profile — its text is added to every question. Click to choose or manage.": "配置文件——其文本会附加到每个问题。点击以选择或管理。",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>真实来源</strong>——实时搜索官方统计（欧盟统计局、世界银行、各国统计局），并附链接。",
   "Recents": "最近",
   "Rent or buy — where is the tipping point?": "租还是买——临界点在哪里？",
@@ -184,4 +183,7 @@ window.M2PY_I18N.zh = {
   "optional note and/or URL: how should this key be used?": "可选备注和/或网址：这个密钥应该如何使用？",
   "paste key": "粘贴密钥",
   "service name, e.g. kaggle": "服务名称，例如 kaggle",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "切勿在此粘贴 API 密钥或其他机密信息——请改在设置中的「你自己的密钥」下添加。",
 };

@@ -220,3 +220,60 @@ test('mdUserKeysMeta() selvhelbreder foreldreløse usr-*-ider fra Keys.registere
   assert.ok(/saveUserKeysMeta\(list\)/.test(fn),
     'mdUserKeysMeta() persisterer ikke lenger den rekonstruerte lista tilbake — «vis» uten «persister» løser ikke funn #5');
 });
+
+// Sluttreview-fiksebølge #2 (CRITICAL): egne nøkkel-VERDIER kan lekke til
+// LLM-leverandøren via run_result — generert kode kan printe KEYS['x'],
+// eller en exception kan ekko verdien. maskKnownKeyValues MÅ kjøre på
+// outText OG err FØR result-strengen bygges, og MÅ bruke split/join (ikke
+// regex på selve verdien — den kan inneholde regex-metategn).
+test('mdAskExecuteScript maskerer kjente egne nøkkelverdier i run_result FØR retur', () => {
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  assert.ok(aiChat.includes('function maskKnownKeyValues('), 'maskKnownKeyValues mangler');
+  assert.ok(aiChat.includes("out.split(v).join('•••')"),
+    'maskeringen bruker ikke lenger split/join — regex på selve nøkkelverdien er farlig (kan inneholde metategn)');
+  const start = aiChat.indexOf('window.mdAskExecuteScript = async function');
+  assert.ok(start > -1, 'fant ikke mdAskExecuteScript');
+  const end = aiChat.indexOf('\n        };', start);
+  assert.ok(end > start, 'fant ikke slutten på mdAskExecuteScript');
+  const fn = aiChat.slice(start, end);
+  assert.ok(/outText\s*=\s*maskKnownKeyValues\(/.test(fn),
+    'mdAskExecuteScript maskerer ikke lenger outText før den havner i result');
+  assert.ok(/maskKnownKeyValues\(String\(err\)\)/.test(fn),
+    'mdAskExecuteScript maskerer ikke lenger feilteksten (err) før den havner i result');
+});
+
+// Kildenivå-kontrakt: index.html sin triggerTolkResultat («Tolk resultat»)
+// MÅ maskere outputen med SAMME funksjon (window.mdMaskKeyValues, eksponert
+// av ai-chat.js) — ellers lekker en egen nøkkelverdi i output via den veien
+// selv om mdAskExecuteScript-veien over er tettet.
+test('index.html: triggerTolkResultat maskerer output med window.mdMaskKeyValues', () => {
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  assert.ok(aiChat.includes('window.mdMaskKeyValues = maskKnownKeyValues;'),
+    'ai-chat.js eksponerer ikke lenger maskeringsfunksjonen som window.mdMaskKeyValues');
+  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
+  const start = html.indexOf('function triggerTolkResultat()');
+  assert.ok(start > -1, 'fant ikke triggerTolkResultat-funksjonen i index.html');
+  const end = html.indexOf('\n    }', start);
+  const fn = html.slice(start, end);
+  assert.ok(/window\.mdMaskKeyValues\(outText\)/.test(fn),
+    'triggerTolkResultat kaller ikke lenger window.mdMaskKeyValues(outText) — egne nøkkelverdier i output kan lekke til /api/tolk-resultat');
+});
+
+// KEYS-regex-drift (sluttreview-fiksebølge #3, fix-før-merge): scrubDraft-
+// KeysLine sin fallback i index.html (kjører FØR js/data-directives.js har
+// lastet) og KEYS_LINE_RE i js/data-directives.js er hånd-dupliserte
+// literaler som MÅ matche BYTE-LIKT (bortsett fra regex-flagg) — ellers kan
+// et utkast unnslippe skrubbing avhengig av HVILKEN av de to vegene som
+// traff det. Injeksjonsformatet i ai-chat.js (mdAskExecuteScript) er den
+// tredje parten begge regexene må fange — låst her slik at en fremtidig
+// endring ett sted rødner denne testen i stedet for å drifte stille.
+test('KEYS-regex-drift: fallback i index.html og KEYS_LINE_RE i data-directives.js er byte-like; injeksjonsformatet består', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
+  const ddJs = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'data-directives.js'), 'utf8');
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  const corePattern = '^[ \\t]*KEYS[ \\t]*=[ \\t]*\\{.*\\}[ \\t]*$';
+  assert.ok(html.includes(corePattern), 'index.html sin scrubDraftKeysLine-fallback har endret KEYS-regex-mønsteret');
+  assert.ok(ddJs.includes(corePattern), 'js/data-directives.js sin KEYS_LINE_RE har endret KEYS-regex-mønsteret');
+  assert.ok(aiChat.includes("'KEYS = ' + JSON.stringify(userKeys) + '\\n' + script"),
+    'ai-chat.js sitt injeksjonsformat (KEYS = <JSON>\\n<script>) har endret seg — regexene over må oppdateres i takt');
+});

@@ -77,6 +77,7 @@
   "Markdown is supported",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.",
   "Name",
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.",
   "New instruction",
   "New question",
   "New source",

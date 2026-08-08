@@ -67,7 +67,6 @@ window.M2PY_I18N.fr = {
   "Population growth in Oslo": "Croissance démographique à Oslo",
   "Preview": "Aperçu",
   "Previous login code": "Code de connexion précédent",
-  "Profile — its text is added to every question. Click to choose or manage.": "Profil — son texte est ajouté à chaque question. Cliquez pour choisir ou gérer.",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>Vraies sources</strong> — statistiques officielles (Eurostat, Banque mondiale, instituts nationaux) interrogées en direct, avec liens.",
   "Recents": "Récents",
   "Rent or buy — where is the tipping point?": "Louer ou acheter — où est le point de bascule ?",
@@ -184,4 +183,7 @@ window.M2PY_I18N.fr = {
   "optional note and/or URL: how should this key be used?": "note et/ou URL facultatives : comment cette clé doit-elle être utilisée ?",
   "paste key": "coller la clé",
   "service name, e.g. kaggle": "nom du service, par ex. kaggle",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "Ne collez jamais de clés API ou de secrets ici — ajoutez-les plutôt sous Vos propres clés dans les réglages.",
 };

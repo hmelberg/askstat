@@ -67,7 +67,6 @@ window.M2PY_I18N.hi = {
   "Population growth in Oslo": "ओस्लो में जनसंख्या वृद्धि",
   "Preview": "पूर्वावलोकन",
   "Previous login code": "पिछला लॉगिन कोड",
-  "Profile — its text is added to every question. Click to choose or manage.": "प्रोफ़ाइल — इसका पाठ हर प्रश्न में जुड़ता है। चुनने या प्रबंधित करने के लिए क्लिक करें।",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>वास्तविक स्रोत</strong> — आधिकारिक सांख्यिकी (Eurostat, विश्व बैंक, राष्ट्रीय सांख्यिकी एजेंसियाँ) लाइव खोजी जाती हैं, लिंक सहित।",
   "Recents": "हाल के",
   "Rent or buy — where is the tipping point?": "किराया या ख़रीद — निर्णायक बिंदु कहाँ है?",
@@ -184,4 +183,7 @@ window.M2PY_I18N.hi = {
   "optional note and/or URL: how should this key be used?": "वैकल्पिक नोट और/या URL: इस कुंजी का उपयोग कैसे किया जाना चाहिए?",
   "paste key": "कुंजी चिपकाएँ",
   "service name, e.g. kaggle": "सेवा का नाम, जैसे kaggle",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "यहाँ कभी भी API कुंजियाँ या गुप्त जानकारी न चिपकाएँ — इसके बजाय सेटिंग्स में आपकी अपनी कुंजियाँ के अंतर्गत जोड़ें।",
 };

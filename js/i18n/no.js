@@ -74,7 +74,6 @@ window.M2PY_I18N.no = {
   "Population growth in Oslo": "Befolkningsvekst i Oslo",
   "Preview": "Forhåndsvisning",
   "Previous login code": "Forrige login-kode",
-  "Profile — its text is added to every question. Click to choose or manage.": "Profil — teksten legges til hvert spørsmål. Klikk for å velge eller administrere.",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>Ekte kilder</strong> — offisiell statistikk (Eurostat, Verdensbanken, nasjonale statistikkbyråer) søkt live, med lenker.",
   "Recents": "Nylige",
   "Rent or buy — where is the tipping point?": "Leie eller eie — hvor er vippepunktet?",
@@ -191,4 +190,7 @@ window.M2PY_I18N.no = {
   "paste key": "lim inn nøkkel",
   "optional note and/or URL: how should this key be used?": "valgfritt notat og/eller URL: hvordan skal nøkkelen brukes?",
   "Save key": "Lagre nøkkel",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "Lim aldri inn API-nøkler eller hemmeligheter her — legg dem heller til under Dine egne nøkler i innstillingene.",
 };

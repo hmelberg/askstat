@@ -483,6 +483,7 @@
         <input type="text" id="sourceName" maxlength="60">
         <label for="sourceText" data-i18n>Text added to every ask</label>
         <textarea id="sourceText" rows="7" maxlength="40000"></textarea>
+        <div class="ai-modal-help" data-i18n>Never paste API keys or secrets here — add them under Your own keys in settings instead.</div>
         <label for="sourceTags" data-i18n>Tags (comma-separated)</label>
         <input type="text" id="sourceTags">
         <div class="sources-tag-quick" id="sourcesTagQuick"></div>
@@ -1998,6 +1999,12 @@
       var outEl = document.getElementById('outputArea');
       var outText = (outEl ? (outEl.innerText || '') : '').trim() || (lastOutput || '').trim();
       if (!outText) { alert(t('Ingen output å tolke. Kjør et script først.')); return; }
+      // Sluttreview-fiksebølge #2: outputen kan inneholde en egen
+      // nøkkelverdi (generert kode printet den, eller den lekket via en
+      // exception) — maskeres med SAMME funksjon som mdAskExecuteScript
+      // (ai-chat.js) bruker på run_result, FØR den går videre til
+      // /api/tolk-resultat og en LLM-leverandør.
+      if (window.mdMaskKeyValues) outText = window.mdMaskKeyValues(outText);
       if (outText.length > 30000) outText = outText.slice(0, 30000) + '\n…(forkortet)';
       var si = document.getElementById('scriptInput');
       // Skrubb FØR kapping (fikserunde 1, CRITICAL selv-review-funn): en

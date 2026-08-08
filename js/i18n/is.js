@@ -67,7 +67,6 @@ window.M2PY_I18N.is = {
   "Population growth in Oslo": "Fólksfjölgun í Ósló",
   "Preview": "Forskoðun",
   "Previous login code": "Fyrri innskráningarkóði",
-  "Profile — its text is added to every question. Click to choose or manage.": "Prófíll — texti hans bætist við hverja spurningu. Smelltu til að velja eða sýsla með.",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>Raunverulegar heimildir</strong> — opinber hagtölugögn (Eurostat, Alþjóðabankinn, hagstofur landa) sótt í rauntíma, með hlekkjum.",
   "Recents": "Nýlegt",
   "Rent or buy — where is the tipping point?": "Leigja eða kaupa — hvar liggja mörkin?",
@@ -184,4 +183,7 @@ window.M2PY_I18N.is = {
   "optional note and/or URL: how should this key be used?": "valfrjáls athugasemd og/eða vefslóð: hvernig ætti að nota þennan lykil?",
   "paste key": "líma lykil",
   "service name, e.g. kaggle": "heiti þjónustu, t.d. kaggle",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "Aldrei líma API-lykla eða leyndarmál hér — bættu þeim frekar við undir Þínir eigin lyklar í stillingum.",
 };

@@ -976,8 +976,16 @@ export function buildSvarSystem(
   if (prefBlock) blocks.push(prefBlock);
   const packsBlock = renderPacksBlock(coercePacks(opts?.packs));
   if (packsBlock) blocks.push(packsBlock);
-  const userKeysBlock = renderUserKeysBlock(coerceUserKeys(opts?.userKeys));
-  if (userKeysBlock) blocks.push(userKeysBlock);
+  // Sluttreview-fiksebølge #7: blokka lovet KEYS['<navn>'] i "generert
+  // Python-kode" — men rendret uansett modus. KEYS-injeksjonen (js/
+  // ai-chat.js sin mdAskExecuteScript) skjer KUN når mode === 'python', så
+  // en r/duckdb-kjøring fikk et løfte prompten aldri kunne innfri. Gates
+  // her fremfor å myke opp blokkteksten (samme mode-sjekk MODE[mode] over
+  // allerede grener på).
+  if (mode === "python") {
+    const userKeysBlock = renderUserKeysBlock(coerceUserKeys(opts?.userKeys));
+    if (userKeysBlock) blocks.push(userKeysBlock);
+  }
   return blocks.join("\n\n");
 }
 

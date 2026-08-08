@@ -341,6 +341,13 @@
             } else {
               var entry = curated().filter(function (p) { return p.id === id; })[0];
               if (entry && entry.summary) summary = entry.summary;
+              // NB (sluttreview-fiksebølge #8): default HER (manglende/
+              // ukjent entry.kind → 'overview') er det MOTSATTE av serverens
+              // default i coercePacks (svar-prompt.ts: manglende felt →
+              // 'source'). Det er trygt fordi denne funksjonen ALLTID sender
+              // et eksplisitt kind-felt til serveren (out.push under) — de to
+              // defaultene treffer aldri samme kall. IKKE «rydd» den ene til
+              // å matche den andre uten å sjekke begge kallstedene.
               kind = entry && entry.kind === 'source' ? 'source' : 'overview';
               tags = (entry && entry.tags) || [];
             }

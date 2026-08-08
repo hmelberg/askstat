@@ -67,7 +67,6 @@ window.M2PY_I18N.ja = {
   "Population growth in Oslo": "オスロの人口増加",
   "Preview": "プレビュー",
   "Previous login code": "以前のログインコード",
-  "Profile — its text is added to every question. Click to choose or manage.": "プロファイル——そのテキストはすべての質問に追加されます。クリックして選択・管理。",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>実在のソース</strong> — 公式統計（Eurostat、世界銀行、各国統計局）をリアルタイムで検索、リンク付き。",
   "Recents": "最近",
   "Rent or buy — where is the tipping point?": "賃貸か購入か——分岐点はどこ？",
@@ -184,4 +183,7 @@ window.M2PY_I18N.ja = {
   "optional note and/or URL: how should this key be used?": "任意のメモやURL:このキーはどう使われるべきですか?",
   "paste key": "キーを貼り付け",
   "service name, e.g. kaggle": "サービス名（例:kaggle）",
+  // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
+  // kilde-redigeringsskjemaet (#sourcesEdit).
+  "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "ここに API キーや秘密情報を貼り付けないでください——代わりに設定にある「自分のキー」に追加してください。",
 };

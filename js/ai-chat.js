@@ -1454,7 +1454,7 @@
         if (!slug || !value) return; // navn (etter slugifisering) og verdi er påkrevd
         var list = mdUserKeysMeta();
         var id = uniqueUserKeyId(slug, list.map(function (x) { return x.id; }));
-        window.Keys.set(id, value);
+        if (window.Keys) window.Keys.set(id, value);
         list.push({ id: id, navn: navn, notat: notat }); // navn: rå visningstekst — se userKeyCanonicalName
         saveUserKeysMeta(list);
         if (dom.userKeyName) dom.userKeyName.value = '';
@@ -1687,6 +1687,31 @@
         window.mdOpenAiSettings = openSettings;
         window.mdAiAuthHeaders = providerAuthHeaders;
         window.mdAiProviderConfig = providerConfig;
+        // Sluttreview-fiksebølge #1: samme innsettingsvei som en fersk
+        // kjøring bruker (mdAskExecuteScript under), eksponert alene slik at
+        // ask-view.js sin restoreEntry() kan sette et GJENOPPRETTET svars
+        // script inn i editoren uten å kjøre det på nytt — «Se kode og data»
+        // viste tidligere det som tilfeldigvis sto i editoren fra før.
+        window.mdAskInsertScript = insertScriptIntoEditor;
+
+        // Sluttreview-fiksebølge #2: egne nøkkel-VERDIER kan lekke til
+        // LLM-leverandøren via kjøre-output — generert kode kan f.eks.
+        // printe KEYS['x'], eller en exception kan ekko verdien i
+        // feilmeldingen. Maskerer enhver forekomst av en kjent, REGISTRERT
+        // egen nøkkelverdi med '•••' — split/join, ALDRI regex på selve
+        // verdien (den kan inneholde regex-metategn og ville da enten
+        // kaste eller ikke matche). Brukt her (run_result under) OG av
+        // index.html sin triggerTolkResultat («Tolk resultat»-knappen),
+        // som begge kan sende kjøre-output videre til en LLM.
+        function maskKnownKeyValues(text) {
+          var out = String(text == null ? '' : text);
+          mdUserKeysMeta().forEach(function (k) {
+            var v = window.Keys && window.Keys.get(k.id);
+            if (v) out = out.split(v).join('•••');
+          });
+          return out;
+        }
+        window.mdMaskKeyValues = maskKnownKeyValues;
 
         // Kjør et script via Kjør-knappens vei og formater run_code-
         // verktøyresultatet. Innsetting + kjøring + output-lesing i ett —
@@ -1714,7 +1739,8 @@
           insertScriptIntoEditor(script);
           var err = await runScriptAndCaptureError(signal);
           var out = document.getElementById('outputArea');
-          var outText = ((out && out.innerText) || '').trim();
+          // Maskert FØR noe annet leser den — se maskKnownKeyValues over.
+          var outText = maskKnownKeyValues(((out && out.innerText) || '').trim());
           // OUTPUTS-manifest (spec 2026-07-31-ask-svar-referanser §2):
           // forteller modellen HVA den kan referere med {{fig:1}} osv. —
           // samme klassifiseringsfunksjon som resolveren bruker, så
@@ -1727,7 +1753,7 @@
           return {
             ok: !err,
             result: err
-              ? 'FEIL:\n' + String(err).slice(0, 20000)
+              ? 'FEIL:\n' + maskKnownKeyValues(String(err)).slice(0, 20000)
               : 'OK. OUTPUT (truncated):\n' + outText.slice(0, 20000) +
                 (manifest ? '\n' + manifest : ''),
           };

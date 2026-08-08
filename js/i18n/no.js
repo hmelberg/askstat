@@ -6,17 +6,14 @@ window.M2PY_I18N = window.M2PY_I18N || {};
 window.M2PY_I18N.no = {
   " (auto)": " (auto)",
   ". Enter it here (or click the link in the email).": ". Skriv den inn her (eller klikk lenken i e-posten).",
-  "A profile is a text that is automatically added to every question you ask — for example «Use only OECD as a data source», documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.": "En profil er en tekst som automatisk legges til hvert spørsmål du stiller — for eksempel «Bruk bare OECD som datakilde», dokumentasjon av datasettets variabler, eller URL-en til en ekstra kilde. Referer til lagrede nøkler som key(navn) — lim aldri inn rå hemmeligheter her.",
   "API key & settings": "API-nøkkel og innstillinger",
   "Approve a drug at 1 mill. kr per QALY?": "Godkjenne et legemiddel til 1 mill. kr per QALY?",
   "Ask": "Spør",
-  "Ask with data": "Spør med data",
   "AskStat never answers from memory. It searches real, open data sources, writes code to compute the answer, runs it, and shows you everything: the data it used, the code it wrote, and the reasoning in between. You can open the code, change it, and run it again yourself.": "AskStat svarer aldri fra hukommelsen. Den søker i ekte, åpne datakilder, skriver kode som beregner svaret, kjører den, og viser deg alt: dataene den brukte, koden den skrev og resonnementet imellom. Du kan åpne koden, endre den og kjøre den på nytt selv.",
   "At what interest rate does renting beat buying a home?": "Ved hvilken rente lønner det seg å leie fremfor å eie bolig?",
   "Automatic (from your language)": "Automatisk (fra språket ditt)",
   "Back to Ask": "Gå tilbake til Ask",
   "Back to the ask view": "Tilbake til Ask-visningen",
-  "Built-in data sources": "Innebygde datakilder",
   "Can a theory explain addiction? (model)": "Kan en teori forklare avhengighet? (modell)",
   "Can hyperbolic discounting explain addiction?": "Kan hyperbolsk diskontering forklare avhengighet?",
   "Cancel": "Avbryt",
@@ -28,13 +25,9 @@ window.M2PY_I18N.no = {
   "Copy answer": "Kopier svaret",
   "Count letters in a word": "Tell bokstaver i et ord",
   "Country": "Land",
-  "Country — prefer this country's statistical sources. Click to change.": "Land — foretrekk dette landets statistikkilder. Klikk for å endre.",
-  "Country: none": "Land: ingen",
-  "Country: {name}": "Land: {name}",
   "Days between two dates": "Dager mellom to datoer",
   "Delete": "Slett",
   "Delete all saved questions and answers in this browser": "Slett alle lagrede spørsmål og svar i denne nettleseren",
-  "Deselect all": "Velg bort alle",
   "Details (steps, sources, repairs)": "Detaljer (steg, kilder, reparasjoner)",
   "Dice probability, exactly": "Terningsannsynlighet, eksakt",
   "Edit": "Rediger",
@@ -71,35 +64,21 @@ window.M2PY_I18N.no = {
   "Login code": "Login-kode",
   "Markdown is supported": "Markdown støttes",
   "Most AI chatbots answer from memory — fluently, but sometimes wrong, and you can't see where an answer came from.": "De fleste KI-chatboter svarer fra hukommelsen — flytende, men iblant feil, og du kan ikke se hvor svaret kom fra.",
-  "My sources": "Mine kilder",
   "Name": "Navn",
-  "New profile": "Ny profil",
   "New question": "Nytt spørsmål",
   "New source": "Ny kilde",
-  "No profile": "Ingen profil",
-  "No sources in your library — add some via Manage sources…": "Ingen kilder i biblioteket ditt — legg til noen via Administrer kilder …",
   "None (international)": "Ingen (internasjonal)",
   "Nordic unemployment compared": "Nordisk arbeidsledighet sammenlignet",
   "Norway's health spending (% of GDP)": "Norges helseutgifter (% av BNP)",
   "Pack applied: {name}": "Pakke brukt: {name}",
   "Population growth in Oslo": "Befolkningsvekst i Oslo",
-  "Prefer this country's statistical sources when a question doesn't name one — pick Automatic, None, or a specific country.": "Foretrekk dette landets statistikkilder når et spørsmål ikke nevner et — velg Automatisk, Ingen eller et bestemt land.",
   "Preview": "Forhåndsvisning",
   "Previous login code": "Forrige login-kode",
-  "Profile applied: {name}": "Profil brukt: {name}",
   "Profile — its text is added to every question. Click to choose or manage.": "Profil — teksten legges til hvert spørsmål. Klikk for å velge eller administrere.",
-  "Profile": "Profil",
-  "Profile — instructions added to every question. Click to manage.": "Profil — instruksjoner som legges til hvert spørsmål. Klikk for å administrere.",
-  "Profile: {name}": "Profil: {name}",
-  "Profiles": "Profiler",
-  "Re-run the saved code locally (no AI cost) to regenerate figures and output": "Kjør den lagrede koden på nytt lokalt (ingen KI-kostnad) for å gjenskape figurer og output",
   "Real sources — official statistics (Eurostat, World Bank, national statistical agencies) searched live, with links.": "<strong>Ekte kilder</strong> — offisiell statistikk (Eurostat, Verdensbanken, nasjonale statistikkbyråer) søkt live, med lenker.",
   "Recents": "Nylige",
-  "Remove all imported sources? Your own written sources are kept.": "Fjerne alle importerte kilder? Dine egenskrevne kilder beholdes.",
-  "Remove imported": "Fjern importerte",
   "Rent or buy — where is the tipping point?": "Leie eller eie — hvor er vippepunktet?",
   "Route: {route}. Interpretation: {tolkning}": "Rute: {route}. Tolkning: {tolkning}",
-  "Run code again": "Kjør koden på nytt",
   "Running the code …": "Kjører koden …",
   "Save": "Lagre",
   "Savings simulator with a slider": "Sparesimulator med glidebryter",
@@ -128,7 +107,6 @@ window.M2PY_I18N.no = {
   "Unlock": "Lås opp",
   "Unlock synced keys": "Lås opp synkroniserte nøkler",
   "Verifiable — every number comes from code and data you can inspect.": "<strong>Etterprøvbart</strong> — hvert tall kommer fra kode og data du kan undersøke.",
-  "View code": "Vis koden",
   "View code and data": "Se kode og data",
   "We sent a code to": "Vi sendte en kode til",
   "We'll email you a 3-word login code. Your keys, history and profiles then follow you across devices — nothing is uploaded until you log in.": "Vi sender deg en login-kode på tre ord. Nøkler, historikk og profiler følger deg da på tvers av enheter — ingenting lastes opp før du logger inn.",
@@ -157,7 +135,6 @@ window.M2PY_I18N.no = {
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuraterte pakker delt av andre brukere. Les forhåndsvisningen og importer din egen kopi — importerte pakker dukker opp i kildepakke-velgeren.",
   "Import": "Importer",
   "Shared packs": "Delte pakker",
-  "Where the AI should look for data.": "Hvor KI-en bør lete etter data.",
   "by {author}, updated {updated}": "av {author}, oppdatert {updated}",
   "Open menu": "Åpne menyen",
   "Language": "Språk",
@@ -173,24 +150,19 @@ window.M2PY_I18N.no = {
   "Child mortality by wealth (DHS)": "Barnedødelighet etter velstand (DHS)",
   "Is there a survey with individual-level data on out-of-pocket health spending in Tanzania?": "Finnes det en survey med individdata om egenbetaling for helse i Tanzania?",
   "Find a survey (World Bank Microdata)": "Finn en survey (World Bank Microdata)",
-  // Budsjett-hint (kontekstrunden fase 2 §4, 2026-08-06):
-  "{short} of {total} packs sent in short form": "{short} av {total} pakker sendes i kortform",
   // Utvidet søk + lagre-som-kilde (kontekstrunden fase 2 §5, 2026-08-06):
   "Save as source": "Lagre som kilde",
   // Ren kildepille (spec 2026-08-06-menyopprydding §3):
   "Extended internet search — also look beyond the built-in sources (slower)": "Utvidet internettsøk — let også utenfor kildegrunnlaget (tregere)",
-  "Manage sources…": "Administrer kilder …",
   "Sources — where the AI should look for data. Click to adjust.": "Kilder — hvor KI-en bør lete etter data. Klikk for å endre.",
   // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4):
-  "Import shared sources…": "Importer delte kilder …",
   "Imported from shared sources. ": "Importert fra delte kilder. ",
   // Landvisning m/søk (spec 2026-08-06-menyopprydding §5–6):
   "Search…": "Søk …",
   "← Back to list": "← Tilbake til lista",
   // Smoke-funn (menyopprydding, Task 7 §2):
-  "Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.": "Kildebiblioteket ditt. Avkryssede kilder er aktive og sendes med hvert spørsmål. Klikk på et navn for detaljer; importer delte kilder eller legg til land nedenfor.",
   // Kilde-dialogen (spec 2026-08-08-kilder-profil-output §2, Task 4 markup +
-  // Task 5 logikk). Full 13-språks-sweep gjøres i Task 12.
+  // Task 5 logikk).
   "Pick which sources the AI may use. Topics are curated menus of sources; single sources are direct instructions.": "Velg hvilke kilder KI-en kan bruke. Temaer er kuraterte menyer over kilder; enkeltkilder er direkte instrukser.",
   "Topics": "Temaer",
   "Single sources": "Enkeltkilder",
@@ -203,18 +175,15 @@ window.M2PY_I18N.no = {
   "built-in": "innebygd",
   "mine": "min",
   // Instruksjoner (spec 2026-08-08-kilder-profil-output §5, Task 7): ny
-  // hjelpetekst + rename av «New profile»/«No profile»/«Profile applied».
-  // De gamle nøklene («New profile», «No profile», «Profile applied: {name}»,
-  // «Profiles», «Profile», …) er ikke lenger brukt av appen, men står igjen
-  // her til den 13-ordboks-sweepen (Task 12) rydder dem overalt samtidig.
+  // hjelpetekst + rename av «New profile»/«No profile»/«Profile applied»
+  // (gamle nøkler fjernet fra alle 13 ordbøker i Task 12).
   "Instructions are added to every question you ask. Use them to steer how answers are made — language, form, method or emphasis. They can adjust or override the app's default behaviour. Examples: «Always answer briefly, in Norwegian», «Always show uncertainty and cite sources», «Use R instead of Python», «Prefer tables over charts», «I am a researcher — use technical terminology».": "Instruksjoner legges automatisk til hvert spørsmål. Bruk dem til å styre hvordan svarene lages — språk, form, metode eller vektlegging. De kan justere eller overstyre appens standardoppførsel. Eksempler: «Svar alltid kort og på norsk», «Vis alltid usikkerhet og oppgi kilder», «Bruk R i stedet for Python», «Foretrekk tabeller fremfor grafer», «Jeg er forsker — bruk fagterminologi».",
   "New instruction": "Ny instruksjon",
   "No instruction": "Ingen instruksjon",
   "Instructions applied: {name}": "Instruksjoner brukt: {name}",
   // Innstillinger — egne nøkler v1 (spec 2026-08-08-kilder-profil-output
   // §Task 11): #aiCfgUserKeys-blokka i innstillingsmodalen. Markupen der er
-  // (bevisst, se brief) engelsk-kildet i motsetning til resten av modalen —
-  // full 13-språks-sweep gjøres samlet i Task 12.
+  // (bevisst, se brief) engelsk-kildet i motsetning til resten av modalen.
   "Your own keys": "Dine egne nøkler",
   "Add a key for any service you want the AI to use — e.g. kaggle. The note tells the AI how to use it; the key itself is available to generated code as KEYS['name'] and is never shown to the AI.": "Legg til en nøkkel for en hvilken som helst tjeneste du vil at KI-en skal bruke — f.eks. kaggle. Notatet forteller KI-en hvordan den skal brukes; selve nøkkelen er tilgjengelig for generert kode som KEYS['navn'] og vises aldri til KI-en.",
   "Add your own key": "Legg til egen nøkkel",

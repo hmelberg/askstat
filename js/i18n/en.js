@@ -723,6 +723,10 @@ window.M2PY_I18N.en = {
   "Datakilde-nøkler": "Data source keys",
   "nøkkel registrert": "key saved",
   "lim inn nøkkel": "paste key",
+  "Anthropic API-nøkkel": "Anthropic API key",
+  "Egen Anthropic-nøkkel er lagret i denne nettleseren.": "Your own Anthropic key is stored in this browser.",
+  "Lag en API-nøkkel på console.anthropic.com og lim den inn her. Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server, men nøkkelen lagres eller logges ikke der. Forbruk belastes din egen Anthropic-konto. Gir også tilgang til Web-knappen i python/r/duckdb-modus.": "Create an API key at <a href=\"https://console.anthropic.com/settings/keys\" target=\"_blank\" rel=\"noopener\">console.anthropic.com</a> and paste it here. The key is stored only in this browser; requests pass through the app's server, but the key is never stored or logged there. Usage is billed to your own Anthropic account. Also unlocks the Web button in python/r/duckdb mode.",
+  "Base-URL er alt før endepunktnavnet (typisk t.o.m. /v1). Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server til leverandøren du velger, og forbruk (inkludert eventuelt websøk hos OpenAI) belastes din konto der. Web-modus med OpenAI-typene krever en modell med verktøystøtte.": "The base URL is everything before the endpoint name (typically up to /v1). The key is stored only in this browser; requests go via the app's server to the provider you choose, and usage (including any web search at OpenAI) is billed to your account there. Web mode with the OpenAI types requires a model with tool support.",
 
   // ── Datasettviser: remote-datasett (B2) ──
   "Server-datasett: viser metadata fra kilden — fordeling og statistikk beregnes ikke lokalt.": "Remote dataset: showing metadata from the source — distributions and statistics are not computed locally.",

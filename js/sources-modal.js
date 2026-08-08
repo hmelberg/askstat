@@ -159,6 +159,14 @@
       function renderCountry() {
         if (!countrySel) return;
         var opts = P.countryOptions();
+        // Funksjonsuttrykk, IKKE en funksjonsDEKLARASJON inni if-blokka under
+        // (blokk-deklarasjon er ulovlig i ES5 strict — fila kjører 'use strict').
+        var addOpt = function (value, label) {
+          var o = document.createElement('option');
+          o.value = value;
+          o.textContent = label;
+          countrySel.appendChild(o);
+        };
         // Optionene bygges KUN når settet faktisk endret seg (katalogen lastes
         // asynkront): change-handleren under fyrer Profiles.onChange → hit,
         // og en ubetinget gjenoppbygging ville rykket selecten mens den har
@@ -166,12 +174,6 @@
         if (countrySel.__builtCount !== opts.length) {
           countrySel.__builtCount = opts.length;
           countrySel.innerHTML = '';
-          function addOpt(value, label) {
-            var o = document.createElement('option');
-            o.value = value;
-            o.textContent = label;
-            countrySel.appendChild(o);
-          }
           addOpt('auto', T('Automatic (from your language)'));
           addOpt('none', T('None (international)'));
           opts.forEach(function (o) { addOpt('cc:' + o.cc, o.name); });
@@ -309,6 +311,13 @@
       function renderAll() {
         var entries = allEntries();
         var checked = checkedIds(entries);
+        // Infopanelet skal aldri henge igjen på en kilde som er borte (slettet
+        // her, eller av konto-synken mens dialogen sto åpen).
+        if (selectedInfoId) {
+          var alive = false;
+          entries.forEach(function (e) { if (e.id === selectedInfoId) alive = true; });
+          if (!alive) selectedInfoId = null;
+        }
         renderCountry();
         renderDiscover();
         renderTabs();
@@ -452,8 +461,11 @@
       if (discoverCb) discoverCb.addEventListener('change', function () {
         writeDiscover(!!discoverCb.checked);
       });
-      if (tabOverviewBtn) tabOverviewBtn.addEventListener('click', function () { tab = 'overview'; renderAll(); });
-      if (tabSourceBtn) tabSourceBtn.addEventListener('click', function () { tab = 'source'; renderAll(); });
+      // Fanebytte nullstiller infopanelet — det hører til en rad i den forrige
+      // fanens liste og ville ellers blitt stående uten synlig opphav.
+      function selectTab(next) { tab = next; selectedInfoId = null; renderAll(); }
+      if (tabOverviewBtn) tabOverviewBtn.addEventListener('click', function () { selectTab('overview'); });
+      if (tabSourceBtn) tabSourceBtn.addEventListener('click', function () { selectTab('source'); });
       if (searchEl) searchEl.addEventListener('input', function () { renderAll(); });
       if (newBtn) newBtn.addEventListener('click', function () { openEdit('NY'); });
       if (saveBtn) saveBtn.addEventListener('click', saveEdit);

@@ -708,7 +708,7 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 | beregning | INTRO_CALC + MODE[mode] + RUN |
 | utforsk | INTRO_UTFORSK + DEPTH_UTFORSK[depth] + UTFORSK_DATA + MODE[mode] + RUN |
 | oppslag | INTRO_LOOKUP + RUN |
-| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + ROUTING + metaSearch(discover) + KODEBOK + RUN + PARTIAL + (DISCOVER hvis `opts.discover===true`) + (MEMORY_URLS hvis `opts.memoryUrls`) + MIKRO_MAKRO + registerblokk |
+| data | INTRO + DEPTH[depth] + DELIVERY + QUERYLOGIC + SCIENCE + INLINE + MULTI + MODE[mode] + ROUTING + metaSearch(discover) + KODEBOK + RUN + PARTIAL + (DISCOVER hvis `opts.discover===true`) + (MEMORY_URLS hvis `opts.memoryUrls`) + MIKRO_MAKRO + registerblokk + (preferanseblokk hvis satt) + (kildepakkeblokk hvis ikke tom) + (egne nøkler-blokk hvis ikke tom) |
 
 - `MODE[mode]` = MODE_PY / MODE_R / MODE_DUCK, valgt av datamodus (python/r/duckdb).
 - `DEPTH[depth]` = DEPTH_STANDARD / DEPTH_DEEP, valgt av dybdevalget (standard er default; «Deep» i nedtrekket).
@@ -744,6 +744,24 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
   forklarer forskjellen («Et TEMA (samling) er en meny over kilder …» / «En
   ENKELTKILDE er en direkte instruks om én kilde»), og `GET_PACK_TOOL`
   sin beskrivelse er omskrevet til samme vokabular.
+- **Egne nøkler v1** (innstillinger-runden Task 11, 2026-08-08): siste blokk
+  i data-ruten (`## Brukerens egne API-nøkler`, `renderUserKeysBlock`, RETT
+  ETTER kildepakkeblokka) — også dynamisk generert fra klientdata
+  (`opts.userKeys`), ikke en statisk block-konstant. Klienten
+  (`js/ai-chat.js` sin `runSvarLoop`) sender KUN `{navn, notat}` per
+  registrert egen nøkkel — ALDRI selve verdien; `coerceUserKeys` saneres
+  uavhengig av klienten (navn ≤32 tegn `[a-z0-9_-]`, notat trimmet/kappet
+  ≤500 tegn, maks 10 nøkler). Blokka forteller modellen at verdien er
+  tilgjengelig i generert Python-kode som `KEYS['<navn>']` — aldri i selve
+  prompten. Klientsidig: `window.Keys` lagrer selve verdien under id
+  `usr-<slug>`; `js/ai-chat.js` sin `mdAskExecuteScript` prepender en
+  `KEYS = {...}`-dict foran scriptet FØR kjøring (kun python-modus).
+  Selv-review-funn: den injiserte `KEYS = {...}`-linja ble stående i den
+  delte editoren, så `js/data-directives.js` sin `scrubKeys` (husregelen for
+  «aldri en nøkkelverdi ut av nettleseren» — brukt av AI-panelets
+  «Inkluder skript»-scriptContext, feiltelemetri, delelenke/GitHub-lagring
+  og eksport) fikk et nytt mønster (`KEYS_LINE_RE`) i tillegg til det gamle
+  `secret_key=`.
 - **Utvidet søk** (kontekstrunden Task 6, 2026-08-06): `metaSearch(discover)`
   er nå en FUNKSJON, ikke en statisk konstant — punkt 6 i lista over
   («Hvis ingen registerkilde dekker spørsmålet …») vises KUN når
@@ -776,6 +794,27 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-08 (kilder-profil-output-runden Task 11 — innstillinger-rekkefølge + egne nøkler v1)
+
+Ny statisk-men-dynamisk blokk i data-ruten, sist i join-lista (etter
+kildepakkeblokka): `## Brukerens egne API-nøkler` (`renderUserKeysBlock`),
+generert fra en ny `coerceUserKeys(opts?.userKeys)`. Klienten
+(`js/ai-chat.js`) lar brukeren registrere egne nøkler for vilkårlige
+tjenester (metadata i `localStorage.md_user_keys`, selve verdien i
+`window.Keys` under id `usr-<slug>`) og sender KUN `{navn, notat}` i
+payloadens nye `user_keys`-felt — serveren stoler aldri på klienten og
+saneres på nytt (navn ≤32 tegn `[a-z0-9_-]`, notat ≤500 tegn, maks 10).
+`available_keys` filtreres nå for å holde `usr-*`-ider ute av
+registerkilde-nøkkellisten (`renderRegistryBlock` sin `userKeys`-parameter
+gjelder KUN registerkilder). Klientsidig injiserer `mdAskExecuteScript` en
+`KEYS = {...}`-dict foran generert Python-kode FØR kjøring — verdien er
+dermed tilgjengelig for koden, men ALDRI for modellen selv. Selv-review
+avdekket at denne injiserte linja ble stående i den delte editoren og ville
+lekket urørt gjennom `js/data-directives.js` sin `scrubKeys` (som kun kjente
+`secret_key=`) via AI-panelets «Inkluder skript»-kontekst, feiltelemetri,
+delelenke/GitHub-lagring og eksport — fikset med et nytt `KEYS_LINE_RE`-
+mønster i `scrubKeys`, som dekker alle fire kallerne i ett grep.
 
 ### 2026-08-08 (kilder-profil-output-runden Task 2 — tema/enkeltkilde + tags i prompten, mikro/makro-rutingsregel)
 

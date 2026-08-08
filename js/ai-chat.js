@@ -696,6 +696,13 @@
               // fra js/packs.js-cachen — synkron; ensureSelected preloader
               // ved valg/boot.
               packs: (window.Packs && window.Packs.payload && window.Packs.payload()) || undefined,
+              // Av-skrudde standardkilder (kildevelger-runde 2, Task 3): kun
+              // sendt når noe faktisk er skrudd av — svar.ts sin
+              // coerceSourcesOff tåler undefined (tom liste) uansett, men
+              // et tomt array her ville uansett vært en no-op i
+              // filtrerAvslatte (tom off → samme registry-referanse).
+              sources_off: window.Profiles && Profiles.sourcesOff && Profiles.sourcesOff().length
+                ? Profiles.sourcesOff() : undefined,
               // Utvidet søk (kontekstrunden fase 2 §5): true|undefined —
               // svar.ts coercer med === true (aldri stol på en tilfeldig
               // truthy verdi over nettet).

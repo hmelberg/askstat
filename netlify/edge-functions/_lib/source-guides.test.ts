@@ -39,6 +39,7 @@ function fakeSource(id: string, guide: boolean): DataSource {
     id,
     navn: id,
     utgiver: "test",
+    beskrivelse: "test",
     tillit: "etablert",
     tilgang: "rest",
     base_url: "https://example.test/",

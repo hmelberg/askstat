@@ -15,6 +15,7 @@ export interface DataSource {
   id: string;
   navn: string;
   utgiver: string;
+  beskrivelse: string; // engelsk én-linjer, brukervendt — KUN manager-infopanelet (js/packs.js), aldri promptens registerblokk (renderRegistryBlock under)
   tillit: "offisiell" | "etablert" | "funnet";
   tilgang: "pxweb" | "sdmx" | "rest" | "ckan" | "fil";
   kind?: string;
@@ -37,7 +38,7 @@ export function parseRegistry(json: unknown): DataSource[] {
   if (!Array.isArray(json)) throw new Error("registeret må være en JSON-liste");
   return json.map((raw, i) => {
     const e = raw as Record<string, unknown>;
-    for (const field of ["id", "navn", "utgiver", "tillit", "tilgang", "base_url"]) {
+    for (const field of ["id", "navn", "utgiver", "beskrivelse", "tillit", "tilgang", "base_url"]) {
       if (typeof e[field] !== "string" || !(e[field] as string).trim()) {
         throw new Error(`kilde #${i}: mangler/ugyldig felt '${field}'`);
       }
@@ -165,4 +166,37 @@ export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []):
  *  om modellen likevel prøver). */
 export function synligeKilder(reg: DataSource[], harNokkel: (env: string) => boolean): DataSource[] {
   return reg.filter((s) => !s.auth?.env || harNokkel(s.auth.env));
+}
+
+// Samme regex/tak som js/profiles.js håndhever klientside (SOURCES_OFF_ID_RE/
+// SOURCES_OFF_MAX, kildevelger-runde 2 Task 1) — serveren stoler ALDRI på
+// klienten og validerer sources_off-feltet på nytt her.
+const SOURCES_OFF_ID_RE = /^[a-z0-9_-]{1,32}$/;
+const SOURCES_OFF_MAX = 40;
+
+/** Klient-clampet av-skrudde kilde-ider fra body.sources_off (ukjent JSON) —
+ *  samme filter-så-slice-mønster som available_keys i svar.ts. Ugyldige
+ *  verdier (ikke-strings, feil form, for lange) filtreres stille bort
+ *  fremfor å kaste — samme stille-toleranse-prinsipp som resten av
+ *  body-parsingen i svar.ts. */
+export function coerceSourcesOff(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((x): x is string => typeof x === "string" && SOURCES_OFF_ID_RE.test(x))
+    .slice(0, SOURCES_OFF_MAX);
+}
+
+/** Filtrerer registeret mot av-skrudde kilde-ider — IKKE-MUTERENDE og med
+ *  vilje "for streng" om referanse-identitet: loadRegistry cacher
+ *  modul-globalt (ÉN array-referanse delt av ALLE spørringer i samme
+ *  edge-instans), så en in-place-mutasjon her ville fjernet kilden
+ *  PERMANENT for alle senere brukere, ikke bare denne spørringen. Tom off
+ *  returnerer SAMME referanse (vanligste kall — ingen kilder avskrudd,
+ *  ingen grunn til å kopiere); ellers en NY array via .filter (som aldri
+ *  rører originalen). Ukjente ider i off (kilde funnet ikke i reg) er en
+ *  stille no-op — ingen feil. */
+export function filtrerAvslatte(reg: DataSource[], off: string[]): DataSource[] {
+  if (off.length === 0) return reg;
+  const offSet = new Set(off);
+  return reg.filter((s) => !offSet.has(s.id));
 }

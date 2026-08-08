@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-07-29-samlet-ask-pipeline-design.md
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
-import { loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
+import { coerceSourcesOff, filtrerAvslatte, loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
 import { makeGuideAttacher, medGuideVedFeil } from "./_lib/source-guides.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
@@ -32,6 +32,7 @@ interface RequestBody {
   available_keys?: unknown;
   preferences?: unknown;
   packs?: unknown;
+  sources_off?: unknown;
   discover?: unknown;
   provider?: unknown;
   resume?: ResumeBody;
@@ -195,6 +196,18 @@ export default async (request: Request): Promise<Response> => {
       console.error("svar: registry load failed:", e);
       return new Response("Kilderegister utilgjengelig", { status: 502 });
     }
+    // sources_off (kildevelger-runde 2, Task 3): filtrerer registeret RETT
+    // ETTER loadRegistry, FØR noe annet leser `registry`-variabelen — dette
+    // ENE punktet dekker derfor BÅDE registerblokka (renderRegistryBlock
+    // under) OG hele executeTool-dispatchen lenger ned (search_catalog/
+    // table_metadata/search_datasets/probe leser alle `registry` direkte),
+    // uten at hver gren må huske å filtrere selv. filtrerAvslatte er
+    // ikke-muterende (loadRegistry cacher modul-globalt — én mutasjon her
+    // ville fjernet kilden PERMANENT for alle senere spørringer i samme
+    // edge-instans) og returnerer samme referanse når ingen kilder er
+    // skrudd av. hent.ts (den separate proxy-funksjonen) er UBERØRT — den
+    // kjenner ikke sources_off og skal ikke gjøre det (Designavgjørelser).
+    registry = filtrerAvslatte(registry, coerceSourcesOff(body.sources_off));
     const availableKeys = Array.isArray(body.available_keys)
       ? (body.available_keys as unknown[])
         .filter((k): k is string => typeof k === "string" && /^[a-z0-9_-]{1,32}$/.test(k))

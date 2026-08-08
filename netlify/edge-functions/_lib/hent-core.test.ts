@@ -3,15 +3,15 @@ import { handleHent } from "./hent-core.ts";
 import { parseRegistry } from "./registry.ts";
 
 const REG = parseRegistry([{
-  id: "fred", navn: "FRED", utgiver: "Fed", tillit: "etablert", tilgang: "rest",
+  id: "fred", navn: "FRED", utgiver: "Fed", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://api.stlouisfed.org/fred/", cors: false,
   auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" },
 }, {
-  id: "kaggle", navn: "Kaggle", utgiver: "Kaggle", tillit: "etablert", tilgang: "rest",
+  id: "kaggle", navn: "Kaggle", utgiver: "Kaggle", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://www.kaggle.com/api/v1/", cors: false,
   auth: { type: "api_key", user: true, plassering: "basic" },
 }, {
-  id: "kagglefri", navn: "KaggleFri", utgiver: "K", tillit: "etablert", tilgang: "rest",
+  id: "kagglefri", navn: "KaggleFri", utgiver: "K", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://open.kagglefri.example/api/", cors: false,
   auth: { type: "api_key", user: true, valgfri: true, plassering: "basic" },
 }]);

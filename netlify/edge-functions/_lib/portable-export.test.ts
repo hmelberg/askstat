@@ -63,7 +63,7 @@ Deno.test("kind(json) → .json()-emisjon m/ rå-JSON-kommentar", () => {
 });
 
 Deno.test("connect + register-id løses via registry; cors:false-kilde blir DIREKTE URL", () => {
-  const REG = [{ id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell", tilgang: "pxweb",
+  const REG = [{ id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell", tilgang: "pxweb",
     base_url: "https://data.ssb.no/api/pxwebapi/v2-beta/", cors: false }];
   const s = '# ssb = ost.connect("ssb")\n# meta = ssb.read("tables/05839/metadata", kind="json")\n';
   const out = PE.transpile(s, "python", REG);
@@ -152,10 +152,10 @@ Deno.test("POST-body med ''' inni lekker/korrumperer ikke — json.loads(<escape
   if (out.code.includes("json.loads(r'''")) throw new Error("gammel r'''-inlining brukt fortsatt — usikker mot ''' i body:\n" + out.code);
 });
 
-const FRED_REG = [{ id: "fred", navn: "FRED", utgiver: "Fed", tillit: "etablert", tilgang: "rest",
+const FRED_REG = [{ id: "fred", navn: "FRED", utgiver: "Fed", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://api.stlouisfed.org/fred/", cors: false,
   auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" } }];
-const KAGGLE_REG = [{ id: "kaggle", navn: "Kaggle", utgiver: "K", tillit: "etablert", tilgang: "rest",
+const KAGGLE_REG = [{ id: "kaggle", navn: "Kaggle", utgiver: "K", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://www.kaggle.com/api/v1/", cors: false,
   auth: { type: "api_key", user: true, valgfri: true, plassering: "basic" } }];
 
@@ -219,7 +219,7 @@ Deno.test("anvil-kilde og exec(remote) → ikke-portabel kommentarblokk, resten 
 });
 
 Deno.test("R: POST- og nøkkel-temporaries er gyldige R-navn (starter aldri med underscore)", () => {
-  const REG = [{ id: "fred", navn: "F", utgiver: "F", tillit: "etablert", tilgang: "rest",
+  const REG = [{ id: "fred", navn: "F", utgiver: "F", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
     base_url: "https://api.stlouisfed.org/fred/", cors: false,
     auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" } }];
   const inner = "https://x.example/t.px";

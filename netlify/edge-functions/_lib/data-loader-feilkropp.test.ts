@@ -35,7 +35,7 @@ Deno.test("prefikset for pxweb-400-oversettelsen består", async () => {
 
 Deno.test("tomt worldbank-uttrekk kaster i stedet for å binde tom ramme", async () => {
   DL._resetCacheForTests();
-  const registry = [{ id: "worldbank", navn: "WB", utgiver: "WB", tillit: "etablert",
+  const registry = [{ id: "worldbank", navn: "WB", utgiver: "WB", beskrivelse: "test", tillit: "etablert",
     tilgang: "rest", kind: "worldbank", base_url: "https://api.worldbank.org/v2/", cors: true }];
   const fetchImpl = (() => Promise.resolve(new Response(
     JSON.stringify([{ page: 1, pages: 1, total: 0 }, []]),
@@ -67,7 +67,7 @@ Deno.test("fetchRawUrl: én-linjes ikke-CSV kaster IKKE", async () => {
 // worldbank-testen over — poenget er flateneren og tomt-vakten, ikke
 // nøkkelinjeksjonen (den er hent-core.ts sitt eget testeddomene).
 const DC_REGISTRY = [{
-  id: "datacommons", navn: "Google Data Commons", utgiver: "Google", tillit: "etablert",
+  id: "datacommons", navn: "Google Data Commons", utgiver: "Google", beskrivelse: "test", tillit: "etablert",
   tilgang: "rest", kind: "datacommons", base_url: "https://api.datacommons.org/v2/", cors: true,
   auth: { type: "api_key", env: "DATACOMMONS_API_KEY", plassering: "query:key" },
 }];

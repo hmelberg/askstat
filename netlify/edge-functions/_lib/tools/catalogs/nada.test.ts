@@ -3,7 +3,7 @@ import { nadaSearch, nadaMetadata } from "./nada.ts";
 import type { DataSource } from "../../registry.ts";
 
 const SRC: DataSource = {
-  id: "wbmicro", navn: "WB", utgiver: "WB", tillit: "offisiell",
+  id: "wbmicro", navn: "WB", utgiver: "WB", beskrivelse: "test", tillit: "offisiell",
   tilgang: "rest", kind: "nada",
   base_url: "https://microdata.worldbank.org/index.php/api/", cors: true,
 };

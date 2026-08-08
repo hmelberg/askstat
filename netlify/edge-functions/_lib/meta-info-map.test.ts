@@ -11,6 +11,7 @@ const REG = parseRegistry([
     id: "ssb",
     navn: "SSB PxWebApi",
     utgiver: "Statistisk sentralbyrå",
+    beskrivelse: "test",
     tillit: "offisiell",
     tilgang: "pxweb",
     base_url: "https://data.ssb.no/api/pxwebapi/v2-beta/",

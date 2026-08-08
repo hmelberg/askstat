@@ -96,7 +96,7 @@ Deno.test("probe no ACAO still counts as CORS:false", async () => {
 // --- SDMX-representasjon og XML-vern (2026-08-01, funnet i live smoke-test) ---
 
 const SDMX_REG = [
-  { id: "oecd", navn: "OECD SDMX", utgiver: "OECD", tillit: "offisiell",
+  { id: "oecd", navn: "OECD SDMX", utgiver: "OECD", beskrivelse: "test", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://sdmx.oecd.org/public/rest/data/", cors: true },
 ];
 

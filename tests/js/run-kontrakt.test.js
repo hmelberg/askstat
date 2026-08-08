@@ -54,3 +54,17 @@ test('utvidet søk-kontrakten består: samme localStorage-nøkkel i packs.js og 
     'ai-chat.js leser ikke lenger md_ask_discover NØYAKTIG slik svar.ts/coercing forventer');
   assert.ok(aiChat.includes('discover:'), 'ai-chat.js payload mangler discover-feltet');
 });
+
+// sources_off-kontrakten (kildevelger-runde 2, Task 3): klienten sender
+// feltet i /api/svar-payloaden, og svar.ts må ha BÅDE RequestBody-feltet
+// OG selve filtreringsfunksjonen — et navnesprik her ville dødd stille
+// (av-skrudde kilder ville aldri blitt filtrert server-side), uten at noen
+// eksisterende test (som aldri gjør en ekte HTTP-runde) fanger det.
+test('sources_off-kontrakten består: ai-chat.js sender feltet, svar.ts leser+filtrerer det', () => {
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  const svarTs = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'netlify', 'edge-functions', 'svar.ts'), 'utf8');
+  assert.ok(aiChat.includes('sources_off:'), 'ai-chat.js payload mangler sources_off-feltet');
+  assert.ok(svarTs.includes('sources_off?:'), 'svar.ts sin RequestBody mangler sources_off-feltet');
+  assert.ok(svarTs.includes('coerceSourcesOff'), 'svar.ts kaller ikke lenger coerceSourcesOff');
+});

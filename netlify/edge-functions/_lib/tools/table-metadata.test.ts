@@ -4,27 +4,27 @@ import { findSource, parseRegistry } from "../registry.ts";
 import type { DataSource } from "../registry.ts";
 
 const REG = parseRegistry([
-  { id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell", tilgang: "pxweb",
+  { id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell", tilgang: "pxweb",
     base_url: "https://data.ssb.no/api/pxwebapi/v2-beta/", cors: true,
     sporrings_url_mal: "https://data.ssb.no/api/pxwebapi/v2-beta/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv" },
-  { id: "owid", navn: "OWID", utgiver: "OWID", tillit: "etablert", tilgang: "fil",
+  { id: "owid", navn: "OWID", utgiver: "OWID", beskrivelse: "test", tillit: "etablert", tilgang: "fil",
     base_url: "https://ourworldindata.org/grapher/", cors: true },
-  { id: "fhi", navn: "FHI", utgiver: "FHI", tillit: "offisiell", tilgang: "rest",
+  { id: "fhi", navn: "FHI", utgiver: "FHI", beskrivelse: "test", tillit: "offisiell", tilgang: "rest",
     kind: "fhi", base_url: "https://statistikk-data.fhi.no/api/open/v1/", cors: true },
-  { id: "dst", navn: "DST", utgiver: "DST", tillit: "offisiell", tilgang: "rest",
+  { id: "dst", navn: "DST", utgiver: "DST", beskrivelse: "test", tillit: "offisiell", tilgang: "rest",
     kind: "dst", base_url: "https://api.statbank.dk/v1/", cors: true },
-  { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", tillit: "offisiell", tilgang: "rest",
+  { id: "statfin", navn: "StatFin", utgiver: "Tilastokeskus", beskrivelse: "test", tillit: "offisiell", tilgang: "rest",
     kind: "statfin", base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: false },
-  { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", tillit: "offisiell",
+  { id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", beskrivelse: "test", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true },
-  { id: "oecd", navn: "OECD", utgiver: "OECD", tillit: "offisiell",
+  { id: "oecd", navn: "OECD", utgiver: "OECD", beskrivelse: "test", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://sdmx.oecd.org/public/rest/data/", cors: true },
-  { id: "ecb", navn: "ECB", utgiver: "ECB", tillit: "offisiell",
+  { id: "ecb", navn: "ECB", utgiver: "ECB", beskrivelse: "test", tillit: "offisiell",
     tilgang: "sdmx", kind: "sdmx", base_url: "https://data-api.ecb.europa.eu/service/data/", cors: true },
   // Ekte form fra data-sources.json (uendret her): tilgang="rest" (IKKE
   // "sdmx") + kind="eurostat" — dispatchen treffer derfor default-grenen i
   // tableMetadata og videre på src.kind, ikke src.tilgang.
-  { id: "eurostat", navn: "Eurostat (dissemination API)", utgiver: "Eurostat", tillit: "offisiell",
+  { id: "eurostat", navn: "Eurostat (dissemination API)", utgiver: "Eurostat", beskrivelse: "test", tillit: "offisiell",
     tilgang: "rest", kind: "eurostat",
     base_url: "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/", cors: true },
 ]);
@@ -225,6 +225,7 @@ Deno.test("tableMetadata: kind worldbank delegerer til worldbankMetadata", async
     [{ id: "SP.POP.TOTL", name: "Population, total", source: { value: "WDI" }, sourceNote: "…" }],
   ]), { status: 200 }))) as unknown as typeof fetch;
   const reg = parseRegistry([{ id: "worldbank", navn: "Verdensbanken", utgiver: "WB",
+    beskrivelse: "test",
     tillit: "etablert", tilgang: "rest", kind: "worldbank",
     base_url: "https://api.worldbank.org/v2/", cors: true }]);
   const m = await tableMetadata("worldbank", "SP.POP.TOTL", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
@@ -241,6 +242,7 @@ Deno.test("tableMetadata: kind dbnomics delegerer til dbnomicsMetadata", async (
     }] },
   }), { status: 200 }))) as unknown as typeof fetch;
   const reg = parseRegistry([{ id: "dbnomics", navn: "DBnomics", utgiver: "Cepremap",
+    beskrivelse: "test",
     tillit: "etablert", tilgang: "rest", kind: "dbnomics",
     base_url: "https://api.db.nomics.world/v22/series/", cors: true }]);
   const m = await tableMetadata("dbnomics", "IMF/CPI", { registry: reg, fetchImpl: f }) as Record<string, unknown>;
@@ -302,7 +304,7 @@ const PXMETA = {
   },
 };
 const SSB_SRC: DataSource[] = [{
-  id: "ssb", navn: "SSB", utgiver: "SSB", tillit: "offisiell",
+  id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell",
   tilgang: "pxweb", base_url: "https://data.ssb.no/api/pxwebapi/v2/",
 } as unknown as DataSource];
 const fakeMandatoryFetch = ((_url: string) =>
@@ -344,6 +346,7 @@ Deno.test("dbnomicsMetadata: gir dimensjonsKODER + verdikoder (grunnlaget for fi
     }] },
   }), { status: 200 }))) as unknown as typeof fetch;
   const reg = parseRegistry([{ id: "dbnomics", navn: "DBnomics", utgiver: "Cepremap",
+    beskrivelse: "test",
     tillit: "etablert", tilgang: "rest", kind: "dbnomics",
     base_url: "https://api.db.nomics.world/v22/series/", cors: true }]);
   const m = await tableMetadata("dbnomics", "IMF/WEO", { registry: reg, fetchImpl: f }) as Record<string, unknown>;

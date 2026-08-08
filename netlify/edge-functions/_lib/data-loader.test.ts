@@ -149,7 +149,7 @@ Deno.test("resolveAndAssemble: fetches spec sources + returns spec", async () =>
 });
 
 const KAGGLE_REG = [{
-  id: "kaggle", navn: "Kaggle", utgiver: "Kaggle", tillit: "etablert", tilgang: "rest",
+  id: "kaggle", navn: "Kaggle", utgiver: "Kaggle", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://www.kaggle.com/api/v1/", cors: false,
   auth: { type: "api_key", user: true, plassering: "basic" },
 }];
@@ -216,7 +216,7 @@ Deno.test("data-loader: bar URL mot user-auth-kilde rutes via proxy (aldri direk
 });
 
 const KAGGLE_FRI_REG = [{
-  id: "kagglefri", navn: "KaggleFri", utgiver: "K", tillit: "etablert", tilgang: "rest",
+  id: "kagglefri", navn: "KaggleFri", utgiver: "K", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://open.kagglefri.example/api/", cors: false,
   auth: { type: "api_key", user: true, valgfri: true, plassering: "basic" },
 }];

@@ -27,13 +27,20 @@
   var TAG_MAX = 8;
   function cleanTags(input) {
     var arr = Array.isArray(input) ? input : String(input == null ? '' : input).split(',');
-    var seen = {};
+    // Object.create(null), IKKE {}: "__proto__" er en nedarvet ACCESSOR på
+    // Object.prototype (Annex B) — dens setter ignorerer non-objekt-verdier
+    // stille, så `seen['__proto__'] = true` på et vanlig {} ville vært en
+    // no-op og ALDRI faktisk registrert '__proto__' som sett (to forekomster
+    // av tagen "__proto__" ville da IKKE blitt deduplisert — funnet ved
+    // review, se regresjonstest under). Et prototype-løst objekt har ingen
+    // slik accessor, så vanlig bracket-tildeling fungerer normalt.
+    var seen = Object.create(null);
     var out = [];
     for (var i = 0; i < arr.length && out.length < TAG_MAX; i++) {
       var t = String(arr[i] == null ? '' : arr[i]).trim().toLowerCase();
-      // hasOwnProperty-sjekk (ikke bare seen[t]): en tag som "constructor"
-      // eller "__proto__" ville ellers lest en arvet Object.prototype-verdi
-      // og blitt stille forkastet som "duplikat" på FØRSTE forekomst.
+      // hasOwnProperty.call (ikke seen.hasOwnProperty, som ikke finnes på et
+      // Object.create(null)-objekt): en tag som "constructor" ville ellers
+      // lest en arvet Object.prototype-verdi via seen[t] direkte.
       if (!t || !TAG_RE.test(t) || Object.prototype.hasOwnProperty.call(seen, t)) continue;
       seen[t] = true;
       out.push(t);

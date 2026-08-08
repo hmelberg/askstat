@@ -344,6 +344,20 @@ test('cleanTags: "constructor" er en gyldig tag (ikke en arvet Object.prototype-
   assert.deepEqual(P.cleanTags(['constructor', '__proto__', 'ok']), ['constructor', '__proto__', 'ok']);
 });
 
+// Review-funn (fikserunde 1): "__proto__" er en nedarvet ACCESSOR på
+// Object.prototype hvis setter stille ignorerer non-objekt-verdier — på et
+// vanlig {} ville `seen['__proto__'] = true` derfor vært en no-op, og to
+// forekomster av tagen "__proto__" ville IKKE blitt deduplisert (samme for
+// "constructor", en vanlig data-property). Fikset med Object.create(null)
+// for seen-objektet.
+test('cleanTags: dedupliserer gjentatte "__proto__"/"constructor"-tagger', () => {
+  const P = makeProfiles(fakeStorage());
+  assert.deepEqual(
+    P.cleanTags(['__proto__', '__proto__', 'constructor', 'constructor']),
+    ['__proto__', 'constructor']
+  );
+});
+
 test('cleanTags: maks 8 tagger', () => {
   const P = makeProfiles(fakeStorage());
   const many = Array.from({ length: 12 }, (_, i) => 't' + i);

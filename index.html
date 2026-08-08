@@ -456,19 +456,47 @@
       </div>
     </div>
   </div>
-  <!-- Landvelger (kildevelger-runde 2, Task 4): åpnes fra sidemenyens
-       #askCountryBtn. Samme mønster som Explore-modalen over — fast
-       søkefelt-node (#countrySearch), kun radene i #countryList rebygges på
-       input (markørfiksen). Radioradene (Automatic/None/land) rendres av
-       js/packs.js sin renderCountryRows; valg lukker modalen. -->
-  <div class="ai-modal-backdrop" id="countryBackdrop">
+  <!-- Kildemodal (kildevelger-runde 2, spec 2026-08-08 §2, Task 4): faner
+       (Topics/Single sources), tag-chips og rediger-skjema — kun markup+CSS
+       her, JS-logikken kobles på i Task 5. Landvalget bor nå i
+       #sourcesCountrySelect over (erstatter det tidligere #countryBackdrop). -->
+  <div class="ai-modal-backdrop" id="sourcesBackdrop">
     <div class="ai-modal">
-      <h3 data-i18n>Country</h3>
-      <div class="ai-modal-help" data-i18n>Prefer this country's statistical sources when a question doesn't name one — pick Automatic, None, or a specific country.</div>
-      <input type="search" id="countrySearch" class="sources-search" data-i18n-placeholder placeholder="Search…">
-      <div id="countryList" class="profiles-list"></div>
+      <h3 data-i18n>Sources</h3>
+      <div class="ai-modal-help" data-i18n>Pick which sources the AI may use. Topics are curated menus of sources; single sources are direct instructions.</div>
+      <div class="sources-top">
+        <label for="sourcesCountrySelect" data-i18n>Country</label>
+        <select id="sourcesCountrySelect"></select>
+        <label class="sources-discover"><input type="checkbox" id="sourcesDiscoverCb"> <span data-i18n>Extended internet search — also look beyond the built-in sources (slower)</span></label>
+      </div>
+      <div class="sources-tabs" role="tablist">
+        <button type="button" class="sources-tab" id="sourcesTabOverview" data-i18n>Topics</button>
+        <button type="button" class="sources-tab" id="sourcesTabSource" data-i18n>Single sources</button>
+      </div>
+      <input type="search" id="sourcesSearch" class="sources-search" data-i18n-placeholder placeholder="Search…">
+      <div id="sourcesTagChips" class="sources-tag-chips"></div>
+      <div id="sourcesList" class="profiles-list sources-scroll"></div>
+      <div id="sourcesInfo" class="sources-info" hidden></div>
+      <div id="sourcesEdit" hidden>
+        <div class="sources-kind-choice" id="sourcesKindChoice">
+          <label><input type="radio" name="sourceKind" value="source" checked> <span data-i18n>Single source</span></label>
+          <label><input type="radio" name="sourceKind" value="overview"> <span data-i18n>Topic (collection)</span></label>
+        </div>
+        <label for="sourceName" data-i18n>Name</label>
+        <input type="text" id="sourceName" maxlength="60">
+        <label for="sourceText" data-i18n>Text added to every ask</label>
+        <textarea id="sourceText" rows="7" maxlength="40000"></textarea>
+        <label for="sourceTags" data-i18n>Tags (comma-separated)</label>
+        <input type="text" id="sourceTags">
+        <div class="sources-tag-quick" id="sourcesTagQuick"></div>
+        <details id="sourcePreviewWrap"><summary data-i18n>Preview</summary><div id="sourcePreview" class="ask-md-preview"></div></details>
+      </div>
       <div class="ai-modal-actions">
-        <button type="button" class="ai-modal-btn" data-i18n id="countryCloseBtn">Close</button>
+        <button type="button" class="ai-modal-btn" data-i18n id="sourcesImportBtn">Import new sources…</button>
+        <button type="button" class="ai-modal-btn" data-i18n id="sourcesNewBtn">New…</button>
+        <button type="button" class="ai-modal-btn" data-i18n id="sourceDeleteBtn" hidden>Delete</button>
+        <button type="button" class="ai-modal-btn primary" data-i18n id="sourceSaveBtn" hidden>Save</button>
+        <button type="button" class="ai-modal-btn" data-i18n id="sourcesCloseBtn">Close</button>
       </div>
     </div>
   </div>
@@ -476,9 +504,7 @@
     <div class="ai-modal">
       <h3 data-i18n id="profilesTitle">Profiles</h3>
       <div class="ai-modal-help" id="profilesHelp" data-i18n>A profile is a text that is automatically added to every question you ask — for example &laquo;Use only OECD as a data source&raquo;, documentation of your dataset's variables, or the URL of an extra source. Refer to stored keys as key(name) — never paste raw secrets here.</div>
-      <div class="ai-modal-help" id="sourcesHelp" data-i18n hidden>Your source library. Checked sources are active and sent with every question. Click a name for details; import shared sources or add countries below.</div>
       <div id="profilesList" class="profiles-list"></div>
-      <div id="sourcesInfo" class="sources-info" hidden></div>
       <div id="profilesEdit" hidden>
         <label for="profileName" data-i18n>Name</label>
         <input type="text" id="profileName" maxlength="60">
@@ -491,14 +517,6 @@
         </details>
       </div>
       <div class="ai-modal-actions">
-        <button type="button" class="ai-modal-btn" data-i18n id="sourcesImportBtn" hidden>Import shared sources…</button>
-        <!-- Kildevelger-runde 2 (Task 6): ryddeknapper, kun synlige i kildemodus
-             (samme hidden-mønster som sourcesImportBtn over, styrt av
-             profiles.js sin openModal). Landvalget («Add country…») er
-             FLYTTET til sidemenyens #askCountryBtn (Task 4) — se
-             #countryBackdrop. -->
-        <button type="button" class="ai-modal-btn" data-i18n id="sourcesDeselectBtn" hidden>Deselect all</button>
-        <button type="button" class="ai-modal-btn" data-i18n id="sourcesRemoveImportedBtn" hidden>Remove imported</button>
         <button type="button" class="ai-modal-btn" data-i18n id="profileNewBtn">New profile</button>
         <button type="button" class="ai-modal-btn" data-i18n id="profileDeleteBtn" hidden>Delete</button>
         <button type="button" class="ai-modal-btn primary" data-i18n id="profileSaveBtn" hidden>Save</button>

@@ -118,6 +118,29 @@ test('scrubKeys: idempotent', () => {
   assert.equal(DD.scrubKeys(once), once);
 });
 
+// Egne nøkler v1 (innstillinger-runden 2026-08-08 Task 11, selv-review-funn):
+// js/ai-chat.js sin mdAskExecuteScript prepender «KEYS = {...}» med RÅ
+// nøkkelverdier foran scriptet FØR det havner i den delte editoren
+// (#scriptInput) — ellers ville en senere «Inkluder skript fra editor»-
+// spørsmål (AI-panelets scriptContext → questionTurn()-prompten) eller en
+// delelenke/GitHub-lagring (js/github-storage.js) sendt/lagret verdien i
+// klartekst, siden scrubKeys tidligere kun kjente igjen secret_key=.
+test('scrubKeys: maskerer en injisert KEYS = {...}-linje (egne nøkler v1)', () => {
+  const injisert = 'KEYS = {"kaggle": "sk-live-hemmelig-abc123"}\nimport kaggle\nprint(KEYS["kaggle"])';
+  const scrubbet = DD.scrubKeys(injisert);
+  assert.doesNotMatch(scrubbet, /sk-live-hemmelig-abc123/);
+  assert.equal(scrubbet, 'KEYS = {"***": "***"}\nimport kaggle\nprint(KEYS["kaggle"])');
+  // flere nøkler, innrykk foran (uvanlig, men KEYS_LINE_RE tillater whitespace)
+  assert.doesNotMatch(
+    DD.scrubKeys('  KEYS = {"a": "hemmelig1", "b": "hemmelig2"}'),
+    /hemmelig1|hemmelig2/);
+});
+
+test('scrubKeys: rører ALDRI en vanlig KEYS-referanse uten dict-literal på linja (bruk av den allerede maskerte dicten)', () => {
+  ['print(KEYS["kaggle"])', 'if "kaggle" in KEYS:', 'x = KEYS.get("kaggle")',
+  ].forEach((line) => assert.equal(DD.scrubKeys(line), line, line));
+});
+
 test('meta: note, title og ukjent nøkkel som felt', () => {
   const p = DD.parse([
     '#meta.bef.title = "Folkemengde"',

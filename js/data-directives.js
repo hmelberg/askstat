@@ -179,10 +179,23 @@
 
   function count(s) { return (String(s).match(/\bsecret_key[ \t]*=/gi) || []).length; }
 
+  // KEYS = {...} (egne nøkler v1, innstillinger-runden 2026-08-08 Task 11):
+  // js/ai-chat.js sin mdAskExecuteScript prepender en linje som DENNE med
+  // RÅ nøkkelverdier foran scriptet FØR det havner i editoren, slik at
+  // generert kode kan lese KEYS['navn']. Uten dette maskerer scrubKeys
+  // ALDRI den linja — og en senere handling som leser editorinnholdet
+  // (AI-panelets «Inkluder skript» → questionTurn()-prompten, feiltelemetri,
+  // delelenke/GitHub-lagring i js/github-storage.js, portable-export.js)
+  // ville sendt/lagret den rå verdien i klartekst. Ordet KEYS (store
+  // bokstaver, tildelt en dict-literal på egen linje) er, som secret_key,
+  // bevisst valgt uvanlig nok til ikke å kollidere med ekte kode.
+  var KEYS_LINE_RE = /^[ \t]*KEYS[ \t]*=[ \t]*\{.*\}[ \t]*$/;
+
   function scrubKeys(script) {
     var lines = String(script == null ? '' : script).split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
+      if (KEYS_LINE_RE.test(line)) { lines[i] = 'KEYS = {"***": "***"}'; continue; }
       var before = count(line);
       if (!before) continue;
       var out = line.replace(SECRET_RE, function (m, head, val) {

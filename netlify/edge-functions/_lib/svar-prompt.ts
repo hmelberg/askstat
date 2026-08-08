@@ -96,6 +96,54 @@ export function coercePacks(p: unknown): RenderedPack[] {
   return out;
 }
 
+// Egne nøkler v1 (innstillinger-runden 2026-08-08 Task 11): klienten (js/
+// ai-chat.js sin runSvarLoop) sender KUN {navn, notat} — ALDRI selve
+// verdien (den lever kun i klientens window.Keys og injiseres der som en
+// KEYS-dict foran generert Python-kode, se mdAskExecuteScript). Serveren
+// stoler ALDRI på klienten og saneres på nytt her, samme mønster som
+// coerceTags/coercePacks over.
+export interface RenderedUserKey {
+  navn: string;
+  notat: string;
+}
+
+const USER_KEYS_MAX = 10;
+const USER_KEY_NAME_RE = /^[a-z0-9_-]{1,32}$/;
+const USER_KEY_NOTE_MAX = 500;
+
+export function coerceUserKeys(u: unknown): RenderedUserKey[] {
+  if (!Array.isArray(u)) return [];
+  const out: RenderedUserKey[] = [];
+  for (const item of u.slice(0, USER_KEYS_MAX)) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const navn = String(rec.navn ?? "").trim().toLowerCase();
+    if (!USER_KEY_NAME_RE.test(navn)) continue;
+    const notat = String(rec.notat ?? "").trim().slice(0, USER_KEY_NOTE_MAX);
+    out.push({ navn, notat });
+  }
+  return out;
+}
+
+// Renderes i data-ruten, etter packsBlock (buildSvarSystem under) — kun når
+// brukeren faktisk har registrert egne nøkler. Ordrett tekst fra spec
+// 2026-08-08-kilder-profil-output §Task 11: forteller modellen at nøkkelen
+// finnes i KJØREMILJØET (KEYS['<navn>'] i generert Python-kode), aldri i
+// selve prompten — og at CORS kan blokkere direkte nettleserkall.
+function renderUserKeysBlock(keys: RenderedUserKey[]): string {
+  if (!keys.length) return "";
+  const lines = keys.map((k) => `- ${k.navn}: ${k.notat}`);
+  return `## Brukerens egne API-nøkler
+
+Brukeren har lagt inn egne nøkler for tjenestene under. Selve nøkkelen er
+tilgjengelig i generert Python-kode som KEYS['<navn>'] (en dict som finnes i
+kjøremiljøet) — den er ALDRI synlig for deg. Bruk notatet til å forstå
+hvordan tjenesten nås. CORS kan blokkere direkte kall fra nettleseren —
+si ærlig fra hvis kallet feiler på nettverksnivå.
+
+${lines.join("\n")}`;
+}
+
 function renderPreferencesBlock(prefs: string): string {
   if (!prefs) return "";
   return `## Brukerens datapreferanser (overstyrer standardvalg)
@@ -905,7 +953,7 @@ export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,
   registryBlock: string,
-  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; packs?: unknown; discover?: boolean },
+  opts?: { memoryUrls?: boolean; depth?: Depth; preferences?: unknown; packs?: unknown; discover?: boolean; userKeys?: unknown },
 ): string {
   const depth = opts?.depth ?? "deep";
   if (route === "beregning") {
@@ -928,6 +976,8 @@ export function buildSvarSystem(
   if (prefBlock) blocks.push(prefBlock);
   const packsBlock = renderPacksBlock(coercePacks(opts?.packs));
   if (packsBlock) blocks.push(packsBlock);
+  const userKeysBlock = renderUserKeysBlock(coerceUserKeys(opts?.userKeys));
+  if (userKeysBlock) blocks.push(userKeysBlock);
   return blocks.join("\n\n");
 }
 

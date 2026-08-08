@@ -211,4 +211,15 @@ window.M2PY_I18N.no = {
   "New instruction": "Ny instruksjon",
   "No instruction": "Ingen instruksjon",
   "Instructions applied: {name}": "Instruksjoner brukt: {name}",
+  // Innstillinger — egne nøkler v1 (spec 2026-08-08-kilder-profil-output
+  // §Task 11): #aiCfgUserKeys-blokka i innstillingsmodalen. Markupen der er
+  // (bevisst, se brief) engelsk-kildet i motsetning til resten av modalen —
+  // full 13-språks-sweep gjøres samlet i Task 12.
+  "Your own keys": "Dine egne nøkler",
+  "Add a key for any service you want the AI to use — e.g. kaggle. The note tells the AI how to use it; the key itself is available to generated code as KEYS['name'] and is never shown to the AI.": "Legg til en nøkkel for en hvilken som helst tjeneste du vil at KI-en skal bruke — f.eks. kaggle. Notatet forteller KI-en hvordan den skal brukes; selve nøkkelen er tilgjengelig for generert kode som KEYS['navn'] og vises aldri til KI-en.",
+  "Add your own key": "Legg til egen nøkkel",
+  "service name, e.g. kaggle": "tjenestenavn, f.eks. kaggle",
+  "paste key": "lim inn nøkkel",
+  "optional note and/or URL: how should this key be used?": "valgfritt notat og/eller URL: hvordan skal nøkkelen brukes?",
+  "Save key": "Lagre nøkkel",
 };

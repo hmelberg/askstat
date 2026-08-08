@@ -529,19 +529,6 @@
       <label for="askLanguageSelect" id="askLanguageLabel">Language</label>
       <select id="askLanguageSelect" style="margin-bottom:14px;"></select>
 
-      <div id="aiCfgByokStored" style="display:none; margin-bottom:18px;">
-        <div class="ai-modal-help" style="margin-bottom:6px;" data-i18n>Egen Anthropic-nøkkel er lagret i denne nettleseren.</div>
-        <button type="button" class="ai-modal-btn" id="aiCfgByokRemove" data-i18n>Fjern nøkkel</button>
-      </div>
-
-      <div style="margin-bottom:18px;">
-        <label for="aiCfgAnthropicKey" data-i18n>Anthropic API-nøkkel</label>
-        <input type="password" id="aiCfgAnthropicKey" placeholder="sk-ant-…" autocomplete="off">
-        <div class="ai-modal-help" data-i18n-html>Lag en API-nøkkel på <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> og lim den inn her. Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server, men nøkkelen lagres eller logges ikke der. Forbruk belastes din egen Anthropic-konto. Gir også tilgang til Web-knappen i python/r/duckdb-modus.</div>
-      </div>
-
-      <div id="aiCfgSourceKeys" style="margin-bottom:18px;"></div>
-
       <div style="margin-bottom:18px;">
         <label for="aiCfgProviderType" data-i18n>AI-leverandør</label>
         <select id="aiCfgProviderType">
@@ -550,11 +537,40 @@
           <option value="openai-compat" data-i18n>OpenAI-kompatibel URL</option>
           <option value="openai-responses" data-i18n>OpenAI Responses (med websøk)</option>
         </select>
-        <div id="aiCfgProviderFields" style="display:none; margin-top:6px;">
-          <input type="text" id="aiCfgProviderUrl" placeholder="https://api.openai.com/v1" autocomplete="off">
-          <input type="text" id="aiCfgProviderModel" placeholder="gpt-5.6" autocomplete="off" style="margin-top:4px;">
-          <input type="password" id="aiCfgLlmKey" autocomplete="off" style="margin-top:4px;">
-          <div class="ai-modal-help" data-i18n>Base-URL er alt før endepunktnavnet (typisk t.o.m. /v1). Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server til leverandøren du velger, og forbruk (inkludert eventuelt websøk hos OpenAI) belastes din konto der. Web-modus med OpenAI-typene krever en modell med verktøystøtte.</div>
+      </div>
+
+      <div id="aiCfgAnthropicSection">
+        <div id="aiCfgByokStored" style="display:none; margin-bottom:18px;">
+          <div class="ai-modal-help" style="margin-bottom:6px;" data-i18n>Egen Anthropic-nøkkel er lagret i denne nettleseren.</div>
+          <button type="button" class="ai-modal-btn" id="aiCfgByokRemove" data-i18n>Fjern nøkkel</button>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <label for="aiCfgAnthropicKey" data-i18n>Anthropic API-nøkkel</label>
+          <input type="password" id="aiCfgAnthropicKey" placeholder="sk-ant-…" autocomplete="off">
+          <div class="ai-modal-help" data-i18n-html>Lag en API-nøkkel på <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> og lim den inn her. Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server, men nøkkelen lagres eller logges ikke der. Forbruk belastes din egen Anthropic-konto. Gir også tilgang til Web-knappen i python/r/duckdb-modus.</div>
+        </div>
+      </div>
+
+      <div id="aiCfgProviderFields" style="display:none; margin-top:6px; margin-bottom:18px;">
+        <input type="text" id="aiCfgProviderUrl" placeholder="https://api.openai.com/v1" autocomplete="off">
+        <input type="text" id="aiCfgProviderModel" placeholder="gpt-5.6" autocomplete="off" style="margin-top:4px;">
+        <input type="password" id="aiCfgLlmKey" autocomplete="off" style="margin-top:4px;">
+        <div class="ai-modal-help" data-i18n>Base-URL er alt før endepunktnavnet (typisk t.o.m. /v1). Nøkkelen lagres kun i denne nettleseren; forespørsler går via appens server til leverandøren du velger, og forbruk (inkludert eventuelt websøk hos OpenAI) belastes din konto der. Web-modus med OpenAI-typene krever en modell med verktøystøtte.</div>
+      </div>
+
+      <div id="aiCfgSourceKeys" style="margin-bottom:18px;"></div>
+
+      <div id="aiCfgUserKeys" style="margin-bottom:18px;">
+        <label data-i18n>Your own keys</label>
+        <div class="ai-modal-help" data-i18n>Add a key for any service you want the AI to use — e.g. kaggle. The note tells the AI how to use it; the key itself is available to generated code as KEYS['name'] and is never shown to the AI.</div>
+        <div id="aiCfgUserKeyList"></div>
+        <button type="button" class="ai-modal-btn" id="aiCfgUserKeyAdd" data-i18n>Add your own key</button>
+        <div id="aiCfgUserKeyForm" hidden>
+          <input type="text" id="userKeyName" data-i18n-placeholder placeholder="service name, e.g. kaggle" autocomplete="off">
+          <input type="password" id="userKeyValue" data-i18n-placeholder placeholder="paste key" autocomplete="off" style="margin-top:4px;">
+          <textarea id="userKeyNote" rows="2" data-i18n-placeholder placeholder="optional note and/or URL: how should this key be used?" style="margin-top:4px;"></textarea>
+          <button type="button" class="ai-modal-btn" id="userKeySave" data-i18n style="margin-top:4px;">Save key</button>
         </div>
       </div>
 

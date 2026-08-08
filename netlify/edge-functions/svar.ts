@@ -33,6 +33,7 @@ interface RequestBody {
   preferences?: unknown;
   packs?: unknown;
   sources_off?: unknown;
+  user_keys?: unknown;
   discover?: unknown;
   provider?: unknown;
   resume?: ResumeBody;
@@ -233,7 +234,9 @@ export default async (request: Request): Promise<Response> => {
   // ukjent JSON, så === true holder DISCOVER-blokka unna en tilfeldig
   // truthy-verdi (f.eks. "false" som streng).
   const discover = body.discover === true;
-  const system = buildSvarSystem(route, mode, registryBlock, { memoryUrls, depth, preferences: body.preferences, packs: body.packs, discover });
+  const system = buildSvarSystem(route, mode, registryBlock, {
+    memoryUrls, depth, preferences: body.preferences, packs: body.packs, discover, userKeys: body.user_keys,
+  });
 
   const probed: { url: string; ok: boolean; cors: boolean; viaProxy: boolean }[] = [];
   if (body.resume && Array.isArray(body.resume.probed)) {

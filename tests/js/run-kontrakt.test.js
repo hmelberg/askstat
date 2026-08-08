@@ -70,3 +70,42 @@ test('sources_off-kontrakten består: ai-chat.js sender feltet, svar.ts leser+fi
   assert.ok(svarTs.includes('sources_off?:'), 'svar.ts sin RequestBody mangler sources_off-feltet');
   assert.ok(svarTs.includes('coerceSourcesOff'), 'svar.ts kaller ikke lenger coerceSourcesOff');
 });
+
+// user_keys-kontrakten (innstillinger-runden, Task 11): egne nøkler lagres
+// lokalt som metadata (md_user_keys: [{id, navn, notat}]) + selve verdien i
+// det felles nøkkellageret (window.Keys, id 'usr-<slug>'). Payloaden til
+// /api/svar skal ALDRI inneholde selve nøkkelverdien — kun navn+notat, slik
+// at et navnesprik her ikke stille lekker en hemmelighet til serveren/
+// telemetri. svar.ts må ha BÅDE RequestBody-feltet OG en faktisk
+// koersjonsfunksjon (samme mønster som sources_off/packs over).
+test('user_keys-kontrakten består: payload sender {navn, notat} for hver egen nøkkel, ALDRI selve verdien', () => {
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  const svarTs = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'netlify', 'edge-functions', 'svar.ts'), 'utf8');
+  assert.ok(aiChat.includes('user_keys:'), 'ai-chat.js payload mangler user_keys-feltet');
+  assert.ok(
+    /user_keys:\s*\(mdUserKeysMeta\(\)\.length\s*\?\s*mdUserKeysMeta\(\)\.map\(function\s*\(k\)\s*\{\s*return\s*\{\s*navn:\s*k\.navn,\s*notat:\s*k\.notat\s*\};\s*\}\)\s*:\s*undefined\)/
+      .test(aiChat),
+    'user_keys skal mappes til {navn, notat} fra mdUserKeysMeta() — ikke i det formatet forventet');
+  const uk = aiChat.match(/user_keys:[\s\S]*?undefined\)/);
+  assert.ok(uk, 'fant ikke user_keys-uttrykket i payloaden');
+  assert.ok(!/Keys\.get|\.value\b/.test(uk[0]),
+    'user_keys-uttrykket refererer til selve nøkkelverdien — skal KUN sende navn+notat');
+  assert.ok(svarTs.includes('user_keys?:'), 'svar.ts sin RequestBody mangler user_keys-feltet');
+  assert.ok(svarTs.includes('coerceUserKeys') || svarTs.includes('body.user_keys'),
+    'svar.ts leser ikke lenger body.user_keys inn i buildSvarSystem');
+});
+
+// available_keys-avgrensning (selv-review-funn, Task 11): egne nøkler
+// ('usr-<slug>'-ider i window.Keys) skal ALDRI havne i available_keys —
+// den listen har en annen betydning server-side (renderRegistryBlock i
+// svar-prompt.ts sjekker s.id-medlemskap mot REGISTERKILDER, ikke egne
+// nøkler) og de to nøkkellistene skal holdes begrepsmessig adskilt: egne
+// nøkler går KUN via user_keys-feltet over.
+test('available_keys filtrerer bort usr-*-ider (egne nøkler skal KUN i user_keys, ikke blandes inn her)', () => {
+  const aiChat = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  const ak = aiChat.match(/available_keys:[\s\S]*?\)\s*:\s*\[\]\)/);
+  assert.ok(ak, 'fant ikke available_keys-uttrykket i payloaden');
+  assert.ok(/indexOf\('usr-'\)\s*!==\s*0/.test(ak[0]),
+    'available_keys filtrerer ikke lenger bort usr-*-ider fra Keys.registered()');
+});

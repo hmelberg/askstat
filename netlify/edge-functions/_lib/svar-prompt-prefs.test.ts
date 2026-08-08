@@ -1,5 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { buildSvarSystem, coercePacks, coercePreferences, demoteHeadings, GET_PACK_TOOL } from "./svar-prompt.ts";
+import {
+  buildSvarSystem, coercePacks, coercePreferences, coerceUserKeys, demoteHeadings, GET_PACK_TOOL,
+} from "./svar-prompt.ts";
 
 Deno.test("coercePreferences: streng, trim, tak 8000 (profil-tekster)", () => {
   assertEquals(coercePreferences(undefined), "");
@@ -225,4 +227,55 @@ Deno.test("Utvidet-søk-hint: «Extended search» nevnes i data-ruten uten disco
   assert(!medDiscover.includes("Extended search"));
   // andre ruter har verken hintet eller META_SEARCH i det hele tatt
   assert(!buildSvarSystem("beregning", "python", "").includes("Extended search"));
+});
+
+// Egne nøkler v1 (innstillinger-runden 2026-08-08 Task 11): coerceUserKeys
+// saneres uavhengig av klienten — navn må matche slug-formatet (klienten
+// slugifiserer allerede, men serveren stoler aldri på det), notat trimmes/
+// kappes, taket er 10 nøkler. Selve verdien finnes ALDRI i denne strukturen
+// (klienten sender kun {navn, notat} — se tests/js/run-kontrakt.test.js for
+// klientsiden av kontrakten).
+Deno.test("coerceUserKeys: navn-regex, notat-tak 500, maks 10, ugyldige navn droppes", () => {
+  assertEquals(coerceUserKeys(undefined), []);
+  assertEquals(coerceUserKeys("ikke en liste"), []);
+  assertEquals(coerceUserKeys([{ navn: "Kaggle", notat: "  bruk kaggle-api  " }]),
+    [{ navn: "kaggle", notat: "bruk kaggle-api" }]); // lowercased, trimmet
+  assertEquals(coerceUserKeys([{ navn: "ugyldig navn!", notat: "x" }]), []); // mellomrom/tegn ikke tillatt
+  assertEquals(coerceUserKeys([{ navn: "", notat: "x" }]), []);
+  assertEquals(coerceUserKeys([{ navn: "ok_name-1", notat: "y" }]),
+    [{ navn: "ok_name-1", notat: "y" }]);
+  assertEquals(coerceUserKeys([{ navn: "a", notat: "x".repeat(600) }])[0].notat.length, 500);
+  const elleve = Array.from({ length: 11 }, (_, i) => ({ navn: `k${i}`, notat: "n" }));
+  assertEquals(coerceUserKeys(elleve).length, 10);
+  // ingen verdi-felt i det hele tatt — selv om klienten skulle sende én,
+  // rendres den aldri videre (kun navn/notat leses ut av coerceUserKeys).
+  assertEquals(coerceUserKeys([{ navn: "kaggle", notat: "x", value: "hemmelig-hemmelighet" }]),
+    [{ navn: "kaggle", notat: "x" }]);
+});
+
+Deno.test("renderUserKeysBlock (via buildSvarSystem): kun i data-ruten, kun når ikke-tom, etter packsBlock, aldri verdien i prompten", () => {
+  const uten = buildSvarSystem("data", "python", "## Kilderegister (kuratert)\n\n- x");
+  assert(!uten.includes("Brukerens egne API-nøkler"));
+  const med = buildSvarSystem("data", "python", "## Kilderegister (kuratert)\n\n- x", {
+    userKeys: [{ navn: "kaggle", notat: "bruk kaggle-api-en, se dokumentasjon" }],
+  });
+  assert(med.includes("## Brukerens egne API-nøkler"));
+  assert(med.includes("- kaggle: bruk kaggle-api-en, se dokumentasjon"));
+  assert(med.includes("KEYS['<navn>']"));
+  const medPacks = buildSvarSystem("data", "python", "", {
+    packs: [{ id: "norway", name: "Norway", text: "x", level: "full" }],
+    userKeys: [{ navn: "kaggle", notat: "x" }],
+  });
+  assert(medPacks.indexOf("Aktive kildepakker") < medPacks.indexOf("Brukerens egne API-nøkler"),
+    "user_keys-blokka skal stå ETTER packsBlock");
+  // aldri i andre ruter
+  assert(!buildSvarSystem("beregning", "python", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
+    .includes("Brukerens egne API-nøkler"));
+  assert(!buildSvarSystem("utforsk", "python", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
+    .includes("Brukerens egne API-nøkler"));
+  assert(!buildSvarSystem("oppslag", "python", "", { userKeys: [{ navn: "kaggle", notat: "x" }] })
+    .includes("Brukerens egne API-nøkler"));
+  // ugyldig navn → filtrert bort av coerceUserKeys → ingen blokk i det hele tatt
+  const ugyldig = buildSvarSystem("data", "python", "", { userKeys: [{ navn: "har mellomrom", notat: "x" }] });
+  assert(!ugyldig.includes("Brukerens egne API-nøkler"));
 });

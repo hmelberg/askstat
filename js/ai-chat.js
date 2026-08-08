@@ -38,8 +38,10 @@
          'aiThread','aiInput','aiSendFastBtn','aiSendV2Btn','aiSendWebBtn','aiAbortBtn',
          'aiIncludeScript',
          'aiSettingsBackdrop','aiCfgAnthropicKey','aiCfgSave','aiCfgCancel',
-         'aiCfgByokStored','aiCfgByokRemove','aiCfgSourceKeys',
+         'aiCfgAnthropicSection','aiCfgByokStored','aiCfgByokRemove','aiCfgSourceKeys',
          'aiCfgProviderType','aiCfgProviderFields','aiCfgProviderUrl','aiCfgProviderModel','aiCfgLlmKey',
+         'aiCfgUserKeys','aiCfgUserKeyList','aiCfgUserKeyAdd','aiCfgUserKeyForm',
+         'userKeyName','userKeyValue','userKeyNote','userKeySave',
          'sidebarRight','sidebarOpenTab','scriptInput'
         ].forEach(id => { dom[id] = $(id); });
         dom.containers = document.querySelectorAll('.container');
@@ -688,7 +690,16 @@
               route: params.route,
               mode: mode,
               depth: params.depth || 'deep',
-              available_keys: (window.Keys ? window.Keys.registered() : []),
+              // available_keys: KUN datakilde-/leverandør-nøkkel-ider fra
+              // registeret (renderRegistryBlock sin userKeys-parameter i
+              // svar-prompt.ts sjekker s.id-medlemskap mot registerkilder —
+              // en 'usr-<slug>'-id ville aldri matche der uansett, men
+              // filtreres bevisst bort her for å holde de to nøkkellistene
+              // begrepsmessig adskilt: egne nøkler går KUN via user_keys
+              // under (innstillinger-runden, Task 11).
+              available_keys: (window.Keys ? window.Keys.registered().filter(function (k) {
+                return k.indexOf('usr-') !== 0;
+              }) : []),
               // Konto-runden fase 1: preferences = aktiv PROFILS tekst
               // (js/profiles.js erstatter md_ask_prefs; seedes ved oppstart).
               preferences: (window.Profiles && window.Profiles.activeText && window.Profiles.activeText()) || undefined,
@@ -703,6 +714,12 @@
               // filtrerAvslatte (tom off → samme registry-referanse).
               sources_off: window.Profiles && Profiles.sourcesOff && Profiles.sourcesOff().length
                 ? Profiles.sourcesOff() : undefined,
+              // Egne nøkler v1 (innstillinger-runden, Task 11): kun
+              // {navn, notat} — ALDRI selve verdien (den blir aldri lest ut
+              // av window.Keys her). Serveren (svar-prompt.ts sin
+              // renderUserKeysBlock) forteller AI-en at verdien finnes i
+              // generert Python-kode som KEYS['<navn>'] via mdAskExecuteScript.
+              user_keys: (mdUserKeysMeta().length ? mdUserKeysMeta().map(function (k) { return { navn: k.navn, notat: k.notat }; }) : undefined),
               // Utvidet søk (kontekstrunden fase 2 §5): true|undefined —
               // svar.ts coercer med === true (aldri stol på en tilfeldig
               // truthy verdi over nettet).
@@ -1323,6 +1340,78 @@
         });
       }
 
+      // Egne nøkler v1 (innstillinger-runden, Task 11): brukeren registrerer
+      // vilkårlige tjenester (f.eks. kaggle) selv — ingen registeroppføring
+      // nødvendig (kontrast til renderSourceKeys over, som er registerstyrt).
+      // Metadata (id/navn/notat — ALDRI verdien) i md_user_keys; selve
+      // verdien i det felles nøkkellageret (window.Keys, id 'usr-<slug>').
+      // mdUserKeysMeta() er den eneste leseveien — payloaden til /api/svar
+      // (runSvarLoop under) og KEYS-injeksjonen (mdAskExecuteScript) bruker
+      // begge denne, så et format-avvik kan aldri oppstå mellom dem.
+      var LS_USER_KEYS = 'md_user_keys';
+      function mdUserKeysMeta() {
+        try {
+          var list = JSON.parse(localStorage.getItem(LS_USER_KEYS) || '[]');
+          return Array.isArray(list) ? list : [];
+        } catch (e) { return []; }
+      }
+      function saveUserKeysMeta(list) {
+        try { localStorage.setItem(LS_USER_KEYS, JSON.stringify(list)); } catch (e) {}
+      }
+      function slugifyUserKeyName(navn) {
+        return String(navn || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      }
+      // Kollisjon (to nøkler som slugifiserer likt) → -2, -3, … til ledig id.
+      function uniqueUserKeyId(slug, existingIds) {
+        var id = 'usr-' + slug;
+        if (existingIds.indexOf(id) === -1) return id;
+        var n = 2;
+        while (existingIds.indexOf('usr-' + slug + '-' + n) !== -1) n++;
+        return 'usr-' + slug + '-' + n;
+      }
+      function renderUserKeys() {
+        var box = dom.aiCfgUserKeyList;
+        if (!box) return;
+        var list = mdUserKeysMeta();
+        box.innerHTML = '';
+        list.forEach(function (k) {
+          var wrap = document.createElement('div');
+          wrap.style.margin = '6px 0 10px';
+          var lab = document.createElement('div');
+          lab.className = 'ai-modal-help';
+          lab.textContent = k.navn + ' — ' + T('nøkkel registrert') + (k.notat ? ' (' + k.notat + ')' : '');
+          wrap.appendChild(lab);
+          var rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'ai-modal-btn';
+          rm.textContent = T('Fjern nøkkel');
+          rm.addEventListener('click', function () {
+            if (window.Keys) window.Keys.remove(k.id);
+            saveUserKeysMeta(mdUserKeysMeta().filter(function (x) { return x.id !== k.id; }));
+            renderUserKeys();
+          });
+          wrap.appendChild(rm);
+          box.appendChild(wrap);
+        });
+      }
+      function addUserKeyFromForm() {
+        var navn = dom.userKeyName ? dom.userKeyName.value.trim() : '';
+        var value = dom.userKeyValue ? dom.userKeyValue.value.trim() : '';
+        var notat = dom.userKeyNote ? dom.userKeyNote.value.trim() : '';
+        var slug = slugifyUserKeyName(navn);
+        if (!slug || !value) return; // navn (etter slugifisering) og verdi er påkrevd
+        var list = mdUserKeysMeta();
+        var id = uniqueUserKeyId(slug, list.map(function (x) { return x.id; }));
+        window.Keys.set(id, value);
+        list.push({ id: id, navn: navn, notat: notat });
+        saveUserKeysMeta(list);
+        if (dom.userKeyName) dom.userKeyName.value = '';
+        if (dom.userKeyValue) dom.userKeyValue.value = '';
+        if (dom.userKeyNote) dom.userKeyNote.value = '';
+        if (dom.aiCfgUserKeyForm) dom.aiCfgUserKeyForm.hidden = true;
+        renderUserKeys();
+      }
+
       // Global AI-leverandør (spec 2026-07-23-llm-provider-tiers A1): type +
       // base-URL + modell i md_llm_provider (ikke hemmelig); nøkkelen i det
       // felles nøkkellageret (js/keys.js, type 'llm').
@@ -1344,9 +1433,13 @@
         return edgeAuthHeaders();
       }
       function syncProviderFields() {
-        if (!dom.aiCfgProviderType || !dom.aiCfgProviderFields) return;
+        if (!dom.aiCfgProviderType) return;
         var custom = dom.aiCfgProviderType.value !== 'anthropic';
-        dom.aiCfgProviderFields.style.display = custom ? '' : 'none';
+        // Innstillinger-rekkefølgen (Task 11): leverandørvalget styrer BEGGE
+        // veier — Anthropic-seksjonen (BYOK-status + nøkkelfelt) speilvendt
+        // av de custom-leverandør-feltene (URL/modell/nøkkel).
+        if (dom.aiCfgProviderFields) dom.aiCfgProviderFields.style.display = custom ? '' : 'none';
+        if (dom.aiCfgAnthropicSection) dom.aiCfgAnthropicSection.style.display = custom ? 'none' : '';
         if (dom.aiCfgLlmKey) {
           dom.aiCfgLlmKey.placeholder = (window.Keys && window.Keys.get('llm'))
             ? '••••••••' : T('lim inn nøkkel');
@@ -1356,6 +1449,8 @@
         if (dom.aiCfgAnthropicKey) dom.aiCfgAnthropicKey.value = state.anthropicKey;
         refreshUserPanel();
         renderSourceKeys();
+        renderUserKeys();
+        if (dom.aiCfgUserKeyForm) dom.aiCfgUserKeyForm.hidden = true;
         var provRaw = null;
         try { provRaw = JSON.parse(localStorage.getItem(LS_PROVIDER) || 'null'); } catch (e) {}
         if (dom.aiCfgProviderType) dom.aiCfgProviderType.value = (provRaw && provRaw.type) || 'anthropic';
@@ -1424,6 +1519,19 @@
             if (window.mdSyncWebBtnVisibility) window.mdSyncWebBtnVisibility();
           });
         }
+
+        // Egne nøkler v1 (Task 11): «Add your own key» åpner skjemaet;
+        // «Save key» lagrer umiddelbart (samme mønster som Datakilde-nøklenes
+        // Fjern-knapp over — ingen ekstra «Lagre innstillinger»-steg).
+        if (dom.aiCfgUserKeyAdd) {
+          dom.aiCfgUserKeyAdd.addEventListener('click', () => {
+            if (dom.userKeyName) dom.userKeyName.value = '';
+            if (dom.userKeyValue) dom.userKeyValue.value = '';
+            if (dom.userKeyNote) dom.userKeyNote.value = '';
+            if (dom.aiCfgUserKeyForm) dom.aiCfgUserKeyForm.hidden = false;
+          });
+        }
+        if (dom.userKeySave) dom.userKeySave.addEventListener('click', addUserKeyFromForm);
 
         // Send is routed by the active mode: microdata-modus → microdata AI
         // (kode-svar); otherwise the agentic svar flow (search data → script
@@ -1532,6 +1640,21 @@
         // verktøyresultatet. Innsetting + kjøring + output-lesing i ett —
         // både ask-visningen og AI-panelet bruker denne.
         window.mdAskExecuteScript = async function (script, signal) {
+          // Egne nøkler v1 (innstillinger-runden, Task 11): KUN python-modus
+          // (samme mode-oppslag som runSvarLoop over) — prepend en KEYS-dict
+          // med {navn: verdi} for hver registrert egen nøkkel som faktisk har
+          // en verdi i window.Keys. AI-en ser aldri verdien (kun navn+notat i
+          // prompten via user_keys/renderUserKeysBlock) — den blir bare
+          // tilgjengelig for koden NÅR den kjøres her, klientsidig.
+          var mode = (typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python';
+          var userKeys = {};
+          mdUserKeysMeta().forEach(function (k) {
+            var v = window.Keys && window.Keys.get(k.id);
+            if (v) userKeys[k.navn] = v;
+          });
+          if (Object.keys(userKeys).length && mode === 'python') {
+            script = 'KEYS = ' + JSON.stringify(userKeys) + '\n' + script;
+          }
           insertScriptIntoEditor(script);
           var err = await runScriptAndCaptureError(signal);
           var out = document.getElementById('outputArea');

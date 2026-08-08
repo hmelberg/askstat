@@ -12,6 +12,10 @@
   var CTY_CACHE = 'md_packs_countries';
   var TXT_CACHE = 'md_pack_text:'; // + id
   var IMPORTED = 'md_packs_imported';
+  // Kildevelger-runde 2 (§Designavgjørelser, Task 2): cache for
+  // data/data-sources.json — samme nett-først/storage-fallback-mønster som
+  // IDX_CACHE/CTY_CACHE.
+  var REG_CACHE = 'md_sources_registry';
 
   // Hans' mal (brainstorm 2026-08-05) — {NOTE} bærer ærlig adapterdekning.
   var TEMPLATE = 'The user is likely from {NAME}. When the question concerns ' +
@@ -73,6 +77,7 @@
   function makePacks(storage, fetchImpl, profiles) {
     var index = null;     // {v, packs:[{id,name,description,file,country}]}
     var countries = null; // {v, countries:{CC:{name,agency,note}}}
+    var registry = null;  // [{id,navn,beskrivelse,...}] — data/data-sources.json
     var mem = {};         // id -> {name, text}
     // Review-funn 2026-08-06 (Task 4-fiks): describe() sin origin-prefiks
     // (§4) skal oversettes — samme mønster som js/cells.js' DOM-halvdel
@@ -94,13 +99,18 @@
 
     async function load() {
       // Nett-først (cache-bust følger deploy), storage som fallback — pakker
-      // er berikelse og skal aldri blokkere ask-flyten.
+      // er berikelse og skal aldri blokkere ask-flyten. data-sources.json
+      // (Task 2 §4) følger SAMME mønster — brukes av listRegistry() til
+      // biblioteksmanagerens «Built-in data sources»-gruppe (Task 6).
       var idx = await fetchJson('data/packs/index.json').catch(function () { return null; });
       var cty = await fetchJson('data/packs/countries.json').catch(function () { return null; });
+      var reg = await fetchJson('data/data-sources.json').catch(function () { return null; });
       if (idx && idx.v === 1 && Array.isArray(idx.packs)) { index = idx; writeJson(IDX_CACHE, idx); }
       else index = readJson(IDX_CACHE);
       if (cty && cty.v === 1 && cty.countries) { countries = cty; writeJson(CTY_CACHE, cty); }
       else countries = readJson(CTY_CACHE);
+      if (Array.isArray(reg)) { registry = reg; writeJson(REG_CACHE, reg); }
+      else registry = readJson(REG_CACHE) || [];
     }
 
     function curated() { return (index && index.packs) || []; }
@@ -153,41 +163,102 @@
         var pre = pr.origin && pr.origin.source === 'community' ? t('Imported from shared sources. ') : '';
         return pre + String(pr.text || '').slice(0, 400);
       }
+      // reg:<id> (Task 2 §5–6): biblioteksmanagerens «Built-in data sources»-
+      // infopanel — beskrivelse er PÅKREVD fra Task 3, men fravær (eldre
+      // cache) gir stille ''.
+      if (id.indexOf('reg:') === 0) {
+        var reg = (registry || []).filter(function (r) { return r.id === id.slice(4); })[0];
+        return reg ? (reg.beskrivelse || '') : '';
+      }
       var c = curated().filter(function (p) { return p.id === id; })[0];
       return c ? (c.description || '') : '';
     }
 
+    // list() (kildevelger-runde 2 §Designavgjørelser): builtin- og
+    // country-grenene er FJERNET herfra — landvalget eies av landvelgeren
+    // (countryPackId/countryOptions under) og de innebygde kildene av
+    // registry-togglene (listRegistry under). Denne lista er nå KUN egne
+    // kilder (fritt opprettet ELLER importert fra community), gruppert etter
+    // opprinnelse for popover/manager-overskriftene (Task 5/6): 'mine' for
+    // frittstående, 'overview'/'src' for community-importer (speiler
+    // origin.kind, satt av importPack under).
     function list() {
       var out = [];
-      // Community-pakker er IKKE direkte velgbare (les-før-aktiver, spec §5):
-      // de vises i Explore-modalen; import lager en kind:source-oppføring i
-      // Profiles-lageret, som havner i 'imported'-gruppa under.
-      curated().forEach(function (p) {
-        if (p.community) return;
-        out.push({ id: p.id, name: p.name, description: p.description || '', group: 'builtin' });
-      });
-      var covered = {};
-      curated().forEach(function (p) { if (p.country) covered[p.country] = true; });
-      var map = countryMap();
-      Object.keys(map).sort(function (a, b) {
-        return map[a].name.localeCompare(map[b].name);
-      }).forEach(function (cc) {
-        if (!covered[cc]) {
-          // Sluttreview-funn: description var alltid '' for land — filterCatalog
-          // (delt av landsøket) matcher kun navn da. agency+note gir treff på
-          // f.eks. «SCB» for Sverige uten å pirke i filterCatalog selv.
-          var desc = (map[cc].agency || '') + (map[cc].note ? ' ' + map[cc].note : '');
-          out.push({ id: 'country:' + cc, name: map[cc].name, description: desc, group: 'country' });
-        }
-      });
-      // Egne kilder (fritt opprettet ELLER importert fra community) — hentes
-      // fra det unifiserte profil-lageret, ikke egen storage-nøkkel lenger.
       if (profiles && profiles.list) {
         profiles.list('source').forEach(function (pr) {
-          out.push({ id: 'user:' + pr.id, name: pr.name, description: '', group: 'imported' });
+          var group = 'mine';
+          if (pr.origin && pr.origin.source === 'community') {
+            group = pr.origin.kind === 'source' ? 'src' : 'overview';
+          }
+          out.push({ id: 'user:' + pr.id, name: pr.name, description: '', group: group });
         });
       }
       return out;
+    }
+
+    // countryPackId() (§Designavgjørelser): landvalgets EFFEKTIVE pakke-id —
+    // none→ingen, cc→kuratert pakke for landet hvis den finnes ellers den
+    // generiske landmalen, auto→dagens device-lokale auto-RESULTAT
+    // (md_pack_auto, vedlikeholdt av applyAuto/boot/onLangChange under).
+    // Egen try/catch — en manglende/blokkert storage skal aldri kaste hit.
+    function countryPackId() {
+      var st = profiles && profiles.countryState ? profiles.countryState() : { mode: 'auto' };
+      if (st.mode === 'none') return null;
+      if (st.mode === 'cc') {
+        var cc = st.cc;
+        return curatedForCountry(cc) || (countryMap()[cc] ? 'country:' + cc : null);
+      }
+      try { return storage.getItem('md_pack_auto'); } catch (e) { return null; }
+    }
+
+    // effectiveIds() (§Designavgjørelser): manuelt valgte pakker
+    // (packsState().ids) PLUSS landpakken FØRST — dedup slik at en landpakke
+    // som OGSÅ ligger manuelt valgt ikke telles/sendes to ganger. Dette er
+    // motorens/payload()s reelle valgsett — pillen viser fortsatt kun det
+    // manuelle settet (packsState().ids), landet vises for seg (Task 7).
+    function effectiveIds() {
+      var manual = (profiles && profiles.packsState ? profiles.packsState() : { ids: [] }).ids || [];
+      var out = manual.slice();
+      var landId = countryPackId();
+      if (landId) {
+        var idx = out.indexOf(landId);
+        if (idx >= 0) out.splice(idx, 1);
+        out.unshift(landId);
+      }
+      return out;
+    }
+
+    // countryOptions() (landvelger-modalen, Task 4): kuraterte pakker MED
+    // country-felt (community holdt utenfor — de er ikke landvalgbare) pluss
+    // generiske land fra countries.json som IKKE har en kuratert pakke,
+    // sortert på navn. packId er hva countryPackId() ville returnert for
+    // landet i cc-modus (kuratert id eller 'country:CC').
+    function countryOptions() {
+      var out = [];
+      var covered = {};
+      curated().forEach(function (p) {
+        if (p.community || !p.country) return;
+        covered[p.country] = true;
+        out.push({ cc: p.country, name: p.name, packId: p.id });
+      });
+      var map = countryMap();
+      Object.keys(map).forEach(function (cc) {
+        if (!covered[cc]) out.push({ cc: cc, name: map[cc].name, packId: 'country:' + cc });
+      });
+      out.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      return out;
+    }
+
+    // listRegistry() (biblioteksmanagerens «Built-in data sources», Task 6):
+    // registry-oppføringer m/ av-status fra Profiles.sourcesOff(). navn/
+    // beskrivelse er de norske feltnavnene i data/data-sources.json —
+    // beskrivelse blir PÅKREVD fra Task 3, men koden tåler fravær (eldre
+    // cache fra før den runden) med ''.
+    function listRegistry() {
+      var off = profiles && profiles.sourcesOff ? profiles.sourcesOff() : [];
+      return (registry || []).map(function (r) {
+        return { id: r.id, name: r.navn, description: r.beskrivelse || '', off: off.indexOf(r.id) >= 0 };
+      });
     }
 
     function renderTemplate(cc) {
@@ -231,18 +302,16 @@
       return out;
     }
 
-    function selectedIds() {
-      var st = profiles && profiles.packsState ? profiles.packsState() : null;
-      return st ? st.ids : [];
-    }
     // Rå (ukomponerte) valgte pakker m/ summary-kandidat — delt grunnlag for
     // payload()/composeInfo() (kontekstrunden fase 2 §4). summary hentes fra
     // katalogposten (index.json) for kuraterte pakker, fra en generisk
     // landsetning for country:, og fra compose()s første-avsnitt-fallback
-    // for user:-kilder (ingen katalogpost å hente fra).
+    // for user:-kilder (ingen katalogpost å hente fra). Kildevelger-runde 2:
+    // grunnlaget er effectiveIds() (landpakke FØRST + manuelt valg), ikke
+    // lenger et rent manuelt sett.
     function rawSelected() {
       var out = [];
-      selectedIds().forEach(function (id) {
+      effectiveIds().forEach(function (id) {
         var got = null, summary;
         if (id.indexOf('user:') === 0) {
           var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
@@ -290,7 +359,7 @@
       return got ? String(got.text || '').slice(0, L3_CAP) : '';
     }
     async function ensureSelected() {
-      var ids = selectedIds();
+      var ids = effectiveIds();
       for (var i = 0; i < ids.length; i++) {
         if (!mem[ids[i]]) await resolve(ids[i]);
       }
@@ -334,8 +403,12 @@
     // Returnerer den nye user:-iden — Explore-knappen velger den direkte.
     function importPack(entry, text) {
       if (!profiles || !profiles.create) return null;
+      // origin.kind (Task 2 §Gruppering): speiler community-postens kind
+      // (default 'overview') — list() over bruker den til å sortere
+      // importer i riktig popover/manager-gruppe.
       var id = profiles.create(entry.name || entry.id, text, 'source',
-        { source: 'community', id: entry.id, updated: entry.updated || '' });
+        { source: 'community', id: entry.id, updated: entry.updated || '',
+          kind: entry.kind === 'source' ? 'source' : 'overview' });
       return 'user:' + id;
     }
 
@@ -371,6 +444,8 @@
       composeInfo: composeInfo, fullTextFor: fullTextFor,
       boot: boot, onLangChange: onLangChange, importPack: importPack,
       displayName: displayName, describe: describe, migrateImported: migrateImported,
+      effectiveIds: effectiveIds, countryPackId: countryPackId,
+      countryOptions: countryOptions, listRegistry: listRegistry,
     };
   }
 

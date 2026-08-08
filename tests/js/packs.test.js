@@ -198,50 +198,90 @@ test('resolve: kappen er hevet til 40000 (L3_CAP), ikke 8000', async () => {
   assert.equal(got.text.length, 40000);
 });
 
-test('list: builtins først, deretter land uten kuratert pakke', async () => {
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
+// Kildevelger-runde 2 (§Designavgjørelser, Task 2): builtin- og
+// country-grenene er FJERNET fra list() — landvalget eies av landvelgeren
+// (countryPackId/countryOptions) og de innebygde kildene av registry-
+// togglene (listRegistry). list() er nå KUN egne kilder, gruppert etter
+// opprinnelse: 'mine' for frittstående, 'overview'/'src' for community-
+// importer (speiler origin.kind, satt av importPack).
+test('list(): kun egne kilder, gruppert etter opprinnelse (mine/overview/src)', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
   await P.load();
-  const ids = P.list().map((e) => e.id);
-  assert.ok(ids.indexOf('norway') >= 0 && ids.indexOf('finland') >= 0);
-  assert.ok(ids.indexOf('country:DE') >= 0);
-  assert.equal(ids.indexOf('country:NO'), -1);        // NO dekkes av kuratert norway
-  const groups = new Set(P.list().map((e) => e.group));
-  assert.deepEqual([...groups].sort(), ['builtin', 'country']);
+  const ownId = prof.create('Egen kilde', 'tekst', 'source');
+  const ovId = prof.create('Importert oversikt', 'tekst', 'source',
+    { source: 'community', id: 'ov1', updated: '', kind: 'overview' });
+  const srcId = prof.create('Importert enkeltkilde', 'tekst', 'source',
+    { source: 'community', id: 'src1', updated: '', kind: 'source' });
+  const groups = {};
+  P.list().forEach((e) => { groups[e.id] = e.group; });
+  assert.equal(groups['user:' + ownId], 'mine');
+  assert.equal(groups['user:' + ovId], 'overview');
+  assert.equal(groups['user:' + srcId], 'src');
+  assert.equal(P.list().length, 3);                    // ingen builtin-/country-rader lenger
 });
 
-test('load tåler nett-feil: faller tilbake til storage-cache', async () => {
+// Task 2: load() henter OGSÅ data/data-sources.json (registry) — samme
+// nett-først/storage-fallback-mønster som index/countries. list() surfacer
+// ikke lenger builtins (§over), så beviset for at index-cachen overlevde
+// flyttes til autoFrom()/countryOptions() (kuratert 'norway'); registrets
+// cache-fallback bevises via listRegistry().
+test('load tåler nett-feil: faller tilbake til storage-cache (index/countries/registry)', async () => {
   const s = fakeStorage();
-  const P1 = makePacks(s, fakeFetch(FILES), fakeProfiles({ ids: [], auto: false }));
+  const REG = [{ id: 'ssb', navn: 'SSB', beskrivelse: 'Statistics Norway' }];
+  const filesWithReg = Object.assign({}, FILES, { 'data/data-sources.json': REG });
+  const P1 = makePacks(s, fakeFetch(filesWithReg), fakeProfiles({ ids: [] }));
   await P1.load();                                    // primer storage-cachen
-  const P2 = makePacks(s, fakeFetch({}), fakeProfiles({ ids: [], auto: false }));
+  const P2 = makePacks(s, fakeFetch({}), fakeProfiles({ ids: [] }));
   await P2.load();                                    // alt 404 → cache
-  assert.ok(P2.list().some((e) => e.id === 'norway'));
-  assert.equal(P2.autoFrom('sv-FI'), 'finland');
+  assert.equal(P2.autoFrom('sv-FI'), 'finland');       // index-cache overlevde
+  assert.ok(P2.countryOptions().some((o) => o.name === 'Norway' && o.packId === 'norway')); // countries-cache overlevde
+  assert.deepEqual(P2.listRegistry(), [
+    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', off: false },
+  ]);                                                  // registry-cache overlevde
 });
 
 // Task 11: locale→auto-pakke ved boot/språkbytte — mot EKTE profillager.
 const { makeProfiles } = require('../../js/profiles.js');
 
-test('boot: auto fra første matchende locale-kandidat; manuelt valg urørt', async () => {
-  const prof = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+// Kildevelger-runde 2 (Task 2): boot/onLangChange vedlikeholder FORTSATT
+// md_pack_auto (device-lokalt), men det er ikke lenger synlig i
+// prof.packsState() — packsState() er nå et rent manuelt sett (Task 1).
+// Auto-resultatet leses via P.countryPackId() (mode 'auto', profilens
+// default) og telles inn i P.effectiveIds() sammen med det manuelle valget.
+// MERK: prof og P deler NÅ samme storage — countryPackId() leser
+// md_pack_auto fra PACKS sin storage-parameter, som i produksjon er samme
+// localStorage-instans som Profiles skriver til via setAutoPack.
+test('boot: auto-forslag havner i md_pack_auto (ikke packsState); manuelt valg urørt', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-05T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
   await P.boot(['sv-FI', 'en-US']);
-  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true, manual: false });
+  assert.deepEqual(prof.packsState(), { ids: [] });
+  assert.equal(s.getItem('md_pack_auto'), 'finland');
+  assert.equal(P.countryPackId(), 'finland');          // mode default 'auto'
   await P.boot(['fi', 'nb-NO']);                       // lagret UI-språk vinner over navigator
-  assert.deepEqual(prof.packsState(), { ids: ['finland'], auto: true, manual: false });
+  assert.equal(s.getItem('md_pack_auto'), 'finland');
   prof.setPacks(['norway']);                           // manuelt valg
   await P.boot(['sv-FI', '']);
-  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: false, manual: true });
+  assert.deepEqual(prof.packsState(), { ids: ['norway'] }); // manuelt valg urørt av auto
+  assert.equal(s.getItem('md_pack_auto'), 'finland');
+  assert.deepEqual(P.effectiveIds(), ['finland', 'norway']); // landpakke FØRST, manuelt deretter
 });
 
-test('onLangChange: setter auto uten manuelt valg; alle-null rydder stale auto', async () => {
-  const prof = makeProfiles(fakeStorage(), { now: () => '2026-08-05T10:00:00.000Z' });
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+test('onLangChange: setter md_pack_auto uten å røre packsState; alle-null rydder stale auto', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-05T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
   await P.load();
   await P.onLangChange(['ja']);
-  assert.deepEqual(prof.packsState(), { ids: ['country:JP'], auto: true, manual: false });
+  assert.deepEqual(prof.packsState(), { ids: [] });    // uendret — auto bor ikke her lenger
+  assert.equal(s.getItem('md_pack_auto'), 'country:JP');
+  assert.equal(P.countryPackId(), 'country:JP');
   await P.onLangChange(['de', '']);                    // tvetydig + tom → rydd
-  assert.deepEqual(prof.packsState(), { ids: [], auto: false, manual: false });
+  assert.equal(s.getItem('md_pack_auto'), null);
+  assert.equal(P.countryPackId(), null);
 });
 
 test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', async () => {
@@ -269,7 +309,10 @@ test('community-pakker: ute av velgerlista, i listCommunity, import gir kopi', a
   const got = await P.resolve(newId);
   assert.equal(got.text, '# US health\nUse ipums.');                   // kopi, uten re-fetch
   assert.equal(prof.get(newId.slice(5)).kind, 'source');
-  assert.deepEqual(prof.get(newId.slice(5)).origin, { source: 'community', id: 'us-health-surveys', updated: '2026-08-05' });
+  // origin.kind (Task 2 §Gruppering): fixture-posten mangler eksplisitt kind
+  // → default 'overview' (samme fallback som listCommunity()).
+  assert.deepEqual(prof.get(newId.slice(5)).origin,
+    { source: 'community', id: 'us-health-surveys', updated: '2026-08-05', kind: 'overview' });
 });
 
 // Pakkesplitting (spec 2026-08-07 §3): Explore skal kunne gruppere på
@@ -376,7 +419,8 @@ test('migrering: uten manuelt doc.packs skapes intet sett (auto bevares)', async
   const P = makePacks(s, fakeFetch(FILES), prof);
   P.migrateImported(prof);
   assert.equal(prof.list('source').length, 1);                        // kilden opprettes uansett
-  assert.deepEqual(prof.packsState(), { ids: ['norway'], auto: true, manual: false }); // uendret — auto overlever
+  assert.deepEqual(prof.packsState(), { ids: [] });                   // intet manuelt sett skapt
+  assert.equal(s.getItem('md_pack_auto'), 'norway');                  // auto-cachen uendret
   assert.equal(s.getItem('md_packs_imported'), null);
 });
 
@@ -391,17 +435,21 @@ test('migrering: ingen md_packs_imported → no-op', async () => {
 // Biblioteksmanageren (spec 2026-08-06-menyopprydding §4): describe(id) er
 // infopanelets tekstkilde — katalogbeskrivelse for builtins, note/mal for
 // land, og egen tekst (m/origin-prefiks ved community-import) for user:.
-test('describe: katalogbeskrivelse, landnote, egen kilde m/origin-prefiks', async () => {
+test('describe: katalogbeskrivelse, landnote, egen kilde m/origin-prefiks, reg:-registeroppslag', async () => {
   const prof = fakeProfiles({ ids: [], auto: false });
   prof.get = (id) => (id === 'egen1'
     ? { id: 'egen1', name: 'Min', text: 'Første linje.\nMer.', kind: 'source',
         origin: { source: 'community', id: 'x' } }
     : null);
-  const P = makePacks(fakeStorage(), fakeFetch(FILES), prof);
+  const REG = [{ id: 'ssb', navn: 'SSB', beskrivelse: 'Statistics Norway' }];
+  const files = Object.assign({}, FILES, { 'data/data-sources.json': REG });
+  const P = makePacks(fakeStorage(), fakeFetch(files), prof);
   await P.load();
   assert.ok(P.describe('norway').length > 0);            // description fra index.json
   assert.ok(P.describe('country:SE').length > 0);        // note/mal fra countries.json
   assert.match(P.describe('user:egen1'), /Første linje/);
+  assert.equal(P.describe('reg:ssb'), 'Statistics Norway'); // Task 2 §5-6: registerets beskrivelse
+  assert.equal(P.describe('reg:ukjent'), '');             // ukjent registry-id → tom streng
   assert.equal(P.describe('finnes:ikke'), '');
 });
 
@@ -430,4 +478,103 @@ test('boot(): migrerer md_packs_imported (rekkefølgen inni boot er beskyttet)',
   assert.ok(st.ids.indexOf('norway') >= 0);                            // andre ider urørt
   assert.equal(st.ids.indexOf('imported:x'), -1);                      // gammel-iden borte
   assert.equal(s.getItem('md_packs_imported'), null);                 // nøkkelen fjernet
+});
+
+// ---- Kildevelger-runde 2 (Task 2): countryPackId/effectiveIds/countryOptions
+// /listRegistry — packs-kjernen på den nye tilstandsmodellen fra Task 1
+// (profiles.js: countryState/setCountry/sourcesOff/toggleSourceOff).
+
+test('countryPackId: none→null; cc kuratert→pakke-id; cc generisk→country:CC; ukjent cc→null; auto→md_pack_auto', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  prof.setCountry('none');
+  assert.equal(P.countryPackId(), null);
+  prof.setCountry('cc', 'NO');                           // kuratert pakke finnes for NO
+  assert.equal(P.countryPackId(), 'norway');
+  prof.setCountry('cc', 'SE');                           // generisk — ingen kuratert pakke for SE
+  assert.equal(P.countryPackId(), 'country:SE');
+  prof.setCountry('cc', 'ZZ');                            // gyldig format, ukjent land → null
+  assert.equal(P.countryPackId(), null);
+  prof.setCountry('auto');                                // profilens default
+  assert.equal(P.countryPackId(), null);                  // ingen md_pack_auto satt ennå
+  s.setItem('md_pack_auto', 'finland');
+  assert.equal(P.countryPackId(), 'finland');
+});
+
+test('effectiveIds: landpakke FØRST, manuelt valg deretter, dedup mot allerede-valgt landpakke', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  prof.setPacks(['finland']);
+  prof.setCountry('cc', 'NO');                           // landpakke: 'norway'
+  assert.deepEqual(P.effectiveIds(), ['norway', 'finland']);
+  prof.setPacks(['norway', 'finland']);                  // landpakken ligger OGSÅ manuelt valgt
+  assert.deepEqual(P.effectiveIds(), ['norway', 'finland']); // ingen duplikat, fortsatt land FØRST
+  prof.setCountry('none');
+  assert.deepEqual(P.effectiveIds(), ['norway', 'finland']); // ingen landpakke å legge til — manuelt sett uendret
+});
+
+test('countryOptions: kuraterte + generiske land, sortert på navn; NO→norway (kuratert), SE→country:SE (generisk)', async () => {
+  const P = makePacks(fakeStorage(), fakeFetch(FILES), fakeProfiles({ ids: [] }));
+  await P.load();
+  const opts = P.countryOptions();
+  const byCc = {};
+  opts.forEach((o) => { byCc[o.cc] = o; });
+  assert.deepEqual(byCc.NO, { cc: 'NO', name: 'Norway', packId: 'norway' });
+  assert.deepEqual(byCc.SE, { cc: 'SE', name: 'Sweden', packId: 'country:SE' });
+  const names = opts.map((o) => o.name);
+  assert.deepEqual(names, names.slice().sort((a, b) => a.localeCompare(b))); // sortert på navn
+});
+
+test('listRegistry: navn/beskrivelse + av-status fra Profiles.sourcesOff(); tåler manglende beskrivelse', async () => {
+  const REG = [
+    { id: 'ssb', navn: 'SSB', beskrivelse: 'Statistics Norway' },
+    { id: 'dbnomics', navn: 'DBnomics' },                // beskrivelse kommer i Task 3 — tåles i mellomtiden
+  ];
+  const files = Object.assign({}, FILES, { 'data/data-sources.json': REG });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  prof.toggleSourceOff('dbnomics');
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  assert.deepEqual(P.listRegistry(), [
+    { id: 'ssb', name: 'SSB', description: 'Statistics Norway', off: false },
+    { id: 'dbnomics', name: 'DBnomics', description: '', off: true },
+  ]);
+});
+
+test('importPack: origin.kind følger entry.kind (source) — ikke bare default overview', async () => {
+  const IDX = { v: 1, packs: INDEX.packs.concat([
+    { id: 'src-y', name: 'Y', description: 'enkeltkilde', file: 'community/src-y.md',
+      community: true, kind: 'source', author: 'hans', updated: '2026-08-08' },
+  ]) };
+  const files = Object.assign({}, FILES, {
+    'data/packs/index.json': IDX,
+    'data/packs/community/src-y.md': '# Y',
+  });
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(files), prof);
+  await P.load();
+  const entry = P.listCommunity().find((c) => c.id === 'src-y');
+  const preview = await P.resolve('src-y');
+  const newId = P.importPack(entry, preview.text);
+  assert.equal(prof.get(newId.slice(5)).origin.kind, 'source');
+});
+
+test('payload: inkluderer landpakketekst FØRST når et landvalg er satt', async () => {
+  const s = fakeStorage();
+  const prof = makeProfiles(s, { now: () => '2026-08-08T10:00:00.000Z' });
+  const P = makePacks(s, fakeFetch(FILES), prof);
+  await P.load();
+  prof.setPacks(['finland']);
+  prof.setCountry('cc', 'NO');
+  await P.ensureSelected();
+  assert.deepEqual(P.payload(), [
+    { id: 'norway', name: 'Norway', text: '# Norway pack\nUse ssb first.', level: 'full' },
+    { id: 'finland', name: 'Finland', text: '# Finland pack\nUse statfin first.', level: 'full' },
+  ]);
 });

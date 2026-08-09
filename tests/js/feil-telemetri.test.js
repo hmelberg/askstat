@@ -98,17 +98,37 @@ test('telemetriAv(): uten flagget → sendFeilrapport kaller fetch som før', ()
   });
 });
 
-test('telemetriAv(): localStorage som kaster → false (rapporten går)', () => {
+test('telemetriAv(): localStorage som kaster → false, OG sendFeilrapport sender likevel (fetch kalles)', () => {
+  // Object.defineProperty (ikke medStubbetGlobals) fordi vi trenger at selve
+  // TILGANGEN til global.localStorage kaster (f.eks. Safari privat modus) —
+  // medStubbetGlobals's rene tilordning kan ikke uttrykke det, og ville
+  // uansett feile stille mot en accessor-only property uten setter. Samme
+  // fetch-stub-mønster (calls-array + {catch} thenable) som helperen bruker.
   var hadLs = Object.prototype.hasOwnProperty.call(global, 'localStorage');
   var oldLs = global.localStorage;
+  var hadFetch = Object.prototype.hasOwnProperty.call(global, 'fetch');
+  var oldFetch = global.fetch;
+  var calls = [];
   Object.defineProperty(global, 'localStorage', {
     configurable: true,
     get: function () { throw new Error('blokkert'); },
   });
+  global.fetch = function (url, opts) {
+    calls.push({ url: url, opts: opts });
+    return { catch: function () { return this; } };
+  };
   try {
     assert.equal(FT.telemetriAv(), false);
+    // Regresjonsvern: guarden må feile ÅPEN (telemetriAv()===false) uten å
+    // stille svelge selve sendingen — en feil som gjorde throw-stien også
+    // svelge sendFeilrapport ville sluppet gjennom om testen kun sjekket
+    // telemetriAv() og aldri kalte sendFeilrapport()/sjekket fetch.
+    FT.sendFeilrapport({ question: 'q', route: 'data' });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://mdataapi.anvil.app/_/api/feil');
   } finally {
     delete global.localStorage;
     if (hadLs) global.localStorage = oldLs;
+    if (hadFetch) global.fetch = oldFetch; else delete global.fetch;
   }
 });

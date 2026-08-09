@@ -2,6 +2,8 @@
 // resolusjon m/cache, locale→pakke. Node-seam: makePacks(storage, fetch, profiles).
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 const { makePacks, compose, filterCatalog } = require('../../js/packs.js');
 
 function fakeStorage() {
@@ -92,6 +94,38 @@ test('compose: sist valgt prioriteres; overskytende degraderes manifest→summar
   assert.equal(out[1].level, 'full');           // nest sist valgt får òg fullt (rommes ennå)
   assert.equal(out[0].level, 'manifest');       // budsjettet tomt — yaml-blokka plukkes
   assert(out[0].text.includes('id: x'));
+});
+// Kildedokumenter-runden Task 4 fix (review-funn 2026-08-10): den testen
+// over dekker KUN den gamle fenced ```yaml-formen. `node tools/source_docs.mjs
+// convert-packs` skriver community-pakker om til front matter
+// (`---\n...\n---`) i stedet — uten en front-matter-bevisst yamlManifest()
+// ville L2-nivået vært stille dødt for alle 78 konverterte pakker (falt
+// rett fra 'full' til 'summary'). Fixturen er LEST verbatim fra en ekte
+// konvertert pakke (src-bls-api.md, spot-sjekket i task-4-report.md) i
+// stedet for håndskrevet, slik at testen automatisk følger den virkelige
+// filen og ikke kan tegne feil bilde av front matter-formen.
+test('compose: front matter-pakke (konvertert, ikke ```yaml) degraderer til manifest med front matter-blokka intakt', () => {
+  const blsApiPack = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'data', 'packs', 'community', 'src-bls-api.md'), 'utf8');
+  assert.ok(blsApiPack.startsWith('---\n'), 'fixture-sjekk: src-bls-api.md er ikke lenger front matter-formet');
+  // Forventet manifest-tekst avledes fra FIXTUREN selv (indexOf, ikke en
+  // duplisert kopi av packs.js sin FRONT_MATTER_RE) — testen skal bevise at
+  // compose() plukker EKTE front matter fra en EKTE fil, ikke bare speile
+  // implementasjonens egen regex tilbake til seg selv.
+  const closeIdx = blsApiPack.indexOf('\n---', 4); // 4 = lengden av åpnings-'---\n'
+  const expectedManifest = blsApiPack.slice(0, closeIdx + 4);
+  const stor = 'z'.repeat(50000);       // > L3_CAP kuttes til 40000
+  const fyll = 'w'.repeat(35000);       // fyller mesteparten av resten av budsjettet
+  const medFrontMatter = blsApiPack.padEnd(60000, 'q'); // > L3_CAP, kuttes til 40000 av compose()
+  const out = compose([
+    { id: 'gammel', name: 'G', text: medFrontMatter, summary: 'kort om BLS' },
+    { id: 'fyll', name: 'F', text: fyll },
+    { id: 'ny', name: 'N', text: stor },
+  ]);
+  assert.equal(out[2].level, 'full');             // sist valgt vinner budsjettet
+  assert.equal(out[1].level, 'full');             // nest sist valgt får òg fullt (rommes ennå)
+  assert.equal(out[0].level, 'manifest');         // budsjettet for lite for full — MEN ikke stille til summary
+  assert.equal(out[0].text, expectedManifest);    // hele front matter-blokka, ordrett — ikke bare et fragment
 });
 test('compose: uten yaml → summary; summary-cap 1500; alle får ALLTID minst L1', () => {
   const out = compose([

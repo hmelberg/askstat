@@ -33,9 +33,26 @@
   var L1_CAP = 1500;
   var L3_CAP = 40000;
   var TOTAL_BUDGET = 80000;
+  // Front matter-bevisst manifest (kildedokumenter-runden Task 4 fix,
+  // review-funn 2026-08-10): community-pakker konvertert av
+  // `node tools/source_docs.mjs convert-packs` bytter sin gamle fenced
+  // ```yaml-feltblokk ut med en front matter-blokk (`---\n...\n---`) —
+  // yamlManifest MÅ kjenne igjen BEGGE former, ellers dør L2-nivået stille
+  // for enhver konvertert pakke (den faller rett fra 'full' til 'summary'
+  // under budsjettpress, uten det tette L2-mellomsteget). ```yaml-fencer
+  // sjekkes FØRST (uendret prioritet/oppførsel for eldre/brukerskapte
+  // pakker som ennå kan bruke den formen); front matter er fallback — de to
+  // formene er gjensidig utelukkende per dokument i praksis (samme
+  // presedens som js/source-doc.js sin egen extractFields()), så
+  // rekkefølgen har ingen praktisk konsekvens utover å bevare eksisterende
+  // atferd byte-for-byte for ```yaml-tilfellet.
+  var FRONT_MATTER_RE = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/;
   function yamlManifest(text) {
-    var m = String(text).match(/```yaml\n[\s\S]*?```/g);
-    return m ? m.join('\n\n') : '';
+    var s = String(text);
+    var m = s.match(/```yaml\n[\s\S]*?```/g);
+    if (m) return m.join('\n\n');
+    var fm = FRONT_MATTER_RE.exec(s);
+    return fm ? fm[0] : '';
   }
   function summaryOf(p) {
     if (p.summary) return String(p.summary).slice(0, L1_CAP);

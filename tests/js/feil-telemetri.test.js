@@ -52,3 +52,63 @@ test('byggFeilrapport maskerer nøkkelaktige query-parametre i run-error og flow
   assert.match(r.flow_error, /token=\*\*\*/);
   assert.ok(!r.flow_error.includes('token=abc'));
 });
+
+// Telemetri-opt-out (spec §10): vakten sitter FØRST i sendFeilrapport, ikke
+// på kallstedene, slik at alle nåværende og fremtidige kall arver valget.
+// localStorage finnes ikke nativt i node --test uten --localstorage-file,
+// så vi stubber global.localStorage/global.fetch direkte per test og
+// rydder opp i finally (ingen lekkasje mellom tester).
+function medStubbetGlobals(localStorageStub, fn) {
+  var hadLs = Object.prototype.hasOwnProperty.call(global, 'localStorage');
+  var oldLs = global.localStorage;
+  var hadFetch = Object.prototype.hasOwnProperty.call(global, 'fetch');
+  var oldFetch = global.fetch;
+  var calls = [];
+  global.localStorage = localStorageStub;
+  global.fetch = function (url, opts) {
+    calls.push({ url: url, opts: opts });
+    return { catch: function () { return this; } };
+  };
+  try {
+    fn(calls);
+  } finally {
+    if (hadLs) global.localStorage = oldLs; else delete global.localStorage;
+    if (hadFetch) global.fetch = oldFetch; else delete global.fetch;
+  }
+}
+
+test('telemetriAv(): md_telemetri_av=1 → sendFeilrapport kaller ALDRI fetch', () => {
+  medStubbetGlobals({
+    getItem: function (k) { return k === 'md_telemetri_av' ? '1' : null; },
+  }, (calls) => {
+    assert.equal(FT.telemetriAv(), true);
+    FT.sendFeilrapport({ question: 'q', route: 'data' });
+    assert.equal(calls.length, 0);
+  });
+});
+
+test('telemetriAv(): uten flagget → sendFeilrapport kaller fetch som før', () => {
+  medStubbetGlobals({
+    getItem: function () { return null; },
+  }, (calls) => {
+    assert.equal(FT.telemetriAv(), false);
+    FT.sendFeilrapport({ question: 'q', route: 'data' });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://mdataapi.anvil.app/_/api/feil');
+  });
+});
+
+test('telemetriAv(): localStorage som kaster → false (rapporten går)', () => {
+  var hadLs = Object.prototype.hasOwnProperty.call(global, 'localStorage');
+  var oldLs = global.localStorage;
+  Object.defineProperty(global, 'localStorage', {
+    configurable: true,
+    get: function () { throw new Error('blokkert'); },
+  });
+  try {
+    assert.equal(FT.telemetriAv(), false);
+  } finally {
+    delete global.localStorage;
+    if (hadLs) global.localStorage = oldLs;
+  }
+});

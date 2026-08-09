@@ -193,4 +193,9 @@ window.M2PY_I18N.no = {
   // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
   // kilde-redigeringsskjemaet (#sourcesEdit).
   "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "Lim aldri inn API-nøkler eller hemmeligheter her — legg dem heller til under Dine egne nøkler i innstillingene.",
+  // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
+  // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
+  // egne-nøkler-seksjon (se brief over).
+  "Send anonymous error reports (helps improve the sources)": "Send anonyme feilrapporter (hjelper oss å forbedre kildene)",
+  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Kun feilen sendes — aldri spørsmålene, dataene eller nøklene dine. Se personvernsiden for detaljer.",
 };

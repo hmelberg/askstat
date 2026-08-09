@@ -57,7 +57,17 @@
     return rapport;
   }
 
+  // Telemetri-opt-out (spec §10): device-lokalt localStorage-flagg, aldri
+  // synkronisert. '1' = avslått; fravær/annet = tillatt (default).
+  function telemetriAv() {
+    try {
+      return !!(global.localStorage &&
+        global.localStorage.getItem('md_telemetri_av') === '1');
+    } catch (e) { return false; }
+  }
+
   function sendFeilrapport(inn) {
+    if (telemetriAv()) return;
     try {
       var rapport = byggFeilrapport(inn);
       fetch(FEIL_URL, {
@@ -69,7 +79,8 @@
     } catch (e) { /* aldri knekk flyten */ }
   }
 
-  var api = { byggFeilrapport: byggFeilrapport, sendFeilrapport: sendFeilrapport };
+  var api = { byggFeilrapport: byggFeilrapport, sendFeilrapport: sendFeilrapport,
+              telemetriAv: telemetriAv };
   global.FeilTelemetri = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

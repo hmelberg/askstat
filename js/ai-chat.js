@@ -42,6 +42,7 @@
          'aiCfgProviderType','aiCfgProviderFields','aiCfgProviderUrl','aiCfgProviderModel','aiCfgLlmKey',
          'aiCfgUserKeys','aiCfgUserKeyList','aiCfgUserKeyAdd','aiCfgUserKeyForm',
          'userKeyName','userKeyValue','userKeyNote','userKeySave',
+         'aiCfgTelemetry',
          'sidebarRight','sidebarOpenTab','scriptInput'
         ].forEach(id => { dom[id] = $(id); });
         dom.containers = document.querySelectorAll('.container');
@@ -1510,6 +1511,13 @@
         if (dom.aiCfgProviderModel) dom.aiCfgProviderModel.value = (provRaw && provRaw.model) || '';
         if (dom.aiCfgLlmKey) dom.aiCfgLlmKey.value = '';
         syncProviderFields();
+        // Telemetri-opt-out (spec §10): md_telemetri_av='1' = avslått; alt
+        // annet (fravær inkludert) = tillatt, så boksen er i utgangspunktet
+        // avkrysset. try/catch som naboene (localStorage kan kaste).
+        if (dom.aiCfgTelemetry) {
+          try { dom.aiCfgTelemetry.checked = localStorage.getItem('md_telemetri_av') !== '1'; }
+          catch (e) { dom.aiCfgTelemetry.checked = true; }
+        }
         dom.aiSettingsBackdrop.classList.add('open');
       }
       function closeSettings() { dom.aiSettingsBackdrop.classList.remove('open'); }
@@ -1538,6 +1546,16 @@
             var lk = dom.aiCfgLlmKey ? dom.aiCfgLlmKey.value.trim() : '';
             if (lk && window.Keys) window.Keys.set('llm', lk);
           }
+        }
+        // Telemetri-opt-out: kun feilmeldinger sendes, aldri spørsmål/data/
+        // nøkler (js/feil-telemetri.js sin vakt leser dette flagget FØRST i
+        // sendFeilrapport). Avkrysset (tillatt) → fjern flagget i stedet for
+        // å skrive '0' — fravær ER "tillatt"-tilstanden.
+        if (dom.aiCfgTelemetry) {
+          try {
+            if (dom.aiCfgTelemetry.checked) localStorage.removeItem('md_telemetri_av');
+            else localStorage.setItem('md_telemetri_av', '1');
+          } catch (e) {}
         }
         closeSettings();
       }

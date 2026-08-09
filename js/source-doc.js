@@ -111,6 +111,22 @@
 
   var YAML_FENCE_RE = /```ya?ml[ \t]*\r?\n([\s\S]*?)\r?\n```/;
   var NAKED_KEY_RE = /^[a-z_][a-z0-9_]*:\s/i;
+  var H2_ANCHOR_RE = /(^|\r?\n)## /;
+
+  // leadingText(text) -> delen av dokumentet FØR første '## '-overskrift, om
+  // noen finnes (ellers hele dokumentet). Feilfunn (task-1-review, punkt 2):
+  // fenced-yaml-gjenkjenning skal ALDRI plukke opp en ```yaml-blokk som
+  // ligger inne i en senere '## '-seksjon (f.eks. et eksempel i en
+  // '## Guide') — feltkilder må stå FØR seksjonene, aldri inni dem.
+  // Bruker text.slice() (ikke split+join) slik at yamlMatch.index under
+  // FORTSATT er en gyldig indeks inn i den ORIGINALE teksten — en
+  // split(/\r?\n/).join('\n')-rekonstruksjon ville forskjøvet indeksene ved
+  // \r\n-linjeskift.
+  function leadingText(text) {
+    var m = H2_ANCHOR_RE.exec(text);
+    if (!m) return text;
+    return text.slice(0, m.index + m[1].length);
+  }
 
   // delistFirstItem(yamlLines) -> lines for parseFieldLines, av FØRSTE
   // listeelement i en '- key: value'-fenced-yaml-blokk (som src-socrata.md).
@@ -148,7 +164,12 @@
         body: text };
     }
 
-    var yamlMatch = YAML_FENCE_RE.exec(text);
+    // Kun ØVERST i dokumentet (før første '## '-seksjon) — en ```yaml-blokk
+    // inni en seksjon lenger ned er innhold, ikke en feltkilde (task-1-review
+    // punkt 2). yamlMatch.index er relativt til leading-strengen, så body må
+    // bygges av den FULLE teksten ved å slå opp samme substring der.
+    var leading = leadingText(text);
+    var yamlMatch = YAML_FENCE_RE.exec(leading);
     if (yamlMatch) {
       var yamlLines = yamlMatch[1].split(/\r?\n/);
       var isList = yamlLines.length > 0 && /^-\s/.test(yamlLines[0]);
@@ -178,13 +199,21 @@
 
   var TITLE_RE = /^# (.*)$/;
   var HEADING_RE = /^## (.*)$/;
+  var FENCE_LINE_RE = /^```/;
 
   function extractTitleAndSections(body) {
     var bodyLines = body.split(/\r?\n/);
     var title = '';
     for (var t = 0; t < bodyLines.length; t++) {
-      var tm = TITLE_RE.exec(bodyLines[t]);
+      var line = bodyLines[t];
+      var tm = TITLE_RE.exec(line);
       if (tm) { title = tm[1].trim(); bodyLines.splice(t, 1); break; }
+      // Feilfunn (task-1-review, punkt 1): tittelsøket skal IKKE fortsette
+      // inn i en senere seksjon eller kodeblokk — en '# '-linje i et
+      // kode-eksempel (f.eks. en Python-kommentar) skal aldri kapres som
+      // dokumentets tittel. Stopp søket ved første '## '-overskrift eller
+      // fenced-blokk; finnes ingen ekte tittel før det, er title ''.
+      if (HEADING_RE.test(line) || FENCE_LINE_RE.test(line)) break;
     }
     var chunks = [{ key: null, heading: '', lines: [] }];
     var current = chunks[0];

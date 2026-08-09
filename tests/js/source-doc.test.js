@@ -318,3 +318,133 @@ test('edge case: dokument med kun prosa (ingen felter, ingen tittel, ingen seksj
     { key: null, heading: '', text: 'Bare en enkelt setning uten noe annet innhold.' },
   ]);
 });
+
+// ==== Reviewfunn (task-1-review, 2026-08-09) — to Important-funn m/covering
+// tester. Se "Fix report" nederst i task-1-report.md for rotårsak/fiks.
+
+// ---- Funn 1: tittelsøket skal ALDRI plukke opp en '# '-linje som ligger
+// inni en senere seksjon eller kodeblokk (f.eks. en Python-kommentar i et
+// eksempel). Reviewerens konkrete eksempel: ingen ekte tittel, men en
+// '## Guide'-seksjon med et fenced kode-eksempel som inneholder en bar '# '-
+// linje ('# Hent data'). Før fiksen ble denne linja stjålet som doc.title OG
+// fjernet fra kode-eksempelet (datatap).
+test('funn 1: bar "# "-linje inni et senere kode-eksempel blir IKKE tittel, og bevares i seksjonsteksten', () => {
+  const text = [
+    '## Guide',
+    '',
+    'Kjør:',
+    '',
+    '```python',
+    '# Hent data',
+    'import requests',
+    '```',
+    '',
+  ].join('\n');
+  const doc = SourceDoc.parse(text);
+  assert.equal(doc.title, ''); // IKKE 'Hent data'
+  assert.equal(doc.sections.length, 1);
+  assert.equal(doc.sections[0].key, 'guide');
+  assert.ok(doc.sections[0].text.indexOf('# Hent data') >= 0); // linja er ikke fjernet
+  assert.ok(doc.sections[0].text.indexOf('import requests') >= 0);
+  // normalize skal fortsatt være idempotent på et dokument uten ekte tittel.
+  assert.equal(SourceDoc.normalize(SourceDoc.normalize(text)), SourceDoc.normalize(text));
+});
+
+// Samme funn, men med en EKTE tittel til stede: den ekte tittelen skal
+// vinne, og den senere kodeblokkas '# '-linje skal fortsatt bevares urørt.
+test('funn 1: ekte tittel identifiseres korrekt selv når en senere seksjon har en bar "# "-linje', () => {
+  const text = [
+    '# Ekte tittel',
+    '',
+    'Intro.',
+    '',
+    '## Guide',
+    '',
+    'Kjør:',
+    '',
+    '```python',
+    '# Hent data',
+    'import requests',
+    '```',
+    '',
+  ].join('\n');
+  const doc = SourceDoc.parse(text);
+  assert.equal(doc.title, 'Ekte tittel');
+  const guide = doc.sections.filter((s) => s.key === 'guide')[0];
+  assert.ok(guide.text.indexOf('# Hent data') >= 0);
+});
+
+// Fenced-blokka stopper tittelsøket OGSÅ når den ligger i den ledende
+// prosaen, FØR noen '## '-overskrift i det hele tatt.
+test('funn 1: fenced kodeblokk i ledende prosa (før noen "## ") stopper tittelsøket', () => {
+  const text = [
+    'Intro uten tittel.',
+    '',
+    '```python',
+    '# Ikke en tittel',
+    '```',
+    '',
+    'Mer prosa.',
+    '',
+  ].join('\n');
+  const doc = SourceDoc.parse(text);
+  assert.equal(doc.title, '');
+});
+
+// ---- Funn 2: fenced-yaml-gjenkjenning skal ALDRI plukke opp en ```yaml-
+// blokk som ligger inni en senere '## '-seksjon — kun en blokk FØR første
+// '## '-overskrift teller som feltkilde. Reviewerens konkrete eksempel:
+// nakne felter øverst (name/data_url), etterfulgt av en '## Guide'-seksjon
+// som selv inneholder et ```yaml-eksempel. Før fiksen ble eksempel-blokka
+// silently brukt som feltkilde og de ekte nakne feltene ble forkastet.
+test('funn 2: yaml-fence inni en senere "## "-seksjon overstyrer IKKE ekte nakne felter øverst', () => {
+  const text = [
+    'name: MittKilde',
+    'data_url: https://a/b.csv',
+    '',
+    '## Guide',
+    '',
+    'Eksempel:',
+    '',
+    '```yaml',
+    'id: example-only',
+    'note: should not leak into fields',
+    '```',
+    '',
+  ].join('\n');
+  const doc = SourceDoc.parse(text);
+  assert.deepEqual(doc.fieldOrder, ['name', 'data_url']);
+  assert.deepEqual(doc.fields, { name: 'MittKilde', data_url: 'https://a/b.csv' });
+  const guide = doc.sections.filter((s) => s.key === 'guide')[0];
+  assert.ok(guide.text.indexOf('```yaml') >= 0); // eksempel-blokka er urørt, ikke konsumert
+  assert.ok(guide.text.indexOf('id: example-only') >= 0);
+  assert.equal(SourceDoc.normalize(SourceDoc.normalize(text)), SourceDoc.normalize(text));
+});
+
+// Sikrer at fiksen for funn 2 ikke regredigerte den ekte fenced-yaml-veien:
+// en blokk FØR første '## '-overskrift (som i src-socrata.md/src-bls-api.md,
+// som ikke har noen '## '-seksjoner) skal fortsatt bli plukket opp.
+test('funn 2: yaml-fence FØR første "## " blir fortsatt gjenkjent som feltkilde', () => {
+  const text = [
+    '# T',
+    '',
+    'Intro.',
+    '',
+    '```yaml',
+    'id: ok-source',
+    'name: OK',
+    '```',
+    '',
+    '## Guide',
+    '',
+    'Prosa.',
+    '',
+  ].join('\n');
+  const doc = SourceDoc.parse(text);
+  assert.deepEqual(doc.fields, { id: 'ok-source', name: 'OK' });
+  assert.equal(doc.title, 'T');
+  // 'Intro.' står FØR fencen som sin egen frie prosa-seksjon (key null),
+  // deretter 'guide' — fencen selv er borte (konsumert som feltkilde).
+  assert.deepEqual(doc.sections.map((s) => s.key), [null, 'guide']);
+  assert.equal(doc.sections[0].text, 'Intro.');
+});

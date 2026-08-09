@@ -3,93 +3,92 @@
     "id": "ssb",
     "navn": "Statistisk sentralbyrå (PxWebApi 2)",
     "utgiver": "SSB",
-    "beskrivelse": "Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.",
     "tillit": "offisiell",
     "tilgang": "pxweb",
     "kind": "pxweb",
     "base_url": "https://data.ssb.no/api/pxwebapi/v2/",
     "sok_endepunkt": "https://data.ssb.no/api/pxwebapi/v2/tables?query={q}&lang=no",
     "cors": true,
-    "guide": true,
     "join_nokler": [
       "kommunenummer",
       "fylkesnummer",
       "år"
     ],
     "sporrings_url_mal": "https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv",
-    "quirks": "GET med valueCodes per dimensjon; outputFormat=csv gir CSV direkte. Verifisert 2026-07-25: /v2-beta/ svarer 503 på ALT (søk, metadata, data) — SSB har fullført migreringen; hele oppføringen flyttet til /v2/ (som svarer 200 på tables/metadata/data). Data-endepunktet sender ingen Access-Control-Allow-Origin, så uttrekk MÅ gå via /api/hent-proxy uansett hva denne cors-flagget sier andre steder i registeret.",
     "tags": [
       "makro",
       "norge"
-    ]
+    ],
+    "beskrivelse": "Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.",
+    "quirks": "GET med valueCodes per dimensjon; outputFormat=csv gir CSV direkte. Verifisert 2026-07-25: /v2-beta/ svarer 503 på ALT (søk, metadata, data) — SSB har fullført migreringen; hele oppføringen flyttet til /v2/ (som svarer 200 på tables/metadata/data). Data-endepunktet sender ingen Access-Control-Allow-Origin, så uttrekk MÅ gå via /api/hent-proxy uansett hva denne cors-flagget sier andre steder i registeret.",
+    "guide": true
   },
   {
     "id": "eurostat",
     "navn": "Eurostat (dissemination API)",
     "utgiver": "Eurostat",
-    "beskrivelse": "Eurostat — official EU/EFTA statistics (incl. Norway): economy, population, health, environment, and other harmonized European indicators.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/",
     "cors": true,
-    "guide": true,
     "join_nokler": [
       "geo (NUTS/ISO2)",
       "time"
     ],
     "sporrings_url_mal": "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&{dim}={kode}",
-    "quirks": "kind(eurostat): json-stat2 via statistics/1.0/data/<kode>?format=JSON&lang=en + direkte dimensjonsfiltre (geo=NO&na_item=B1GQ — ikke valueCodes); sinceTimePeriod/untilTimePeriod for tid; katalog-proben bruker lastTimePeriod=1 og 400-er kombinert med brukerens tidsfiltre (strippes av proben). base_url endret 2026-07-25 til data-endepunktet (før: dissemination-roten) så «connect eurostat» virker uten full URL.",
     "kind": "eurostat",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "Eurostat — official EU/EFTA statistics (incl. Norway): economy, population, health, environment, and other harmonized European indicators.",
+    "quirks": "kind(eurostat): json-stat2 via statistics/1.0/data/<kode>?format=JSON&lang=en + direkte dimensjonsfiltre (geo=NO&na_item=B1GQ — ikke valueCodes); sinceTimePeriod/untilTimePeriod for tid; katalog-proben bruker lastTimePeriod=1 og 400-er kombinert med brukerens tidsfiltre (strippes av proben). base_url endret 2026-07-25 til data-endepunktet (før: dissemination-roten) så «connect eurostat» virker uten full URL.",
+    "guide": true
   },
   {
     "id": "worldbank",
     "navn": "World Bank Open Data",
     "utgiver": "Verdensbanken",
-    "beskrivelse": "World Bank Open Data — country-level development indicators (economy, health, education, environment) for most countries, mostly annual.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://api.worldbank.org/v2/",
     "cors": true,
-    "guide": true,
     "join_nokler": [
       "iso3c (land)",
       "date (år)"
     ],
     "sporrings_url_mal": "https://api.worldbank.org/v2/country/{land}/indicator/{id}?format=json&per_page=20000",
-    "quirks": "JSON er [meta, rader]; per_page-default er 50 — adapteren setter 20000 og følger meta.pages (tak 10 sider); land som ISO-koder adskilt med ; eller 'all'; feilform [{message:[…]}] surfaces som norsk feil. Utenfor openstat: python-pakkene wbgapi/dbnomics.",
     "kind": "worldbank",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "World Bank Open Data — country-level development indicators (economy, health, education, environment) for most countries, mostly annual.",
+    "quirks": "JSON er [meta, rader]; per_page-default er 50 — adapteren setter 20000 og følger meta.pages (tak 10 sider); land som ISO-koder adskilt med ; eller 'all'; feilform [{message:[…]}] surfaces som norsk feil. Utenfor openstat: python-pakkene wbgapi/dbnomics.",
+    "guide": true
   },
   {
     "id": "oecd",
     "navn": "OECD SDMX",
     "utgiver": "OECD",
-    "beskrivelse": "OECD — comparative statistics for OECD member and partner countries: economy, labour, health, and social policy via SDMX.",
     "tillit": "offisiell",
     "tilgang": "sdmx",
     "base_url": "https://sdmx.oecd.org/public/rest/data/",
     "cors": true,
-    "guide": true,
     "join_nokler": [
       "LOCATION (ISO3)",
       "TIME_PERIOD"
     ],
-    "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow> på KOMMA-form (slash-form 404-er: «Could not find Dataflow», målt 2026-08-01) — search_catalog/search_datasets gir id-en ferdig på denne formen. Utvalg skrives ALLTID med det kanoniske vokabularet (years=/countries=/indicators=/filters={}); lasteren bygger den punktumdelte nøkkelen selv fra kildens egen CSV-header. Skriv ALDRI startPeriod=/endPeriod= som kwarg (parseren avviser dem — years= oversettes til dem) og bygg ikke nøkkelstien for hånd. Adapteren henter CSV via Accept-header (application/vnd.sdmx.data+csv;labels=id — verifisert 2026-07-25); c[DIM]=filtre ignoreres STILLE (SDMX 3.0-syntaks, API-et er 2.1). CORS: reflektert origin.",
     "kind": "sdmx",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "OECD — comparative statistics for OECD member and partner countries: economy, labour, health, and social policy via SDMX.",
+    "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow> på KOMMA-form (slash-form 404-er: «Could not find Dataflow», målt 2026-08-01) — search_catalog/search_datasets gir id-en ferdig på denne formen. Utvalg skrives ALLTID med det kanoniske vokabularet (years=/countries=/indicators=/filters={}); lasteren bygger den punktumdelte nøkkelen selv fra kildens egen CSV-header. Skriv ALDRI startPeriod=/endPeriod= som kwarg (parseren avviser dem — years= oversettes til dem) og bygg ikke nøkkelstien for hånd. Adapteren henter CSV via Accept-header (application/vnd.sdmx.data+csv;labels=id — verifisert 2026-07-25); c[DIM]=filtre ignoreres STILLE (SDMX 3.0-syntaks, API-et er 2.1). CORS: reflektert origin.",
+    "guide": true
   },
   {
     "id": "who",
     "navn": "WHO Global Health Observatory (OData)",
     "utgiver": "WHO",
-    "beskrivelse": "WHO Global Health Observatory — global health indicators (mortality, disease burden, health systems) by country and year.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://ghoapi.azureedge.net/api/",
@@ -98,16 +97,16 @@
       "SpatialDim (ISO3)",
       "TimeDim (år)"
     ],
-    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "WHO Global Health Observatory — global health indicators (mortality, disease burden, health systems) by country and year.",
+    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste"
   },
   {
     "id": "owid",
     "navn": "Our World in Data (grapher-CSV)",
     "utgiver": "OWID",
-    "beskrivelse": "Our World in Data — curated long-run global datasets (health, economy, environment, and more) as downloadable CSV files compiled from many primary sources.",
     "tillit": "etablert",
     "tilgang": "fil",
     "base_url": "https://ourworldindata.org/grapher/",
@@ -117,16 +116,16 @@
       "Year"
     ],
     "sporrings_url_mal": "https://ourworldindata.org/grapher/{slug}.csv?csvType=filtered",
-    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; UTEN csvType=filtered IGNORERES country=/time= STILLE — svaret blir byte-likt hele datasettet (målt 2026-08-04); note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "Our World in Data — curated long-run global datasets (health, economy, environment, and more) as downloadable CSV files compiled from many primary sources.",
+    "quirks": "enhver grapher-side har .csv; kolonner Entity, Code, Year, verdi; UTEN csvType=filtered IGNORERES country=/time= STILLE — svaret blir byte-likt hele datasettet (målt 2026-08-04); note: ikke alle slug-ID-er eksisterer (e.g. co2 != 404, life-expectancy OK) — probe før bruk"
   },
   {
     "id": "fred",
     "navn": "FRED (St. Louis Fed)",
     "utgiver": "Federal Reserve",
-    "beskrivelse": "FRED (Federal Reserve Bank of St. Louis) — US and international macroeconomic and financial time series.",
     "tillit": "etablert",
     "tilgang": "rest",
     "base_url": "https://api.stlouisfed.org/fred/",
@@ -140,16 +139,16 @@
       "env": "FRED_API_KEY",
       "plassering": "query:api_key"
     },
-    "quirks": "krever api_key (injiseres av /api/hent); file_type=json",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "FRED (Federal Reserve Bank of St. Louis) — US and international macroeconomic and financial time series.",
+    "quirks": "krever api_key (injiseres av /api/hent); file_type=json"
   },
   {
     "id": "norgesbank",
     "navn": "Norges Bank (SDMX)",
     "utgiver": "Norges Bank",
-    "beskrivelse": "Norges Bank — Norway's central bank statistics: exchange rates, interest rates, and other Norwegian monetary/financial series via SDMX.",
     "tillit": "offisiell",
     "tilgang": "sdmx",
     "base_url": "https://data.norges-bank.no/api/data/",
@@ -157,18 +156,18 @@
     "join_nokler": [
       "TIME_PERIOD"
     ],
-    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen fra search_catalog (NB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette.",
     "kind": "sdmx",
     "tags": [
       "makro",
       "norge"
-    ]
+    ],
+    "beskrivelse": "Norges Bank — Norway's central bank statistics: exchange rates, interest rates, and other Norwegian monetary/financial series via SDMX.",
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen fra search_catalog (NB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette."
   },
   {
     "id": "ecb",
     "navn": "ECB Data Portal (SDMX)",
     "utgiver": "Den europeiske sentralbanken",
-    "beskrivelse": "European Central Bank Data Portal — euro-area and EU monetary, financial, and exchange-rate time series via SDMX.",
     "tillit": "offisiell",
     "tilgang": "sdmx",
     "kind": "sdmx",
@@ -177,42 +176,42 @@
     "join_nokler": [
       "TIME_PERIOD"
     ],
-    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/D.USD.EUR.SP00.A); komma-formen fra search_catalog (ECB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: 406 på sdmx-csv-Accept — adapterens format=csvdata-fallback tar den. CORS *.",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "European Central Bank Data Portal — euro-area and EU monetary, financial, and exchange-rate time series via SDMX.",
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/D.USD.EUR.SP00.A); komma-formen fra search_catalog (ECB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: 406 på sdmx-csv-Accept — adapterens format=csvdata-fallback tar den. CORS *."
   },
   {
     "id": "datanorge",
     "navn": "data.norge.no (Felles datakatalog)",
     "utgiver": "Digdir",
-    "beskrivelse": "data.norge.no — Norway's national open-data catalogue (Digdir): metadata pointing to datasets published by Norwegian public agencies.",
     "tillit": "offisiell",
     "tilgang": "ckan",
     "base_url": "https://data.norge.no/",
     "sok_endepunkt": "https://search.api.fellesdatakatalog.digdir.no/search",
     "cors": true,
-    "quirks": "katalog over datasett fra offentlige etater; selve datafilene ligger hos utgiver (probe før bruk); søke-API: POST-body bruker felt 'q' (ikke 'query'), og filters.type.value='datasets' må settes — uten dette domineres treff av CONCEPT/andre entitetstyper",
     "tags": [
       "norge"
-    ]
+    ],
+    "beskrivelse": "data.norge.no — Norway's national open-data catalogue (Digdir): metadata pointing to datasets published by Norwegian public agencies.",
+    "quirks": "katalog over datasett fra offentlige etater; selve datafilene ligger hos utgiver (probe før bruk); søke-API: POST-body bruker felt 'q' (ikke 'query'), og filters.type.value='datasets' må settes — uten dette domineres treff av CONCEPT/andre entitetstyper"
   },
   {
     "id": "githubraw",
     "navn": "GitHub raw-filer",
     "utgiver": "(varierer)",
-    "beskrivelse": "GitHub raw files — direct file access for datasets discovered via web search and hosted in GitHub repositories; trust depends on the repository owner.",
     "tillit": "funnet",
     "tilgang": "fil",
     "base_url": "https://raw.githubusercontent.com/",
     "cors": true,
+    "beskrivelse": "GitHub raw files — direct file access for datasets discovered via web search and hosted in GitHub repositories; trust depends on the repository owner.",
     "quirks": "discovery via web_search; ALLTID probe før bruk; tillit avhenger av repo-eier"
   },
   {
     "id": "wikipedia",
     "navn": "Wikipedia (tabeller i artikler)",
     "utgiver": "Wikimedia",
-    "beskrivelse": "Wikipedia — tabular data extracted directly from tables inside Wikipedia articles.",
     "tillit": "etablert",
     "tilgang": "fil",
     "base_url": "https://en.wikipedia.org/wiki/",
@@ -220,13 +219,13 @@
     "oppskrift": {
       "python": "# load /api/hent?url=<url-enkodet artikkel-URL> as raw_html  →  import micropip; await micropip.install('lxml'); tabeller = pd.read_html(io.StringIO(raw_html)); df = tabeller[i]"
     },
+    "beskrivelse": "Wikipedia — tabular data extracted directly from tables inside Wikipedia articles.",
     "quirks": "tabeller er load-bare via /api/hent + pd.read_html (lxml via micropip); velg riktig tabellindeks; no.wikipedia.org for norske artikler"
   },
   {
     "id": "kaggle",
     "navn": "Kaggle Datasets",
     "utgiver": "(varierer — Kaggle-brukere)",
-    "beskrivelse": "Kaggle Datasets — a community platform of user-uploaded datasets across many topics; provenance and licensing vary by dataset.",
     "tillit": "etablert",
     "tilgang": "rest",
     "base_url": "https://www.kaggle.com/api/v1/",
@@ -239,13 +238,13 @@
     },
     "nokkel_hint": "brukernavn:nøkkel — lag på kaggle.com → Settings → API",
     "sporrings_url_mal": "https://www.kaggle.com/api/v1/datasets/download/{eier}/{slug}/{filnavn}",
+    "beskrivelse": "Kaggle Datasets — a community platform of user-uploaded datasets across many topics; provenance and licensing vary by dataset.",
     "quirks": "krever brukernøkkel (Basic auth via /api/hent); åpne datasett kan hentes uten nøkkel; privat-/konkurransedata krever registrert nøkkel; nedlasting redirecter til Google Storage (proxyen følger); enkeltfil-URL gir fila, uten {filnavn} kommer hele datasettet som zip (unngå); datasett er ofte uoffisielle kopier — foretrekk primærkilder og sjekk lisens; katalogsøk verifisert nøkkelfritt + CORS-åpent 2026-08-06: GET https://www.kaggle.com/api/v1/datasets/list?search={q} (felter: ref/title/totalBytes/licenseName/downloadCount) — bruk det FØR web_search; fil-liste-endepunktet datasets/list/files er dødt (404)"
   },
   {
     "id": "scb",
     "navn": "Statistikmyndigheten SCB (PxWebApi 2)",
     "utgiver": "SCB",
-    "beskrivelse": "Statistics Sweden — official Swedish statistics: population, economy, labour, and other topics by region.",
     "tillit": "offisiell",
     "tilgang": "pxweb",
     "kind": "pxweb",
@@ -258,17 +257,17 @@
       "kön"
     ],
     "sporrings_url_mal": "https://api.scb.se/ov0104/v2beta/api/v2/tables/{id}/data?valueCodes[{var}]={koder}&outputFormat=csv&lang=sv",
-    "quirks": "Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {\"tables\":[{id,label,firstPeriod,lastPeriod,...}]} — adapter-kompatibel; i motsetning til SSB virker /data på SAMME v2beta-sti (ingen v2/v2-beta-splitt); outputFormat=csv gir CSV direkte uten filter, og med valueCodes[dim]=kode når man vil begrense; dataendepunktet sender Access-Control-Allow-Origin: * (CORS OK, verifisert med curl -sI mot .../data); valueCodes-nøkler må være metadata-dimensjonskoder (f.eks. 'Alder', 'Kon', 'Tid' — fra /tables/{id}/metadata), IKKE søkeresultatets variableNames-etiketter (som er små bokstaver, f.eks. 'region', 'år', 'kön'); mangler obligatorisk dimensjon gir HTTP 400 'Missing selection for mandantory variable'.",
     "tags": [
       "makro",
       "sverige"
-    ]
+    ],
+    "beskrivelse": "Statistics Sweden — official Swedish statistics: population, economy, labour, and other topics by region.",
+    "quirks": "Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {\"tables\":[{id,label,firstPeriod,lastPeriod,...}]} — adapter-kompatibel; i motsetning til SSB virker /data på SAMME v2beta-sti (ingen v2/v2-beta-splitt); outputFormat=csv gir CSV direkte uten filter, og med valueCodes[dim]=kode når man vil begrense; dataendepunktet sender Access-Control-Allow-Origin: * (CORS OK, verifisert med curl -sI mot .../data); valueCodes-nøkler må være metadata-dimensjonskoder (f.eks. 'Alder', 'Kon', 'Tid' — fra /tables/{id}/metadata), IKKE søkeresultatets variableNames-etiketter (som er små bokstaver, f.eks. 'region', 'år', 'kön'); mangler obligatorisk dimensjon gir HTTP 400 'Missing selection for mandantory variable'."
   },
   {
     "id": "statfin",
     "navn": "Statistikcentralen StatFin",
     "utgiver": "Tilastokeskus",
-    "beskrivelse": "Statistics Finland (StatFin) — official Finnish statistics: population, economy, labour, and other topics by region.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "kind": "statfin",
@@ -278,17 +277,17 @@
       "Vuosi (år)",
       "Alue (region)"
     ],
-    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk.",
     "tags": [
       "makro",
       "finland"
-    ]
+    ],
+    "beskrivelse": "Statistics Finland (StatFin) — official Finnish statistics: population, economy, labour, and other topics by region.",
+    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk."
   },
   {
     "id": "dst",
     "navn": "Danmarks Statistik (StatBank API)",
     "utgiver": "Danmarks Statistik",
-    "beskrivelse": "Statistics Denmark (StatBank) — official Danish statistics: population, economy, labour, and other topics by region.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "kind": "dst",
@@ -299,17 +298,17 @@
       "OMRÅDE"
     ],
     "sporrings_url_mal": "https://api.statbank.dk/v1/data/{tabell}/CSV?{var}={koder}",
-    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog.",
     "tags": [
       "makro",
       "danmark"
-    ]
+    ],
+    "beskrivelse": "Statistics Denmark (StatBank) — official Danish statistics: population, economy, labour, and other topics by region.",
+    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog."
   },
   {
     "id": "fhi",
     "navn": "Folkehelseinstituttet (statistikk-data.fhi.no åpne API)",
     "utgiver": "Folkehelseinstituttet",
-    "beskrivelse": "Norwegian Institute of Public Health (FHI) — Norwegian public-health registry statistics (e.g. cardiovascular disease, infectious disease, vaccination), mostly at national level.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "kind": "fhi",
@@ -320,49 +319,49 @@
       "GEO"
     ],
     "sporrings_url_mal": "https://statistikk-data.fhi.no/api/open/v1/{register}/table/{tabell}/data",
-    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw",
     "tags": [
       "makro",
       "norge"
-    ]
+    ],
+    "beskrivelse": "Norwegian Institute of Public Health (FHI) — Norwegian public-health registry statistics (e.g. cardiovascular disease, infectious disease, vaccination), mostly at national level.",
+    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw"
   },
   {
     "id": "dbnomics",
     "navn": "DBnomics (aggregator, ~80 kilder)",
     "utgiver": "DBnomics/Cepremap",
-    "beskrivelse": "DBnomics — an aggregator of roughly 80 statistical providers (IMF, BIS, ILO, and more) behind one unified API.",
     "tillit": "etablert",
     "tilgang": "rest",
     "kind": "dbnomics",
     "base_url": "https://api.db.nomics.world/v22/series/",
     "cors": true,
-    "guide": true,
     "join_nokler": [
       "period",
       "series_code"
     ],
-    "quirks": "Ressurssti = <provider>/<dataset> (f.eks. IMF/WEO:latest) med filters={\"<dimensjon>\": \"<kode>\"} — oversettes til ?dimensions=<url-enkodet JSON> (verifisert live 2026-08-01: IMF/WEO ufiltrert = 8624 serier mot 1000-taket → hard feil; med filters={\"weo-country\": \"NOR\"} = 44). Dimensjons- og verdikodene kommer fra table_metadata. Serie-masken (IMF/WEO:latest/NOR.NGDP_RPCH) virker fortsatt når man kjenner den eksakte koden. :latest 302-redirecter til versjonert dataset (fetch følger). Adapteren tvinger observations=1 og flater til langt format (series_code + dimensjoner + period + value). years= filtreres KLIENT-side (API-et har ingen tidsvindu-parametre). Datafriskhet avhenger av DBnomics' høsting. Utenfor openstat: python-pakken dbnomics, R-pakken rdbnomics.; per-produsent-speil kan henge etter kilden (OECD-speilet frosset siden 2024-10 etter OECDs API-omlegging) — «sist indeksert» vises i søketreff/metadata; sjekk den",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "DBnomics — an aggregator of roughly 80 statistical providers (IMF, BIS, ILO, and more) behind one unified API.",
+    "quirks": "Ressurssti = <provider>/<dataset> (f.eks. IMF/WEO:latest) med filters={\"<dimensjon>\": \"<kode>\"} — oversettes til ?dimensions=<url-enkodet JSON> (verifisert live 2026-08-01: IMF/WEO ufiltrert = 8624 serier mot 1000-taket → hard feil; med filters={\"weo-country\": \"NOR\"} = 44). Dimensjons- og verdikodene kommer fra table_metadata. Serie-masken (IMF/WEO:latest/NOR.NGDP_RPCH) virker fortsatt når man kjenner den eksakte koden. :latest 302-redirecter til versjonert dataset (fetch følger). Adapteren tvinger observations=1 og flater til langt format (series_code + dimensjoner + period + value). years= filtreres KLIENT-side (API-et har ingen tidsvindu-parametre). Datafriskhet avhenger av DBnomics' høsting. Utenfor openstat: python-pakken dbnomics, R-pakken rdbnomics.; per-produsent-speil kan henge etter kilden (OECD-speilet frosset siden 2024-10 etter OECDs API-omlegging) — «sist indeksert» vises i søketreff/metadata; sjekk den",
+    "guide": true
   },
   {
     "id": "apd",
     "navn": "Awesome Public Datasets (fellesskapskatalog)",
     "utgiver": "awesomedata/apd-core (GitHub-fellesskap)",
-    "beskrivelse": "Awesome Public Datasets — a community-curated GitHub catalogue of 868 public dataset listings across 35 categories; dataset-level pointers only, no column-level schema.",
     "tillit": "funnet",
     "tilgang": "fil",
     "kind": "apd",
     "base_url": "https://github.com/awesomedata/apd-core",
     "cors": false,
+    "beskrivelse": "Awesome Public Datasets — a community-curated GitHub catalogue of 868 public dataset listings across 35 categories; dataset-level pointers only, no column-level schema.",
     "quirks": "868 datasett-oppføringer (35 kategorier), datasett-nivå kun — ingen kolonneskjema. homepage er ofte en landingsside, ikke en direkte data-URL. Søkes LOKALT mot en forhåndshøstet katalog (data/apd-catalog.json), ingen live GitHub-kall."
   },
   {
     "id": "datacommons",
     "navn": "Google Data Commons",
     "utgiver": "Google",
-    "beskrivelse": "Google Data Commons — a knowledge graph of statistical variables aggregating many public sources, with broad global and US statistical coverage; requires an API key.",
     "tillit": "etablert",
     "tilgang": "rest",
     "kind": "datacommons",
@@ -373,17 +372,17 @@
       "env": "DATACOMMONS_API_KEY",
       "plassering": "query:key"
     },
-    "guide": true,
-    "quirks": "søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden",
     "tags": [
       "makro"
-    ]
+    ],
+    "beskrivelse": "Google Data Commons — a knowledge graph of statistical variables aggregating many public sources, with broad global and US statistical coverage; requires an API key.",
+    "quirks": "søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: navngi kilden",
+    "guide": true
   },
   {
     "id": "ipums",
     "navn": "IPUMS (NHIS/MEPS/International)",
     "utgiver": "IPUMS / University of Minnesota",
-    "beskrivelse": "IPUMS (NHIS/MEPS/International) — harmonized health and social survey microdata via an asynchronous extract API; requires a free account, data cannot be redistributed.",
     "tillit": "etablert",
     "tilgang": "rest",
     "base_url": "https://api.ipums.org/",
@@ -393,18 +392,18 @@
       "user": true,
       "plassering": "header:Authorization"
     },
-    "guide": true,
     "nokkel_hint": "gratis konto på ipums.org → API key",
-    "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "IPUMS (NHIS/MEPS/International) — harmonized health and social survey microdata via an asynchronous extract API; requires a free account, data cannot be redistributed.",
+    "quirks": "asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres",
+    "guide": true
   },
   {
     "id": "ess",
     "navn": "European Social Survey (ESS Data Portal API)",
     "utgiver": "ESS ERIC / Sikt",
-    "beskrivelse": "European Social Survey — attitudes and welfare survey microdata for around 30 European countries (incl. Norway), 2002 onward, delivered per survey round.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://api.ess.sikt.no/",
@@ -414,17 +413,17 @@
       "env": "ESS_API_KEY",
       "plassering": "query:userId"
     },
-    "guide": true,
-    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "European Social Survey — attitudes and welfare survey microdata for around 30 European countries (incl. Norway), 2002 onward, delivered per survey round.",
+    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden",
+    "guide": true
   },
   {
     "id": "census",
     "navn": "US Census Microdata API (ACS/CPS PUMS)",
     "utgiver": "U.S. Census Bureau",
-    "beskrivelse": "US Census Bureau microdata API — person/household-level ACS and CPS survey rows (demographics, education, income, employment, housing, health insurance); requires a free API key.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://api.census.gov/",
@@ -434,121 +433,122 @@
       "env": "CENSUS_API_KEY",
       "plassering": "query:key"
     },
-    "guide": true,
-    "quirks": "ekte personnivå-rader (PUMS) som JSON-matrise; variables.json (kodebok + vekter) er nøkkelfri og CORS-åpen, datakall krever nøkkel; vekt PWGTP + 80 replikatvekter — se guiden",
     "tags": [
       "mikro",
       "usa"
-    ]
+    ],
+    "beskrivelse": "US Census Bureau microdata API — person/household-level ACS and CPS survey rows (demographics, education, income, employment, housing, health insurance); requires a free API key.",
+    "quirks": "ekte personnivå-rader (PUMS) som JSON-matrise; variables.json (kodebok + vekter) er nøkkelfri og CORS-åpen, datakall krever nøkkel; vekt PWGTP + 80 replikatvekter — se guiden",
+    "guide": true
   },
   {
     "id": "nchs",
     "navn": "CDC/NCHS surveyfiler (NHANES XPT, NHIS CSV)",
     "utgiver": "CDC / National Center for Health Statistics",
-    "beskrivelse": "CDC/NCHS survey files — direct downloads of NHANES health-examination and NHIS health-interview microdata for the United States; no registration required.",
     "tillit": "offisiell",
     "tilgang": "fil",
     "base_url": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/",
     "cors": false,
-    "guide": true,
-    "quirks": "åpne helse-mikrodatafiler uten registrering; NHANES: XPT-filer (0,5–15 MB) via pandas.read_sas — GAMMEL sti gir 200-med-HTML (soft-404, sjekk content-type!); NHIS: csv-zip på ftp.cdc.gov — se guiden",
     "tags": [
       "mikro",
       "usa"
-    ]
+    ],
+    "beskrivelse": "CDC/NCHS survey files — direct downloads of NHANES health-examination and NHIS health-interview microdata for the United States; no registration required.",
+    "quirks": "åpne helse-mikrodatafiler uten registrering; NHANES: XPT-filer (0,5–15 MB) via pandas.read_sas — GAMMEL sti gir 200-med-HTML (soft-404, sjekk content-type!); NHIS: csv-zip på ftp.cdc.gov — se guiden",
+    "guide": true
   },
   {
     "id": "wbmicro",
     "navn": "World Bank Microdata Library (NADA-API)",
     "utgiver": "Verdensbanken",
-    "beskrivelse": "World Bank Microdata Library — a catalogue of about 7,100 household, health, and labour-market survey studies worldwide with full variable dictionaries; the data files themselves are login-gated.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "kind": "nada",
     "base_url": "https://microdata.worldbank.org/index.php/api/",
     "cors": true,
-    "guide": true,
-    "quirks": "søk (7000+ surveys) + FULL variabelordbok (spørsmålstekst, verdietiketter) er åpne og nøkkelfrie; selve datafilene er login-gated — metadata må ALDRI presenteres som dataverdier; samme API hos IHSN/FAO — se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "World Bank Microdata Library — a catalogue of about 7,100 household, health, and labour-market survey studies worldwide with full variable dictionaries; the data files themselves are login-gated.",
+    "quirks": "søk (7000+ surveys) + FULL variabelordbok (spørsmålstekst, verdietiketter) er åpne og nøkkelfrie; selve datafilene er login-gated — metadata må ALDRI presenteres som dataverdier; samme API hos IHSN/FAO — se guiden",
+    "guide": true
   },
   {
     "id": "cessda",
     "navn": "CESSDA Data Catalogue",
     "utgiver": "CESSDA ERIC",
-    "beskrivelse": "CESSDA Data Catalogue — a metadata aggregator for European social-science data archives (incl. Sikt/NSD for Norway) covering 40,000+ studies; data is hosted by the archives, often behind free registration.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "kind": "cessda",
     "base_url": "https://datacatalogue.cessda.eu/api/DataSets/v2/",
     "cors": true,
-    "guide": true,
-    "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "CESSDA Data Catalogue — a metadata aggregator for European social-science data archives (incl. Sikt/NSD for Norway) covering 40,000+ studies; data is hosted by the archives, often behind free registration.",
+    "quirks": "40 000+ europeiske samfunnsvitenskapelige studier (inkl. Sikt/NSD-arkivet) — kun studienivå-metadata + landingssider, data hentes hos arkivet (ofte gratis registrering); limit ≤ 200 — se guiden",
+    "guide": true
   },
   {
     "id": "ihsn",
     "navn": "IHSN Central Data Catalog (NADA-API)",
     "utgiver": "International Household Survey Network",
-    "beskrivelse": "IHSN Central Data Catalog — a metadata catalogue of about 5,400 surveys aggregated from national statistical-agency archives worldwide; data files are hosted by the producing agency, often behind login.",
     "tillit": "etablert",
     "tilgang": "rest",
     "base_url": "https://catalog.ihsn.org/index.php/api/",
     "cors": true,
-    "guide": true,
-    "quirks": "~5 400 surveys aggregert fra nasjonale statistikkbyrå-arkiver — metadata-pekere: data hos produsentarkivet (ofte login); samme NADA-API som wbmicro. NB: serverside-henting (search_catalog//api/hent) FEILER mot denne verten (TLS-kjede Deno ikke støtter, målt 2026-08-06) — bruk DIREKTE ost.read fra nettleseren (CORS-åpen), se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "IHSN Central Data Catalog — a metadata catalogue of about 5,400 surveys aggregated from national statistical-agency archives worldwide; data files are hosted by the producing agency, often behind login.",
+    "quirks": "~5 400 surveys aggregert fra nasjonale statistikkbyrå-arkiver — metadata-pekere: data hos produsentarkivet (ofte login); samme NADA-API som wbmicro. NB: serverside-henting (search_catalog//api/hent) FEILER mot denne verten (TLS-kjede Deno ikke støtter, målt 2026-08-06) — bruk DIREKTE ost.read fra nettleseren (CORS-åpen), se guiden",
+    "guide": true
   },
   {
     "id": "dhs",
     "navn": "DHS Program (indikator-API)",
     "utgiver": "USAID / ICF",
-    "beskrivelse": "DHS Program — aggregated demographic and health indicators (fertility, child mortality, vaccination, nutrition) from 374 surveys in 90+ low- and middle-income countries.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://api.dhsprogram.com/rest/dhs/",
     "cors": true,
-    "guide": true,
-    "quirks": "helse-/demografiindikatorer fra 374 surveys i 90+ lav-/mellominntektsland (aggregert, CORS-åpen, nøkkelfri); survey-mikrodataene krever søknad+godkjenning — se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "DHS Program — aggregated demographic and health indicators (fertility, child mortality, vaccination, nutrition) from 374 surveys in 90+ low- and middle-income countries.",
+    "quirks": "helse-/demografiindikatorer fra 374 surveys i 90+ lav-/mellominntektsland (aggregert, CORS-åpen, nøkkelfri); survey-mikrodataene krever søknad+godkjenning — se guiden",
+    "guide": true
   },
   {
     "id": "cdc",
     "navn": "data.cdc.gov (Socrata SODA)",
     "utgiver": "CDC",
-    "beskrivelse": "data.cdc.gov (Socrata) — CDC's open-data portal with 1,078 datasets of aggregated US health statistics (disease prevalence, mortality, vaccination); not microdata.",
     "tillit": "offisiell",
     "tilgang": "rest",
     "base_url": "https://data.cdc.gov/resource/",
     "cors": true,
-    "guide": true,
     "sporrings_url_mal": "https://data.cdc.gov/resource/{id}.json?$limit=1000",
-    "quirks": "1078 datasett (BRFSS/PLACES-prevalens, dødelighet, vaksinasjon, kroniske sykdommer) — aggregert statistikk, IKKE mikrodata; SoQL ($where/$select/$group) server-side; nøkkelfri + CORS-åpen — se guiden",
     "tags": [
       "makro",
       "usa"
-    ]
+    ],
+    "beskrivelse": "data.cdc.gov (Socrata) — CDC's open-data portal with 1,078 datasets of aggregated US health statistics (disease prevalence, mortality, vaccination); not microdata.",
+    "quirks": "1078 datasett (BRFSS/PLACES-prevalens, dødelighet, vaksinasjon, kroniske sykdommer) — aggregert statistikk, IKKE mikrodata; SoQL ($where/$select/$group) server-side; nøkkelfri + CORS-åpen — se guiden",
+    "guide": true
   },
   {
     "id": "hf",
     "navn": "Hugging Face Datasets",
     "utgiver": "(varierer — HF-brukere)",
-    "beskrivelse": "Hugging Face Datasets — a hub of machine-learning datasets with tabular search and preview; many entries are unofficial copies of other sources, so check provenance and license.",
     "tillit": "etablert",
     "tilgang": "rest",
     "base_url": "https://datasets-server.huggingface.co/",
     "cors": true,
-    "guide": true,
-    "quirks": "søk + typet forhåndsvisning + auto-konvertert parquet, alt CORS-åpent uten nøkkel; mye er uoffisielle kopier — foretrekk primærkilder og sjekk lisens/proveniens; gated datasett støttes ikke — se guiden",
     "tags": [
       "mikro"
-    ]
+    ],
+    "beskrivelse": "Hugging Face Datasets — a hub of machine-learning datasets with tabular search and preview; many entries are unofficial copies of other sources, so check provenance and license.",
+    "quirks": "søk + typet forhåndsvisning + auto-konvertert parquet, alt CORS-åpent uten nøkkel; mye er uoffisielle kopier — foretrekk primærkilder og sjekk lisens/proveniens; gated datasett støttes ikke — se guiden",
+    "guide": true
   }
 ]

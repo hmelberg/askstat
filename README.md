@@ -41,6 +41,7 @@ statement.
 | `protect.py` | `scrub-*` data-protection verbs (noise, swap, k-anon, risk, …) — a local disclosure-control toolkit you can call on your own scripts; no server involved. |
 | `mockdata_export.py`, `static_source.py`, `build_static_data.py` | Static synthetic-data build (Parquet/DuckDB) + the static data source. |
 | `netlify/edge-functions/` | The AI endpoints (`dm-vurder`, `kode-svar`, `kode-svar-v2`, `tolk-resultat`, `data-svar`, `hent`) + shared `_lib/`. All accept a BYOK Anthropic key (`X-Anthropic-Key`) — no account/token required. |
+| `data/sources/<id>.md` | The data-source registry, canonical form (front matter + `## Kort`/`## Guide`/`## Om kilden`). `data/data-sources.json` and `data/source-guides/` are **generated** from these — edit the documents, not the generated files, then run `node tools/source_docs.mjs generate`. |
 | `manual_scripts/` | End-to-end example scripts run as a smoke suite. |
 | `tests/` | pytest suite (engine, regressions, equivalence, mock-data, performance). |
 

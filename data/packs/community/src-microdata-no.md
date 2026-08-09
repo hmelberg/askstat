@@ -1,3 +1,16 @@
+---
+id: src-microdata-no
+name: microdata.no
+kind: remote-execution platform over SSB administrative registers
+provider: Sikt + Statistics Norway, funded by the Research Council of Norway
+landing: https://www.microdata.no/en/
+variable_catalog: https://www.microdata.no/discovery
+content: unmanipulated SSB register microdata — population, education, income/tax, social security (FD-Trygd), employment, family/household, criminal justice; some series back to 1964. Health registries (NPR/MFR/Kreftregisteret) are NOT here — that is Helsedata.no's domain.
+access: institutional agreement; no per-project ethics application
+export: "NONE — no bulk export. Only aggregated tables and model output leave the platform (automatic on-the-fly anonymisation: rounding, cell suppression, hexbin scatterplots)."
+foreign_researcher_eligibility: UNVERIFIED — historically required a Norwegian institutional affiliation
+---
+
 # microdata.no
 
 Remote-execution platform over SSB administrative registers, run by Sikt
@@ -6,18 +19,7 @@ aggregate output leaves — the fastest defensible answer from Norwegian
 register data, at the cost of never seeing a row. Access is by
 institutional agreement, no per-project ethics application.
 
-```yaml
-id: src-microdata-no
-name: microdata.no
-kind: remote-execution platform over SSB administrative registers
-provider: Sikt + Statistics Norway, funded by the Research Council of Norway
-landing: https://www.microdata.no/en/
-variable_catalog: https://www.microdata.no/discovery
-content: "unmanipulated SSB register microdata — population, education, income/tax, social security (FD-Trygd), employment, family/household, criminal justice; some series back to 1964. Health registries (NPR/MFR/Kreftregisteret) are NOT here — that is Helsedata.no's domain."
-access: institutional agreement; no per-project ethics application
-export: "NONE — no bulk export. Only aggregated tables and model output leave the platform (automatic on-the-fly anonymisation: rounding, cell suppression, hexbin scatterplots)."
-foreign_researcher_eligibility: UNVERIFIED — historically required a Norwegian institutional affiliation
-```
+
 
 The query language is Stata-like and executes server-side — by far the
 fastest way to a defensible answer from Norwegian register data (hours, not
@@ -37,3 +39,4 @@ Verbs: `require`, `create-dataset`, `import`/`import-event`/`import-panel`,
 `generate`, `replace`, `recode`, `collapse`, `merge`, `tabulate`,
 `summarize`, `regress`, `logit`, `regress-panel`. If the user's question is
 answerable this way, you can draft the script even without running it.
+

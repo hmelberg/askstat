@@ -11,6 +11,19 @@
 //             som kjører generate-logikken i minne FØR noe skrives til disk.
 //   generate  (VARIG) data/sources/*.md -> data/data-sources.json +
 //             data/source-guides/*.md.
+//   convert-packs  (ENGANGS, idempotent) data/packs/*.md +
+//             data/packs/community/*.md -> SAMME filer, omskrevet fra gammel
+//             fenced ```yaml-feltform til front matter (Task 4, spec §2).
+//             Rører KUN filer der SourceDoc.parse() faktisk hentet feltene
+//             fra en fenced yaml-blokk i dokumentets LEDENDE område (før
+//             første '## '-overskrift) — filer uten feltblokk i det hele
+//             tatt (ren prosa, f.eks. data/packs/norway.md eller flere
+//             src-*-pakker i data/packs/community/) er urørt, og en
+//             ```yaml-blokk inni en SENERE seksjon (eksempelinnhold, ikke en
+//             feltkilde) overlever også urørt — samme scoping som parseren
+//             selv bruker, IKKE eksportert fra js/source-doc.js (Task 1s
+//             låste grensesnitt: kun parse/serialize/normalize/sectionKey/
+//             TAG_ALIASES/SECTION_ALIASES), derfor duplisert lokalt under.
 //
 // `generateInMemory(docsDir)` eksporteres for Task 3 sin drift-test — den
 // leser *.md-filene fra docsDir og returnerer {entries, guides} UTEN å
@@ -412,6 +425,50 @@ function convert() {
   );
 }
 
+// ---- convert-packs: data/packs/*.md + data/packs/community/*.md -> samme
+// filer, gammel fenced-yaml-feltform -> front matter (Task 4) ----
+
+// hasLeadingYamlFence(text) — speiler EKSAKT js/source-doc.js sin egen
+// extractFields()/leadingText()-scoping (front matter sjekkes først; en
+// ```yaml-blokk teller som feltkilde KUN når den ligger før dokumentets
+// første '## '-overskrift). SourceDoc.parse() selv overlater ikke hvilken av
+// de tre inndataformene som produserte doc.fields — convert-packs trenger
+// akkurat det for å vite om en fil skal skrives om (hadde en gammel
+// fenced-yaml-blokk) eller stå urørt (ingen feltblokk i det hele tatt, eller
+// en yaml-blokk kun i en senere seksjon — begge tilfeller finnes i det
+// virkelige korpuset: 7 src-*-pakker og alle 12 oversiktspakker i
+// data/packs/community/ er ren prosa, og crime-transport-energy-politics.md
+// / data-catalogs.md har en ```yaml-blokk i en senere seksjon som eksempel,
+// ikke en feltkilde).
+const YAML_FENCE_RE = /```ya?ml[ \t]*\r?\n[\s\S]*?\r?\n```/;
+const H2_ANCHOR_RE = /(^|\r?\n)## /;
+function hasLeadingYamlFence(text) {
+  if (text.split(/\r?\n/)[0] === '---') return false; // allerede front matter
+  const m = H2_ANCHOR_RE.exec(text);
+  const leading = m ? text.slice(0, m.index + m[1].length) : text;
+  return YAML_FENCE_RE.test(leading);
+}
+
+function convertPacks() {
+  const dirs = [path.join(ROOT, 'data', 'packs'), path.join(ROOT, 'data', 'packs', 'community')];
+  let converted = 0;
+  let untouched = 0;
+  dirs.forEach((dir) => {
+    readdirSync(dir).filter((f) => f.endsWith('.md')).forEach((f) => {
+      const full = path.join(dir, f);
+      const text = readFileSync(full, 'utf8');
+      if (!hasLeadingYamlFence(text)) { untouched++; return; }
+      const doc = SourceDoc.parse(text);
+      writeFileSync(full, SourceDoc.serialize(doc), 'utf8');
+      converted++;
+    });
+  });
+  console.log(
+    `convert-packs: ${converted} pakkefiler konvertert til front matter, ${untouched} urørt ` +
+    '(ingen ledende yaml-blokk)',
+  );
+}
+
 // ---- CLI ----
 
 function main() {
@@ -419,8 +476,9 @@ function main() {
   try {
     if (cmd === 'convert') convert();
     else if (cmd === 'generate') generate();
+    else if (cmd === 'convert-packs') convertPacks();
     else {
-      console.error('Bruk: node tools/source_docs.mjs <convert|generate>');
+      console.error('Bruk: node tools/source_docs.mjs <convert|generate|convert-packs>');
       process.exit(1);
     }
   } catch (e) {

@@ -11,6 +11,7 @@ const PACKS = path.join(ROOT, 'data', 'packs');
 const index = JSON.parse(fs.readFileSync(path.join(PACKS, 'index.json'), 'utf-8'));
 const countries = JSON.parse(fs.readFileSync(path.join(PACKS, 'countries.json'), 'utf-8'));
 const dataSources = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'data-sources.json'), 'utf-8'));
+const SourceDoc = require('../../js/source-doc.js');
 
 // Samme mønster som js/feil-telemetri.js sin NOKKEL_RE — pakker skal aldri
 // bære nøkler (README: referer som key(name)).
@@ -120,5 +121,61 @@ test('data-sources.json: tags (der de finnes) følger kontrakten — regex/lower
 test('packs/index.json: tags (der de finnes) følger kontrakten — regex/lowercase/unikt/tak 8', () => {
   for (const p of index.packs) {
     if ('tags' in p) assertValidTags(p.tags, `packs/index.json:${p.id}`);
+  }
+});
+
+// Front matter-krav for community-pakker (spec 2026-08-09-kildedokumenter-v1a
+// Task 4): den gamle fenced ```yaml-blokk-formen skal være borte fra
+// data/packs/community/*.md etter `node tools/source_docs.mjs
+// convert-packs` — pakketeksten som modellen ser bytter innpakning (front
+// matter i stedet av ```yaml), feltene/prosaen er uendret. Skopet er ALLE
+// .md-filer i data/packs/community/ UNNTATT README.md, som er
+// bidragsdokumentasjon, ikke en pakke (bekreftet: fraværende fra
+// index.json sin packs-liste — hver reell community-pakke der har en fil
+// her, se testen over).
+//
+// hasLeadingYamlFence speiler EKSAKT samme scoping som js/source-doc.js sin
+// egen extractFields()/leadingText(): en fenced yaml-blokk teller kun som
+// gammel feltform når den ligger i dokumentets LEDENDE område (før første
+// '## '-overskrift) — en blokk inni en senere seksjon er eksempelinnhold,
+// ikke en feltkilde, og skal IKKE avvises. To reelle filer i korpuset har
+// nettopp en slik senere-seksjon-blokk (crime-transport-energy-politics.md
+// linje 77, data-catalogs.md linje 24 — begge etter sin første '## ') og må
+// fortsatt bestå denne testen. Ikke importert fra source-doc.js — Task 1s
+// låste grensesnitt eksporterer kun parse/serialize/normalize/sectionKey/
+// TAG_ALIASES/SECTION_ALIASES (se fila) — duplisert her med samme mønster
+// som NOKKEL_RE over (speiler kilden, kommentert som sådan).
+const YAML_FENCE_RE = /```ya?ml[ \t]*\r?\n[\s\S]*?\r?\n```/;
+const H2_ANCHOR_RE = /(^|\r?\n)## /;
+function hasLeadingYamlFence(text) {
+  if (text.split(/\r?\n/)[0] === '---') return false; // allerede front matter
+  const m = H2_ANCHOR_RE.exec(text);
+  const leading = m ? text.slice(0, m.index + m[1].length) : text;
+  return YAML_FENCE_RE.test(leading);
+}
+
+test('community-pakker: front matter (ikke gammel fenced yaml) i ledende område; id der pakken har feltdata', () => {
+  const dir = path.join(PACKS, 'community');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md');
+  assert.ok(files.length > 0, 'fant ingen community-pakkefiler å sjekke');
+  for (const f of files) {
+    const text = fs.readFileSync(path.join(dir, f), 'utf-8');
+    assert.ok(
+      !hasLeadingYamlFence(text),
+      `${f}: har fortsatt en fenced \`\`\`yaml-blokk i dokumentets ledende område ` +
+      `(gammel feltform) — kjør node tools/source_docs.mjs convert-packs`,
+    );
+    // Feltkrav er BETINGET: filer uten noen feltblokk i det hele tatt (ren
+    // prosa — 7 src-*-pakker og alle 12 oversiktspakker i dagens korpus,
+    // samme mønster som data/packs/norway.md/finland.md) er utenfor
+    // convert-packs sitt mandat («Filer uten yaml-blokk → urørt», Task 4
+    // brief) og skal IKKE tvinges til å ha en id. Men EN pakke som faktisk
+    // bærer feltdata (front matter etter konvertering) skal alltid ha 'id'
+    // — samme sjekk som generateInMemory() i tools/source_docs.mjs gjør for
+    // data/sources/.
+    const doc = SourceDoc.parse(text);
+    if (Object.keys(doc.fields).length > 0) {
+      assert.ok(doc.fields.id, `${f}: har feltdata (front matter) men mangler 'id'-felt`);
+    }
   }
 });

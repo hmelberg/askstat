@@ -57,17 +57,64 @@ function fail(msg) {
   throw new SourceDocsError(msg);
 }
 
-// ---- Delt kjerne: en flat [{id, doc}]-liste (doc = SourceDoc.parse()-
-// resultat, ELLER et håndbygd ekvivalent objekt fra convert) -> {entries,
-// guides}. Brukes BÅDE av convert sin paritetsvakt (før noe er skrevet til
-// disk) og av generateInMemory (leser data/sources/*.md fra disk). ----
+// ---- Delt kjerne: en flat [{id, doc, rawText}]-liste (doc = SourceDoc.
+// parse()-resultat, ELLER et håndbygd ekvivalent objekt fra convert;
+// rawText = den fulle kildedokument-teksten doc ble/blir hentet fra) ->
+// {entries, guides}. Brukes BÅDE av convert sin paritetsvakt (før noe er
+// skrevet til disk) og av generateInMemory (leser data/sources/*.md fra
+// disk). ----
+
+// KEY_RANK: den ENESTE gyldige relative rekkefølgen kjente seksjonsnøkler
+// kan opptre i et kildedokument (matcher rekkefølgen buildDocForEntry
+// skriver dem i: Kort?, Guide?, Om kilden — 'variabler' er ubrukt i dag,
+// men gitt samme plass i rekkefølgen som SECTION_ALIASES-oppslaget).
+const KEY_RANK = { kort: 0, guide: 1, variabler: 2, om: 3 };
+
+// validateSectionShape(id, sections) — funn fra task-reviewer 2026-08-10:
+// js/source-doc.js sin extractTitleAndSections() splitter FLATT på HVER
+// linje som starter med '## ', uten fence-/dybdevakt (dokumentert, avventet
+// begrensning fra Task 1). En underoverskrift INNI en ekte '## Guide'-
+// seksjon som ved et uhell matcher et kjent seksjonsalias (f.eks.
+// '## Summary' -> 'kort', se SourceDoc.SECTION_ALIASES) blir da sin EGEN
+// chunk med samme nøkkel som en ekte seksjon — og den gamle key-baserte
+// bøttefyllingen (doc.sections.find/findIndex) plukket da stille opp FEIL
+// chunk: kollisjonens tekst havnet i entry.quirks, og reconstructGuideText
+// stoppet FOR TIDLIG (alt i guiden ETTER kollisjonen forsvant sporløst) —
+// exit code 0, ingen feilmelding. Parseren er flat og kan ALDRI skille en
+// tilfeldig kolliderende underoverskrift fra en ekte seksjon, så fiksen er
+// ikke "gjett riktig" — det er "feil høyt istedenfor å gjette": ethvert
+// dokument der en kjent nøkkel (kort/guide/variabler/om) dukker opp utenfor
+// sin faste plass i KEY_RANK (duplikat ELLER feil rekkefølge — begge
+// tilfeller fanges av samme monotont-økende-rank-sjekk) stanser med et
+// forklarende norsk unntak, i stedet for å korrumpere stille.
+function validateSectionShape(id, sections) {
+  let lastRank = -1;
+  sections.forEach((s) => {
+    if (s.key === null) return;
+    const rank = KEY_RANK[s.key];
+    if (rank === undefined) return;
+    if (rank <= lastRank) {
+      const aliases = (SourceDoc.SECTION_ALIASES[s.key] || [s.key]).join('/');
+      fail(
+        `Kilde '${id}': overskriften «## ${s.heading}» kolliderer med seksjonsalias '${s.key}' ` +
+        `(${aliases}) — sannsynligvis en underoverskrift inni Guide- eller Kort-teksten som ved et ` +
+        `uhell matcher et kjent seksjonsnavn. Kildedokument-parseren splitter FLATT på hver '## '-linje ` +
+        `og kan ikke skille en slik kollisjon fra en ekte seksjon. Gi underoverskriften et navn som ikke ` +
+        `er et seksjonsalias, eller demot den til '### ${s.heading}' (kun '## ' splitter).`,
+      );
+    }
+    lastRank = rank;
+  });
+}
 
 function buildRegistryFromDocs(idDocPairs) {
   const seenIds = new Set();
   const seenOrders = new Map();
-  const items = idDocPairs.map(({ id, doc }) => {
+  const items = idDocPairs.map(({ id, doc, rawText }) => {
     if (seenIds.has(id)) fail(`Duplikat id blant kildedokumentene: '${id}'`);
     seenIds.add(id);
+
+    validateSectionShape(id, doc.sections);
 
     const order = doc.fields.order;
     if (typeof order !== 'number' || !Number.isInteger(order)) {
@@ -83,14 +130,14 @@ function buildRegistryFromDocs(idDocPairs) {
     const baseUrl = doc.fields.base_url;
     if (typeof baseUrl !== 'string' || !baseUrl.trim()) fail(`Kilde '${id}': mangler base_url`);
 
-    return { id, doc, order };
+    return { id, doc, rawText, order };
   });
 
   items.sort((a, b) => a.order - b.order);
 
   const entries = [];
   const guides = {};
-  for (const { id, doc } of items) {
+  for (const { id, doc, rawText } of items) {
     const entry = {};
     doc.fieldOrder.forEach((k) => {
       if (k === 'order') return;
@@ -108,8 +155,22 @@ function buildRegistryFromDocs(idDocPairs) {
 
     const guideIdx = doc.sections.findIndex((s) => s.key === 'guide');
     if (guideIdx >= 0) {
+      const guideText = reconstructGuideText(doc.sections, guideIdx);
+      // Strukturvakt (defense-in-depth utover validateSectionShape over):
+      // den sammensatte guide-teksten MÅ finnes ordrett igjen i kildedok-
+      // umentet den kom fra. Om bøttefyllingen noensinne mister eller
+      // forvrenger innhold (en fremtidig seksjonstype, en annen kollisjons-
+      // form vi ikke har tenkt på ennå…) stopper dette stille sammenbrudd
+      // FØR det når disk, i stedet for et byte-avvik oppdaget først av
+      // paritetsvakten (convert, engangs) eller aldri (generate, varig).
+      if (!rawText.includes(guideText)) {
+        fail(
+          `Kilde '${id}': guiden ble ikke funnet ordrett igjen i kildedokumentet etter sammensetting ` +
+          `— strukturvakt stanset (mulig tap/forvrengning ved seksjonsrekonstruksjon)`,
+        );
+      }
       entry.guide = true;
-      guides[id] = reconstructGuideText(doc.sections, guideIdx) + '\n';
+      guides[id] = guideText + '\n';
     }
 
     entries.push(entry);
@@ -151,7 +212,7 @@ export function generateInMemory(docsDir) {
     if (typeof id !== 'string' || !id.trim()) {
       fail(`Fila '${f}' i ${docsDir} mangler et 'id'-felt i front matter`);
     }
-    return { id, doc };
+    return { id, doc, rawText: text };
   });
   return buildRegistryFromDocs(idDocPairs);
 }
@@ -304,7 +365,10 @@ function convert() {
     }
   });
 
-  const idDocPairs = originalArr.map((entry, i) => buildDocForEntry(entry, i));
+  const idDocPairs = originalArr.map((entry, i) => {
+    const built = buildDocForEntry(entry, i);
+    return { id: built.id, doc: built.doc, rawText: SourceDoc.serialize(built.doc) };
+  });
 
   // Paritetsvakt — kjøres FØR noe som helst skrives til data/sources/.
   const { entries: regenEntries, guides: regenGuides } = buildRegistryFromDocs(idDocPairs);
@@ -339,9 +403,8 @@ function convert() {
   }
 
   if (!existsSync(SOURCES_DIR)) mkdirSync(SOURCES_DIR, { recursive: true });
-  idDocPairs.forEach(({ id, doc }) => {
-    const text = SourceDoc.serialize(doc);
-    writeFileSync(path.join(SOURCES_DIR, `${id}.md`), text, 'utf8');
+  idDocPairs.forEach(({ id, rawText }) => {
+    writeFileSync(path.join(SOURCES_DIR, `${id}.md`), rawText, 'utf8');
   });
 
   console.log(

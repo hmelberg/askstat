@@ -44,6 +44,22 @@ async function loadTools() {
 
 const SOURCE_FILES = fs.readdirSync(SOURCES_DIR).filter((f) => f.endsWith('.md')).sort();
 
+// Vaktbikkje mot vakuum-pass (reviewer-funn, Important): testene 3/4/6 under
+// bygger avviksarrayer som DEFAULTER til [] og itererer SOURCE_FILES — en
+// fremtidig endring som (utilsiktet) fikk filteret over til å plukke opp 0
+// filer ville latt dem alle "bestå" uten å sjekke ett eneste dokument, og
+// dermed stille oppheve nøyaktig den korpus-nivå-innesperringen testen for
+// '## Om kilden' finnes for å garantere. Sjekk et EKSAKT tall (ikke bare
+// > 0) slik at et krympet korpus (en fil forsvunnet) også fanges, ikke bare
+// et tomt.
+assert.strictEqual(
+  SOURCE_FILES.length,
+  30,
+  `Fant ${SOURCE_FILES.length} .md-filer i data/sources/, forventet 30 — hvis du nettopp la til ` +
+    'eller fjernet en kilde, bump dette tallet i tests/js/source-docs-drift.test.js (linja over); ' +
+    'hvis ikke, har filteret over sluttet å plukke opp korpuset og testene 3/4/6 ville stille sjekket 0 filer.',
+);
+
 test('regenerering fra data/sources/*.md er deep-equal med committet data-sources.json (verdier OG entry-rekkefølge)', async () => {
   const { generateInMemory } = await loadTools();
   const { entries } = generateInMemory(SOURCES_DIR);
@@ -60,22 +76,30 @@ test('regenerering fra data/sources/*.md er deep-equal med committet data-source
 test('regenererte guider er byte-like med hver committet data/source-guides/<id>.md', async () => {
   const { generateInMemory } = await loadTools();
   const { guides } = generateInMemory(SOURCES_DIR);
+  const missingFiles = [];
+  const notByteEqual = [];
   Object.keys(guides).sort().forEach((id) => {
     const guidePath = path.join(GUIDES_DIR, `${id}.md`);
-    assert.ok(
-      fs.existsSync(guidePath),
-      `data/source-guides/${id}.md mangler, men ${id}.md i data/sources/ har en '## Guide'-seksjon ` +
-        '— kjør `node tools/source_docs.mjs generate`.',
-    );
+    if (!fs.existsSync(guidePath)) {
+      missingFiles.push(id);
+      return;
+    }
     const committed = fs.readFileSync(guidePath, 'utf8');
-    assert.strictEqual(
-      guides[id],
-      committed,
-      `data/source-guides/${id}.md er ikke byte-lik det ${id}.md i data/sources/ genererer — enten ` +
-        'ble kildedokumentet endret uten regenerering, eller guidefila ble redigert direkte. Kjør ' +
-        '`node tools/source_docs.mjs generate` og commit resultatet.',
-    );
+    if (guides[id] !== committed) notByteEqual.push(id);
   });
+  assert.deepStrictEqual(
+    missingFiles,
+    [],
+    `Disse guide-filene mangler, selv om det tilsvarende dokumentet i data/sources/ har en ` +
+      `'## Guide'-seksjon: ${missingFiles.join(', ')} — kjør \`node tools/source_docs.mjs generate\`.`,
+  );
+  assert.deepStrictEqual(
+    notByteEqual,
+    [],
+    `Disse guide-filene er IKKE byte-like det tilsvarende dokumentet i data/sources/ genererer: ` +
+      `${notByteEqual.join(', ')} — enten ble kildedokumentet endret uten regenerering, eller ` +
+      'guidefila ble redigert direkte. Kjør `node tools/source_docs.mjs generate` og commit resultatet.',
+  );
 });
 
 test('round-trip-idempotens: SourceDoc.normalize(text) === text for hvert committet data/sources/*.md (kanonisk form)', () => {

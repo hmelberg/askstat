@@ -186,4 +186,9 @@ window.M2PY_I18N.ja = {
   // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
   // kilde-redigeringsskjemaet (#sourcesEdit).
   "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "ここに API キーや秘密情報を貼り付けないでください——代わりに設定にある「自分のキー」に追加してください。",
+  // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
+  // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
+  // egne-nøkler-seksjon (se brief over).
+  "Send anonymous error reports (helps improve the sources)": "匿名のエラーレポートを送信する（データソースの改善に役立ちます）",
+  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "送信されるのはエラーのみです——質問、データ、キーが送信されることは決してありません。詳細はプライバシーページをご覧ください。",
 };

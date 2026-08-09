@@ -186,4 +186,9 @@ window.M2PY_I18N.zh = {
   // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
   // kilde-redigeringsskjemaet (#sourcesEdit).
   "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "切勿在此粘贴 API 密钥或其他机密信息——请改在设置中的「你自己的密钥」下添加。",
+  // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
+  // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
+  // egne-nøkler-seksjon (se brief over).
+  "Send anonymous error reports (helps improve the sources)": "发送匿名错误报告（有助于改进数据源）",
+  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "只会发送错误信息——绝不会发送你的问题、数据或密钥。详情请见隐私页面。",
 };

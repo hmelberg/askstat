@@ -186,4 +186,9 @@ window.M2PY_I18N.hi = {
   // Sluttreview-fiksebølge #4: sikkerhetsadvarsel under tekstfeltet i
   // kilde-redigeringsskjemaet (#sourcesEdit).
   "Never paste API keys or secrets here — add them under Your own keys in settings instead.": "यहाँ कभी भी API कुंजियाँ या गुप्त जानकारी न चिपकाएँ — इसके बजाय सेटिंग्स में आपकी अपनी कुंजियाँ के अंतर्गत जोड़ें।",
+  // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
+  // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
+  // egne-nøkler-seksjon (se brief over).
+  "Send anonymous error reports (helps improve the sources)": "अनाम त्रुटि रिपोर्ट भेजें (स्रोतों को बेहतर बनाने में मदद करता है)",
+  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "केवल त्रुटियाँ ही कभी भेजी जाती हैं — आपके प्रश्न, डेटा या कुंजियाँ कभी नहीं। अधिक जानकारी के लिए गोपनीयता पेज देखें।",
 };

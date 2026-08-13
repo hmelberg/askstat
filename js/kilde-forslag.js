@@ -96,10 +96,36 @@
     };
   }
 
+  // Linjediff via LCS (spec §4) — dokumentene er ≤40k tegn (~1–2k linjer),
+  // så O(n·m)-tabellen er ufarlig (Int32Array holder minnet nede).
+  function linjeDiff(gammel, ny) {
+    var a = String(gammel == null ? '' : gammel).split('\n');
+    var b = String(ny == null ? '' : ny).split('\n');
+    var n = a.length, m = b.length, i, j;
+    var L = new Array(n + 1);
+    for (i = 0; i <= n; i++) L[i] = new Int32Array(m + 1);
+    for (i = n - 1; i >= 0; i--) {
+      for (j = m - 1; j >= 0; j--) {
+        L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+      }
+    }
+    var ut = [];
+    i = 0; j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { ut.push({ type: 'lik', tekst: a[i] }); i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) { ut.push({ type: 'slettet', tekst: a[i] }); i++; }
+      else { ut.push({ type: 'ny', tekst: b[j] }); j++; }
+    }
+    while (i < n) { ut.push({ type: 'slettet', tekst: a[i] }); i++; }
+    while (j < m) { ut.push({ type: 'ny', tekst: b[j] }); j++; }
+    return ut;
+  }
+
   var api = {
     byggForslagsPayload: byggForslagsPayload,
     skalViseKnapp: skalViseKnapp,
     parseForslagSvar: parseForslagSvar,
+    linjeDiff: linjeDiff,
     _CAPS: CAPS,
   };
   global.KildeForslag = api;

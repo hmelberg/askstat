@@ -93,3 +93,23 @@ test('parseForslagSvar: forslag uten id/ny_tekst filtreres, tom ny_tekst filtrer
   assert.equal(r.forslag.length, 1);
   assert.equal(r.forslag[0].begrunnelse, '');
 });
+
+test('linjeDiff: identisk gir kun lik', () => {
+  assert.deepEqual(KF.linjeDiff('a\nb', 'a\nb'),
+    [{ type: 'lik', tekst: 'a' }, { type: 'lik', tekst: 'b' }]);
+});
+
+test('linjeDiff: innsetting, sletting, erstatning', () => {
+  assert.deepEqual(KF.linjeDiff('a\nc', 'a\nb\nc'),
+    [{ type: 'lik', tekst: 'a' }, { type: 'ny', tekst: 'b' }, { type: 'lik', tekst: 'c' }]);
+  assert.deepEqual(KF.linjeDiff('a\nb\nc', 'a\nc'),
+    [{ type: 'lik', tekst: 'a' }, { type: 'slettet', tekst: 'b' }, { type: 'lik', tekst: 'c' }]);
+  const er = KF.linjeDiff('a\nGAMMEL\nc', 'a\nNY\nc');
+  assert.deepEqual(er.map((d) => d.type), ['lik', 'slettet', 'ny', 'lik']);
+});
+
+test('linjeDiff: tomme dokumenter', () => {
+  assert.deepEqual(KF.linjeDiff('', ''), [{ type: 'lik', tekst: '' }]);
+  assert.deepEqual(KF.linjeDiff('', 'x').filter((d) => d.type === 'ny'),
+    [{ type: 'ny', tekst: 'x' }]);
+});

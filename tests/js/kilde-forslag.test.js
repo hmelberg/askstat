@@ -119,3 +119,23 @@ test('ferskeDocs re-leser tekst fra Profiles-lageret (spec §4: etter delvis aks
   const ut = KF.ferskeDocs({ docs: [{ id: 'user:a', name: 'A', text: 'GAMMEL' }, { id: 'user:borte', name: 'B', text: 'x' }] }, profiles);
   assert.deepEqual(ut, [{ id: 'user:a', name: 'A2', text: 'NY TEKST' }]);
 });
+
+test('erAdmin: kun is_admin === true, med injisert auth', () => {
+  assert.equal(KF.erAdmin({ user: { is_admin: true } }), true);
+  assert.equal(KF.erAdmin({ user: { is_admin: 'ja' } }), false);
+  assert.equal(KF.erAdmin({ user: {} }), false);
+  assert.equal(KF.erAdmin(null), false);
+});
+
+test('byggEvidens: scrubbet, klippet, med feiltall og siste feil', () => {
+  const ev = KF.byggEvidens({
+    question: 'Hva er X?', tolkning: 'X per år',
+    runs: [{ script: 's1', error: 'gammel feil' }, { script: 's2', error: 'api_key=hemmelig og mer' }],
+    ok_script: 'x'.repeat(5000), kastedeTurer: 2,
+  }, { scrub: deps.scrub, masker: (s) => require('../../js/feil-telemetri.js').maskerNokler(s) });
+  assert.ok(ev.indexOf('Hva er X?') >= 0);
+  assert.ok(ev.indexOf('Feilede kjøringer: 2') >= 0);
+  assert.ok(ev.indexOf('forkastede turer: 2') >= 0);
+  assert.ok(ev.indexOf('hemmelig og mer') === -1 || ev.indexOf('***') >= 0); // masker kjørte
+  assert.ok(ev.length < 4000);
+});

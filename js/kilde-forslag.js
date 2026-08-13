@@ -135,6 +135,34 @@
     return ut;
   }
 
+  // §9: klientsynligheten er kosmetikk — servergaten (adminGate) er den
+  // reelle sperren. auth injiseres i test; produksjon leser window.mdAuth.
+  function erAdmin(auth) {
+    var a = auth !== undefined ? auth : global.mdAuth;
+    return !!(a && a.user && a.user.is_admin === true);
+  }
+
+  // Evidens til PR-kroppen (spec §9): hva feilet, hva virket — SCRUBBET.
+  function byggEvidens(ctx, deps) {
+    ctx = ctx || {};
+    var scrub = (deps && deps.scrub) ||
+      (global.DataDirectives && global.DataDirectives.scrubKeys) || function (s) { return s; };
+    var masker = (deps && deps.masker) ||
+      (global.FeilTelemetri && global.FeilTelemetri.maskerNokler) || function (s) { return s; };
+    var runs = ctx.runs || [];
+    var deler = [
+      'Spørsmål: ' + klipp(ctx.question, 500),
+      ctx.tolkning ? 'Tolkning: ' + klipp(ctx.tolkning, 300) : '',
+      'Feilede kjøringer: ' + runs.length +
+        ((ctx.kastedeTurer | 0) ? ', forkastede turer: ' + ctx.kastedeTurer : ''),
+    ];
+    runs.slice(-2).forEach(function (r, i) {
+      deler.push('Siste feil ' + (i + 1) + ': ' + klipp(masker(r.error), 600));
+    });
+    if (ctx.ok_script) deler.push('Virket til slutt:\n' + klipp(scrub(ctx.ok_script), 1500));
+    return deler.filter(Boolean).join('\n');
+  }
+
   // ── DOM-del (kun nettleser) ──────────────────────────────────────────
   var T = function (k, p) { return global.t ? global.t(k, p) : k; };
   var ctxSiste = null;
@@ -283,6 +311,45 @@
       forkast.addEventListener('click', function () { kort.remove(); });
       rad.appendChild(bruk);
       rad.appendChild(forkast);
+      if (erAdmin()) {
+        var prBtn = el('button', 'ai-codeblock-btn', T('Send as PR'));
+        prBtn.type = 'button';
+        prBtn.addEventListener('click', function () {
+          prBtn.disabled = true;
+          prBtn.textContent = T('Sending …');
+          fetch('/api/kilde-pr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Login-tokenet, IKKE mdAiAuthHeaders — adminGate validerer
+              // brukeren mot Anvil (is_admin); BYOK slipper med vilje ikke inn.
+              'Authorization': 'Bearer ' + ((global.mdAuth && global.mdAuth.token) || ''),
+            },
+            body: JSON.stringify({
+              id: f.id,
+              name: pr ? pr.name : f.id,
+              of: (pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of) || undefined,
+              ny_tekst: f.ny_tekst,
+              evidens: byggEvidens(ctxSiste),
+            }),
+          }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          }).then(function (d) {
+            prBtn.remove();
+            var lenke = document.createElement('a');
+            lenke.href = d.url;
+            lenke.target = '_blank';
+            lenke.rel = 'noopener';
+            lenke.textContent = T('PR created:') + ' ' + d.url;
+            rad.appendChild(lenke);
+          }).catch(function (e) {
+            prBtn.disabled = false;
+            prBtn.textContent = T('PR failed — try again');
+          });
+        });
+        rad.appendChild(prBtn);
+      }
       kort.appendChild(rad);
       innhold.appendChild(kort);
     });
@@ -294,6 +361,8 @@
     parseForslagSvar: parseForslagSvar,
     linjeDiff: linjeDiff,
     ferskeDocs: ferskeDocs,
+    erAdmin: erAdmin,
+    byggEvidens: byggEvidens,
     registerRun: registerRun,
     openModal: openModal,
     _CAPS: CAPS,

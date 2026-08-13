@@ -721,7 +721,7 @@ test('rawSelected/payload: user:-gren henter kind fra origin.kind og tags fra pr
 });
 
 // §8 kildeforbedring (spec 2026-08-13, Task 9): egne kopier av innebygde
-// kilder — lagBuiltinKopi/oppdaterKopiFraOriginal/builtinOverstyrte.
+// kilder — lagBuiltinKopi/oppdaterKopiFraOriginal/builtinOverstyringer.
 test('lagBuiltinKopi henter data/sources/<id>.md og lager builtin-copy-kilde', async () => {
   const opprettet = [];
   const profiles = {
@@ -755,19 +755,24 @@ test('oppdaterKopiFraOriginal re-henter og overskriver teksten', async () => {
   assert.equal(await P.oppdaterKopiFraOriginal('finnes-ikke'), false);
 });
 
-test('builtinOverstyrte: of-ider for aktive builtin-kopier, dedupet', () => {
+test('builtinOverstyringer: of→guide-tekst for aktive kopier, klippet 8000, dedupet', () => {
+  require('../../js/source-doc.js');
+  const langGuide = '## Kort\n\nk\n\n## Guide\n\n' + 'g'.repeat(9000);
   const profiles = {
     get: (id) => ({
-      k1: { name: 'A', text: '', origin: { source: 'builtin-copy', of: 'ssb' } },
-      k2: { name: 'B', text: '', origin: { source: 'community', id: 'x' } },
-      k3: { name: 'C', text: '', origin: { source: 'builtin-copy', of: 'ssb' } },
+      k1: { name: 'A', text: langGuide, origin: { source: 'builtin-copy', of: 'ssb' } },
+      k2: { name: 'B', text: 'x', origin: { source: 'community', id: 'x' } },
     })[id] || null,
-    packsState: () => ({ ids: ['user:k1', 'user:k2', 'user:k3'] }),
+    packsState: () => ({ ids: ['user:k1', 'user:k2'] }),
     countryState: () => ({ mode: 'none' }),
     list: () => [], create: () => 'x',
   };
   const P = makePacks(fakeStorage(), async () => ({ ok: false }), profiles);
-  assert.deepEqual(P.builtinOverstyrte(), ['ssb']);
+  const o = P.builtinOverstyringer();
+  assert.deepEqual(Object.keys(o), ['ssb']);
+  assert.ok(o.ssb.indexOf('## Guide') >= 0);
+  assert.ok(o.ssb.length <= 8000);
+  assert.equal(typeof P.builtinOverstyrte, 'undefined');   // gammelt navn borte
 });
 
 // Kort/lang-splitt (spec 2026-08-13 §3): store EGNE kilder sender prefix+hode+Kort

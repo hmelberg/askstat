@@ -500,8 +500,8 @@
 
     // §8 kildeforbedring (spec 2026-08-13): egen kopi av en innebygd kilde.
     // Kopien er en ORDINÆR egen kilde (Profiles-lageret) med origin.of som
-    // peker tilbake — guide-fortrengningen (guides_off) og «Oppdater fra
-    // original» leser den. Fasiten er data/sources/<id>.md; 404 → fall
+    // peker tilbake — guides_override (kort/lang-splitt §2) og «Oppdater
+    // fra original» leser den. Fasiten er data/sources/<id>.md; 404 → fall
     // tilbake til registerbeskrivelsen (bedre enn ingenting, aldri kast).
     async function lagBuiltinKopi(regId) {
       if (!profiles || !profiles.create) return null;
@@ -530,14 +530,21 @@
         return true;
       } catch (e) { return false; }
     }
-    // Aktive builtin-kopier → of-ider (payload-feltet guides_off, Task 10).
-    function builtinOverstyrte() {
-      var ut = [];
+    // guides_override (kort/lang-splitt §2): aktive builtin-kopier →
+    // {of: Guide-tekst}. Guiden ankommer LAT server-side (attacheren) på
+    // samme tidspunkt som repo-guiden ellers ville kommet; 8k-taket
+    // speiler MAX_GUIDE_CHARS i _lib/source-guides.ts.
+    function builtinOverstyringer() {
+      var ut = {};
+      var SD = (typeof global !== 'undefined' && global.SourceDoc) || null;
       effectiveIds().forEach(function (id) {
         if (String(id).indexOf('user:') !== 0) return;
         var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
         var of = pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of;
-        if (of && ut.indexOf(of) < 0) ut.push(of);
+        if (!of || ut[of]) return;
+        var tekst = String(pr.text || '');
+        var guide = SD && SD.splitKortGuide ? SD.splitKortGuide(tekst).guide : tekst;
+        ut[of] = String(guide && guide.trim() ? guide : tekst).slice(0, 8000);
       });
       return ut;
     }
@@ -555,7 +562,7 @@
       filterCatalog: filterCatalog,
       lagBuiltinKopi: lagBuiltinKopi,
       oppdaterKopiFraOriginal: oppdaterKopiFraOriginal,
-      builtinOverstyrte: builtinOverstyrte,
+      builtinOverstyringer: builtinOverstyringer,
     };
   }
 

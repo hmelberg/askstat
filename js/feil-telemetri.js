@@ -80,7 +80,7 @@
   }
 
   var api = { byggFeilrapport: byggFeilrapport, sendFeilrapport: sendFeilrapport,
-              telemetriAv: telemetriAv };
+              telemetriAv: telemetriAv, maskerNokler: maskerNokler };
   global.FeilTelemetri = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

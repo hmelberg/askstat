@@ -132,3 +132,12 @@ test('telemetriAv(): localStorage som kaster → false, OG sendFeilrapport sende
     if (hadFetch) global.fetch = oldFetch; else delete global.fetch;
   }
 });
+
+test('maskerNokler er eksportert og maskerer nøkkel-parametre', () => {
+  assert.equal(typeof FT.maskerNokler, 'function');
+  assert.equal(FT.maskerNokler('GET https://x?api_key=hemmelig123&y=1'),
+    'GET https://x?api_key=***&y=1');
+  assert.equal(FT.maskerNokler('token=abc def access_token=xyz'),
+    'token=*** def access_token=***');
+  assert.equal(FT.maskerNokler(null), '');
+});

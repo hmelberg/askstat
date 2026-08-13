@@ -6378,6 +6378,13 @@ json.dumps(out)
           : 'unknown';
         const payloadStart = s.indexOf('\n', typeEnd) + 1;
         const endIdx = s.indexOf(EMBED_END, payloadStart);
+        // Avkuttet output (kjøring avbrutt/timet ut midt i en embed-print):
+        // ingen slutt-markør. Behold plassholder-embeden (ærlig signal), men
+        // stopp — den gamle s.slice(-1 + END.length) spiste vilkårlig tekst.
+        if (endIdx === -1) {
+          parts.push({ type: 'embed', embedType, payload: '' });
+          break;
+        }
         const payload = endIdx > payloadStart
           ? s.slice(payloadStart, endIdx).trim()
           : '';
@@ -6911,6 +6918,16 @@ json.dumps(out)
                 frag.appendChild(div);
                 mdRenderPlotlyFigure(div, spec);
               } catch (e) {
+                // Diagnose (funn 2026-08-13): payloaden er trolig AVKUTTET
+                // (kjøring avbrutt midt i figur-print → tom/halv payload),
+                // ikke ugyldig JSON fra pio.to_json — logg nok til å skille
+                // de to neste gang det skjer.
+                try {
+                  console.error('[plotly-embed] JSON.parse feilet:', e && e.message,
+                    '| payload-lengde:', p.payload.length,
+                    '| hode:', p.payload.slice(0, 80),
+                    '| hale:', p.payload.slice(-80));
+                } catch (_) {}
                 const pre = document.createElement('pre');
                 pre.className = 'embed-placeholder';
                 pre.textContent = '[Plotly figure – could not parse JSON]';

@@ -203,9 +203,16 @@
      enkeltnoder. Flyttes tilbake ved nytt spørsmål/kodevisning. */
   var outputHome = null;
   function resizePlotlyIn(root) {
-    if (!window.Plotly || !window.Plotly.Plots || !root.querySelectorAll) return;
+    if (!window.Plotly || !root.querySelectorAll) return;
     root.querySelectorAll('.js-plotly-plot').forEach(function (p) {
-      try { window.Plotly.Plots.resize(p); } catch (_) { /* plotly borte */ }
+      // DOM-flytting blanker WebGL-canvaser (px velger webgl-rendring selv
+      // ved >~1000 punkter) — trasene forsvant mens SVG-delene (akser,
+      // legend) overlevde. Plots.resize alene var en NO-OP her: appens
+      // figurer har autosize:false (fast 680x420-lerret), så bare en full
+      // redraw tegner trasene på nytt etter re-parenting (funn 2026-08-13).
+      try { window.Plotly.redraw(p); } catch (_) { /* plotly borte */ }
+      // resize beholdes for autosize-figurer (ui.figure i dashboard-slots).
+      try { if (window.Plotly.Plots) window.Plotly.Plots.resize(p); } catch (_) {}
     });
   }
   function mountOutputInto(hostId) {

@@ -378,3 +378,13 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
   background: var(--bg-code); border-radius: 8px; padding: 8px 10px;
   word-break: break-word; }
 .ask-account-code-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+/* Kildeforbedring (spec 2026-08-13): forslags-modal med linjediff */
+.kf-modal { max-width: 720px; width: 92vw; max-height: 84vh; overflow-y: auto; }
+.kf-kort { border: 1px solid var(--border-color, #d5d9df); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.kf-diff { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; border: 1px solid var(--border-color, #d5d9df); border-radius: 6px; padding: 6px 8px; max-height: 40vh; overflow: auto; margin: 8px 0; }
+.kf-diff-ny { background: rgba(46, 160, 67, 0.16); }
+.kf-diff-slettet { background: rgba(248, 81, 73, 0.14); opacity: 0.85; }
+.kf-diff-lik { opacity: 0.6; }
+.kf-raa { white-space: pre-wrap; font-size: 12px; max-height: 50vh; overflow: auto; }
+.kf-bunn { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; flex-wrap: wrap; }

@@ -113,3 +113,9 @@ test('linjeDiff: tomme dokumenter', () => {
   assert.deepEqual(KF.linjeDiff('', 'x').filter((d) => d.type === 'ny'),
     [{ type: 'ny', tekst: 'x' }]);
 });
+
+test('ferskeDocs re-leser tekst fra Profiles-lageret (spec §4: etter delvis aksept)', () => {
+  const profiles = { get: (id) => (id === 'a' ? { name: 'A2', text: 'NY TEKST' } : null) };
+  const ut = KF.ferskeDocs({ docs: [{ id: 'user:a', name: 'A', text: 'GAMMEL' }, { id: 'user:borte', name: 'B', text: 'x' }] }, profiles);
+  assert.deepEqual(ut, [{ id: 'user:a', name: 'A2', text: 'NY TEKST' }]);
+});

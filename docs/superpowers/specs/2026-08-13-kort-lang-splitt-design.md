@@ -87,8 +87,8 @@ Endringen er en POLICY-flipp, ikke ny mekanikk:
   originalen, genereres den (stram: 2–4 setninger valginfo).
 - Ser rotårsaken ut til å ligge i adapterkode/appen (f.eks. en målt
   serverfeil kopiteksten ikke kan påvirke): INGEN tekstendring — si det i
-  `melding`. Adapter-sporet er repo/admin-løypa (telemetri → kode), ikke
-  beskrivelses-sløyfa; det er en annen sak og forblir det.
+  `melding`, og for admin: lever en strukturert kodesak (§4c). Sløyfa
+  skriver ALDRI adapterkode selv.
 
 **b. Editor-knappen «Foreslå Kort (KI)»:**
 
@@ -108,6 +108,33 @@ sløyfa. To tilstander (Hans' presisering 2026-08-13):
 Eksplisitt klikk — aldri automatisk KI-kall ved lagring
 (overraskelsesprinsippet + BYOK-kost).
 
+**c. Kode-sporet (KUN admin, Hans' tillegg 2026-08-13): tredje utfall →
+GitHub-issue.**
+
+Noen rotårsaker kan verken Kort eller Guide fikse — de ligger i selve
+innlastingsmetodene (adapterne/appkoden). Da skal sløyfa ikke fikse, men
+BESTILLE:
+
+- **Svarkontrakten utvides** med et valgfritt tredje utfall:
+  `kode_sak: {tittel, kropp}` — satt KUN når evidensen peker på kode, og
+  kan sameksistere med tomt `forslag`. Kroppen er et strukturert oppdrag
+  skrevet FOR en kode-KI som senere får repoet foran seg: hva som feilet
+  (scrubbet evidens), hva som til slutt virket, hvilken kilde/adapter som
+  er mistenkt, antatt mekanisme, og foreslått retning — IKKE kodeforslag
+  (sløyfa ser aldri appkoden og skal ikke gjette den).
+- **Modalen** viser kodesaken som eget kort bak `erAdmin()` (samme vakt som
+  PR-knappen) med knappen **[Opprett GitHub-issue]**. Ikke-admin ser bare
+  den ærlige `melding`-linjen som før.
+- **Endepunktet**: `kilde-pr.ts` utvides med issue-modus (body
+  `{issue: {tittel, kropp}}` → ett kall: POST `/repos/<repo>/issues` med
+  etikett `kilde-kodesak`) — samme adminGate uten BYOK-forbikjøring, samme
+  token. Issue fremfor PR fordi det ikke finnes noen fil å endre; issuen
+  ER prompten som gis videre til kode-KI-en (f.eks. en Claude Code-økt mot
+  repoet).
+- **PAT-en trenger Issues RW i tillegg** til Contents RW + Pull requests RW
+  (engangsjustering i GitHub-innstillingene; dokumenteres i README +
+  .env.example-kommentaren).
+
 ## 5. Sikkerhet og ytelse
 
 - Scrub-regimet er uendret (samme payloadbygger, samme drift-test).
@@ -124,6 +151,11 @@ Eksplisitt klikk — aldri automatisk KI-kall ved lagring
   override finnes), 8k-klipp, andre kilder upåvirket; guides_off borte.
 - Prompt-regelen: lag-vurderingen i begrunnelse (drift på .md ↔ TS-konstant
   som før); oppgave:'kort'-modusen returnerer kun Kort-endring.
+- §4c: parseren tåler kode_sak (med/uten forslag); issue-modusen i
+  kilde-pr-core testes med mocket fetch (ett kall, riktig kropp/etikett);
+  ikke-admin får 403 og ser aldri kortet; manuell smoke: fremprovoser en
+  kodesak (f.eks. mot en kilde med kjent adapterfeil) → issue på GitHub med
+  scrubbet evidens og agent-klar bestilling.
 - Manuell smoke (Hans): OECD-kopien fra i dag → verifiser at førstespørsmål
   nå sender liten pakketekst (nettverksfanen) og at guiden din ankommer
   ved første katalogkall (Details-sporet); rediger Kort i kopien → se
@@ -139,10 +171,12 @@ Eksplisitt klikk — aldri automatisk KI-kall ved lagring
 | js/sources-modal.js / editor | «Foreslå Kort (KI)»-knapp |
 | netlify/edge-functions/_lib/source-guides.ts | override-kart i attacheren |
 | netlify/edge-functions/svar.ts | coerce guides_override (id→tekst, tak) |
-| netlify/edge-functions/kilde-forslag.ts + prompts/kilde-forslag.md | lag-regelen + oppgave:'kort' |
+| netlify/edge-functions/kilde-forslag.ts + prompts/kilde-forslag.md | lag-regelen + oppgave:'kort' + kode_sak-utfallet |
+| netlify/edge-functions/kilde-pr.ts (+ core/tester) | §4c: issue-modus (POST /issues m/etikett) |
+| README + .env.example | PAT-scopet utvides m/Issues RW |
 | tester | jf. §6 |
 
-Estimat: ~2 økter.
+Estimat: ~2,5 økter.
 
 ## Bevisst utelatt
 
@@ -151,7 +185,10 @@ Estimat: ~2 økter.
 - **Auto-generering av Kort uten klikk** (f.eks. ved lagring) —
   overraskelsesprinsippet.
 - **Adapterkode-endringer fra sløyfa** — sløyfa skal kunne SI at feilen er
-  en kodesak (§4a), aldri forsøke å fikse den; koden eies av repo-løypa.
+  en kodesak og (for admin) BESTILLE fiksen som issue (§4c), men aldri
+  skrive koden selv; koden eies av repo-løypa/kode-KI-en som får issuen.
+- **Auto-issue uten klikk og issues fra ikke-admin** — samme regel som
+  PR-kanalen: eksplisitt admin-handling, aldri automatikk.
 - **Registerlinje-overstyring**: den maskingenererte registerlinja for
   innebygde kilder (navn/kind/tags fra front matter) står — kopiens Kort
   SUPPLERER den ivrig; å erstatte selve linja krever server-tillit til

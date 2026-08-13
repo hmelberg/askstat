@@ -769,3 +769,30 @@ test('builtinOverstyrte: of-ider for aktive builtin-kopier, dedupet', () => {
   const P = makePacks(fakeStorage(), async () => ({ ok: false }), profiles);
   assert.deepEqual(P.builtinOverstyrte(), ['ssb']);
 });
+
+// Kort/lang-splitt (spec 2026-08-13 §3): store EGNE kilder sender prefix+hode+Kort
+// som summary-nivå med get_pack-hint.
+test('compose: stor egen kilde → summary-nivå med prefix+hode+Kort, ikke full tekst', () => {
+  require('../../js/source-doc.js');   // setter globalThis.SourceDoc
+  const stor = '---\nid: x\n---\n# T\n\n## Kort\n\nVelg meg for priser.\n\n## Guide\n\n' + 'g'.repeat(5000);
+  const ut = compose([{ id: 'user:a', name: 'A', text: stor, kind: 'source', tags: [] }]);
+  assert.equal(ut[0].level, 'summary');
+  assert.ok(ut[0].text.indexOf('Velg meg for priser.') >= 0);
+  assert.ok(ut[0].text.indexOf('ggggg') === -1);              // Guide er IKKE med
+  assert.ok(ut[0].text.length <= 2500);
+});
+
+test('compose: liten egen kilde (≤1500) flyter full', () => {
+  const ut = compose([{ id: 'user:b', name: 'B', text: '## Kort\n\nkort tekst', kind: 'source', tags: [] }]);
+  assert.equal(ut[0].level, 'full');
+});
+
+test('compose: overview og kuraterte pakker er uendret', () => {
+  const stor = 'x'.repeat(5000);
+  const ut = compose([
+    { id: 'user:c', name: 'C', text: stor, kind: 'overview', tags: [] },
+    { id: 'norway', name: 'N', text: stor, kind: 'source', tags: [] },
+  ]);
+  assert.equal(ut[0].level, 'full');
+  assert.equal(ut[1].level, 'full');
+});

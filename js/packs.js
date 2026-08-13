@@ -69,6 +69,21 @@
       var full = String(p.text || '').slice(0, L3_CAP);
       var man = yamlManifest(full);
       var pick;
+      // Kort/lang-splitt (spec 2026-08-13 §3): store EGNE enkeltkilder
+      // sender KUN maskindel+hode+Kort ivrig — resten hentes lat med
+      // get_pack (serverens kortform-merke rendres for 'summary'-nivået).
+      // Løpetids-vakt på SourceDoc: mangler den (isolerte tester), faller
+      // vi til dagens oppførsel.
+      var SD = (typeof global !== 'undefined' && global.SourceDoc) || null;
+      if (String(p.id).indexOf('user:') === 0 && p.kind !== 'overview' &&
+          full.length > 1500 && SD && SD.splitKortGuide) {
+        var deler = SD.splitKortGuide(full);
+        var ivrig = (deler.prefix + deler.hode + '\n' + deler.kort).slice(0, 2500);
+        var pickKort = { level: 'summary', text: ivrig };
+        budget -= pickKort.text.length;
+        byId[p.id] = pickKort;
+        continue;
+      }
       if (full.length <= budget) pick = { level: 'full', text: full };
       else if (man && man.length <= budget) pick = { level: 'manifest', text: man };
       else pick = { level: 'summary', text: summaryOf(p) };

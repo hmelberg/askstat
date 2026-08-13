@@ -719,3 +719,53 @@ test('rawSelected/payload: user:-gren henter kind fra origin.kind og tags fra pr
     { id: 'user:' + ovId, name: 'Oversikt', text: 'yaml', level: 'full', kind: 'overview', tags: ['x'] },
   ]);
 });
+
+// §8 kildeforbedring (spec 2026-08-13, Task 9): egne kopier av innebygde
+// kilder — lagBuiltinKopi/oppdaterKopiFraOriginal/builtinOverstyrte.
+test('lagBuiltinKopi henter data/sources/<id>.md og lager builtin-copy-kilde', async () => {
+  const opprettet = [];
+  const profiles = {
+    create: (name, text, kind, origin, tags) => { opprettet.push({ name, text, kind, origin, tags }); return 'nyid'; },
+    get: () => null, list: () => [], packsState: () => ({ ids: [] }), countryState: () => ({ mode: 'none' }),
+  };
+  const fetchStub = async (url) => {
+    if (String(url).indexOf('data/sources/ssb.md') >= 0) return { ok: true, text: async () => '# SSB-doc' };
+    return { ok: false, status: 404, text: async () => '', json: async () => ({}) };
+  };
+  const P = makePacks(fakeStorage(), fetchStub, profiles);
+  const id = await P.lagBuiltinKopi('ssb');
+  assert.equal(id, 'user:nyid');
+  assert.equal(opprettet[0].text, '# SSB-doc');
+  assert.equal(opprettet[0].kind, 'source');
+  assert.deepEqual(opprettet[0].origin, { source: 'builtin-copy', of: 'ssb' });
+  assert.ok(/min kopi|my copy/i.test(opprettet[0].name) || opprettet[0].name.indexOf('ssb') >= 0);
+});
+
+test('oppdaterKopiFraOriginal re-henter og overskriver teksten', async () => {
+  const oppdatert = [];
+  const profiles = {
+    get: (id) => (id === 'p1' ? { name: 'K', text: 'GML', origin: { source: 'builtin-copy', of: 'ssb' } } : null),
+    update: (id, f) => oppdatert.push({ id, f }),
+    create: () => 'x', list: () => [], packsState: () => ({ ids: [] }), countryState: () => ({ mode: 'none' }),
+  };
+  const fetchStub = async () => ({ ok: true, text: async () => 'FERSK' });
+  const P = makePacks(fakeStorage(), fetchStub, profiles);
+  assert.equal(await P.oppdaterKopiFraOriginal('p1'), true);
+  assert.deepEqual(oppdatert, [{ id: 'p1', f: { text: 'FERSK' } }]);
+  assert.equal(await P.oppdaterKopiFraOriginal('finnes-ikke'), false);
+});
+
+test('builtinOverstyrte: of-ider for aktive builtin-kopier, dedupet', () => {
+  const profiles = {
+    get: (id) => ({
+      k1: { name: 'A', text: '', origin: { source: 'builtin-copy', of: 'ssb' } },
+      k2: { name: 'B', text: '', origin: { source: 'community', id: 'x' } },
+      k3: { name: 'C', text: '', origin: { source: 'builtin-copy', of: 'ssb' } },
+    })[id] || null,
+    packsState: () => ({ ids: ['user:k1', 'user:k2', 'user:k3'] }),
+    countryState: () => ({ mode: 'none' }),
+    list: () => [], create: () => 'x',
+  };
+  const P = makePacks(fakeStorage(), async () => ({ ok: false }), profiles);
+  assert.deepEqual(P.builtinOverstyrte(), ['ssb']);
+});

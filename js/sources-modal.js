@@ -292,6 +292,27 @@
         var txt = document.createElement('div');
         txt.textContent = P.describe(selectedInfoId) || '';
         infoEl.appendChild(txt);
+        // §8 (spec 2026-08-13): innebygde kilder får «Lag egen kopi» —
+        // kopien blir en ordinær egen kilde som forbedringssløyfa virker på.
+        if (selectedInfoId.indexOf('reg:') === 0) {
+          var regId = selectedInfoId.slice(4);
+          var regActions = document.createElement('div');
+          regActions.className = 'sources-info-actions';
+          var kopier = document.createElement('button');
+          kopier.type = 'button';
+          kopier.className = 'ai-codeblock-btn';
+          kopier.textContent = T('Make my own copy');
+          kopier.addEventListener('click', function () {
+            kopier.disabled = true;
+            P.lagBuiltinKopi(regId).then(function (nyId) {
+              if (nyId) { Prof.togglePack(nyId); selectedInfoId = nyId; }
+              renderAll();   // Profiles.onChange fyrer også — idempotent
+            });
+          });
+          regActions.appendChild(kopier);
+          infoEl.appendChild(regActions);
+          return;
+        }
         // Rediger/Slett gjelder KUN brukerens egne kilder — aldri de
         // innebygde registerkildene (reg:).
         if (selectedInfoId.indexOf('user:') !== 0) return;
@@ -313,6 +334,24 @@
         });
         actions.appendChild(edit);
         actions.appendChild(del);
+        // Kopier har en vei tilbake til originalen (spec §8: billigste
+        // drift-mottiltak). To-klikks-bekreftelse — overskriver kopien.
+        var prInfo = Prof.get ? Prof.get(pid) : null;
+        if (prInfo && prInfo.origin && prInfo.origin.source === 'builtin-copy' && prInfo.origin.of) {
+          var oppd = document.createElement('button');
+          oppd.type = 'button';
+          oppd.className = 'ai-codeblock-btn';
+          oppd.textContent = T('Update from original');
+          oppd.addEventListener('click', function () {
+            if (!oppd.__armert) {
+              oppd.__armert = true;
+              oppd.textContent = T('Sure? This overwrites the copy');
+              return;
+            }
+            P.oppdaterKopiFraOriginal(pid).then(function () { renderAll(); });
+          });
+          actions.appendChild(oppd);
+        }
         infoEl.appendChild(actions);
       }
       // Rediger-visningen tar over dialogen: lista/fanene/søket/chipsene

@@ -483,6 +483,50 @@
       try { storage.removeItem(IMPORTED); } catch (e) {}
     }
 
+    // §8 kildeforbedring (spec 2026-08-13): egen kopi av en innebygd kilde.
+    // Kopien er en ORDINÆR egen kilde (Profiles-lageret) med origin.of som
+    // peker tilbake — guide-fortrengningen (guides_off) og «Oppdater fra
+    // original» leser den. Fasiten er data/sources/<id>.md; 404 → fall
+    // tilbake til registerbeskrivelsen (bedre enn ingenting, aldri kast).
+    async function lagBuiltinKopi(regId) {
+      if (!profiles || !profiles.create) return null;
+      // listRegistry() normaliserer de norske registerfeltene (navn →
+      // name, tags m/[]-default) — bruk den, IKKE rå `registry`.
+      var reg = listRegistry().filter(function (r) { return r.id === regId; })[0];
+      var text = '';
+      try {
+        var res = await fetchImpl('data/sources/' + regId + '.md');
+        if (res.ok) text = (await res.text()).slice(0, 40000);
+      } catch (e) {}
+      if (!text) text = describe('reg:' + regId) || ('# ' + regId);
+      var navn = ((reg && reg.name) || regId) + ' (min kopi)';
+      var id = profiles.create(navn, text, 'source',
+        { source: 'builtin-copy', of: regId }, (reg && reg.tags) || []);
+      return 'user:' + id;
+    }
+    async function oppdaterKopiFraOriginal(profileId) {
+      var pr = profiles && profiles.get ? profiles.get(profileId) : null;
+      var of = pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of;
+      if (!of || !profiles.update) return false;
+      try {
+        var res = await fetchImpl('data/sources/' + of + '.md');
+        if (!res.ok) return false;
+        profiles.update(profileId, { text: (await res.text()).slice(0, 40000) });
+        return true;
+      } catch (e) { return false; }
+    }
+    // Aktive builtin-kopier → of-ider (payload-feltet guides_off, Task 10).
+    function builtinOverstyrte() {
+      var ut = [];
+      effectiveIds().forEach(function (id) {
+        if (String(id).indexOf('user:') !== 0) return;
+        var pr = profiles && profiles.get ? profiles.get(id.slice(5)) : null;
+        var of = pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of;
+        if (of && ut.indexOf(of) < 0) ut.push(of);
+      });
+      return ut;
+    }
+
     return {
       load: load, list: list, listCommunity: listCommunity, autoFrom: autoFrom,
       resolve: resolve, payload: payload, ensureSelected: ensureSelected,
@@ -494,6 +538,9 @@
       // filterCatalog eksponeres på instansen fordi Import-utforskeren bor i
       // js/sources-modal.js (Task 5) og ikke har tilgang til modul-scopet her.
       filterCatalog: filterCatalog,
+      lagBuiltinKopi: lagBuiltinKopi,
+      oppdaterKopiFraOriginal: oppdaterKopiFraOriginal,
+      builtinOverstyrte: builtinOverstyrte,
     };
   }
 

@@ -244,6 +244,7 @@
           <button type="button" class="ai-response-insert-btn" data-i18n id="askCopyBtn">Copy answer</button>
           <button type="button" class="ai-codeblock-btn" id="askOpenEditorBtn" data-i18n data-i18n-title title="Switch to the code view: inspect, edit and re-run the code and see the full output">View code and data</button>
           <button type="button" class="ai-codeblock-btn" id="askFullOutputBtn" hidden data-i18n data-i18n-title title="Show everything the code produced, without leaving this view">Full output</button>
+          <button type="button" class="ai-codeblock-btn" id="askImproveBtn" hidden data-i18n data-i18n-title title="Suggest improvements to your source description, based on this run's errors and detours">Improve source description</button>
         </div>
       </div>
       <details id="askDetails" class="ask-details" hidden>
@@ -12805,6 +12806,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/keys-crypto.js"></script>
   <script src="js/login.js"></script>
   <script src="js/konto-sync.js"></script>
+  <script src="js/kilde-forslag.js"></script>
   <script src="js/ask-view.js"></script>
   <script src="js/portable-export.js"></script>
   <script src="js/github-storage.js"></script>

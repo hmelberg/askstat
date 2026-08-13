@@ -552,6 +552,9 @@
       pump();
     });
   }
+  // Delt SSE-leser for enkle text/error-endepunkter — kilde-forslag-modalen
+  // (js/kilde-forslag.js) gjenbruker den fremfor å duplisere protokollen.
+  window.mdSseAccumulate = sseAccumulate;
 
   function switchToEditor() {
     unmountLiveOutput();
@@ -940,6 +943,21 @@
       return wantConfirm ? askConfirm : function () { return Promise.resolve(true); };
     }
 
+    // Egne kilder i payload-sannheten (Packs.effectiveIds ∩ user:) med
+    // navn+tekst fra Profiles — grunnlaget for forbedringssløyfa.
+    function hentAktiveEgneKilder() {
+      var ut = [];
+      try {
+        var ids = (window.Packs && window.Packs.effectiveIds) ? window.Packs.effectiveIds() : [];
+        ids.forEach(function (id) {
+          if (String(id).indexOf('user:') !== 0) return;
+          var pr = window.Profiles && window.Profiles.get ? window.Profiles.get(id.slice(5)) : null;
+          if (pr) ut.push({ id: id, name: pr.name, text: pr.text || '' });
+        });
+      } catch (e) {}
+      return ut;
+    }
+
     async function runAskFlow() {
       var question = input.value.trim();
       if (!question || running) return;
@@ -968,6 +986,12 @@
       var feilRuns = [];
       var runHistory = [];
       var lastSources = [];
+      // Kildeforbedring (spec 2026-08-13 §1): friksjonsignaler + payload-
+      // sannheten for hvilke EGNE kilder modellen faktisk så. Fanges ved
+      // flytstart (som activeProfile) — ikke ved svarslutt.
+      var prosesslinjer = [];
+      var kastedeTurer = 0;
+      var aktiveEgneKilder = hentAktiveEgneKilder();
       var route = { rute: 'data', tolkning: '', begrunnelse: '', svar: '' };
       // Konto-runden fase 1: historikk-fangst. Profilen leses ved flytstart
       // (proveniens); siste VELLYKKEDE script lagres i historikk-oppføringen
@@ -1069,6 +1093,7 @@
           signal: ctrl.signal,
           handlers: {
             onProgress: function (ev) {
+              if (prosesslinjer.length < 400) prosesslinjer.push(String(ev.text || ''));
               var last = statusBox.lastElementChild;
               if (ev.replace && last && last.dataset && last.dataset.replace === '1') {
                 last.textContent = '⏳ ' + ev.text;
@@ -1083,6 +1108,8 @@
             onDelta: function (full) { renderMd(answerBox, full); },
             onTurnDiscard: function (full) {
               if (!full || !full.trim()) return;
+              kastedeTurer++;
+              if (prosesslinjer.length < 400) prosesslinjer.push('📝 ' + full.trim().slice(0, 200));
               var d = document.createElement('div');
               d.className = 'ai-progress-line';
               d.textContent = '📝 ' + full.trim().slice(0, 200);
@@ -1110,6 +1137,17 @@
         });
 
         lastSources = (res.sources || []).map(function (s) { return s.url; });
+
+        // Forbedringsknappen (spec §1): registrer kjøringskonteksten —
+        // modulen eier vilkåret (skalViseKnapp) og knappens synlighet.
+        if (window.KildeForslag && window.KildeForslag.registerRun) {
+          window.KildeForslag.registerRun({
+            question: question, tolkning: route.tolkning,
+            mode: currentAskMode(), depth: askDepth(),
+            docs: aktiveEgneKilder, runs: feilRuns, ok_script: lastOkScript,
+            trace: prosesslinjer, sources: lastSources, kastedeTurer: kastedeTurer,
+          });
+        }
 
         // 4) Sluttsvaret er allerede strømmet inn — arkiver prosess-sporet,
         //    vis kilder, og monter levende output ved vellykket kjøring.

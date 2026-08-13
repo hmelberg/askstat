@@ -102,3 +102,7 @@
 [[edge_functions]]
   function = "ask-ruter"
   path = "/api/ask-ruter"
+
+[[edge_functions]]
+  function = "kilde-forslag"
+  path = "/api/kilde-forslag"

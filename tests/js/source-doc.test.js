@@ -448,3 +448,40 @@ test('funn 2: yaml-fence FØR første "## " blir fortsatt gjenkjent som feltkild
   assert.deepEqual(doc.sections.map((s) => s.key), [null, 'guide']);
   assert.equal(doc.sections[0].text, 'Intro.');
 });
+
+// ==== splitKortGuide — rå to-lags-splitt (spec 2026-08-13-kort-lang-splitt §1) ====
+
+test('splitKortGuide: front matter + Kort + Guide splittes rått og tapsfritt', () => {
+  const doc = '---\nid: oecd\ncors: true\n---\n\n# OECD\n\nIntro-linje.\n\n## Kort\n\nMakrodata for OECD-land.\n\n## Guide\n\nBruk sdmx-adapteret.\n\n## Variabler\n\n- a\n';
+  const r = SourceDoc.splitKortGuide(doc);
+  assert.ok(r.prefix.startsWith('---\nid: oecd'));
+  assert.ok(r.hode.indexOf('# OECD') >= 0);
+  assert.ok(r.hode.indexOf('Intro-linje.') >= 0);
+  assert.ok(r.kort.indexOf('## Kort') === 0 || r.kort.indexOf('## Kort') > 0);
+  assert.ok(r.kort.indexOf('Makrodata') >= 0);
+  assert.ok(r.guide.indexOf('sdmx-adapteret') >= 0);
+  assert.ok(r.guide.indexOf('## Variabler') >= 0);        // alt ikke-Kort → guide
+  assert.ok(r.kort.indexOf('sdmx') === -1);
+  // Innholdsbevarende: hver LINJE havner i nøyaktig én del (join taper kun
+  // mellomgruppe-linjeskift — derfor linje-sett, ikke tegnlengde).
+  var alle = (r.prefix + '\n' + r.hode + '\n' + r.kort + '\n' + r.guide).split('\n').filter(Boolean).sort();
+  assert.deepEqual(alle, doc.split('\n').filter(Boolean).sort());
+});
+
+test('splitKortGuide: Postel — uten overskrifter blir første avsnitt kort', () => {
+  const r = SourceDoc.splitKortGuide('Min kilde om priser.\n\nLang forklaring\nover flere linjer.\n');
+  assert.ok(r.kort.indexOf('Min kilde om priser.') >= 0);
+  assert.ok(r.guide.indexOf('Lang forklaring') >= 0);
+  assert.equal(r.prefix, '');
+});
+
+test('splitKortGuide: kun Kort, ingen Guide — guide er tom', () => {
+  const r = SourceDoc.splitKortGuide('## Kort\n\nAlt her.\n');
+  assert.ok(r.kort.indexOf('Alt her.') >= 0);
+  assert.equal(r.guide.trim(), '');
+});
+
+test('splitKortGuide: tom/ikke-streng tåles', () => {
+  assert.deepEqual(SourceDoc.splitKortGuide(''), { prefix: '', hode: '', kort: '', guide: '' });
+  assert.deepEqual(SourceDoc.splitKortGuide(null), { prefix: '', hode: '', kort: '', guide: '' });
+});

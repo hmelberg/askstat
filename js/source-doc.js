@@ -236,6 +236,48 @@
     return { title: title, sections: sections };
   }
 
+  // splitKortGuide (spec 2026-08-13-kort-lang-splitt §1): rå-tekst-bevarende
+  // to-lags-splitt. prefix = maskindelen (extractFields-body er alltid en
+  // streng-SUFFIKS av text i alle tre former — invariant-testet), hode =
+  // tittel + ledende prosa, kort = ## Kort-blokken (inkl. overskrift),
+  // guide = alle andre blokker. Postel: ingen Kort-overskrift → første
+  // avsnitt av hode-prosaen blir kort.
+  function splitKortGuide(text) {
+    if (typeof text !== 'string' || !text) {
+      return { prefix: '', hode: '', kort: '', guide: '' };
+    }
+    var body = extractFields(text).body;
+    var prefix = text.slice(0, text.length - body.length);
+    var lines = body.split('\n');
+    var hodeLinjer = [];
+    var kortLinjer = [];
+    var guideLinjer = [];
+    var maal = hodeLinjer;
+    for (var i = 0; i < lines.length; i++) {
+      var hm = /^##\s+(.+)$/.exec(lines[i]);
+      if (hm) maal = sectionKey(hm[1].trim()) === 'kort' ? kortLinjer : guideLinjer;
+      maal.push(lines[i]);
+    }
+    var hode = hodeLinjer.join('\n');
+    var kort = kortLinjer.join('\n');
+    var guide = guideLinjer.join('\n');
+    if (!kort) {
+      // Postel: første ikke-tomme avsnitt etter ev. tittellinje blir kort.
+      var deler = hode.split(/\n\s*\n/);
+      for (var d = 0; d < deler.length; d++) {
+        var avsnitt = deler[d];
+        if (avsnitt.trim() && !/^#\s/.test(avsnitt.trim())) {
+          kort = avsnitt;
+          deler.splice(d, 1);
+          guide = deler.join('\n\n');
+          hode = '';
+          break;
+        }
+      }
+    }
+    return { prefix: prefix, hode: hode, kort: kort, guide: guide };
+  }
+
   // ---- parse ----
 
   function parse(text) {
@@ -311,6 +353,7 @@
     serialize: serialize,
     normalize: normalize,
     sectionKey: sectionKey,
+    splitKortGuide: splitKortGuide,
     TAG_ALIASES: TAG_ALIASES,
     SECTION_ALIASES: SECTION_ALIASES,
   };

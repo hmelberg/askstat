@@ -210,4 +210,10 @@ window.M2PY_I18N.fi = {
   "Sure? This overwrites the copy": "Oletko varma? Tämä korvaa kopion",
   "The suggestion could not be parsed — raw answer below": "Ehdotusta ei voitu jäsentää — raaka vastaus alla",
   "Update from original": "Päivitä alkuperäisestä",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "Luo GitHub-issue",
+  "Improve short section (AI)": "Paranna lyhyttä osiota (tekoäly)",
+  "Issue created:": "Issue luotu:",
+  "Issue failed — try again": "Issue epäonnistui — yritä uudelleen",
+  "Suggest short section (AI)": "Ehdota lyhyttä osiota (tekoäly)",
 };

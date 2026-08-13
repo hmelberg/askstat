@@ -210,4 +210,10 @@ window.M2PY_I18N.hi = {
   "Sure? This overwrites the copy": "क्या आप निश्चित हैं? इससे प्रति अधिलेखित हो जाएगी",
   "The suggestion could not be parsed — raw answer below": "सुझाव को पार्स नहीं किया जा सका — नीचे कच्चा उत्तर देखें",
   "Update from original": "मूल से अपडेट करें",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "GitHub issue बनाएँ",
+  "Improve short section (AI)": "संक्षिप्त भाग सुधारें (AI)",
+  "Issue created:": "Issue बनाया गया:",
+  "Issue failed — try again": "Issue विफल हुआ — फिर से प्रयास करें",
+  "Suggest short section (AI)": "संक्षिप्त भाग सुझाएँ (AI)",
 };

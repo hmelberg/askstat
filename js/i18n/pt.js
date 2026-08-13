@@ -211,4 +211,10 @@ window.M2PY_I18N.pt = {
   "Sure? This overwrites the copy": "Tem a certeza? Isto substitui a cópia",
   "The suggestion could not be parsed — raw answer below": "Não foi possível interpretar a sugestão — resposta em bruto abaixo",
   "Update from original": "Atualizar a partir do original",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "Criar issue do GitHub",
+  "Improve short section (AI)": "Melhorar versão curta (IA)",
+  "Issue created:": "Issue criada:",
+  "Issue failed — try again": "Issue falhou — tente novamente",
+  "Suggest short section (AI)": "Sugerir versão curta (IA)",
 };

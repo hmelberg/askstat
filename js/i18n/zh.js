@@ -210,4 +210,10 @@ window.M2PY_I18N.zh = {
   "Sure? This overwrites the copy": "确定吗？这将覆盖副本",
   "The suggestion could not be parsed — raw answer below": "无法解析该建议——原始回答见下方",
   "Update from original": "从原始版本更新",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "创建 GitHub Issue",
+  "Improve short section (AI)": "改进简短版（AI）",
+  "Issue created:": "Issue 已创建：",
+  "Issue failed — try again": "Issue 失败——请重试",
+  "Suggest short section (AI)": "建议简短版（AI）",
 };

@@ -210,4 +210,10 @@ window.M2PY_I18N.de = {
   "Sure? This overwrites the copy": "Sicher? Dies überschreibt die Kopie",
   "The suggestion could not be parsed — raw answer below": "Der Vorschlag konnte nicht verarbeitet werden — Rohantwort unten",
   "Update from original": "Vom Original aktualisieren",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "GitHub-Issue erstellen",
+  "Improve short section (AI)": "Kurzfassung verbessern (KI)",
+  "Issue created:": "Issue erstellt:",
+  "Issue failed — try again": "Issue fehlgeschlagen — erneut versuchen",
+  "Suggest short section (AI)": "Kurzfassung vorschlagen (KI)",
 };

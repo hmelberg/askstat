@@ -210,4 +210,10 @@ window.M2PY_I18N.ja = {
   "Sure? This overwrites the copy": "よろしいですか？これによりコピーが上書きされます",
   "The suggestion could not be parsed — raw answer below": "提案を解析できませんでした——以下に生の回答を表示します",
   "Update from original": "オリジナルから更新",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "GitHub Issueを作成",
+  "Improve short section (AI)": "短縮版を改善する（AI）",
+  "Issue created:": "Issueを作成しました：",
+  "Issue failed — try again": "Issueに失敗しました——もう一度お試しください",
+  "Suggest short section (AI)": "短縮版を提案する（AI）",
 };

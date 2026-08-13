@@ -210,4 +210,10 @@ window.M2PY_I18N.is = {
   "Sure? This overwrites the copy": "Ertu viss? Þetta yfirskrifar afritið",
   "The suggestion could not be parsed — raw answer below": "Ekki tókst að vinna úr tillögunni — hrátt svar hér fyrir neðan",
   "Update from original": "Uppfæra frá upprunalegu",
+  // Kort/lang-splitt — GitHub-issue for kodesaker + Foreslå/Forbedre Kort-knappen (spec 2026-08-13-kort-lang-splitt, Task 7–8).
+  "Create GitHub issue": "Búa til GitHub-issue",
+  "Improve short section (AI)": "Bæta stuttu útgáfuna (gervigreind)",
+  "Issue created:": "Issue búið til:",
+  "Issue failed — try again": "Issue mistókst — reyndu aftur",
+  "Suggest short section (AI)": "Leggja til stutta útgáfu (gervigreind)",
 };

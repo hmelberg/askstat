@@ -5,7 +5,8 @@ Dato: 2026-08-13. Status: utkast til Hans' review.
 Frittstående forløper til forbedringssløyfa i kildedokument-designet
 (2026-08-09 §9, der plassert i v4 som `propose_source_update`-verktøy i selve
 svar-løkka). Denne runden er bevisst enklere: **knappeutløst etter ferdig
-svar, kun egne kilder** (`user:`-oppføringer i Profiles-lageret). Ingen
+svar, kun egne kilder** (`user:`-oppføringer i Profiles-lageret) — men §8
+utvider rekkevidden til innebygde kilder via egne kopier. Ingen
 avhengighet til kildedokument-v1b — modellen redigerer rå markdown-tekst
 direkte, så serializer-quoting-blokkeren berøres ikke. Diff-visningen og
 akseptflyten bygges som egen modul slik at forslags-kortene (§9 v3/v4) kan
@@ -192,30 +193,88 @@ derfor UTENFOR data-i18n-noden.
   mangelfull beskrivelse (f.eks. utelatt påkrevd parameter) → svar med
   reparasjonsrunde → knapp synlig → forslag nevner parameteren → gi
   tilbakemelding, ny runde → Bruk → still spørsmålet igjen → færre/ingen
-  reparasjonsrunder. NB dev-fellene: Chrome cacher `js/` (hard reload),
+  reparasjonsrunder. For §8: lag kopi av en innebygd kilde (f.eks. ssb),
+  verifiser at guiden IKKE lenger følger første verktøysvar (Details-sporet)
+  mens `ssb.read`/search_catalog fortsatt virker, og at forbedringssløyfa
+  tilbys på kopien. NB dev-fellene: Chrome cacher `js/` (hard reload),
   netlify dev cacher edge-moduler (restart + 400-smoke), porter 8899/3998.
 
-## 8. Filer som endres
+## 8. Tillegg: egne kopier av innebygde kilder
+
+Vurdert på Hans' forespørsel (2026-08-13): *mulig, nyttig og enkelt* — med
+ÉN avgjørende presisering om fortrengningen.
+
+**Fella i den naive formen.** «Kopier + skru av den innebygde» virker
+opplagt, men `sources_off` filtrerer registeret på ETT chokepoint i `svar.ts`
+(linje ~216) som bevisst dekker BÅDE promptblokka OG hele verktøy-dispatchen
+— å skru av `ssb` dreper `search_catalog`/`table_metadata`/probe og dermed
+modellens evne til å finne tabell-id-er, selv om `ssb.read(...)` i selve
+scriptet fortsatt kjører klientside. Kopien må derfor fortrenge
+**dokumentteksten, ikke registeroppføringen**.
+
+**Design: kopi + guide-fortrengning.**
+
+- **«Lag egen kopi»** på innebygde enkeltkilder i kilde-modalen: henter
+  `/data/sources/<id>.md` (statisk fasit; 404 → fall tilbake til
+  registerbeskrivelsen som starttekst), oppretter Profiles-kilde via samme
+  vei som `importPack` med navn «<navn> (min kopi)» og
+  `origin: {source: 'builtin-copy', of: '<id>'}`, og velger den. For
+  community-src-pakker FINNES kopimekanismen allerede (import = egen kopi);
+  knappen gjenbruker den veien.
+- **Fortrengning (kun prosa):** nytt body-felt `guides_off: string[]` —
+  klienten samler `origin.of` fra AKTIVE builtin-kopier (samme payload-søm
+  som `sources_off` i `ai-chat.js:716`), serveren coercer det (speil av
+  `coerceSourcesOff`) og gir settet til `makeGuideAttacher`
+  (`_lib/source-guides.ts`), som hopper over de id-ene. Registerlinja
+  («Kort» — maskingenerert fakta) og alle adapterverktøy står urørt;
+  kopien flyter som vanlig brukerpakke og overtar guiderollen. Én Set-sjekk
+  i attacheren — `medGuideVedFeil`-veien arver den automatisk.
+- **Eksklusiviteten** gjelder altså prosaen — det er den modellen skal ha én
+  versjon av. For adapterløse rene URL-kilder virker «helt av + kopi alene»
+  allerede i dag via `sources_off`; ingen ny kode.
+- **Sløyfa i §1–4 virker uendret på kopier** (de er ordinære
+  `user:`-kilder) — det er hele poenget: forbedringsløkka dekker dermed
+  også innebygde kilder, lokalt.
+- **«Oppdater fra original»**-knapp på kopier (`origin.of` finnes): re-fetch
+  + overskriv kopiteksten etter bekreftelse — billigste drift-mottiltak.
+- **Ærlig begrensning:** kopien fryser mens originalen utvikler seg via
+  deploys, og lokale forbedringer når aldri andre brukere. Ekte overlegg med
+  hash-hint og GitHub-tilbakestilling (kildedokument-specen v1b) og
+  repo-løypa (§9 v3/v4) er de varige svarene; kopier er den pragmatiske
+  broen som ikke venter på serializer-quoting-fiksen. Ved overlegg-lansering
+  kan kopier stå igjen som de er (de er bare egne kilder).
+
+Merkostnad: ~½–1 økt (knapp + fetch + origin-felt; coerce + Set-sjekk
+server-side; tester).
+
+## 9. Filer som endres
 
 | Fil | Endring |
 |---|---|
 | `js/kilde-forslag.js` | NY: payloadbygger, parser, linjediff, modal, flerrunde |
 | `js/ask-view.js` | fange `aktiveEgneKilder`/`prosesslinjer`/`kastedeTurer`; knapp i actionsRow |
 | `js/feil-telemetri.js` | eksportere `maskerNokler` (gjenbruk, ikke duplikat) |
+| `js/sources-modal.js` | §8: «Lag egen kopi» + «Oppdater fra original» |
+| `js/packs.js`/`js/profiles.js` | §8: kopi-opprettelse (importPack-veien) m/`origin.of` |
+| `js/ai-chat.js` | §8: `guides_off` i payloaden (ved `sources_off`-sømmen, :716) |
 | `netlify/edge-functions/kilde-forslag.ts` | NY: gate+BYOK, meldingsbygging, streamAnthropic |
 | `netlify/edge-functions/prompts/kilde-forslag.md` | NY: prompt-fasit |
+| `netlify/edge-functions/svar.ts` + `_lib/source-guides.ts` | §8: coerce `guides_off` + skip-sett i attacheren |
 | `index.html` | modal-markup + script-tag |
 | `js/i18n/*` + `tools/ask_i18n_keys.json` | nye nøkler + fasit |
 | `tests/js/kilde-forslag.test.js` | NY |
+| `_lib/source-guides.test.ts` | §8: attacher hopper over guides_off-id-er |
 
-Estimat: én fokusert økt for motor+endepunkt+tester, én for modal+i18n+smoke.
+Estimat: én fokusert økt for motor+endepunkt+tester, én for modal+i18n+smoke,
+pluss ~½–1 økt for kopi-tillegget (§8).
 
 ## Bevisst utelatt (og hvor det bor)
 
 - **Persistert forsøkslogg per kilde (B/C i §2)** — v2 ved målt behov.
-- **Innebygde kilder** — riktig mottaker er repoet via telemetri→admin-løypa
-  og forslags-kort/PR-kanalen (2026-08-09 §9 v3/v4); der ligger også
-  serializer-quoting-avhengigheten.
+- **Direkte redigering av innebygde kilder** — lokalt dekkes de nå av
+  kopi-veien (§8); DELT forbedring av dem hører fortsatt hjemme i repoet via
+  telemetri→admin-løypa og forslags-kort/PR-kanalen (2026-08-09 §9 v3/v4),
+  der serializer-quoting-avhengigheten ligger.
 - **`propose_source_update` som verktøy i svar-løkka** — §9 v4; denne rundens
   modal/diff/aksept-modul er designet for gjenbruk derfra.
 - **Auto-forslag uten klikk, delt forslags-kø, PR-kanal** — som i

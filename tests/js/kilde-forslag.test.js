@@ -120,6 +120,13 @@ test('ferskeDocs re-leser tekst fra Profiles-lageret (spec §4: etter delvis aks
   assert.deepEqual(ut, [{ id: 'user:a', name: 'A2', text: 'NY TEKST' }]);
 });
 
+// finn.1 (sluttreview): ask-view.js kaller registerRun(null) ved flytstart
+// og restore for å nullstille ctxSiste/knappen — modulen lastes uten DOM
+// i node, så dette må ikke krasje der (document er undefined).
+test('registerRun(null) er trygt uten DOM (node har ikke document)', () => {
+  assert.doesNotThrow(() => KF.registerRun(null));
+});
+
 test('erAdmin: kun is_admin === true, med injisert auth', () => {
   assert.equal(KF.erAdmin({ user: { is_admin: true } }), true);
   assert.equal(KF.erAdmin({ user: { is_admin: 'ja' } }), false);

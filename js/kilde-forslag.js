@@ -169,6 +169,11 @@
 
   function registerRun(ctx) {
     ctxSiste = ctx;
+    // Node-trygghet: modulen lastes av node-testene uten DOM (document
+    // finnes ikke der) — ctx-oppdateringen over er nok for testene som
+    // bryr seg (skalViseKnapp(null) er allerede dekket); knappen finnes
+    // kun i nettleseren.
+    if (typeof document === 'undefined') return;
     var btn = document.getElementById('askImproveBtn');
     if (!btn) return;
     btn.hidden = !skalViseKnapp(ctx);
@@ -344,6 +349,9 @@
             lenke.textContent = T('PR created:') + ' ' + d.url;
             rad.appendChild(lenke);
           }).catch(function (e) {
+            // Ellers usynlig feil (spec-restpunkt sluttreview): logg slik at
+            // en mislykket admin-PR er diagnostiserbar fra konsollen.
+            try { console.error('kilde-pr:', e); } catch (_) {}
             prBtn.disabled = false;
             prBtn.textContent = T('PR failed — try again');
           });

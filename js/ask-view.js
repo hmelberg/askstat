@@ -781,6 +781,10 @@
       stopReResolveObserver();
       unmountLiveOutput();
       fullOutBtn.hidden = true;
+      // Nullstill forbedringsknappen (finn.1, sluttreview): ctxSiste i
+      // kilde-forslag.js peker ellers fortsatt på FORRIGE kjøring — uten
+      // dette kan et gjenopprettet svar vise knappen bundet til gammel ctx.
+      if (window.KildeForslag && window.KildeForslag.registerRun) window.KildeForslag.registerRun(null);
       statusBox.innerHTML = '';
       processBox.innerHTML = '';
       detailsEl.open = false;
@@ -971,6 +975,11 @@
       abortBtn.style.display = '';
       unmountLiveOutput();
       fullOutBtn.hidden = true;
+      // Nullstill forbedringsknappen (finn.1, sluttreview): en ny kjøring
+      // som ruter til f.eks. «språk» eller kaster, kaller aldri
+      // KildeForslag.registerRun selv — uten dette henger knappen igjen
+      // synlig og bundet til FORRIGE kjørings ctx.
+      if (window.KildeForslag && window.KildeForslag.registerRun) window.KildeForslag.registerRun(null);
       answerCard.hidden = false;
       statusBox.innerHTML = '';
       answerBox.innerHTML = '';

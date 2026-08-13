@@ -191,4 +191,23 @@ window.M2PY_I18N.zh = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "发送匿名错误报告（有助于改进数据源）",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "只会发送错误信息——绝不会发送你的问题、数据或密钥。详情请见隐私页面。",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "已应用——将在你下次提问时生效",
+  "Apply": "应用",
+  "Discard": "放弃",
+  "Feedback — what should change in the next round?": "反馈——下一轮应该改进什么？",
+  "Getting suggestions …": "正在获取建议……",
+  "Improve source description": "改进数据源描述",
+  "Make my own copy": "创建我自己的副本",
+  "New round": "新一轮",
+  "No changes suggested": "没有建议的更改",
+  "PR created:": "PR 已创建：",
+  "PR failed — try again": "PR 失败——请重试",
+  "Round {n}": "第 {n} 轮",
+  "Send as PR": "作为 PR 发送",
+  "Sending …": "正在发送……",
+  "Suggest improvements to your source description, based on this run's errors and detours": "根据此次运行中的错误和绕行，为你的数据源描述提出改进建议",
+  "Sure? This overwrites the copy": "确定吗？这将覆盖副本",
+  "The suggestion could not be parsed — raw answer below": "无法解析该建议——原始回答见下方",
+  "Update from original": "从原始版本更新",
 };

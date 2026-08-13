@@ -191,4 +191,23 @@ window.M2PY_I18N.sv = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Skicka anonyma felrapporter (hjälper till att förbättra källorna)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Endast fel skickas någonsin — aldrig dina frågor, data eller nycklar. Se sekretesssidan för mer information.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Tillämpad — gäller från din nästa fråga",
+  "Apply": "Tillämpa",
+  "Discard": "Förkasta",
+  "Feedback — what should change in the next round?": "Feedback — vad bör ändras i nästa runda?",
+  "Getting suggestions …": "Hämtar förslag …",
+  "Improve source description": "Förbättra källbeskrivningen",
+  "Make my own copy": "Skapa min egen kopia",
+  "New round": "Ny runda",
+  "No changes suggested": "Inga ändringar föreslagna",
+  "PR created:": "PR skapad:",
+  "PR failed — try again": "PR misslyckades — försök igen",
+  "Round {n}": "Runda {n}",
+  "Send as PR": "Skicka som PR",
+  "Sending …": "Skickar …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Föreslå förbättringar av din källbeskrivning, baserat på felen och omvägarna i denna körning",
+  "Sure? This overwrites the copy": "Säker? Detta skriver över kopian",
+  "The suggestion could not be parsed — raw answer below": "Förslaget kunde inte tolkas — rått svar nedan",
+  "Update from original": "Uppdatera från original",
 };

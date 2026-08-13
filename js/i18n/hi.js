@@ -191,4 +191,23 @@ window.M2PY_I18N.hi = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "अनाम त्रुटि रिपोर्ट भेजें (स्रोतों को बेहतर बनाने में मदद करता है)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "केवल त्रुटियाँ ही कभी भेजी जाती हैं — आपके प्रश्न, डेटा या कुंजियाँ कभी नहीं। अधिक जानकारी के लिए गोपनीयता पेज देखें।",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "लागू किया गया — यह आपके अगले प्रश्न से प्रभावी होगा",
+  "Apply": "लागू करें",
+  "Discard": "अस्वीकार करें",
+  "Feedback — what should change in the next round?": "प्रतिक्रिया — अगले दौर में क्या बदलना चाहिए?",
+  "Getting suggestions …": "सुझाव प्राप्त किए जा रहे हैं …",
+  "Improve source description": "स्रोत विवरण सुधारें",
+  "Make my own copy": "अपनी खुद की प्रति बनाएँ",
+  "New round": "नया दौर",
+  "No changes suggested": "कोई बदलाव सुझाया नहीं गया",
+  "PR created:": "PR बनाया गया:",
+  "PR failed — try again": "PR विफल हुआ — फिर से प्रयास करें",
+  "Round {n}": "दौर {n}",
+  "Send as PR": "PR के रूप में भेजें",
+  "Sending …": "भेजा जा रहा है …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "इस रन की त्रुटियों और चक्करों के आधार पर आपके स्रोत विवरण में सुधार सुझाएँ",
+  "Sure? This overwrites the copy": "क्या आप निश्चित हैं? इससे प्रति अधिलेखित हो जाएगी",
+  "The suggestion could not be parsed — raw answer below": "सुझाव को पार्स नहीं किया जा सका — नीचे कच्चा उत्तर देखें",
+  "Update from original": "मूल से अपडेट करें",
 };

@@ -191,4 +191,23 @@ window.M2PY_I18N.fr = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Envoyer des rapports d'erreur anonymes (aide à améliorer les sources)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Seules les erreurs sont envoyées — jamais vos questions, données ou clés. Consultez la page de confidentialité pour plus de détails.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Appliqué — prend effet à votre prochaine question",
+  "Apply": "Appliquer",
+  "Discard": "Ignorer",
+  "Feedback — what should change in the next round?": "Retour — que faudrait-il changer au prochain tour ?",
+  "Getting suggestions …": "Récupération des suggestions …",
+  "Improve source description": "Améliorer la description de la source",
+  "Make my own copy": "Créer ma propre copie",
+  "New round": "Nouveau tour",
+  "No changes suggested": "Aucun changement suggéré",
+  "PR created:": "PR créée :",
+  "PR failed — try again": "Échec de la PR — réessayez",
+  "Round {n}": "Tour {n}",
+  "Send as PR": "Envoyer comme PR",
+  "Sending …": "Envoi en cours …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Suggérer des améliorations à la description de votre source, en se basant sur les erreurs et détours de cette exécution",
+  "Sure? This overwrites the copy": "Sûr ? Ceci écrase la copie",
+  "The suggestion could not be parsed — raw answer below": "La suggestion n'a pas pu être interprétée — réponse brute ci-dessous",
+  "Update from original": "Mettre à jour depuis l'original",
 };

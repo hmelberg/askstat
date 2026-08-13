@@ -191,4 +191,23 @@ window.M2PY_I18N.is = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Senda nafnlausar villutilkynningar (hjálpar til við að bæta heimildirnar)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Aðeins villur eru sendar — aldrei spurningarnar þínar, gögn eða lyklar. Sjá persónuverndarsíðuna til að fá nánari upplýsingar.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Beitt — gildir frá næstu spurningu þinni",
+  "Apply": "Beita",
+  "Discard": "Henda",
+  "Feedback — what should change in the next round?": "Ábending — hverju ætti að breyta í næstu umferð?",
+  "Getting suggestions …": "Sæki tillögur …",
+  "Improve source description": "Bæta heimildarlýsinguna",
+  "Make my own copy": "Búa til mitt eigið afrit",
+  "New round": "Ný umferð",
+  "No changes suggested": "Engar breytingar lagðar til",
+  "PR created:": "PR búið til:",
+  "PR failed — try again": "PR mistókst — reyndu aftur",
+  "Round {n}": "Umferð {n}",
+  "Send as PR": "Senda sem PR",
+  "Sending …": "Sendi …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Leggðu til úrbætur á heimildarlýsingunni þinni, byggt á villum og krókaleiðum þessarar keyrslu",
+  "Sure? This overwrites the copy": "Ertu viss? Þetta yfirskrifar afritið",
+  "The suggestion could not be parsed — raw answer below": "Ekki tókst að vinna úr tillögunni — hrátt svar hér fyrir neðan",
+  "Update from original": "Uppfæra frá upprunalegu",
 };

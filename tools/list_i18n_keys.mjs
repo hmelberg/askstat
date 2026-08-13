@@ -75,7 +75,7 @@ for (const tag of html.match(/<[^>]+>/g) || []) {
   }
 }
 // (2) Dynamiske nøkler i ask-filene — RÅ nøkler (t() normaliserer ikke).
-for (const file of ['js/ask-view.js', 'js/profiles.js', 'js/packs.js', 'js/sources-modal.js']) {
+for (const file of ['js/ask-view.js', 'js/profiles.js', 'js/packs.js', 'js/sources-modal.js', 'js/kilde-forslag.js']) {
   const src = readFileSync(file, 'utf-8');
   for (const m of src.matchAll(/\b[tT]\(\s*'((?:[^'\\]|\\.)*)'/g)) {
     const key = m[1].replace(/\\'/g, "'");

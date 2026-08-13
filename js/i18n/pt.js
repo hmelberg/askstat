@@ -192,4 +192,23 @@ window.M2PY_I18N.pt = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Enviar relatórios de erro anónimos (ajuda a melhorar as fontes)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Só os erros são enviados — nunca as suas perguntas, dados ou chaves. Consulte a página de privacidade para mais informações.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Aplicado — entra em vigor na sua próxima pergunta",
+  "Apply": "Aplicar",
+  "Discard": "Descartar",
+  "Feedback — what should change in the next round?": "Feedback — o que deve mudar na próxima ronda?",
+  "Getting suggestions …": "A obter sugestões …",
+  "Improve source description": "Melhorar a descrição da fonte",
+  "Make my own copy": "Criar a minha própria cópia",
+  "New round": "Nova ronda",
+  "No changes suggested": "Nenhuma alteração sugerida",
+  "PR created:": "PR criado:",
+  "PR failed — try again": "PR falhou — tente novamente",
+  "Round {n}": "Ronda {n}",
+  "Send as PR": "Enviar como PR",
+  "Sending …": "A enviar …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Sugerir melhorias à descrição da sua fonte, com base nos erros e desvios desta execução",
+  "Sure? This overwrites the copy": "Tem a certeza? Isto substitui a cópia",
+  "The suggestion could not be parsed — raw answer below": "Não foi possível interpretar a sugestão — resposta em bruto abaixo",
+  "Update from original": "Atualizar a partir do original",
 };

@@ -191,4 +191,23 @@ window.M2PY_I18N.ja = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "匿名のエラーレポートを送信する（データソースの改善に役立ちます）",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "送信されるのはエラーのみです——質問、データ、キーが送信されることは決してありません。詳細はプライバシーページをご覧ください。",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "適用しました——次の質問から有効になります",
+  "Apply": "適用",
+  "Discard": "破棄",
+  "Feedback — what should change in the next round?": "フィードバック——次のラウンドで何を変えるべきですか？",
+  "Getting suggestions …": "提案を取得しています …",
+  "Improve source description": "データソースの説明を改善する",
+  "Make my own copy": "自分のコピーを作成",
+  "New round": "新しいラウンド",
+  "No changes suggested": "変更の提案はありません",
+  "PR created:": "PRを作成しました：",
+  "PR failed — try again": "PRに失敗しました——もう一度お試しください",
+  "Round {n}": "ラウンド {n}",
+  "Send as PR": "PRとして送信",
+  "Sending …": "送信中 …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "今回の実行のエラーや回り道に基づいて、データソースの説明の改善案を提案する",
+  "Sure? This overwrites the copy": "よろしいですか？これによりコピーが上書きされます",
+  "The suggestion could not be parsed — raw answer below": "提案を解析できませんでした——以下に生の回答を表示します",
+  "Update from original": "オリジナルから更新",
 };

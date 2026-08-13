@@ -30,6 +30,15 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   Erstatter de gamle `data-svar`- og `tolk-ask`-endepunktene (ett kall,
   ingen eget tolke-steg). Prompt-kilde: `prompts/svar.md`; register:
   `data/data-sources.json`; evalsett: `docs/eval/ask-evalsett.md`.
+- `kilde-forslag` → `/api/kilde-forslag` — forslag til revidert egen
+  kildebeskrivelse fra en kjørings feillogg (single-shot; klienten eier
+  flerrunde-historikken via body.history). Body: `{docs, question, runs,
+  ok_script?, trace?, sources?, history?, ui_lang?, provider?}`.
+- `kilde-pr` → `/api/kilde-pr` — KUN admin (adminGate uten BYOK-forbikjøring):
+  branch + commit + PR på GitHub for et akseptert forslag. Env:
+  `GITHUB_PR_TOKEN` (fingranulert PAT, kun dette repoet, Contents RW +
+  Pull requests RW), valgfri `GITHUB_PR_REPO` (default hmelberg/askstat).
+  Body: `{id, name, of?, ny_tekst, evidens}` → `{url}`.
 - `hent` → `/api/hent?url=…[&body=…]` — SSRF-herdet GET-proxy (kun admin).
   Injiserer API-nøkler server-side for register-kilder (host-matchet);
   `body` GET-innpakker POST-json (PxWeb v1 o.l.).

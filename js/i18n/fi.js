@@ -191,4 +191,23 @@ window.M2PY_I18N.fi = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Lähetä anonyymejä virheraportteja (auttaa parantamaan lähteitä)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Vain virheet lähetetään koskaan — ei koskaan kysymyksiäsi, tietojasi tai avaimiasi. Katso lisätietoja tietosuojasivulta.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Käytössä — voimassa seuraavasta kysymyksestäsi",
+  "Apply": "Käytä",
+  "Discard": "Hylkää",
+  "Feedback — what should change in the next round?": "Palaute — mitä pitäisi muuttaa seuraavalla kierroksella?",
+  "Getting suggestions …": "Haetaan ehdotuksia …",
+  "Improve source description": "Paranna lähdekuvausta",
+  "Make my own copy": "Tee oma kopioni",
+  "New round": "Uusi kierros",
+  "No changes suggested": "Ei ehdotettuja muutoksia",
+  "PR created:": "PR luotu:",
+  "PR failed — try again": "PR epäonnistui — yritä uudelleen",
+  "Round {n}": "Kierros {n}",
+  "Send as PR": "Lähetä PR:nä",
+  "Sending …": "Lähetetään …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Ehdota parannuksia lähdekuvaukseesi tämän ajon virheiden ja kiertoteiden perusteella",
+  "Sure? This overwrites the copy": "Oletko varma? Tämä korvaa kopion",
+  "The suggestion could not be parsed — raw answer below": "Ehdotusta ei voitu jäsentää — raaka vastaus alla",
+  "Update from original": "Päivitä alkuperäisestä",
 };

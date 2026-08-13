@@ -198,4 +198,23 @@ window.M2PY_I18N.no = {
   // egne-nøkler-seksjon (se brief over).
   "Send anonymous error reports (helps improve the sources)": "Send anonyme feilrapporter (hjelper oss å forbedre kildene)",
   "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Kun feilen sendes — aldri spørsmålene, dataene eller nøklene dine. Se personvernsiden for detaljer.",
+  // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
+  "Applied — takes effect on your next question": "Oppdatert — gjelder neste spørsmål",
+  "Apply": "Bruk",
+  "Discard": "Forkast",
+  "Feedback — what should change in the next round?": "Tilbakemelding — hva bør endres i neste runde?",
+  "Getting suggestions …": "Henter forslag …",
+  "Improve source description": "Forbedre kildebeskrivelsen",
+  "Make my own copy": "Lag egen kopi",
+  "New round": "Ny runde",
+  "No changes suggested": "Ingen endringer foreslått",
+  "PR created:": "PR opprettet:",
+  "PR failed — try again": "PR feilet — prøv igjen",
+  "Round {n}": "Runde {n}",
+  "Send as PR": "Send som PR",
+  "Sending …": "Sender …",
+  "Suggest improvements to your source description, based on this run's errors and detours": "Foreslå forbedringer i kildebeskrivelsen din, basert på feilene og omveiene i denne kjøringen",
+  "Sure? This overwrites the copy": "Sikker? Dette overskriver kopien",
+  "The suggestion could not be parsed — raw answer below": "Forslaget kunne ikke tolkes — rått svar under",
+  "Update from original": "Oppdater fra original",
 };

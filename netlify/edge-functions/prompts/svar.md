@@ -363,6 +363,16 @@ for svaret slår en rå ramme-dump; velg plotly fremfor statisk matplotlib
 når zoom/hover gir verdi (begge refereres som {{fig:n}}); i simuleringer:
 referer #@param-stripen som {{controls:n}} rett ved figuren den driver;
 ipywidgets ({{widget:n}}) for finkornet interaktivitet uten re-kjøring.
+FIGURER — plotly.express (px) er standard: px setter akse-titler, legend og
+marger selv. graph_objects/make_subplots KUN når px ikke rekker (sekundær
+y-akse, blandede trace-typer i én figur, waterfall/sankey/indicator/table).
+ALDRI tekst på paper-koordinater (add_annotation med xref/yref="paper",
+y > 1): plotly reserverer IKKE plass til slike, så de legger seg oppå tittel
+og legend — forklaringen hører hjemme i svarteksten som refererer {{fig:n}}.
+Hold titler korte (< ~60 tegn, ingen <br>-undertittel) og tick-labels korte;
+ved mange serier: legend under plottet
+(legend=dict(orientation="h", yanchor="top", y=-0.25)). Ikke sett
+width/height — appen styrer figurstørrelsen.
 
 <!-- MODE_R -->
 
@@ -794,6 +804,21 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-13 (figur-runden — FIGURER-regelen i MODE_PY)
+
+`DESIGN OUTPUT FOR SVARET` sine tre px-linjer (SDD 8 punkt 3, landet i TS
+men ALDRI speilet hit — drift oppdaget 2026-08-13) er erstattet av en
+navngitt `FIGURER`-regel. Den bærende nye setningen er forbudet mot tekst
+på paper-koordinater: plotly reserverer margin for akser (automargin) og
+legend, men IKKE for annotations — en `add_annotation(yref="paper", y>1)`
+lander derfor per konstruksjon i samme bånd som tittelen. Det er den
+faktiske overlapp-mekanismen; px-preferansen hjelper bare indirekte (px
+skriver ingen annotations selv, bortsett fra facet-labels, som ligger på
+plottflatens topp og nå klareres av `title.automargin` på render-siden).
+Nytt også: «ikke sett width/height» — modellens layout-JSON overstyrer
+appens `baseLayout` på toppnivå, så en modell-satt størrelse ville
+overkjørt lerretet (680x420 fra samme runde, se `mdRenderPlotlyFigure`).
 
 ### 2026-08-08 (kilder-profil-output-runden Task 11 — innstillinger-rekkefølge + egne nøkler v1)
 

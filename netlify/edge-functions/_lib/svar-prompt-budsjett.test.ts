@@ -34,6 +34,22 @@ Deno.test("dekningssjekk- og omstartsreglene er montert i data-ruten (spec fase 
   assert(sys.includes("forkast tilnærmingen"), "RUN må ha omstartsregelen");
 });
 
+// Overlapp-mekanismen (2026-08-13): plotly reserverer margin for akser og
+// legend, men ALDRI for annotations — tekst på paper-koordinater over y=1
+// lander derfor i samme bånd som tittelen uansett hvor stort lerretet er.
+// Render-siden kan ikke fikse det; kun prompten kan.
+Deno.test("MODE_PY forbyr tekst på paper-koordinater og setter px som standard", () => {
+  const sys = buildSvarSystem("data", "python", "");
+  assert(sys.includes('xref/yref="paper"'),
+    "FIGURER-regelen må navngi paper-koordinatene eksplisitt");
+  assert(/ALDRI tekst på paper-koordinater/.test(sys),
+    "forbudet må stå som ALDRI, ikke som en anbefaling");
+  assert(sys.includes("plotly.express (px) er standard"),
+    "px skal være standardvalget, med graph_objects som navngitt unntak");
+  assert(/Ikke sett\s+width\/height/.test(sys),
+    "modellen må ikke sette width/height — appens baseLayout overstyres av spec.layout");
+});
+
 Deno.test("MODE_PY lærer aldri bort toppnivå-await micropip (målt SyntaxError 2026-08-04)", () => {
   const sys = buildSvarSystem("data", "python", "");
   assert(!/Andre pakker: `import micropip/.test(sys),

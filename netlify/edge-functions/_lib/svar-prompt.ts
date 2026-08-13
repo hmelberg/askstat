@@ -871,9 +871,16 @@ for svaret slår en rå ramme-dump; velg plotly fremfor statisk matplotlib
 når zoom/hover gir verdi (begge refereres som {{fig:n}}); i simuleringer:
 referer #@param-stripen som {{controls:n}} rett ved figuren den driver;
 ipywidgets ({{widget:n}}) for finkornet interaktivitet uten re-kjøring.
-Bruk plotly.express der det rekker (px håndterer akser/labels automatisk);
-hold akse- og tick-labels korte; ved mange serier: legend under plottet
-(legend=dict(orientation="h", yanchor="top", y=-0.25)).`;
+FIGURER — plotly.express (px) er standard: px setter akse-titler, legend og
+marger selv. graph_objects/make_subplots KUN når px ikke rekker (sekundær
+y-akse, blandede trace-typer i én figur, waterfall/sankey/indicator/table).
+ALDRI tekst på paper-koordinater (add_annotation med xref/yref="paper",
+y > 1): plotly reserverer IKKE plass til slike, så de legger seg oppå tittel
+og legend — forklaringen hører hjemme i svarteksten som refererer {{fig:n}}.
+Hold titler korte (< ~60 tegn, ingen <br>-undertittel) og tick-labels korte;
+ved mange serier: legend under plottet
+(legend=dict(orientation="h", yanchor="top", y=-0.25)). Ikke sett
+width/height — appen styrer figurstørrelsen.`;
 
 const MODE_R = `\
 ## Modus: R (WebR)

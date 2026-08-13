@@ -1880,23 +1880,34 @@
         node = _el('div', 'ui-figure');
         var spec = p.spec || {};
         var baseLayout = {
+          // Marginene er bevisst strammere enn mdRenderPlotlyFigure sine
+          // (40/40/50/50): ui.figure autosizer inn i små dashboard-slots,
+          // ikke et fast 680x420-lerret. Anti-overlapp-policyen er derimot
+          // DEN SAMME i begge veiene — automargin på akser OG tittel, og
+          // seksjonsvis merge over samme nøkkelsett.
           autosize: true,
           margin: { t: 28, r: 12, b: 36, l: 44 },
           paper_bgcolor: 'rgba(0,0,0,0)',
           plot_bgcolor: 'rgba(0,0,0,0)',
           font: { color: themeColor('--text', '#333') },
           xaxis: { automargin: true },
-          yaxis: { automargin: true }
+          yaxis: { automargin: true },
+          title: { automargin: true }
         };
         // Seksjonsvis merge (som i mdRenderPlotlyFigure/index.html): modellens
         // layout-JSON overstyrer per nøkkel, men sletter ikke hele delobjekter
         // som xaxis/yaxis — automargin overlever selv om modellen bare setter
-        // f.eks. xaxis.title.
+        // f.eks. xaxis.title. Ikke-objekt-overstyringer (plotlys kortform
+        // `title: "tekst"`) vinner HELT: Object.assign med en streng som
+        // kilde ville spredd tegnene som {0:'T',1:'i',…}.
         var spec_layout = spec.layout || {};
         var layout = Object.assign({}, baseLayout, spec_layout);
-        ['margin', 'xaxis', 'yaxis', 'font'].forEach(function (k) {
+        ['margin', 'xaxis', 'yaxis', 'font', 'legend', 'title'].forEach(function (k) {
+          var over = spec_layout[k];
           if (baseLayout[k] && typeof baseLayout[k] === 'object') {
-            layout[k] = Object.assign({}, baseLayout[k], spec_layout[k]);
+            if (!over) layout[k] = baseLayout[k];
+            else if (typeof over !== 'object' || Array.isArray(over)) layout[k] = over;
+            else layout[k] = Object.assign({}, baseLayout[k], over);
           }
         });
         // 5a review Minor (dash-absorpsjon 5b-oppfølging): luk ut frakoblede

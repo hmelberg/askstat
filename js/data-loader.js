@@ -259,12 +259,25 @@
     return { resp: resp, buf: buf };
   }
 
-  function sniffFormat(resp, url, kind) {
+  // ESS-klassen (funn 2026-08-13): formatet ligger i en URL-KODET
+  // query-param bak /api/hent (…fileFormat%3Dparquet…) — verken
+  // .parquet-endelse eller parquet-content-type finnes å sniffe på.
+  function urlSierParquet(url) {
+    var s = String(url || '');
+    try { s = decodeURIComponent(s); } catch (e) { /* rå streng holder */ }
+    return s.toLowerCase().indexOf('fileformat=parquet') >= 0;
+  }
+
+  function sniffFormat(resp, url, kind, buf) {
     // Eksplisitt kind() vinner alltid — sniffing er en heuristikk for de
     // uregistrerte tilfellene (spec 2026-07-06-remote-columnar-sources §4).
     if (kind) return kind;
     var ct = (resp.headers.get('content-type') || '').toLowerCase();
-    if (ct.indexOf('parquet') >= 0 || /\.parquet(\?|$)/.test(url)) return 'parquet';
+    if (ct.indexOf('parquet') >= 0 || /\.parquet(\?|$)/.test(url) || urlSierParquet(url)) return 'parquet';
+    // Magic bytes: parquet-filer starter ALLTID med 'PAR1' — fanger signerte
+    // fil-URL-er uten formatspor i verken URL eller content-type.
+    if (buf && buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x41 &&
+        buf[2] === 0x52 && buf[3] === 0x31) return 'parquet';
     if (/\.duckdb(\?|$)/.test(url)) return 'duckdb';
     if (/\.sqlite3?(\?|$)/.test(url)) return 'sqlite';
     if (ct.indexOf('json') >= 0) return 'json';
@@ -491,7 +504,7 @@
                  format: 'csv', table: item.table, kind: item.kind };
       }
       var fetched = await fetchBytes(item);
-      var format = sniffFormat(fetched.resp, item.url, item.kind);
+      var format = sniffFormat(fetched.resp, item.url, item.kind, fetched.buf);
       var dec = await maybeDecrypt(item, fetched.buf, format, deps);
       var out = { alias: item.alias, bytes: dec.bytes, format: dec.format };
       if (item.table) out.table = item.table;
@@ -638,7 +651,7 @@
       // .csv-sniff siden trinn B: bare .parquet/.csv-endelser gjenkjennes uten
       // eksplisitt kind() — alt annet er 'other' og aldri pushdown-kandidat.
       descriptors[r.alias] = { url: r.url,
-        format: r.kind || (/\.parquet(\?|$)/.test(r.url) ? 'parquet' : /\.csv(\?|$)/.test(r.url) ? 'csv' : 'other'),
+        format: r.kind || ((/\.parquet(\?|$)/.test(r.url) || urlSierParquet(r.url)) ? 'parquet' : /\.csv(\?|$)/.test(r.url) ? 'csv' : 'other'),
         table: r.table };
     });
     return { spec: spec, descriptors: descriptors };

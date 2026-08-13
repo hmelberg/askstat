@@ -295,3 +295,21 @@ Deno.test("fetchRawUrl: proxy-fallback sender auth-headere (S5)", async () => {
   await DL.fetchRawUrl("https://cors.example/d.csv", { fetchImpl, authToken: "T1", anthropicKey: "sk-ant-test" });
   assertEquals(seen[1]["authorization"], "Bearer T1");
 });
+
+// Parquet-deteksjon (funn 2026-08-13, ESS-klassen): formatet ligger i en
+// URL-KODET query-param bak /api/hent — verken .parquet-endelse eller
+// parquet-content-type finnes, så sniffen falt til CSV og lesingen ga
+// søppel. Nå: fileFormat=parquet i (ev. kodet) URL ELLER PAR1-magic-bytes.
+Deno.test("sniffFormat: parquet via kodet fileFormat-param og PAR1-magic", () => {
+  const mk = (ct: string) => new Response("", { headers: { "content-type": ct } });
+  assertEquals(DL._sniffFormat(mk("application/octet-stream"),
+    "/api/hent?url=https%3A%2F%2Fapi.ess.sikt.no%2Fv1%2Fdata%2FdataFile%2F10.21338%2Fess11e03_0%3FfileFormat%3Dparquet%26recodeMissingValues%3Dtrue"),
+    "parquet");
+  assertEquals(DL._sniffFormat(mk("application/octet-stream"),
+    "https://api.ess.sikt.no/v1/data/dataFile/x?fileFormat=parquet"), "parquet");
+  const par1 = new Uint8Array([0x50, 0x41, 0x52, 0x31, 0x00, 0x11]);
+  assertEquals(DL._sniffFormat(mk("application/octet-stream"), "https://x/blob", undefined, par1), "parquet");
+  // csv-default urørt: generisk ct + ukjent URL + ikke-PAR1-bytes
+  assertEquals(DL._sniffFormat(mk("application/octet-stream"), "https://x/blob", undefined,
+    new Uint8Array([0x61, 0x2c, 0x62])), "csv");
+});

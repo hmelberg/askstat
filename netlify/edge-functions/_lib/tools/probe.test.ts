@@ -162,3 +162,18 @@ Deno.test("probe: XML-svar rapporteres som XML, ikke som én gigantisk CSV-kolon
   assertEquals(typeof r.note, "string");
   assertEquals(r.note!.includes("XML"), true);
 });
+
+// Parquet (funn 2026-08-13, ESS-klassen): binær PAR1-kropp skal gi ok:true
+// med ærlig parquet-note — IKKE binærsøppel klassifisert som «CSV» (samme
+// ærlighetsprinsipp som XML-vakten). ok:true fordi URL-en ER lastbar:
+// appen leser parquet (pd.read_parquet via read-bridge).
+Deno.test("probe parquet: PAR1-magic gir ok + parquet-note, aldri CSV-søppel", async () => {
+  const par1 = new Uint8Array([0x50, 0x41, 0x52, 0x31, 0x15, 0x00, 0xff, 0x01]);
+  const fetchImpl = ((_i: string | URL | Request) =>
+    Promise.resolve(new Response(par1, { status: 200, headers: { "content-type": "application/octet-stream" } }))) as typeof fetch;
+  const r = await probeUrl("https://api.ess.sikt.no/v1/data/dataFile/x?fileFormat=parquet", { fetchImpl });
+  assertEquals(r.ok, true);
+  assertEquals(r.columns, []);
+  assertEquals((r.note ?? "").includes("parquet"), true);
+  assertEquals((r.note ?? "").includes("CSV"), false);
+});

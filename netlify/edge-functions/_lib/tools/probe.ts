@@ -62,6 +62,21 @@ export async function probeUrl(
   if (res.status < 200 || res.status >= 300) {
     return { ...empty, status: res.status, contentType, cors, note: `HTTP ${res.status}` };
   }
+  // Parquet (funn 2026-08-13, ESS-klassen): magic bytes 'PAR1'. Uten denne
+  // vakten ble binærkroppen tekst-dekodet og CSV-sniffet til søppelkolonner
+  // («Proben leser fortsatt som CSV») — modellen ga opp et format appen
+  // faktisk STØTTER (pd.read_parquet via read-bridge) og brant turer på
+  // CSV-omveier. ok:true: URL-en er lastbar; skjemaet kan proben bare ikke
+  // lese (binært) — samme ærlighetsprinsipp som XML-vakten under.
+  if (res.body.length >= 4 && res.body[0] === 0x50 && res.body[1] === 0x41 &&
+      res.body[2] === 0x52 && res.body[3] === 0x31) {
+    return {
+      ok: true, status: res.status, contentType, cors,
+      columns: [], sampleRows: [], truncated: res.truncated,
+      note: "parquet-fil (binær) — skjema leses ikke av proben; " +
+        "formatet er støttet: last med ost.read/pd.read_parquet",
+    };
+  }
   const text = new TextDecoder().decode(res.body);
   // XML er ALDRI et lastbart tabellskjema her. Uten denne vakten havnet hele
   // SDMX-ML-dokumentet (målt: 85 000 tegn) i ÉN columns-oppføring, med

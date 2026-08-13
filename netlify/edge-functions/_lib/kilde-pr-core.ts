@@ -41,8 +41,9 @@ export interface PrInn {
   tittel: string; kropp: string; branch: string;
 }
 
-export async function opprettPr(deps: PrDeps, inn: PrInn): Promise<{ url: string }> {
-  const gh = (sti: string, init?: RequestInit) =>
+// Delt GitHub-kallhjelper (samme headere for opprettPr og opprettIssue).
+export function ghKall(deps: PrDeps): (sti: string, init?: RequestInit) => Promise<Response> {
+  return (sti: string, init?: RequestInit) =>
     deps.fetchImpl(`https://api.github.com/repos/${deps.repo}${sti}`, {
       ...init,
       headers: {
@@ -53,6 +54,10 @@ export async function opprettPr(deps: PrDeps, inn: PrInn): Promise<{ url: string
         ...(init?.headers ?? {}),
       },
     });
+}
+
+export async function opprettPr(deps: PrDeps, inn: PrInn): Promise<{ url: string }> {
+  const gh = ghKall(deps);
 
   const refRes = await gh(`/git/ref/heads/main`);
   if (!refRes.ok) throw new Error(`GitHub ref: ${refRes.status}`);
@@ -92,4 +97,19 @@ export async function opprettPr(deps: PrDeps, inn: PrInn): Promise<{ url: string
   });
   if (!prRes.ok) throw new Error(`GitHub PR: ${prRes.status}`);
   return { url: ((await prRes.json()) as { html_url: string }).html_url };
+}
+
+// §4c-kode-sporet: agent-klar bestilling som eget GitHub-issue (ikke PR —
+// rotårsaken ligger i appkoden, ikke i en kildebeskrivelse).
+export async function opprettIssue(
+  deps: PrDeps,
+  inn: { tittel: string; kropp: string; etiketter: string[] },
+): Promise<{ url: string }> {
+  const gh = ghKall(deps);
+  const res = await gh(`/issues`, {
+    method: "POST",
+    body: JSON.stringify({ title: inn.tittel, body: inn.kropp, labels: inn.etiketter }),
+  });
+  if (!res.ok) throw new Error(`GitHub issue: ${res.status}`);
+  return { url: ((await res.json()) as { html_url: string }).html_url };
 }

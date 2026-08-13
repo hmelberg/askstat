@@ -370,6 +370,44 @@
       kort.appendChild(rad);
       innhold.appendChild(kort);
     });
+
+    // Kode-sporet (§4c): rotårsaken ligger i appen — admin får en
+    // agent-klar bestilling som GitHub-issue. Ikke-admin ser bare melding.
+    if (svar.kode_sak && erAdmin()) {
+      var ks = svar.kode_sak;
+      var ksKort = el('div', 'kf-kort');
+      ksKort.appendChild(el('h4', null, '🔧 ' + ks.tittel));
+      var ksPre = el('pre', 'kf-raa');
+      ksPre.textContent = ks.kropp.slice(0, 2000);
+      ksKort.appendChild(ksPre);
+      var ksRad = el('div', 'sources-info-actions');
+      var ksBtn = el('button', 'ai-codeblock-btn', T('Create GitHub issue'));
+      ksBtn.type = 'button';
+      ksBtn.addEventListener('click', function () {
+        ksBtn.disabled = true;
+        ksBtn.textContent = T('Sending …');
+        fetch('/api/kilde-pr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + ((global.mdAuth && global.mdAuth.token) || '') },
+          body: JSON.stringify({ issue: { tittel: ks.tittel, kropp: ks.kropp } }),
+        }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (d) {
+            ksBtn.remove();
+            var lenke = document.createElement('a');
+            lenke.href = d.url; lenke.target = '_blank'; lenke.rel = 'noopener';
+            lenke.textContent = T('Issue created:') + ' ' + d.url;
+            ksRad.appendChild(lenke);
+          }).catch(function (e) {
+            try { console.error('kilde-issue:', e); } catch (_) {}
+            ksBtn.disabled = false;
+            ksBtn.textContent = T('Issue failed — try again');
+          });
+      });
+      ksRad.appendChild(ksBtn);
+      ksKort.appendChild(ksRad);
+      innhold.appendChild(ksKort);
+    }
   }
 
   var api = {

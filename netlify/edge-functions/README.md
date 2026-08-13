@@ -38,7 +38,9 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   branch + commit + PR på GitHub for et akseptert forslag. Env:
   `GITHUB_PR_TOKEN` (fingranulert PAT, kun dette repoet, Contents RW +
   Pull requests RW), valgfri `GITHUB_PR_REPO` (default hmelberg/askstat).
-  Body: `{id, name, of?, ny_tekst, evidens}` → `{url}`.
+  Body: `{id, name, of?, ny_tekst, evidens}` → `{url}`; issue-modus: body
+  `{issue:{tittel,kropp}}` → GitHub-issue m/etikett kilde-kodesak (PAT trenger
+  da også Issues RW).
 - `hent` → `/api/hent?url=…[&body=…]` — SSRF-herdet GET-proxy (kun admin).
   Injiserer API-nøkler server-side for register-kilder (host-matchet);
   `body` GET-innpakker POST-json (PxWeb v1 o.l.).

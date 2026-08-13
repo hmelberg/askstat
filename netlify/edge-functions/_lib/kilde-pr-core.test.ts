@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { base64Utf8, byggBranchNavn, opprettPr, slugify, velgMaal } from "./kilde-pr-core.ts";
+import { base64Utf8, byggBranchNavn, opprettIssue, opprettPr, slugify, velgMaal } from "./kilde-pr-core.ts";
 
 Deno.test("velgMaal: kopi → oppdater data/sources; egen kilde → ny community-pakke", () => {
   assertEquals(velgMaal({ of: "ssb", id: "user:a", name: "SSB (min kopi)" }),
@@ -65,4 +65,18 @@ Deno.test("opprettPr: create=true henter ikke fil-sha (fire kall totalt)", async
     { path: "data/packs/community/ny.md", create: true, innhold: "x", tittel: "T", kropp: "K", branch: "b" });
   assertEquals(kall.length, 4);
   assertEquals(kall.filter((u) => u.includes("?ref=main")).length, 0);
+});
+
+Deno.test("opprettIssue: ett POST /issues med title/body/labels", async () => {
+  const kall: { url: string; body: Record<string, unknown> }[] = [];
+  const fetchImpl = ((url: string, init?: RequestInit) => {
+    kall.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+    return Promise.resolve(new Response(JSON.stringify({ html_url: "https://github.com/x/issues/7" }), { status: 201 }));
+  }) as typeof fetch;
+  const r = await opprettIssue({ fetchImpl, token: "t", repo: "hmelberg/askstat" },
+    { tittel: "SDMX-dialekt", kropp: "Bestilling", etiketter: ["kilde-kodesak"] });
+  assertEquals(r.url, "https://github.com/x/issues/7");
+  assertEquals(kall.length, 1);
+  assertStringIncludes(kall[0].url, "/repos/hmelberg/askstat/issues");
+  assertEquals(kall[0].body, { title: "SDMX-dialekt", body: "Bestilling", labels: ["kilde-kodesak"] });
 });

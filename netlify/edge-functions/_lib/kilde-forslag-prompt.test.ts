@@ -41,3 +41,27 @@ Deno.test("byggKildeForslagPrompt: uten oppgave ingen OPPGAVE-linje", () => {
   const p = byggKildeForslagPrompt({ docs: [{ id: "user:a", name: "A", text: "t" }], question: "q", runs: [] });
   assert(!p.includes("OPPGAVE: KORT"));
 });
+
+Deno.test("byggKildeForslagPrompt: ref_docs-seksjon + admin-linje, riktig plassering", () => {
+  const p = byggKildeForslagPrompt({
+    docs: [{ id: "user:a", name: "A", text: "t" }], question: "q", runs: [],
+    ref_docs: [{ id: "ess", text: "## Guide\nparquet anbefales" }],
+    admin: true,
+    history: [{ forslag_raatekst: "f", tilbakemelding: "t" }],
+  });
+  assertStringIncludes(p, "REFERANSE: INNEBYGDE KILDER");
+  assertStringIncludes(p, "### ess (innebygd)");
+  assertStringIncludes(p, "parquet anbefales");
+  assertStringIncludes(p, "ADMIN: forslag mot innebygde dokumenter er tillatt");
+  assert(p.indexOf("REFERANSE: INNEBYGDE KILDER") < p.indexOf("TIDLIGERE RUNDER"));
+});
+
+Deno.test("byggKildeForslagPrompt: uten ref_docs ingen seksjon; uten admin ingen ADMIN-linje", () => {
+  const p = byggKildeForslagPrompt({
+    docs: [{ id: "user:a", name: "A", text: "t" }], question: "q", runs: [],
+    ref_docs: [{ id: "ess", text: "x" }],
+  });
+  assert(!p.includes("ADMIN:"));
+  const p2 = byggKildeForslagPrompt({ docs: [{ id: "user:a", name: "A", text: "t" }], question: "q", runs: [] });
+  assert(!p2.includes("REFERANSE: INNEBYGDE KILDER"));
+});

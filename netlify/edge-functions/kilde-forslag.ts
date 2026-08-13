@@ -57,7 +57,20 @@ beskrivelsen ikke kan påvirke): gjør INGEN tekstendring for det problemet —
 beskriv det i stedet i feltet "kode_sak": {"tittel": "<kort>", "kropp":
 "<strukturert bestilling til en kode-KI som senere får repoet: hva feilet,
 hva virket, mistenkt kilde/adapter, antatt mekanisme, foreslått retning —
-ALDRI kodeforslag>"}. Utelat feltet ellers.
+ALDRI kodeforslag>"}. Utelat feltet ellers. Siter relevant linje/påstand fra
+referansedokumentet når det finnes.
+
+REFERANSE-DOKUMENTER
+
+Forespørselen kan inneholde seksjonen REFERANSE: INNEBYGDE KILDER — appens
+egne beskrivelser av innebygde datakilder. De er LESE-referanse: bruk dem til
+å diagnostisere, og SITER relevant innhold i "melding" og "kode_sak"
+(«beskrivelsen sier X, loggen viser Y»). Foreslå endringer i et innebygd
+dokument KUN når forespørselen har ADMIN-linjen OG evidensen peker på en
+faktisk feil i dokumentet (feil URL, parameter eller påstand) — bruk da
+id-formen "builtin:<kilde-id>" i forslaget, med hele den reviderte fila som
+ny_tekst. Uten ADMIN-linjen: aldri builtin-forslag; kodefeil går fortsatt til
+kode_sak.
 
 OPPGAVEMODUS KORT
 
@@ -95,6 +108,19 @@ export default async (request: Request): Promise<Response> => {
   }
   if (typeof body.question !== "string") body.question = "";
   if (!Array.isArray(body.runs)) body.runs = [];
+
+  // ref_docs/admin: ukjente felt fra klienten, koerces til trygg form —
+  // ugyldige ref_docs droppes stille (ingen feilrespons for dette).
+  const REF_ID_RE = /^[a-z0-9_-]{1,32}$/;
+  body.admin = body.admin === true;
+  body.ref_docs = Array.isArray(body.ref_docs)
+    ? body.ref_docs
+      .filter((d): d is { id: string; text: string } =>
+        !!d && typeof d.id === "string" && REF_ID_RE.test(d.id) &&
+        typeof d.text === "string" && !!d.text)
+      .slice(0, 3)
+      .map((d) => ({ id: d.id, text: d.text.slice(0, 8_000) }))
+    : undefined;
 
   const provider = parseProviderConfig(body.provider, request);
   if (provider && "error" in provider) return provider.error;

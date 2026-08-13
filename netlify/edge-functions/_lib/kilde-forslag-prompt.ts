@@ -4,6 +4,7 @@
 export interface ForslagDoc { id: string; name: string; text: string; }
 export interface ForslagRun { script: string; error: string; }
 export interface ForslagRunde { forslag_raatekst: string; tilbakemelding: string; }
+export interface ForslagRefDoc { id: string; text: string; }
 export interface KildeForslagBody {
   docs: ForslagDoc[];
   question: string;
@@ -18,6 +19,8 @@ export interface KildeForslagBody {
   ui_lang?: string;
   provider?: unknown;
   oppgave?: string;
+  ref_docs?: ForslagRefDoc[];
+  admin?: boolean;
 }
 
 const LANG_NAVN: Record<string, string> = {
@@ -46,6 +49,15 @@ export function byggKildeForslagPrompt(body: KildeForslagBody): string {
   }
   if (body.trace) deler.push(`PROSESS-SPOR\n\n${body.trace}\n`);
   if (body.sources?.length) deler.push(`PROBEDE KILDER\n\n${body.sources.join("\n")}\n`);
+  if (body.ref_docs?.length) {
+    deler.push("REFERANSE: INNEBYGDE KILDER\n");
+    for (const rd of body.ref_docs) {
+      deler.push(`### ${rd.id} (innebygd)\n\n${rd.text}\n`);
+    }
+    if (body.admin === true) {
+      deler.push("ADMIN: forslag mot innebygde dokumenter er tillatt (id-form builtin:<kilde-id>).\n");
+    }
+  }
   if (body.history?.length) {
     deler.push("TIDLIGERE RUNDER\n");
     body.history.forEach((h, i) => {

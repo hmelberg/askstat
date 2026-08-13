@@ -195,6 +195,7 @@ window.M2PY_I18N.ja = {
   "Applied — takes effect on your next question": "適用しました——次の質問から有効になります",
   "Apply": "適用",
   "Discard": "破棄",
+  "Document too large for a safe PR — edit it in the repo": "ドキュメントが大きすぎて安全にPRを作成できません——リポジトリ内で編集してください",
   "Feedback — what should change in the next round?": "フィードバック——次のラウンドで何を変えるべきですか？",
   "Getting suggestions …": "提案を取得しています …",
   "Improve source description": "データソースの説明を改善する",

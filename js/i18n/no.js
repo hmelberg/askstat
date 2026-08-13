@@ -202,6 +202,7 @@ window.M2PY_I18N.no = {
   "Applied — takes effect on your next question": "Oppdatert — gjelder neste spørsmål",
   "Apply": "Bruk",
   "Discard": "Forkast",
+  "Document too large for a safe PR — edit it in the repo": "Dokumentet er for stort for en trygg PR — rediger det i repoet",
   "Feedback — what should change in the next round?": "Tilbakemelding — hva bør endres i neste runde?",
   "Getting suggestions …": "Henter forslag …",
   "Improve source description": "Forbedre kildebeskrivelsen",

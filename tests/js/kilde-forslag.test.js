@@ -209,6 +209,26 @@ test('hentRefDocs: register → matcher → dokumenter; 404 utelates stille', as
   assert.ok(ut[0].text.indexOf('parquet anbefales') >= 0);
 });
 
+// Sluttreview-funn: `in`-sjekk mot state.refDocs er sann for nedarvede
+// egenskaper (__proto__, constructor …) — en hallusinert builtin:__proto__
+// måtte IKKE se ut som et gyldig dokument-treff. erGyldigRefDocId bruker
+// Object.prototype.hasOwnProperty.call i stedet for `in`.
+test('erGyldigRefDocId: hasOwnProperty-vakt mot nedarvede egenskaper', () => {
+  const refDocs = { ess: 'tekst' };
+  assert.equal(KF.erGyldigRefDocId('ess', refDocs), true);
+  assert.equal(KF.erGyldigRefDocId('ukjent', refDocs), false);
+  assert.equal(KF.erGyldigRefDocId('__proto__', refDocs), false);
+  assert.equal(KF.erGyldigRefDocId('constructor', refDocs), false);
+  assert.equal(KF.erGyldigRefDocId('toString', refDocs), false);
+  assert.equal(KF.erGyldigRefDocId('ess', null), false);
+  assert.equal(KF.erGyldigRefDocId('ess', undefined), false);
+  // Object.create(null)-formen (produksjonskoden bruker den for state.refDocs)
+  const nullProto = Object.create(null);
+  nullProto.ess = 'tekst';
+  assert.equal(KF.erGyldigRefDocId('ess', nullProto), true);
+  assert.equal(KF.erGyldigRefDocId('__proto__', nullProto), false);
+});
+
 test('byggForslagsPayload: ref_docs klippes/takles og admin sendes kun ved true', () => {
   const p = KF.byggForslagsPayload({
     docs: [], admin: true,

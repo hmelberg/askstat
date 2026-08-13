@@ -71,7 +71,11 @@
         var reg = await fetchImpl('data/data-sources.json', opts);
         if (reg && reg.ok) registry = JSON.parse(await reg.text());
       } catch (e) { registry = []; }
-      if (!injisert) _refRegistryCache = registry;
+      // Cache KUN ved suksess (sluttreview-funn): et abortert/feilet første
+      // kall (f.eks. «Ny runde»/«Close» som aborterer state.ctrl mens
+      // hentRefDocs pågår) skal ikke fryse en tom registry-cache for RESTEN
+      // av økten — neste runde skal få en ny sjanse til å hente registeret.
+      if (!injisert && registry.length) _refRegistryCache = registry;
     }
     var ids = involverteInnebygde((ctx && ctx.sources) || [], registry);
     var ut = [];
@@ -214,6 +218,17 @@
       if (pr) ut.push({ id: d.id, name: pr.name, text: pr.text || '' });
     });
     return ut;
+  }
+
+  // erGyldigRefDocId (sluttreview-funn): `in`-sjekk mot state.refDocs er
+  // sann for NEDARVEDE egenskaper (__proto__, constructor, toString …) —
+  // en hallusinert builtin:__proto__ ville da rendret et kort og kunnet
+  // åpne en PR som skriver data/sources/__proto__.md. hasOwnProperty låser
+  // treffet til dokumenter modellen FAKTISK fikk (refDocs bygges fra en
+  // fetch-liste, aldri fra brukerinput — men vakten koster ingenting og
+  // gjør intensjonen eksplisitt).
+  function erGyldigRefDocId(bid, refDocs) {
+    return !!(refDocs && Object.prototype.hasOwnProperty.call(refDocs, String(bid)));
   }
 
   // §9: klientsynligheten er kosmetikk — servergaten (adminGate) er den
@@ -374,7 +389,10 @@
     // filtreres bort der).
     hentRefDocs(ctxSiste, { signal: ctrl.signal }).then(function (refDocs) {
       if (state.ctrl !== ctrl) return;   // en nyere runde har overtatt
-      state.refDocs = {};
+      // Object.create(null) — defensivt: ingen Object.prototype å arve fra,
+      // så selv uten erGyldigRefDocId-vakten under ville __proto__/
+      // constructor aldri se ut som et gyldig treff her.
+      state.refDocs = Object.create(null);
       refDocs.forEach(function (d) { state.refDocs[d.id] = d.text; });
 
       var payload = byggForslagsPayload({
@@ -404,6 +422,10 @@
         state.sisteRaatekst = tekst;
         renderForslag(parseForslagSvar(tekst), state, innhold, rundeEl, bunn);
       }).catch(function (e) {
+        // Stale-vakt (sluttreview-funn, folded minor): en overtatt runde
+        // sitt REJECT skal ikke få lov til å tømme/overskrive en NYERE
+        // rundes fremdriftslinje — samme mønster som .then-grenene over.
+        if (state.ctrl !== ctrl) return;
         if (e && e.name === 'AbortError') return;
         innhold.innerHTML = '';
         innhold.appendChild(el('div', 'ai-error', '✗ ' + ((e && e.message) || String(e))));
@@ -480,8 +502,10 @@
       if (String(f.id).indexOf('builtin:') === 0) {
         var bid = String(f.id).slice(8);
         // Kun admin, og kun dokumenter modellen faktisk FIKK (hallusinerte
-        // builtin-id-er filtreres) — spec 2026-08-14 §2.
-        if (!erAdmin() || !state.refDocs || !(bid in state.refDocs)) return;
+        // builtin-id-er filtreres — hasOwnProperty hindrer i tillegg
+        // nedarvede egenskaper som __proto__/constructor fra å se ut som
+        // treff) — spec 2026-08-14 §2 + sluttreview-funn.
+        if (!erAdmin() || !erGyldigRefDocId(bid, state.refDocs)) return;
         var bKort = el('div', 'kf-kort');
         bKort.appendChild(el('h4', null, bid + ' (' + T('built-in') + ')'));
         var bDiff = el('div', 'kf-diff');
@@ -492,9 +516,22 @@
         bKort.appendChild(bDiff);
         if (f.begrunnelse) bKort.appendChild(el('div', 'ask-pop-hint', f.begrunnelse));
         var bRad = el('div', 'sources-info-actions');
-        // Ingen lokal skrivevei for innebygde dokumenter (bevisst):
-        // kun PR (adminGate server-side er sperren) eller Forkast.
-        bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: f.ny_tekst }, bRad));
+        // 8k-klipp-vakt (sluttreview-funn): hentRefDocs klipper innebygde
+        // dokumenter til 8000 tegn FØR modellen ser dem, men builtin
+        // ny_tekst erstatter HELE data/sources/<id>.md via PR. For et
+        // dokument som traff klippet (≥8000 tegn her) har modellen ALDRI
+        // sett halen — en PR ville stille slette den. Tilby diff + Forkast
+        // uten PR-knapp i så fall (lengste dokument i dag er 6913 tegn,
+        // så dette er foreløpig latent, men ikke usannsynlig).
+        var bKlippet = state.refDocs[bid].length >= 8000;
+        if (bKlippet) {
+          bKort.appendChild(el('div', 'ask-pop-hint',
+            T('Document too large for a safe PR — edit it in the repo')));
+        } else {
+          // Ingen lokal skrivevei for innebygde dokumenter (bevisst):
+          // kun PR (adminGate server-side er sperren) eller Forkast.
+          bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: f.ny_tekst }, bRad));
+        }
         var bForkast = el('button', 'ai-codeblock-btn', T('Discard'));
         bForkast.type = 'button';
         bForkast.addEventListener('click', function () { bKort.remove(); });
@@ -592,6 +629,7 @@
     parseForslagSvar: parseForslagSvar,
     linjeDiff: linjeDiff,
     ferskeDocs: ferskeDocs,
+    erGyldigRefDocId: erGyldigRefDocId,
     erAdmin: erAdmin,
     byggEvidens: byggEvidens,
     registerRun: registerRun,

@@ -195,6 +195,7 @@ window.M2PY_I18N.da = {
   "Applied — takes effect on your next question": "Anvendt — gælder fra dit næste spørgsmål",
   "Apply": "Anvend",
   "Discard": "Kassér",
+  "Document too large for a safe PR — edit it in the repo": "Dokumentet er for stort til en sikker PR — rediger det i repoet",
   "Feedback — what should change in the next round?": "Feedback — hvad skal ændres i næste runde?",
   "Getting suggestions …": "Henter forslag …",
   "Improve source description": "Forbedre kildebeskrivelsen",

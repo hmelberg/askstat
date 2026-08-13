@@ -62,3 +62,34 @@ test('skalViseKnapp: egne kilder + friksjon', () => {
   assert.equal(KF.skalViseKnapp({ docs: [], runs: [{}], kastedeTurer: 3 }), false); // ingen egne kilder
   assert.equal(KF.skalViseKnapp(null), false);
 });
+
+test('parseForslagSvar: fenced json-blokk', () => {
+  const r = KF.parseForslagSvar('Litt prat.\n```json\n{"forslag":[{"id":"user:a","ny_tekst":"NY","begrunnelse":"fordi"}],"melding":"ok"}\n```');
+  assert.equal(r.ok, true);
+  assert.equal(r.forslag.length, 1);
+  assert.deepEqual(r.forslag[0], { id: 'user:a', ny_tekst: 'NY', begrunnelse: 'fordi' });
+  assert.equal(r.melding, 'ok');
+});
+
+test('parseForslagSvar: naken JSON uten fence (klammespenn)', () => {
+  const r = KF.parseForslagSvar('{"forslag":[],"melding":"ingen endring nødvendig"}');
+  assert.equal(r.ok, true);
+  assert.equal(r.forslag.length, 0);
+  assert.equal(r.melding, 'ingen endring nødvendig');
+});
+
+test('parseForslagSvar: søppel gir ok:false med raatekst', () => {
+  const r = KF.parseForslagSvar('bare prosa uten json');
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.forslag, []);
+  assert.equal(r.raatekst, 'bare prosa uten json');
+});
+
+test('parseForslagSvar: forslag uten id/ny_tekst filtreres, tom ny_tekst filtreres', () => {
+  const r = KF.parseForslagSvar(JSON.stringify({
+    forslag: [{ id: 'user:a', ny_tekst: 'X' }, { id: 'user:b' }, { ny_tekst: 'Y' }, { id: 'user:c', ny_tekst: '   ' }],
+  }));
+  assert.equal(r.ok, true);
+  assert.equal(r.forslag.length, 1);
+  assert.equal(r.forslag[0].begrunnelse, '');
+});

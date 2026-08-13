@@ -63,9 +63,43 @@
     return !!(harKilder && friksjon);
   }
 
+  // Svarparser (spec §3): fenced ```json-blokk foretrekkes; ellers
+  // klammespenn (samme naive strategi som parseAskRoute i js/ask-view.js —
+  // prompten krever JSON-objektet SIST i svaret). Parsefeil → ok:false og
+  // raatekst til fallback-visning; aldri kast.
+  function parseForslagSvar(text) {
+    var raa = String(text == null ? '' : text);
+    var obj = null;
+    var m = raa.match(/```json\s*([\s\S]*?)```/);
+    if (m) { try { obj = JSON.parse(m[1]); } catch (e) {} }
+    if (!obj) {
+      var start = raa.indexOf('{');
+      var end = raa.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try { obj = JSON.parse(raa.slice(start, end + 1)); } catch (e) {}
+      }
+    }
+    if (!obj || typeof obj !== 'object') {
+      return { ok: false, forslag: [], melding: '', raatekst: raa };
+    }
+    var liste = Array.isArray(obj.forslag) ? obj.forslag : [];
+    return {
+      ok: true,
+      forslag: liste.filter(function (f) {
+        return f && typeof f.id === 'string' && typeof f.ny_tekst === 'string' && f.ny_tekst.trim();
+      }).map(function (f) {
+        return { id: f.id, ny_tekst: f.ny_tekst,
+                 begrunnelse: typeof f.begrunnelse === 'string' ? f.begrunnelse : '' };
+      }),
+      melding: typeof obj.melding === 'string' ? obj.melding : '',
+      raatekst: raa,
+    };
+  }
+
   var api = {
     byggForslagsPayload: byggForslagsPayload,
     skalViseKnapp: skalViseKnapp,
+    parseForslagSvar: parseForslagSvar,
     _CAPS: CAPS,
   };
   global.KildeForslag = api;

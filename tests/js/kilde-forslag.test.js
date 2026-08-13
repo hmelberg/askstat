@@ -146,3 +146,16 @@ test('byggEvidens: scrubbet, klippet, med feiltall og siste feil', () => {
   assert.ok(ev.indexOf('hemmelig og mer') === -1 || ev.indexOf('***') >= 0); // masker kjørte
   assert.ok(ev.length < 4000);
 });
+
+test('parseForslagSvar: kode_sak plukkes opp og valideres', () => {
+  const r = KF.parseForslagSvar(JSON.stringify({ forslag: [], melding: 'kodesak', kode_sak: { tittel: 'SDMX-dialekt', kropp: 'Bestilling …' } }));
+  assert.deepEqual(r.kode_sak, { tittel: 'SDMX-dialekt', kropp: 'Bestilling …' });
+  assert.equal(KF.parseForslagSvar('{"forslag":[]}').kode_sak, null);
+  assert.equal(KF.parseForslagSvar(JSON.stringify({ forslag: [], kode_sak: { tittel: '', kropp: 'x' } })).kode_sak, null);
+});
+
+test('byggForslagsPayload: oppgave sendes gjennom, utelates ellers', () => {
+  assert.equal(KF.byggForslagsPayload({ docs: [], oppgave: 'kort' }, deps).oppgave, 'kort');
+  assert.ok(!('oppgave' in KF.byggForslagsPayload({ docs: [] }, deps)) ||
+    KF.byggForslagsPayload({ docs: [] }, deps).oppgave === undefined);
+});

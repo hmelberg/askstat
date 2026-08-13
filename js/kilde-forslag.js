@@ -49,6 +49,7 @@
       }),
       ui_lang: inn.ui_lang || 'en',
     };
+    if (inn.oppgave === 'kort') p.oppgave = 'kort';
     // Budsjett (spec §2): dropp ELDSTE runs først, så trace — docs ALDRI.
     while (byteLengde(JSON.stringify(p)) > CAPS.PAYLOAD_BYTES && p.runs.length) p.runs.shift();
     if (byteLengde(JSON.stringify(p)) > CAPS.PAYLOAD_BYTES && p.trace) delete p.trace;
@@ -68,6 +69,13 @@
   // klammespenn (samme naive strategi som parseAskRoute i js/ask-view.js —
   // prompten krever JSON-objektet SIST i svaret). Parsefeil → ok:false og
   // raatekst til fallback-visning; aldri kast.
+  function koderSak(obj) {
+    var k = obj && obj.kode_sak;
+    if (!k || typeof k.tittel !== 'string' || !k.tittel.trim() ||
+        typeof k.kropp !== 'string' || !k.kropp.trim()) return null;
+    return { tittel: klipp(k.tittel, 200), kropp: klipp(k.kropp, 20000) };
+  }
+
   function parseForslagSvar(text) {
     var raa = String(text == null ? '' : text);
     var obj = null;
@@ -81,7 +89,7 @@
       }
     }
     if (!obj || typeof obj !== 'object') {
-      return { ok: false, forslag: [], melding: '', raatekst: raa };
+      return { ok: false, forslag: [], melding: '', raatekst: raa, kode_sak: null };
     }
     var liste = Array.isArray(obj.forslag) ? obj.forslag : [];
     return {
@@ -94,6 +102,7 @@
       }),
       melding: typeof obj.melding === 'string' ? obj.melding : '',
       raatekst: raa,
+      kode_sak: koderSak(obj),
     };
   }
 

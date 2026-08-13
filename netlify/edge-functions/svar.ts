@@ -33,6 +33,7 @@ interface RequestBody {
   preferences?: unknown;
   packs?: unknown;
   sources_off?: unknown;
+  guides_off?: unknown;
   user_keys?: unknown;
   discover?: unknown;
   provider?: unknown;
@@ -247,7 +248,11 @@ export default async (request: Request): Promise<Response> => {
     }
   }
 
-  const attachGuide = makeGuideAttacher(origin);
+  // guides_off (spec 2026-08-13 §8): fortrenger KUN den late guiden for
+  // kilder brukeren har aktiv egen kopi av — verktøy-dispatchen og
+  // registerblokka er med vilje urørt (motsatsen til sources_off over).
+  // coerceSourcesOff gjenbrukes: identisk id-form og tak.
+  const attachGuide = makeGuideAttacher(origin, fetch, new Set(coerceSourcesOff(body.guides_off)));
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_datasets" && registry) {

@@ -21,6 +21,19 @@ Deno.test("attach: guide første gang, IKKE andre gang; én fetch totalt", async
   assertEquals((f as unknown as { calls: () => number }).calls(), 1);
 });
 
+Deno.test("attach: skip-settet fortrenger guiden uten fetch (guides_off, spec §8)", async () => {
+  let kalt = 0;
+  const f = ((..._args: unknown[]) => { kalt++; return Promise.resolve(new Response("# guide", { status: 200 })); }) as typeof fetch;
+  const attach = makeGuideAttacher("https://o", f, new Set(["ssb"]));
+  const r1: Record<string, unknown> = {};
+  await attach("ssb", r1);
+  assertEquals(r1.guide, undefined);
+  assertEquals(kalt, 0);              // aldri fetch for fortrengte
+  const r2: Record<string, unknown> = {};
+  await attach("oecd", r2);           // andre kilder upåvirket
+  assertEquals(r2.guide, "# guide");
+});
+
 Deno.test("attach: 404 → stille no-op, resultatet urørt", async () => {
   const attach = makeGuideAttacher("https://app.example", fakeFetch(404, ""));
   const r: Record<string, unknown> = { hits: [] };

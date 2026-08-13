@@ -715,6 +715,11 @@
               // filtrerAvslatte (tom off → samme registry-referanse).
               sources_off: window.Profiles && Profiles.sourcesOff && Profiles.sourcesOff().length
                 ? Profiles.sourcesOff() : undefined,
+              // §8 kildeforbedring: kilder med AKTIV egen kopi får guiden
+              // fortrengt server-side (guides_off) — kopiteksten flyter som
+              // vanlig pakke i packs-feltet over og overtar guiderollen.
+              guides_off: (window.Packs && Packs.builtinOverstyrte && Packs.builtinOverstyrte().length)
+                ? Packs.builtinOverstyrte() : undefined,
               // Egne nøkler v1 (innstillinger-runden, Task 11): kun
               // {navn, notat} — ALDRI selve verdien (den blir aldri lest ut
               // av window.Keys her). Serveren (svar-prompt.ts sin

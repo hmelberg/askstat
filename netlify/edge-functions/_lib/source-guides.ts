@@ -7,10 +7,14 @@ import { findSource, type DataSource } from "./registry.ts";
 
 const MAX_GUIDE_CHARS = 8_000;
 
-export function makeGuideAttacher(origin: string, fetchImpl: typeof fetch = fetch) {
+export function makeGuideAttacher(origin: string, fetchImpl: typeof fetch = fetch, skip?: Set<string>) {
   const sent = new Set<string>();
   return async function attach(sourceId: string, result: Record<string, unknown>): Promise<void> {
     if (!sourceId || sent.has(sourceId)) return;
+    // guides_off (spec 2026-08-13 §8): brukerens builtin-kopi overtar
+    // guiderollen — hopp over den innebygde guiden HELT (ingen fetch).
+    // Registerlinja og adapterverktøyene er med vilje urørt.
+    if (skip && skip.has(sourceId)) return;
     sent.add(sourceId);   // også ved feil: ikke re-fetch en død guide i samme løp
     try {
       const res = await fetchImpl(`${origin}/data/source-guides/${sourceId}.md`);

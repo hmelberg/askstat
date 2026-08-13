@@ -6437,12 +6437,23 @@ json.dumps(out)
       var textColor = (styles.getPropertyValue('--text') || '#1a1b26').trim();
       var borderColor = (styles.getPropertyValue('--border') || '#e4e2dd').trim();
       var baseLayout = {
-        autosize: false, width: 480, height: 300,
+        // Lerretet var 480x300 til 2026-08-13. Så lite lerret er selve
+        // hovedgrunnen til label-overlapp: tittel, legend og tick-labels
+        // kjempet om de samme ~40 pikslene. 680x420 får plass i
+        // ask-kolonnen (.ask-main > * = 760px) og i output-only (900px);
+        // .plotly-container i app.css følger samme tall.
+        autosize: false, width: 680, height: 420,
         margin: { t: 40, r: 40, b: 50, l: 50 },
         // Gjennomsiktig (brukerfeedback 2026-07-19): blend med verten
         // (celle-panel ELLER klassisk output-flate) i begge temaer.
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
         font: { color: textColor, family: 'DejaVu Sans, Arial, sans-serif', size: 12 },
+        // automargin: tittelen skyver marginen selv i stedet for å legge
+        // seg oppå plottflate/facet-labels/legend. Aksene har hatt dette
+        // siden SDD 10; tittelen manglet det (plotly.js pusher IKKE margin
+        // for title som default) og var derfor den siste kolliderende
+        // bygningsdelen appen selv kunne fikse.
+        title: { automargin: true },
         xaxis: { gridcolor: borderColor, zerolinecolor: borderColor, linecolor: borderColor, tickfont: { color: textColor }, automargin: true },
         yaxis: { gridcolor: borderColor, zerolinecolor: borderColor, linecolor: borderColor, tickfont: { color: textColor }, automargin: true }
       };
@@ -6456,8 +6467,12 @@ json.dumps(out)
       // modellens layout-JSON overstyrer per nøkkel, men sletter ikke hele
       // delobjekter som xaxis/yaxis — automargin/gridfarger fra baseLayout
       // overlever selv om modellen bare setter f.eks. xaxis.title.
+      // Ikke-objekt-overstyringer (plotly tillater `title: "tekst"` som
+      // kortform) skal vinne HELT — Object.assign med en streng som kilde
+      // ville spredd tegnene som {0:'T',1:'i',…} og ødelagt tittelen.
       function mergeLayoutSection(base, over) {
         if (!over) return base;
+        if (typeof over !== 'object' || Array.isArray(over)) return over;
         return Object.assign({}, base, over);
       }
       var spec_layout = spec.layout || {};
@@ -7064,7 +7079,7 @@ json.dumps(out)
 
     function copyPlotAsImage(div, btn) {
       if (typeof Plotly === 'undefined' || !Plotly.toImage) return;
-      Plotly.toImage(div, { format: 'png', width: div.clientWidth || 480, height: div.clientHeight || 300 })
+      Plotly.toImage(div, { format: 'png', width: div.clientWidth || 680, height: div.clientHeight || 420 })
         .then(function(dataUrl) {
           return fetch(dataUrl).then(function(r) { return r.blob(); });
         })

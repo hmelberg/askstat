@@ -579,7 +579,11 @@
        mens cellene har --bg-panel → synlige striper i venstre/høyre kant.
        Figur-layouten er også gjennomsiktig (mdRenderPlotlyFigure/
        updatePlotlyThemes), så figuren smelter inn i verten begge steder. */
-    .plotly-container { width: 480px; max-width: 100%; box-sizing: border-box; min-height: 260px; height: 340px; padding: 4px; margin: 0.15em auto; background: transparent; overflow-x: auto; overflow-y: hidden; }
+    /* Størrelsen speiler baseLayout i mdRenderPlotlyFigure (index.html):
+       lerret 680x420 + 4px padding på hver side => 688 bredde, og samme
+       ~40px slingringsmonn i høyden som den gamle 480x300/340-paringen.
+       Endres den ene, endres den andre. */
+    .plotly-container { width: 688px; max-width: 100%; box-sizing: border-box; min-height: 360px; height: 460px; padding: 4px; margin: 0.15em auto; background: transparent; overflow-x: auto; overflow-y: hidden; }
     .plotly-container.seaborn-style { background: #fff; }
     /* B1: generisk kopier-knapp-overlegg for resultatblokker (table/pre/plot/safestat) */
     .result-copy-wrap { position: relative; }

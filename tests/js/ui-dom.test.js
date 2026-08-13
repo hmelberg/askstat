@@ -1328,6 +1328,34 @@ test('Ui.renderPayload figur: automargin i xaxis/yaxis overlever når spec.layou
   assert.strictEqual(layout.yaxis.title, 'Y', 'modellens yaxis.title vinner');
 });
 
+// Tittelen deltar i automargin (2026-08-13): plotly.js skyver IKKE margin for
+// layout.title som default, så tittelen la seg oppå plottflate/facet-labels.
+// Begge formene modellen faktisk sender må overleve: objektformen (plotly.py
+// sin `{text: …}`) merges med automargin, mens streng-kortformen må vinne HELT
+// — Object.assign med en streng som kilde ville gitt {0:'T',1:'i',…}.
+test('Ui.renderPayload figur: title.automargin settes, og både objekt- og strengform av spec.layout.title overlever', async () => {
+  const { Ui, bodyEl } = freshEnv({ cellIdx: 0 });
+  const calls = [];
+  global.Plotly = { newPlot: (...args) => calls.push(args) };
+
+  Ui.renderPayload({ kind: 'figure', spec: { data: [{ y: [1, 2] }] } }, bodyEl);
+  Ui.renderPayload({
+    kind: 'figure',
+    spec: { data: [{ y: [1, 2] }], layout: { title: { text: 'Tittel' } } },
+  }, bodyEl);
+  Ui.renderPayload({
+    kind: 'figure',
+    spec: { data: [{ y: [1, 2] }], layout: { title: 'Kortform' } },
+  }, bodyEl);
+
+  await wait(10);
+  assert.strictEqual(calls.length, 3);
+  assert.strictEqual(calls[0][2].title.automargin, true, 'automargin som default uten tittel fra modellen');
+  assert.strictEqual(calls[1][2].title.automargin, true, 'automargin overlever objektformen');
+  assert.strictEqual(calls[1][2].title.text, 'Tittel', 'modellens tittel-tekst vinner');
+  assert.strictEqual(calls[2][2].title, 'Kortform', 'strengform ødelegges ikke av mergen');
+});
+
 // ── dash-absorpsjon 5a Task 1: Ui.renderPayload sitt fulle vokabular, kalt
 // DIREKTE (ikke via renderEventResult) — kpi/markdown/image/table/ukjent.
 // Figur og text/error/table-via-renderEventResult er allerede dekket over;

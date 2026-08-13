@@ -269,7 +269,12 @@
         if (avsnitt.trim() && !/^#\s/.test(avsnitt.trim())) {
           kort = deler[d];
           hode = deler.slice(0, d).join('\n\n');
-          guide = deler.slice(d + 1).join('\n\n');
+          // Feilfunn (sluttreview, kort-lang-splitt): IKKE overskriv en
+          // seksjons-guide som allerede ligger i `guide` (fra '## '-blokker
+          // lenger nede) — resten av hode-prosaen kommer FØR den i
+          // dokumentrekkefølge, slik at ingen del av teksten forsvinner.
+          var restProsa = deler.slice(d + 1).join('\n\n');
+          guide = [restProsa, guide].filter(function (s) { return s && s.trim(); }).join('\n\n');
           break;
         }
       }

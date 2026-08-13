@@ -706,6 +706,18 @@
       // sletting, konto-synk) — samme kontrakt som den gamle popoveren hadde.
       Prof.onChange(function () { if (isOpen()) renderAll(); });
 
+      // Bruk i forslags-modalen (js/kilde-forslag.js) skriver til lageret
+      // mens editoren kan stå åpen bak — les inn den aksepterte teksten så
+      // Lagre ikke reverserer den (sluttreview-funn 2).
+      global.addEventListener('kildeforslag:brukt', function (ev) {
+        var pid = ev && ev.detail && ev.detail.profileId;
+        if (!pid || pid !== editingId) return;
+        var pr = Prof.get ? Prof.get(pid) : null;
+        if (!pr) return;
+        if (nameEl) nameEl.value = pr.name || '';
+        if (textEl) textEl.value = pr.text || '';
+      });
+
       global.SourcesModal = {
         open: open,
         openWithPrefill: openWithPrefill,

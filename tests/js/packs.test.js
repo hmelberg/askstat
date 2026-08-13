@@ -775,6 +775,19 @@ test('builtinOverstyringer: of→guide-tekst for aktive kopier, klippet 8000, de
   assert.equal(typeof P.builtinOverstyrte, 'undefined');   // gammelt navn borte
 });
 
+// Deferred Task 3-funn: fallback-til-hele-teksten-grenen (guide tom/mangler
+// → hele pr.text brukes, se js/packs.js builtinOverstyringer).
+test('builtinOverstyringer: tom guide → hele teksten som fallback', () => {
+  require('../../js/source-doc.js');
+  const profiles = {
+    get: () => ({ name: 'A', text: '## Kort\n\nBare kort her.', origin: { source: 'builtin-copy', of: 'ssb' } }),
+    packsState: () => ({ ids: ['user:k1'] }), countryState: () => ({ mode: 'none' }),
+    list: () => [], create: () => 'x',
+  };
+  const P = makePacks(fakeStorage(), async () => ({ ok: false }), profiles);
+  assert.ok(P.builtinOverstyringer().ssb.indexOf('Bare kort her.') >= 0);
+});
+
 // Kort/lang-splitt (spec 2026-08-13 §3): store EGNE kilder sender prefix+hode+Kort
 // som summary-nivå med get_pack-hint.
 test('compose: stor egen kilde → summary-nivå med prefix+hode+Kort, ikke full tekst', () => {

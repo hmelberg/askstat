@@ -483,6 +483,16 @@ test('splitKortGuide: Postel med tittel — tittel og før-avsnitt blir i hode',
   assert.ok(r.guide.indexOf('# Tittel') === -1);  // tittel skal IKKE være i guide
 });
 
+// Sluttreview-funn (kort-lang-splitt, Important): Postel-fallback (ingen
+// '## Kort' funnet) skal IKKE overskrive en '## '-seksjons-guide som allerede
+// ligger lenger nede i dokumentet — resten av hode-prosaen kommer FØR den.
+test('splitKortGuide: Postel MED seksjoner — seksjons-guiden overlever', () => {
+  const r = SourceDoc.splitKortGuide('# T\n\nIntro.\n\nAndre avsnitt.\n\n## Guide\n\nVIKTIG bruksanvisning.\n');
+  assert.ok(r.kort.indexOf('Intro.') >= 0);
+  assert.ok(r.guide.indexOf('Andre avsnitt.') >= 0);
+  assert.ok(r.guide.indexOf('VIKTIG bruksanvisning.') >= 0);   // ble kastet før fiksen
+});
+
 test('splitKortGuide: kun Kort, ingen Guide — guide er tom', () => {
   const r = SourceDoc.splitKortGuide('## Kort\n\nAlt her.\n');
   assert.ok(r.kort.indexOf('Alt her.') >= 0);

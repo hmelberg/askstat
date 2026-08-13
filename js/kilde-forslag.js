@@ -346,6 +346,12 @@
       bruk.addEventListener('click', function () {
         if (!pr) return;
         global.Profiles.update(String(f.id).slice(5), { text: f.ny_tekst });
+        // Editoren kan stå åpen bak modalen med stale tekstfelt (sluttreview-
+        // funn): varsle så den kan lese inn den aksepterte teksten.
+        try {
+          global.dispatchEvent(new CustomEvent('kildeforslag:brukt', {
+            detail: { profileId: String(f.id).slice(5) } }));
+        } catch (e) {}
         bruk.disabled = true; forkast.disabled = true;
         rad.appendChild(el('span', 'ask-pop-hint', ' ' + T('Applied — takes effect on your next question')));
       });

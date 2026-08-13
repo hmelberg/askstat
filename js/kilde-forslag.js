@@ -176,6 +176,32 @@
   var T = function (k, p) { return global.t ? global.t(k, p) : k; };
   var ctxSiste = null;
 
+  // byggKortCtx (Task 8, kort/lang-splitt): ren funksjon — samme ctx-form
+  // som registerRun setter, men med oppgave:'kort' og TOM friksjon (denne
+  // knappen trigges av redigeringsvinduet, ikke av en feilet kjøring).
+  // profiles injiseres i test; produksjon leser global.Profiles.
+  function byggKortCtx(profileId, profiles) {
+    var P = profiles || global.Profiles;
+    var pr = P && P.get ? P.get(profileId) : null;
+    if (!pr) return null;
+    return {
+      docs: [{ id: 'user:' + profileId, name: pr.name, text: pr.text }],
+      question: '', tolkning: '', mode: '', depth: '',
+      runs: [], ok_script: null, trace: [], sources: [],
+      kastedeTurer: 0, oppgave: 'kort',
+    };
+  }
+
+  // openKortForslag (Task 8): setter ctxSiste fra byggKortCtx og gjenbruker
+  // HELE kjorRunde/renderForslag-maskineriet — null-vakt når profilen er borte
+  // (f.eks. slettet mellom åpning av editoren og klikk).
+  function openKortForslag(profileId) {
+    var ctx = byggKortCtx(profileId);
+    if (!ctx) return;
+    ctxSiste = ctx;
+    openModal();
+  }
+
   function registerRun(ctx) {
     ctxSiste = ctx;
     // Node-trygghet: modulen lastes av node-testene uten DOM (document
@@ -265,6 +291,7 @@
       trace: ctxSiste.trace, sources: ctxSiste.sources,
       history: state.history,
       ui_lang: global.M2PY_LANG || 'en',
+      oppgave: ctxSiste.oppgave,
     });
     payload.provider = (global.mdAiProviderConfig && global.mdAiProviderConfig()) || undefined;
 
@@ -420,6 +447,8 @@
     byggEvidens: byggEvidens,
     registerRun: registerRun,
     openModal: openModal,
+    byggKortCtx: byggKortCtx,
+    openKortForslag: openKortForslag,
     _CAPS: CAPS,
   };
   global.KildeForslag = api;

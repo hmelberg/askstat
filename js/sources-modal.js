@@ -440,6 +440,17 @@
           quickEl.appendChild(b);
         });
       }
+      // Kort-KI-knappen bor i .ai-modal-actions (samme rad som Save/Delete),
+      // IKKE inni #sourcesEdit — syncEditVisibility styrer derfor ikke dens
+      // hidden-tilstand. Fjernes derfor EKSPLISITT ved enhver overgang bort
+      // fra «rediger eksisterende kilde» (ny redigering, lukk-editor, lukk-
+      // dialog) — ellers henger en knapp igjen som viser feil etikett og
+      // hvis klikk-handler er bundet til en editingId som allerede er endret
+      // (editingId er delt/muterbar, fanget by reference i klikk-lukket).
+      function fjernKortBtn() {
+        var gammel = document.getElementById('sourcesEditKortBtn');
+        if (gammel) gammel.remove();
+      }
       function openEdit(id) {
         editingId = id;
         var pr = id === 'NY' ? null : Prof.get(id);
@@ -452,9 +463,33 @@
         renderPreview();
         renderAll();
         if (nameEl) nameEl.focus();
+        // Kort-KI-knappen (kort/lang-splitt §4b): destiller når Kort
+        // mangler, revider når den finnes. Lagrer utkastet FØRST — ellers
+        // ville forslaget diffe mot en gammel versjon og «Bruk» overskrive
+        // uskrevne endringer. Gjenskapes per åpning (fersk etikett) — og
+        // KUN for eksisterende kilder: en ulagret ny kilde ('NY') har ingen
+        // profil-id å foreslå mot.
+        fjernKortBtn();
+        if (editingId !== 'NY') {
+          var kortBtn = document.createElement('button');
+          kortBtn.type = 'button';
+          kortBtn.id = 'sourcesEditKortBtn';
+          kortBtn.className = 'ai-codeblock-btn';
+          var harKort = !!(global.SourceDoc && global.SourceDoc.splitKortGuide &&
+            global.SourceDoc.splitKortGuide(textEl.value).kort.trim());
+          kortBtn.textContent = harKort ? T('Improve short section (AI)') : T('Suggest short section (AI)');
+          kortBtn.addEventListener('click', function () {
+            Prof.update(editingId, { name: nameEl.value, text: textEl.value });
+            if (global.KildeForslag && global.KildeForslag.openKortForslag) {
+              global.KildeForslag.openKortForslag(editingId);
+            }
+          });
+          saveBtn.parentNode.insertBefore(kortBtn, saveBtn);
+        }
       }
       function closeEdit() {
         editingId = null;
+        fjernKortBtn();
         syncEditVisibility();
       }
       function renderPreview() {
@@ -484,6 +519,7 @@
       function isOpen() { return backdrop.classList.contains('open'); }
       function open() {
         editingId = null;
+        fjernKortBtn();
         selectedInfoId = null;
         activeTags = [];
         if (searchEl) searchEl.value = '';
@@ -493,6 +529,7 @@
       }
       function close() {
         editingId = null;
+        fjernKortBtn();
         backdrop.classList.remove('open');
         syncEditVisibility();
       }

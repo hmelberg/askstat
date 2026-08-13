@@ -159,3 +159,12 @@ test('byggForslagsPayload: oppgave sendes gjennom, utelates ellers', () => {
   assert.ok(!('oppgave' in KF.byggForslagsPayload({ docs: [] }, deps)) ||
     KF.byggForslagsPayload({ docs: [] }, deps).oppgave === undefined);
 });
+
+test('openKortForslag-ctx: bygges fra Profiles med oppgave kort', () => {
+  const profiles = { get: (id) => (id === 'p1' ? { name: 'A', text: 'T' } : null) };
+  const ctx = KF.byggKortCtx('p1', profiles);
+  assert.deepEqual(ctx.docs, [{ id: 'user:p1', name: 'A', text: 'T' }]);
+  assert.equal(ctx.oppgave, 'kort');
+  assert.equal(ctx.runs.length, 0);
+  assert.equal(KF.byggKortCtx('finnes-ikke', profiles), null);
+});

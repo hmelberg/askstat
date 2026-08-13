@@ -44,6 +44,46 @@
     return ut;
   }
 
+  // Registercache (spec 2026-08-14 §2): KUN modul-cachet på PRODUKSJONS-
+  // veien (ingen injisert fetchImpl) — testbar kode skal alltid se ren
+  // tilstand, så en injisert deps.fetchImpl slår cachen helt av og henter
+  // ferskt hver gang (samme avveining som _registryCache i js/data-loader.js,
+  // men uten behov for en egen _resetCacheForTests-eksport her).
+  var _refRegistryCache = null;
+
+  // hentRefDocs (spec 2026-08-14 §2): register → involverte innebygde kilder
+  // → dokumentene deres (data/sources/<id>.md). 404/nettfeil per dokument
+  // utelates STILLE (samme «bedre enn ingenting, aldri kast»-linje som
+  // lagBuiltinKopi i js/packs.js) — en hallusinert eller nylig fjernet
+  // kilde skal ikke velte hele forslags-runden. Klippes til 8000 tegn
+  // (speiler REF_DOC_MAKS-grensen i byggForslagsPayload).
+  async function hentRefDocs(ctx, deps) {
+    deps = deps || {};
+    var injisert = !!deps.fetchImpl;
+    var fetchImpl = deps.fetchImpl || function (url, opts) { return fetch(url, opts); };
+    var opts = deps.signal ? { signal: deps.signal } : undefined;
+    var registry;
+    if (!injisert && _refRegistryCache) {
+      registry = _refRegistryCache;
+    } else {
+      registry = [];
+      try {
+        var reg = await fetchImpl('data/data-sources.json', opts);
+        if (reg && reg.ok) registry = JSON.parse(await reg.text());
+      } catch (e) { registry = []; }
+      if (!injisert) _refRegistryCache = registry;
+    }
+    var ids = involverteInnebygde((ctx && ctx.sources) || [], registry);
+    var ut = [];
+    for (var i = 0; i < ids.length; i++) {
+      try {
+        var res = await fetchImpl('data/sources/' + ids[i] + '.md', opts);
+        if (res && res.ok) ut.push({ id: ids[i], text: klipp(await res.text(), 8000) });
+      } catch (e) { /* 404/nettfeil → utelates stille */ }
+    }
+    return ut;
+  }
+
   function byggForslagsPayload(inn, deps) {
     inn = inn || {};
     var scrub = (deps && deps.scrub) ||
@@ -315,34 +355,99 @@
     innhold.appendChild(el('div', 'ai-progress-line', T('Getting suggestions …')));
     state.ctrl = new AbortController();
 
-    var payload = byggForslagsPayload({
-      docs: ferskeDocs(ctxSiste),
-      question: ctxSiste.question, tolkning: ctxSiste.tolkning,
-      mode: ctxSiste.mode, depth: ctxSiste.depth,
-      runs: ctxSiste.runs, ok_script: ctxSiste.ok_script,
-      trace: ctxSiste.trace, sources: ctxSiste.sources,
-      history: state.history,
-      ui_lang: global.M2PY_LANG || 'en',
-      oppgave: ctxSiste.oppgave,
-    });
-    payload.provider = (global.mdAiProviderConfig && global.mdAiProviderConfig()) || undefined;
+    // ref_docs hentes FØR payloadbygging (spec 2026-08-14 §2) — state.refDocs
+    // er BÅDE diffgrunnlaget for builtin-kortene i renderForslag OG valider-
+    // ingssettet (en builtin:<id> uten treff her er en hallusinasjon og
+    // filtreres bort der). hentRefDocs kaster aldri (stille utelatelse per
+    // dokument), så AbortError her opptrer kun hvis brukeren rekker å lukke
+    // modalen midt i hentingen — samme signal gjenbrukes i fetch-kjeden
+    // under, som da også avbrytes og fanges av catch-en nedenfor.
+    hentRefDocs(ctxSiste, { signal: state.ctrl.signal }).then(function (refDocs) {
+      state.refDocs = {};
+      refDocs.forEach(function (d) { state.refDocs[d.id] = d.text; });
 
-    fetch('/api/kilde-forslag', {
-      method: 'POST',
-      headers: global.mdAiAuthHeaders(),
-      body: JSON.stringify(payload),
-      signal: state.ctrl.signal,
-    }).then(function (resp) {
-      if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
-      return global.mdSseAccumulate(resp, null, state.ctrl.signal);
-    }).then(function (tekst) {
-      state.sisteRaatekst = tekst;
-      renderForslag(parseForslagSvar(tekst), state, innhold, rundeEl, bunn);
-    }).catch(function (e) {
-      if (e && e.name === 'AbortError') return;
-      innhold.innerHTML = '';
-      innhold.appendChild(el('div', 'ai-error', '✗ ' + ((e && e.message) || String(e))));
+      var payload = byggForslagsPayload({
+        docs: ferskeDocs(ctxSiste),
+        question: ctxSiste.question, tolkning: ctxSiste.tolkning,
+        mode: ctxSiste.mode, depth: ctxSiste.depth,
+        runs: ctxSiste.runs, ok_script: ctxSiste.ok_script,
+        trace: ctxSiste.trace, sources: ctxSiste.sources,
+        history: state.history,
+        ui_lang: global.M2PY_LANG || 'en',
+        oppgave: ctxSiste.oppgave,
+        ref_docs: refDocs,
+        admin: erAdmin() || undefined,
+      });
+      payload.provider = (global.mdAiProviderConfig && global.mdAiProviderConfig()) || undefined;
+
+      fetch('/api/kilde-forslag', {
+        method: 'POST',
+        headers: global.mdAiAuthHeaders(),
+        body: JSON.stringify(payload),
+        signal: state.ctrl.signal,
+      }).then(function (resp) {
+        if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+        return global.mdSseAccumulate(resp, null, state.ctrl.signal);
+      }).then(function (tekst) {
+        state.sisteRaatekst = tekst;
+        renderForslag(parseForslagSvar(tekst), state, innhold, rundeEl, bunn);
+      }).catch(function (e) {
+        if (e && e.name === 'AbortError') return;
+        innhold.innerHTML = '';
+        innhold.appendChild(el('div', 'ai-error', '✗ ' + ((e && e.message) || String(e))));
+      });
     });
+  }
+
+  // lagPrKnapp (spec 2026-08-14 §2, utrekk): felles PR-knapp for BÅDE
+  // user:-grenens forslag OG builtin:-diff-kortene under — samme fetch/
+  // headers/lenke/feilhåndtering uansett hvilken gren som bygde `body`.
+  // `body` er de saks-spesifikke feltene (id, name, of, ny_tekst); evidens
+  // legges PÅ her (ikke av kalleren) siden begge grener ellers ville
+  // duplisert byggEvidens(ctxSiste)-kallet. `rad` er raden knappen skal
+  // stå i — PR-lenken ved suksess appendes dit, IKKE til selve knappen
+  // (som fjernes med .remove()).
+  function lagPrKnapp(body, rad) {
+    var prBtn = el('button', 'ai-codeblock-btn', T('Send as PR'));
+    prBtn.type = 'button';
+    prBtn.addEventListener('click', function () {
+      prBtn.disabled = true;
+      prBtn.textContent = T('Sending …');
+      fetch('/api/kilde-pr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Login-tokenet, IKKE mdAiAuthHeaders — adminGate validerer
+          // brukeren mot Anvil (is_admin); BYOK slipper med vilje ikke inn.
+          'Authorization': 'Bearer ' + ((global.mdAuth && global.mdAuth.token) || ''),
+        },
+        body: JSON.stringify({
+          id: body.id,
+          name: body.name,
+          of: body.of,
+          ny_tekst: body.ny_tekst,
+          evidens: byggEvidens(ctxSiste),
+        }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (d) {
+        prBtn.remove();
+        var lenke = document.createElement('a');
+        lenke.href = d.url;
+        lenke.target = '_blank';
+        lenke.rel = 'noopener';
+        lenke.textContent = T('PR created:') + ' ' + d.url;
+        rad.appendChild(lenke);
+      }).catch(function (e) {
+        // Ellers usynlig feil (spec-restpunkt sluttreview): logg slik at
+        // en mislykket admin-PR er diagnostiserbar fra konsollen.
+        try { console.error('kilde-pr:', e); } catch (_) {}
+        prBtn.disabled = false;
+        prBtn.textContent = T('PR failed — try again');
+      });
+    });
+    return prBtn;
   }
 
   function renderForslag(svar, state, innhold, rundeEl, bunn) {
@@ -360,6 +465,32 @@
       innhold.appendChild(el('div', 'ai-progress-line', T('No changes suggested')));
     }
     svar.forslag.forEach(function (f) {
+      if (String(f.id).indexOf('builtin:') === 0) {
+        var bid = String(f.id).slice(8);
+        // Kun admin, og kun dokumenter modellen faktisk FIKK (hallusinerte
+        // builtin-id-er filtreres) — spec 2026-08-14 §2.
+        if (!erAdmin() || !state.refDocs || !(bid in state.refDocs)) return;
+        var bKort = el('div', 'kf-kort');
+        bKort.appendChild(el('h4', null, bid + ' (' + T('built-in') + ')'));
+        var bDiff = el('div', 'kf-diff');
+        linjeDiff(state.refDocs[bid], f.ny_tekst).forEach(function (d) {
+          bDiff.appendChild(el('div', 'kf-diff-' + d.type,
+            (d.type === 'ny' ? '+ ' : d.type === 'slettet' ? '− ' : '  ') + d.tekst));
+        });
+        bKort.appendChild(bDiff);
+        if (f.begrunnelse) bKort.appendChild(el('div', 'ask-pop-hint', f.begrunnelse));
+        var bRad = el('div', 'sources-info-actions');
+        // Ingen lokal skrivevei for innebygde dokumenter (bevisst):
+        // kun PR (adminGate server-side er sperren) eller Forkast.
+        bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: f.ny_tekst }, bRad));
+        var bForkast = el('button', 'ai-codeblock-btn', T('Discard'));
+        bForkast.type = 'button';
+        bForkast.addEventListener('click', function () { bKort.remove(); });
+        bRad.appendChild(bForkast);
+        bKort.appendChild(bRad);
+        innhold.appendChild(bKort);
+        return;
+      }
       var pr = global.Profiles && global.Profiles.get ? global.Profiles.get(String(f.id).slice(5)) : null;
       var kort = el('div', 'kf-kort');
       kort.appendChild(el('h4', null, pr ? pr.name : f.id));
@@ -391,46 +522,12 @@
       rad.appendChild(bruk);
       rad.appendChild(forkast);
       if (erAdmin()) {
-        var prBtn = el('button', 'ai-codeblock-btn', T('Send as PR'));
-        prBtn.type = 'button';
-        prBtn.addEventListener('click', function () {
-          prBtn.disabled = true;
-          prBtn.textContent = T('Sending …');
-          fetch('/api/kilde-pr', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              // Login-tokenet, IKKE mdAiAuthHeaders — adminGate validerer
-              // brukeren mot Anvil (is_admin); BYOK slipper med vilje ikke inn.
-              'Authorization': 'Bearer ' + ((global.mdAuth && global.mdAuth.token) || ''),
-            },
-            body: JSON.stringify({
-              id: f.id,
-              name: pr ? pr.name : f.id,
-              of: (pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of) || undefined,
-              ny_tekst: f.ny_tekst,
-              evidens: byggEvidens(ctxSiste),
-            }),
-          }).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-          }).then(function (d) {
-            prBtn.remove();
-            var lenke = document.createElement('a');
-            lenke.href = d.url;
-            lenke.target = '_blank';
-            lenke.rel = 'noopener';
-            lenke.textContent = T('PR created:') + ' ' + d.url;
-            rad.appendChild(lenke);
-          }).catch(function (e) {
-            // Ellers usynlig feil (spec-restpunkt sluttreview): logg slik at
-            // en mislykket admin-PR er diagnostiserbar fra konsollen.
-            try { console.error('kilde-pr:', e); } catch (_) {}
-            prBtn.disabled = false;
-            prBtn.textContent = T('PR failed — try again');
-          });
-        });
-        rad.appendChild(prBtn);
+        rad.appendChild(lagPrKnapp({
+          id: f.id,
+          name: pr ? pr.name : f.id,
+          of: (pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of) || undefined,
+          ny_tekst: f.ny_tekst,
+        }, rad));
       }
       kort.appendChild(rad);
       innhold.appendChild(kort);
@@ -478,6 +575,7 @@
   var api = {
     byggForslagsPayload: byggForslagsPayload,
     involverteInnebygde: involverteInnebygde,
+    hentRefDocs: hentRefDocs,
     skalViseKnapp: skalViseKnapp,
     parseForslagSvar: parseForslagSvar,
     linjeDiff: linjeDiff,

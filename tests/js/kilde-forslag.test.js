@@ -190,6 +190,25 @@ test('involverteInnebygde: base_url-prefiks, kodet proxy-form, dedup, maks 3', (
   assert.deepEqual(KF.involverteInnebygde(null, null), []);
 });
 
+test('hentRefDocs: register → matcher → dokumenter; 404 utelates stille', async () => {
+  const svar = {
+    'data/data-sources.json': JSON.stringify([
+      { id: 'ess', base_url: 'https://api.ess.sikt.no/v1/' },
+      { id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/' },
+    ]),
+    'data/sources/ess.md': '## Guide\nparquet anbefales',
+  };
+  const fetchImpl = async (url) => (url in svar
+    ? { ok: true, text: async () => svar[url] }
+    : { ok: false, status: 404, text: async () => '' });
+  const ut = await KF.hentRefDocs(
+    { sources: ['https://api.ess.sikt.no/v1/data/x', 'https://data.ssb.no/api/pxwebapi/v2/t'] },
+    { fetchImpl });
+  // ess har dokument; ssb.md finnes ikke i stubben → utelatt stille
+  assert.deepEqual(ut.map((d) => d.id), ['ess']);
+  assert.ok(ut[0].text.indexOf('parquet anbefales') >= 0);
+});
+
 test('byggForslagsPayload: ref_docs klippes/takles og admin sendes kun ved true', () => {
   const p = KF.byggForslagsPayload({
     docs: [], admin: true,

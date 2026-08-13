@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { makeGuideAttacher, medGuideVedFeil } from "./source-guides.ts";
+import { coerceGuidesOverride, makeGuideAttacher, medGuideVedFeil } from "./source-guides.ts";
 import type { DataSource } from "./registry.ts";
 
 function fakeFetch(status: number, body: string): typeof fetch {
@@ -21,17 +21,28 @@ Deno.test("attach: guide første gang, IKKE andre gang; én fetch totalt", async
   assertEquals((f as unknown as { calls: () => number }).calls(), 1);
 });
 
-Deno.test("attach: skip-settet fortrenger guiden uten fetch (guides_off, spec §8)", async () => {
+Deno.test("attach: override-tekst brukes uten fetch; engangsregelen gjelder", async () => {
   let kalt = 0;
-  const f = ((..._args: unknown[]) => { kalt++; return Promise.resolve(new Response("# guide", { status: 200 })); }) as typeof fetch;
-  const attach = makeGuideAttacher("https://o", f, new Set(["ssb"]));
+  const f = ((..._a: unknown[]) => { kalt++; return Promise.resolve(new Response("# repo-guide", { status: 200 })); }) as typeof fetch;
+  const attach = makeGuideAttacher("https://o", f, new Map([["ssb", "# MIN guide"]]));
   const r1: Record<string, unknown> = {};
   await attach("ssb", r1);
-  assertEquals(r1.guide, undefined);
-  assertEquals(kalt, 0);              // aldri fetch for fortrengte
+  assertEquals(r1.guide, "# MIN guide");
+  assertEquals(kalt, 0);
   const r2: Record<string, unknown> = {};
-  await attach("oecd", r2);           // andre kilder upåvirket
-  assertEquals(r2.guide, "# guide");
+  await attach("ssb", r2);                  // andre gang: ingenting (sent)
+  assertEquals(r2.guide, undefined);
+  const r3: Record<string, unknown> = {};
+  await attach("oecd", r3);                 // uten override: vanlig fetch
+  assertEquals(r3.guide, "# repo-guide");
+});
+
+Deno.test("coerceGuidesOverride: form, klipp og tak", () => {
+  const m = coerceGuidesOverride({ ssb: "x".repeat(9000), "UGYLDIG ID!": "y", tom: "", oecd: "ok" });
+  assertEquals([...m.keys()].sort(), ["oecd", "ssb"]);
+  assertEquals(m.get("ssb")!.length, 8000);
+  assertEquals(coerceGuidesOverride(null).size, 0);
+  assertEquals(coerceGuidesOverride("streng").size, 0);
 });
 
 Deno.test("attach: 404 → stille no-op, resultatet urørt", async () => {

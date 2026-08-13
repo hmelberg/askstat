@@ -7,15 +7,32 @@ import { findSource, type DataSource } from "./registry.ts";
 
 const MAX_GUIDE_CHARS = 8_000;
 
-export function makeGuideAttacher(origin: string, fetchImpl: typeof fetch = fetch, skip?: Set<string>) {
+const OVERRIDE_ID_RE = /^[a-z0-9_-]{1,32}$/;
+const OVERRIDE_MAX = 40;
+
+/** guides_override (kort/lang-splitt §2): brukerens kopi-Guide per kilde-id.
+ *  Ukjent JSON fra klienten — samme stille filter-toleranse som
+ *  coerceSourcesOff. */
+export function coerceGuidesOverride(v: unknown): Map<string, string> {
+  const ut = new Map<string, string>();
+  if (!v || typeof v !== "object" || Array.isArray(v)) return ut;
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (ut.size >= OVERRIDE_MAX) break;
+    if (!OVERRIDE_ID_RE.test(k) || typeof val !== "string" || !val.trim()) continue;
+    ut.set(k, val.slice(0, MAX_GUIDE_CHARS));
+  }
+  return ut;
+}
+
+export function makeGuideAttacher(origin: string, fetchImpl: typeof fetch = fetch, override?: Map<string, string>) {
   const sent = new Set<string>();
   return async function attach(sourceId: string, result: Record<string, unknown>): Promise<void> {
     if (!sourceId || sent.has(sourceId)) return;
-    // guides_off (spec 2026-08-13 §8): brukerens builtin-kopi overtar
-    // guiderollen — hopp over den innebygde guiden HELT (ingen fetch).
-    // Registerlinja og adapterverktøyene er med vilje urørt.
-    if (skip && skip.has(sourceId)) return;
     sent.add(sourceId);   // også ved feil: ikke re-fetch en død guide i samme løp
+    // Kopi-Guide (kort/lang-splitt §2): brukerens tekst overtar guiderollen
+    // på nøyaktig samme late tidspunkt — aldri fetch når override finnes.
+    const egen = override?.get(sourceId);
+    if (egen) { result.guide = egen; return; }
     try {
       const res = await fetchImpl(`${origin}/data/source-guides/${sourceId}.md`);
       if (!res.ok) return;

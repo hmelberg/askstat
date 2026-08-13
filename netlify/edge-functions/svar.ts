@@ -4,7 +4,7 @@
 import { adminGate, extractByokKey, extractLlmKey } from "./_lib/auth.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { coerceSourcesOff, filtrerAvslatte, loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
-import { makeGuideAttacher, medGuideVedFeil } from "./_lib/source-guides.ts";
+import { coerceGuidesOverride, makeGuideAttacher, medGuideVedFeil } from "./_lib/source-guides.ts";
 import { searchCatalog } from "./_lib/tools/search-catalog.ts";
 import { tableMetadata } from "./_lib/tools/table-metadata.ts";
 import { coerceScope, searchDatasets } from "./_lib/tools/search-datasets.ts";
@@ -33,7 +33,7 @@ interface RequestBody {
   preferences?: unknown;
   packs?: unknown;
   sources_off?: unknown;
-  guides_off?: unknown;
+  guides_override?: unknown;
   user_keys?: unknown;
   discover?: unknown;
   provider?: unknown;
@@ -248,11 +248,10 @@ export default async (request: Request): Promise<Response> => {
     }
   }
 
-  // guides_off (spec 2026-08-13 §8): fortrenger KUN den late guiden for
-  // kilder brukeren har aktiv egen kopi av — verktøy-dispatchen og
-  // registerblokka er med vilje urørt (motsatsen til sources_off over).
-  // coerceSourcesOff gjenbrukes: identisk id-form og tak.
-  const attachGuide = makeGuideAttacher(origin, fetch, new Set(coerceSourcesOff(body.guides_off)));
+  // guides_override (kort/lang-splitt §2): fortrenger KUN den late guiden
+  // for kilder brukeren har aktiv egen kopi-Guide for — verktøy-dispatchen
+  // og registerblokka er med vilje urørt (motsatsen til sources_off over).
+  const attachGuide = makeGuideAttacher(origin, fetch, coerceGuidesOverride(body.guides_override));
 
   const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_datasets" && registry) {

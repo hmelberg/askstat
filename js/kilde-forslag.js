@@ -21,6 +21,29 @@
     try { return new TextEncoder().encode(s).length; } catch (e) { return s.length; }
   }
 
+  // Involverte innebygde kilder (spec 2026-08-14 §1): registeroppføringer
+  // hvis base_url treffer kjøringens kilde-URL-er — direkte prefiks ELLER
+  // URL-kodet bak /api/hent?url=… (ESS-klassen). Maks 3, første-treff-orden.
+  var REF_DOC_MAKS = 3;
+  var REF_ID_RE = /^[a-z0-9_-]{1,32}$/;
+  function involverteInnebygde(sources, registry) {
+    var ut = [];
+    var kilder = Array.isArray(sources) ? sources : [];
+    var reg = Array.isArray(registry) ? registry : [];
+    reg.forEach(function (r) {
+      if (ut.length >= REF_DOC_MAKS) return;
+      if (!r || !r.base_url || !REF_ID_RE.test(String(r.id || ''))) return;
+      var enc = encodeURIComponent(r.base_url);
+      var treff = kilder.some(function (u) {
+        var s = String(u || '');
+        return s.indexOf(r.base_url) === 0 || s.indexOf(enc) >= 0 ||
+          s.indexOf(r.base_url) > 0;   // proxy-form med rå indre URL
+      });
+      if (treff && ut.indexOf(r.id) < 0) ut.push(r.id);
+    });
+    return ut;
+  }
+
   function byggForslagsPayload(inn, deps) {
     inn = inn || {};
     var scrub = (deps && deps.scrub) ||
@@ -50,6 +73,15 @@
       ui_lang: inn.ui_lang || 'en',
     };
     if (inn.oppgave === 'kort') p.oppgave = 'kort';
+    if (inn.admin === true) p.admin = true;
+    if (Array.isArray(inn.ref_docs) && inn.ref_docs.length) {
+      var rd = inn.ref_docs.filter(function (d) {
+        return d && REF_ID_RE.test(String(d.id || '')) && typeof d.text === 'string' && d.text;
+      }).slice(0, REF_DOC_MAKS).map(function (d) {
+        return { id: d.id, text: klipp(d.text, 8000) };
+      });
+      if (rd.length) p.ref_docs = rd;
+    }
     // Budsjett (spec §2): dropp ELDSTE runs først, så trace — docs ALDRI.
     while (byteLengde(JSON.stringify(p)) > CAPS.PAYLOAD_BYTES && p.runs.length) p.runs.shift();
     if (byteLengde(JSON.stringify(p)) > CAPS.PAYLOAD_BYTES && p.trace) delete p.trace;
@@ -445,6 +477,7 @@
 
   var api = {
     byggForslagsPayload: byggForslagsPayload,
+    involverteInnebygde: involverteInnebygde,
     skalViseKnapp: skalViseKnapp,
     parseForslagSvar: parseForslagSvar,
     linjeDiff: linjeDiff,

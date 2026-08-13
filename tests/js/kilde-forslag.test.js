@@ -168,3 +168,41 @@ test('openKortForslag-ctx: bygges fra Profiles med oppgave kort', () => {
   assert.equal(ctx.runs.length, 0);
   assert.equal(KF.byggKortCtx('finnes-ikke', profiles), null);
 });
+
+test('involverteInnebygde: base_url-prefiks, kodet proxy-form, dedup, maks 3', () => {
+  const reg = [
+    { id: 'ess', base_url: 'https://api.ess.sikt.no/v1/' },
+    { id: 'eurostat', base_url: 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/' },
+    { id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/' },
+    { id: 'oecd', base_url: 'https://sdmx.oecd.org/public/rest/data/' },
+    { id: 'fred', base_url: 'https://api.stlouisfed.org/fred/' },
+  ];
+  const sources = [
+    '/api/hent?url=https%3A%2F%2Fapi.ess.sikt.no%2Fv1%2Fdata%2FdataFile%2Fx%3FfileFormat%3Dparquet',  // kodet proxy
+    'https://api.ess.sikt.no/v1/data/annet',                    // dedup (ess igjen)
+    'https://data.ssb.no/api/pxwebapi/v2/tables/x/data',        // direkte prefiks
+    'https://sdmx.oecd.org/public/rest/data/OECD.SDD/x',        // nr 3
+    'https://api.stlouisfed.org/fred/series',                   // nr 4 → kappes (maks 3)
+  ];
+  assert.deepEqual(KF.involverteInnebygde(sources, reg), ['ess', 'ssb', 'oecd']);
+  assert.deepEqual(KF.involverteInnebygde([], reg), []);
+  assert.deepEqual(KF.involverteInnebygde(['https://ukjent.example/x'], reg), []);
+  assert.deepEqual(KF.involverteInnebygde(null, null), []);
+});
+
+test('byggForslagsPayload: ref_docs klippes/takles og admin sendes kun ved true', () => {
+  const p = KF.byggForslagsPayload({
+    docs: [], admin: true,
+    ref_docs: [
+      { id: 'ess', text: 'g'.repeat(9000) },
+      { id: 'UGYLDIG ID', text: 'x' },
+      { id: 'a', text: 'x' }, { id: 'b', text: 'x' }, { id: 'c', text: 'x' },
+    ],
+  }, deps);
+  assert.equal(p.admin, true);
+  assert.deepEqual(p.ref_docs.map((d) => d.id), ['ess', 'a', 'b']);   // ugyldig filtrert, maks 3
+  assert.equal(p.ref_docs[0].text.length, 8000);
+  const uten = KF.byggForslagsPayload({ docs: [] }, deps);
+  assert.ok(uten.admin === undefined);
+  assert.ok(uten.ref_docs === undefined);
+});

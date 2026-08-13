@@ -267,10 +267,9 @@
       for (var d = 0; d < deler.length; d++) {
         var avsnitt = deler[d];
         if (avsnitt.trim() && !/^#\s/.test(avsnitt.trim())) {
-          kort = avsnitt;
-          deler.splice(d, 1);
-          guide = deler.join('\n\n');
-          hode = '';
+          kort = deler[d];
+          hode = deler.slice(0, d).join('\n\n');
+          guide = deler.slice(d + 1).join('\n\n');
           break;
         }
       }

@@ -475,6 +475,14 @@ test('splitKortGuide: Postel — uten overskrifter blir første avsnitt kort', (
   assert.equal(r.prefix, '');
 });
 
+test('splitKortGuide: Postel med tittel — tittel og før-avsnitt blir i hode', () => {
+  const r = SourceDoc.splitKortGuide('# Tittel\n\nFørste avsnitt.\n\nResten her.\n');
+  assert.ok(r.hode.indexOf('# Tittel') >= 0);
+  assert.ok(r.kort.indexOf('Første avsnitt.') >= 0);
+  assert.ok(r.guide.indexOf('Resten her.') >= 0);
+  assert.ok(r.guide.indexOf('# Tittel') === -1);  // tittel skal IKKE være i guide
+});
+
 test('splitKortGuide: kun Kort, ingen Guide — guide er tom', () => {
   const r = SourceDoc.splitKortGuide('## Kort\n\nAlt her.\n');
   assert.ok(r.kort.indexOf('Alt her.') >= 0);

@@ -353,16 +353,27 @@
     rundeEl.textContent = T('Round {n}', { n: state.runde });
     innhold.innerHTML = '';
     innhold.appendChild(el('div', 'ai-progress-line', T('Getting suggestions …')));
-    state.ctrl = new AbortController();
+
+    // Re-entrancy (sluttreview-funn): én aktiv runde om gangen — et
+    // dobbeltklikk på «Ny runde» før forrige runde er ferdig skal ikke la
+    // to kjeder skrive over hverandres state.refDocs/renderForslag. Ny
+    // runde aborterer forrige (samme lukk-mekanisme som før), og BEGGE
+    // kontinueringene under sjekker `state.ctrl !== ctrl` — den lokale
+    // `ctrl` er DENNE invokeringens, `state.ctrl` er den NYESTE. hentRefDocs
+    // kaster aldri (stille utelatelse per dokument, også ved abort), så en
+    // abortert runde kan resolve normalt og må derfor stoppes eksplisitt
+    // her — AbortError-sjekken i catch-en alene er ikke nok (den fanger
+    // bare kjeder som FAKTISK kaster).
+    if (state.ctrl) { try { state.ctrl.abort(); } catch (_) {} }
+    var ctrl = new AbortController();
+    state.ctrl = ctrl;
 
     // ref_docs hentes FØR payloadbygging (spec 2026-08-14 §2) — state.refDocs
     // er BÅDE diffgrunnlaget for builtin-kortene i renderForslag OG valider-
     // ingssettet (en builtin:<id> uten treff her er en hallusinasjon og
-    // filtreres bort der). hentRefDocs kaster aldri (stille utelatelse per
-    // dokument), så AbortError her opptrer kun hvis brukeren rekker å lukke
-    // modalen midt i hentingen — samme signal gjenbrukes i fetch-kjeden
-    // under, som da også avbrytes og fanges av catch-en nedenfor.
-    hentRefDocs(ctxSiste, { signal: state.ctrl.signal }).then(function (refDocs) {
+    // filtreres bort der).
+    hentRefDocs(ctxSiste, { signal: ctrl.signal }).then(function (refDocs) {
+      if (state.ctrl !== ctrl) return;   // en nyere runde har overtatt
       state.refDocs = {};
       refDocs.forEach(function (d) { state.refDocs[d.id] = d.text; });
 
@@ -384,11 +395,12 @@
         method: 'POST',
         headers: global.mdAiAuthHeaders(),
         body: JSON.stringify(payload),
-        signal: state.ctrl.signal,
+        signal: ctrl.signal,
       }).then(function (resp) {
         if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
-        return global.mdSseAccumulate(resp, null, state.ctrl.signal);
+        return global.mdSseAccumulate(resp, null, ctrl.signal);
       }).then(function (tekst) {
+        if (state.ctrl !== ctrl) return;   // en nyere runde har overtatt
         state.sisteRaatekst = tekst;
         renderForslag(parseForslagSvar(tekst), state, innhold, rundeEl, bunn);
       }).catch(function (e) {

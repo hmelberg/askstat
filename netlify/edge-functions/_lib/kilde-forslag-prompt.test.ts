@@ -32,3 +32,12 @@ Deno.test("byggKildeForslagPrompt: valgfrie seksjoner utelates når tomme", () =
   assert(!p.includes("TIDLIGERE RUNDER"));
   assert(!p.includes("PROSESS-SPOR"));
 });
+
+Deno.test("byggKildeForslagPrompt: oppgave kort → OPPGAVE-linje med", () => {
+  const p = byggKildeForslagPrompt({ docs: [{ id: "user:a", name: "A", text: "t" }], question: "", runs: [], oppgave: "kort", ui_lang: "no" });
+  assertStringIncludes(p, "OPPGAVE: KORT");
+});
+Deno.test("byggKildeForslagPrompt: uten oppgave ingen OPPGAVE-linje", () => {
+  const p = byggKildeForslagPrompt({ docs: [{ id: "user:a", name: "A", text: "t" }], question: "q", runs: [] });
+  assert(!p.includes("OPPGAVE: KORT"));
+});

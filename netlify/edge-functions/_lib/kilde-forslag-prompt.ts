@@ -17,6 +17,7 @@ export interface KildeForslagBody {
   history?: ForslagRunde[];
   ui_lang?: string;
   provider?: unknown;
+  oppgave?: string;
 }
 
 const LANG_NAVN: Record<string, string> = {
@@ -51,6 +52,7 @@ export function byggKildeForslagPrompt(body: KildeForslagBody): string {
       deler.push(`Ditt forslag i runde ${i + 1}:\n${h.forslag_raatekst}\n\nBrukerens tilbakemelding:\n${h.tilbakemelding}\n`);
     });
   }
+  if (body.oppgave === "kort") deler.push("OPPGAVE: KORT\n");
   const lang = LANG_NAVN[body.ui_lang ?? "en"] ?? "English";
   deler.push(`Skriv "melding" og "begrunnelse" på ${lang}.`);
   return deler.join("\n");

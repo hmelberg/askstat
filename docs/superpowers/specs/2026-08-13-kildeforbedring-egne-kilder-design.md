@@ -6,7 +6,8 @@ Frittstående forløper til forbedringssløyfa i kildedokument-designet
 (2026-08-09 §9, der plassert i v4 som `propose_source_update`-verktøy i selve
 svar-løkka). Denne runden er bevisst enklere: **knappeutløst etter ferdig
 svar, kun egne kilder** (`user:`-oppføringer i Profiles-lageret) — men §8
-utvider rekkevidden til innebygde kilder via egne kopier. Ingen
+utvider rekkevidden til innebygde kilder via egne kopier, og §9 gir admin en
+PR-vei til sentral lagring. Ingen
 avhengighet til kildedokument-v1b — modellen redigerer rå markdown-tekst
 direkte, så serializer-quoting-blokkeren berøres ikke. Diff-visningen og
 akseptflyten bygges som egen modul slik at forslags-kortene (§9 v3/v4) kan
@@ -196,7 +197,9 @@ derfor UTENFOR data-i18n-noden.
   reparasjonsrunder. For §8: lag kopi av en innebygd kilde (f.eks. ssb),
   verifiser at guiden IKKE lenger følger første verktøysvar (Details-sporet)
   mens `ssb.read`/search_catalog fortsatt virker, og at forbedringssløyfa
-  tilbys på kopien. NB dev-fellene: Chrome cacher `js/` (hard reload),
+  tilbys på kopien. For §9: som admin, send et forslag som PR → verifiser
+  branch/diff/evidens på GitHub og at ikke-admin får 403 (og aldri ser
+  knappen). NB dev-fellene: Chrome cacher `js/` (hard reload),
   netlify dev cacher edge-moduler (restart + 400-smoke), porter 8899/3998.
 
 ## 8. Tillegg: egne kopier av innebygde kilder
@@ -247,7 +250,59 @@ scriptet fortsatt kjører klientside. Kopien må derfor fortrenge
 Merkostnad: ~½–1 økt (knapp + fetch + origin-felt; coerce + Set-sjekk
 server-side; tester).
 
-## 9. Filer som endres
+## 9. Tillegg 2 (kun admin): «Send som PR» — sentral lagring via GitHub
+
+Vurdert på Hans' forespørsel (2026-08-13): *mulig og enkelt* — dette er
+PR-kanalen fra kildedokument-specens §9 (der i v4) trukket frem i minimal
+form, koblet på denne løkkas modal. All auth-infrastruktur finnes:
+`adminGate` i `_lib/auth.ts` er ferdig env-wiret (Anvil `is_admin`-flagg
+m/cache; delt service-token teller som admin), og klienten har user-objektet
+fra `auth/me` (samme kilde som serverens admin-sjekk).
+
+**Flyt.** Admin kjører forbedringssløyfa som alle andre; på forslags-kort
+der kilden har et repo-mål vises en ekstra knapp **[Send som PR]** (uavhengig
+av Bruk/Forkast — man kan gjerne både ta imot lokalt og sende PR). Klikk →
+nytt endepunkt → branch + commit + PR på github.com/hmelberg/askstat →
+kvittering med PR-lenke i kortet. Merge (manuell, som alltid) → Netlify-
+deploy → forbedringen når alle brukere.
+
+**Repo-mål, to tilfeller (samme endepunkt, samme kode):**
+
+- Kopi av innebygd kilde (`origin.of` finnes): PR **oppdaterer**
+  `data/sources/<of>.md` — kopiteksten ER filinnholdet (front matter fulgte
+  med kopien; ingen programmatisk serialisering, så serializer-quoting
+  berøres fortsatt ikke).
+- Ren egen kilde (uten `origin`): PR **oppretter**
+  `data/packs/community/<slug>.md` — «lagre ny sentralt». GitHubs
+  contents-API skiller de to kun ved om `sha` sendes med.
+
+**Endepunktet: `netlify/edge-functions/kilde-pr.ts`** (~100–150 linjer):
+
+- `adminGate(request, {endpoint: 'kilde-pr', ...})` — SERVERGATEN er den
+  reelle sperren; knappesynlighet i klienten (`Login`-userobjektets
+  `is_admin`, med 403-fallback hvis feltet mangler) er bare kosmetikk.
+- Env `GITHUB_PR_TOKEN`: fingranulert PAT scopet til hmelberg/askstat,
+  KUN Contents RW + Pull requests RW. Forlater aldri serveren.
+- GitHub REST i fire kall med injisert `fetchImpl` (testbart som
+  `hent-core`): GET ref main → POST git/refs (branch
+  `kilde/<id>-<yyyymmdd>`) → PUT contents (m/sha ved oppdatering) → POST
+  pulls. Feil mappes til ærlige klientmeldinger (409 branch finnes → nytt
+  suffiks).
+- Body `{maal, ny_tekst, evidens}`; evidens (spørsmål, begrunnelse,
+  kort feiloppsummering) scrubbes med SAMME maskering som §2 og legges i
+  PR-kroppen — «hva feilet, hva virket, dato» (§9-regelen i 2026-08-09).
+- Aldri auto-merge, aldri PR fra ikke-admin (2026-08-09: «Aldri auto-PR fra
+  brukere»). Repo-linten (katalogform) og Hans' review er formatvaktene —
+  endepunktet validerer kun at teksten er ikke-tom og under filtak.
+
+**Ærlig begrensning:** PR-en er mot dagens main — har originalen flyttet seg
+siden kopien ble tatt, viser PR-diffen det (og «Oppdater fra original» før
+ny runde minsker støyen). CI-probe-action på PR-en forblir i v3/v4.
+
+Merkostnad: ~1 økt (endepunkt m/deno-tester på mocket fetch; knapp +
+kvittering; env-oppsett).
+
+## 10. Filer som endres
 
 | Fil | Endring |
 |---|---|
@@ -261,12 +316,13 @@ server-side; tester).
 | `netlify/edge-functions/prompts/kilde-forslag.md` | NY: prompt-fasit |
 | `netlify/edge-functions/svar.ts` + `_lib/source-guides.ts` | §8: coerce `guides_off` + skip-sett i attacheren |
 | `index.html` | modal-markup + script-tag |
+| `netlify/edge-functions/kilde-pr.ts` (+`.test.ts`) | §9 NY: adminGate + GitHub branch/commit/PR |
 | `js/i18n/*` + `tools/ask_i18n_keys.json` | nye nøkler + fasit |
 | `tests/js/kilde-forslag.test.js` | NY |
 | `_lib/source-guides.test.ts` | §8: attacher hopper over guides_off-id-er |
 
 Estimat: én fokusert økt for motor+endepunkt+tester, én for modal+i18n+smoke,
-pluss ~½–1 økt for kopi-tillegget (§8).
+~½–1 økt for kopi-tillegget (§8), ~1 økt for admin-PR (§9).
 
 ## Bevisst utelatt (og hvor det bor)
 
@@ -277,8 +333,9 @@ pluss ~½–1 økt for kopi-tillegget (§8).
   der serializer-quoting-avhengigheten ligger.
 - **`propose_source_update` som verktøy i svar-løkka** — §9 v4; denne rundens
   modal/diff/aksept-modul er designet for gjenbruk derfra.
-- **Auto-forslag uten klikk, delt forslags-kø, PR-kanal** — som i
-  2026-08-09-specen.
+- **Auto-forslag uten klikk og delt forslags-kø** — som i 2026-08-09-specen.
+  PR-kanalen er derimot trukket frem i minimal form (§9); CI-probe-action og
+  kø forblir i v3/v4.
 - **Seksjonsvise patcher i svarkontrakten** — kun hvis full-tekst-retur viser
   seg dyr i praksis.
 - **openstat-port** — askstat-først, som resten av kildesystemet.

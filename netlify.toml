@@ -106,3 +106,7 @@
 [[edge_functions]]
   function = "kilde-forslag"
   path = "/api/kilde-forslag"
+
+[[edge_functions]]
+  function = "kilde-pr"
+  path = "/api/kilde-pr"

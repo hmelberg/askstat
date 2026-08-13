@@ -184,6 +184,25 @@
       if (state.ctrl) { try { state.ctrl.abort(); } catch (e) {} }
       backdrop.remove();
     });
+    var tilbake = document.createElement('textarea');
+    tilbake.className = 'kf-tilbake';
+    tilbake.rows = 2;
+    tilbake.placeholder = T('Feedback — what should change in the next round?');
+    var nyRunde = el('button', 'ai-modal-btn primary', T('New round'));
+    nyRunde.type = 'button';
+    nyRunde.addEventListener('click', function () {
+      // Hver runde er et nytt KI-kall på brukerens nøkkel (spec §4) —
+      // historikken bærer forrige RÅSVAR + tilbakemeldingen.
+      state.history.push({
+        forslag_raatekst: state.sisteRaatekst || '',
+        tilbakemelding: tilbake.value || '',
+      });
+      state.runde++;
+      tilbake.value = '';
+      kjorRunde(state, innhold, rundeEl, bunn);
+    });
+    bunn.appendChild(tilbake);
+    bunn.appendChild(nyRunde);
     bunn.appendChild(lukk);
     document.body.appendChild(backdrop);
 

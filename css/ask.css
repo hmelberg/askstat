@@ -388,3 +388,4 @@ html:not(.ask-view) #askView[hidden] { display: none !important; }
 .kf-diff-lik { opacity: 0.6; }
 .kf-raa { white-space: pre-wrap; font-size: 12px; max-height: 50vh; overflow: auto; }
 .kf-bunn { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; flex-wrap: wrap; }
+.kf-tilbake { flex: 1 1 260px; min-height: 40px; font: inherit; padding: 6px 8px; }

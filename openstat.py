@@ -49,8 +49,17 @@ def _fetch_bytes(url, headers=None, fra_adapter=False):
     skriver en kjent rå API-URL i stedet for å bruke adapteren), IKKE
     adversarial bypass av selve adapteren. KUN Source.read() sine egne kall
     setter dette (se der) — read_csv()/_typemeta_for() gjør IKKE det, de er
-    de wrapped rå-leserne skinnen skal fortsette å stenge."""
-    memo_key = (url, tuple(sorted((headers or {}).items())))
+    de wrapped rå-leserne skinnen skal fortsette å stenge.
+
+    _MEMO nøkles OGSÅ på fra_adapter (re-review-runde 2026-08-14): uten det
+    kunne en adapter-fetch (fra_adapter=True, guarden hoppet over — se
+    over) for en styrt kilde memoisere bytes som en SENERE rå read_csv()
+    på nøyaktig samme URL (rekonstruerbar via den offentlige data_url())
+    ville truffet FØR guarden i det hele tatt fikk kjøre — «read_csv
+    forblir blokkert» holdt IKKE ubetinget. Speiler JS-sidens
+    guard-før-cache uten å måtte flytte guarden selv (den ligger fortsatt
+    inni forPyodideSync)."""
+    memo_key = (url, tuple(sorted((headers or {}).items())), bool(fra_adapter))
     if memo_key in _MEMO:
         return _MEMO[memo_key]
     if sys.platform == "emscripten":

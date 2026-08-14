@@ -890,3 +890,38 @@ def test_read_csv_setter_ikke_fra_adapter(monkeypatch):
     _install_fake_js(monkeypatch, bridge=Bridge)
     ost.read_csv("https://bro.example/raw2.csv")
     assert seen == [False]
+
+
+def test_memo_nokles_paa_fra_adapter_adapter_cache_forgifter_ikke_raa_lesing(monkeypatch):
+    # Re-review-funn 2026-08-14: _MEMO ble tidligere sjekket FØR guarden i
+    # det hele tatt fikk kjøre, og nøkkelen var (url, headere) — IKKE
+    # unntaksstatus. En adapter-fetch (fra_adapter=True, guarden hoppet
+    # over, lykkes) memoiserte dermed bytes en SENERE rå read_csv() på
+    # NØYAKTIG samme URL (rekonstruerbar via den offentlige, __all__-
+    # eksporterte data_url()) ville truffet FØR bridgen — og dermed guarden
+    # — i det hele tatt fikk kjøre. Denne testen fremprovoserer akkurat den
+    # kollisjonen: fake-bridgen simulerer JS-sidens styrt-guard selv (feiler
+    # når fra_adapter er falsy, lykkes når den er True) — testen beviser at
+    # den ANDRE lesingen faktisk NÅR bridgen (og dermed blir avvist) i
+    # stedet for å bli stille servert fra adapterens memo-oppføring.
+    calls = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
+            calls.append(fra_adapter)
+            if fra_adapter:
+                return _FakeJsResult(data=json.dumps(FIX).encode())
+            return _FakeJsResult(error="ssb er en STYRT kilde — rå URL-er avvises. "
+                                        "Bruk ssb.read(…): lese-linjen får du ferdig fra table_metadata.")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    src = ost.connect("https://x.example/tables", kind="pxweb")
+    df = src.read("05839")   # adapterveien: fra_adapter=True, lykkes, memoiserer
+    assert df.shape == (4, 4)
+    assert calls == [True]
+
+    du = ost.data_url("https://x.example/tables/05839")   # SAMME URL adapteren nettopp fetchet
+    with pytest.raises(RuntimeError, match="STYRT kilde"):
+        ost.read_csv(du)   # rå lesing — skal treffe bridgen (og bli avvist), ALDRI adapterens memo
+    assert calls == [True, False]

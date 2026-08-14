@@ -331,8 +331,11 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    har OGSÅ kravet: \`indicators=["<koden>"]\` med. Lange kodelister:
    bruk \`find=\` i table_metadata (f.eks. find="Oslo" → 0301) i stedet
    for å gjette koder. Kilder merket «kildeguide» i registeret: guiden
-   følger automatisk med første search_catalog/table_metadata-svar — les
-   den før du bygger spørringen.
+   følger automatisk med første search_catalog/table_metadata-svar — den
+   er BINDENDE bruksanvisning for kilden og overstyrer egne antakelser om
+   API-et: les den FØR du bygger spørringen, og bryt aldri dens
+   eksplisitte forbud (målt feilklasse: v0-fallback og gjettede
+   endepunkter STIKK I STRID med vedlagt guide kostet 10+ turer).
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,

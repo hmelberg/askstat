@@ -227,6 +227,16 @@
   // treffet til dokumenter modellen FAKTISK fikk (refDocs bygges fra en
   // fetch-liste, aldri fra brukerinput — men vakten koster ingenting og
   // gjør intensjonen eksplisitt).
+  // Stille retry (funn 2026-08-14): forslags-kallet er appens lengste
+  // enkeltstrøm (16k tokens, størst payload) og mest utsatt for oppstrøms
+  // strømbrudd («Error in input stream»). Kallet er tilstandsløst, så ETT
+  // stille nytt forsøk er trygt — aldri ved abort (brukeren lukket), aldri
+  // mer enn ett (forsøk 2 er siste).
+  function børPrøveIgjen(feil, forsøkNr) {
+    if (!feil || forsøkNr >= 2) return false;
+    return feil.name !== 'AbortError';
+  }
+
   function erGyldigRefDocId(bid, refDocs) {
     return !!(refDocs && Object.prototype.hasOwnProperty.call(refDocs, String(bid)));
   }
@@ -409,27 +419,40 @@
       });
       payload.provider = (global.mdAiProviderConfig && global.mdAiProviderConfig()) || undefined;
 
-      fetch('/api/kilde-forslag', {
-        method: 'POST',
-        headers: global.mdAiAuthHeaders(),
-        body: JSON.stringify(payload),
-        signal: ctrl.signal,
-      }).then(function (resp) {
-        if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
-        return global.mdSseAccumulate(resp, null, ctrl.signal);
-      }).then(function (tekst) {
+      // Stille retry (børPrøveIgjen over): kallet er tilstandsløst — ved
+      // strømbrudd re-POSTes samme payload ÉN gang før feilen vises.
+      var forsokNr = 0;
+      function utfor() {
+        forsokNr++;
+        return fetch('/api/kilde-forslag', {
+          method: 'POST',
+          headers: global.mdAiAuthHeaders(),
+          body: JSON.stringify(payload),
+          signal: ctrl.signal,
+        }).then(function (resp) {
+          if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+          return global.mdSseAccumulate(resp, null, ctrl.signal);
+        });
+      }
+      function ferdig(tekst) {
         if (state.ctrl !== ctrl) return;   // en nyere runde har overtatt
         state.sisteRaatekst = tekst;
         renderForslag(parseForslagSvar(tekst), state, innhold, rundeEl, bunn);
-      }).catch(function (e) {
+      }
+      function handterFeil(e) {
         // Stale-vakt (sluttreview-funn, folded minor): en overtatt runde
         // sitt REJECT skal ikke få lov til å tømme/overskrive en NYERE
         // rundes fremdriftslinje — samme mønster som .then-grenene over.
         if (state.ctrl !== ctrl) return;
         if (e && e.name === 'AbortError') return;
+        if (børPrøveIgjen(e, forsokNr)) {
+          try { console.error('kilde-forslag: forsøk ' + forsokNr + ' feilet, prøver stille igjen:', e); } catch (_) {}
+          return utfor().then(ferdig).catch(handterFeil);
+        }
         innhold.innerHTML = '';
         innhold.appendChild(el('div', 'ai-error', '✗ ' + ((e && e.message) || String(e))));
-      });
+      }
+      utfor().then(ferdig).catch(handterFeil);
     });
   }
 
@@ -630,6 +653,7 @@
     linjeDiff: linjeDiff,
     ferskeDocs: ferskeDocs,
     erGyldigRefDocId: erGyldigRefDocId,
+    børPrøveIgjen: børPrøveIgjen,
     erAdmin: erAdmin,
     byggEvidens: byggEvidens,
     registerRun: registerRun,

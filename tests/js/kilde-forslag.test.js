@@ -245,3 +245,16 @@ test('byggForslagsPayload: ref_docs klippes/takles og admin sendes kun ved true'
   assert.ok(uten.admin === undefined);
   assert.ok(uten.ref_docs === undefined);
 });
+
+// Stille retry i forslags-modalen (funn 2026-08-14: «Error in input stream»
+// på det lengste enkeltkallet i appen — 16k tokens + størst payload).
+// Ren beslutningsfunksjon: ETT nytt forsøk ved strømfeil, aldri ved abort.
+test('børPrøveIgjen: én retry ved feil, aldri ved abort eller etter forsøk 2', () => {
+  const KF2 = require('../../js/kilde-forslag.js');
+  assert.equal(KF2.børPrøveIgjen(new Error('Error in input stream'), 1), true);
+  assert.equal(KF2.børPrøveIgjen(new Error('HTTP 502'), 1), true);
+  assert.equal(KF2.børPrøveIgjen(new Error('x'), 2), false);
+  const abort = Object.assign(new Error('Stopped'), { name: 'AbortError' });
+  assert.equal(KF2.børPrøveIgjen(abort, 1), false);
+  assert.equal(KF2.børPrøveIgjen(null, 1), false);
+});

@@ -197,3 +197,18 @@ Deno.test("hent: klientens egen accept-language vinner, og vanlig accept gir ing
   await handleHent(req2, { registry: REG, getEnv: () => undefined, fetchImpl: headerLoggingFetch(log2) });
   assertEquals(log2[0].headers["accept-language"], undefined);
 });
+
+// Hard skinne (funn 2026-08-14, fjerde Oslo-kjøring på rad med v0-residiv):
+// myke guideregler taper mot treningsbias for SSBs berømte v0-API — proxyen
+// AVVISER det nå med instruktiv feil, så forbudet blir et miljøfaktum.
+Deno.test("handleHent: SSB v0-API avvises med instruktiv feil", async () => {
+  const req = new Request("https://app.example/api/hent?url=" +
+    encodeURIComponent("https://data.ssb.no/api/v0/no/table/01222"));
+  const res = await handleHent(req, { fetchImpl: (() => {
+    throw new Error("skal aldri fetches");
+  }) as unknown as typeof fetch, registry: [], getEnv: () => undefined });
+  assertEquals(res.status, 400);
+  const tekst = await res.text();
+  assertEquals(tekst.includes("v0"), true);
+  assertEquals(tekst.includes("v2"), true);
+});

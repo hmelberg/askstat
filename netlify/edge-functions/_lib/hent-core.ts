@@ -22,6 +22,18 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
   if (!target || !isPublicHttpUrl(target)) {
     return new Response("Ugyldig eller manglende url-parameter", { status: 400 });
   }
+  // Hard skinne (2026-08-14): SSBs gamle v0-API er stengt i appen. Fire
+  // Oslo-kjøringer på rad viste at myke guideregler taper mot modellens
+  // treningsbias for det berømte v0-API-et — en instruktiv AVVISNING gjør
+  // forbudet til et miljøfaktum i run_result i stedet for en setning som
+  // kan overses (samme grep som SDMX-skinnene).
+  if (/^https?:\/\/data\.ssb\.no\/api\/v0\//i.test(target)) {
+    return new Response(
+      "SSBs v0-API er stengt i denne appen (POST-only + CORS-problemer). " +
+      "Bruk PxWeb v2: ssb.read(\"<tabell>\", …) — eller " +
+      "https://data.ssb.no/api/pxwebapi/v2/tables/<id>/metadata først, " +
+      "deretter /data med valueCodes.", { status: 400 });
+  }
   if (bodyParam && bodyParam.length > MAX_BODY_PARAM) {
     return new Response("body-parameter for stor", { status: 413 });
   }

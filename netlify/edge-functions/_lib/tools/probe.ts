@@ -34,6 +34,14 @@ export async function probeUrl(
   if (!isPublicHttpUrl(url)) {
     return { ...empty, note: "blokkert: ikke en offentlig http(s)-URL" };
   }
+  // Hard skinne (2026-08-14): SSB v0 er stengt i appen — speiler
+  // hent-proxyens blokk (se hent-core.ts) så begge veier gir v2-veiviseren.
+  if (/^https?:\/\/data\.ssb\.no\/api\/v0\//i.test(url)) {
+    return { ...empty, note:
+      "SSBs v0-API er stengt i denne appen (POST-only + CORS). Bruk PxWeb " +
+      "v2: ssb.read(\"<tabell>\", …) — eller /api/pxwebapi/v2/tables/<id>/" +
+      "metadata først, deretter /data med valueCodes." };
+  }
   // DST-klassen av kilder sender ACAO kun når forespørselen har Origin-header.
   // Uten denne sender vi ingen Origin, så betinget-ACAO-kilder rapporterer falsk cors:false.
   const headers: Record<string, string> = { Origin: PROBE_ORIGIN };

@@ -177,3 +177,15 @@ Deno.test("probe parquet: PAR1-magic gir ok + parquet-note, aldri CSV-søppel", 
   assertEquals((r.note ?? "").includes("parquet"), true);
   assertEquals((r.note ?? "").includes("CSV"), false);
 });
+
+// Hard skinne (2026-08-14): proben avviser SSB v0 med instruktiv feil —
+// speiler hent-proxyens blokk, så BEGGE veier modellen kan prøve v0 på
+// svarer med veiviseren til v2.
+Deno.test("probe: SSB v0-API avvises med instruktiv v2-veiviser", async () => {
+  const r = await probeUrl("https://data.ssb.no/api/v0/no/table/01222/tableinfo", {
+    fetchImpl: (() => { throw new Error("skal aldri fetches"); }) as unknown as typeof fetch,
+  });
+  assertEquals(r.ok, false);
+  assertEquals((r.note ?? "").includes("v0"), true);
+  assertEquals((r.note ?? "").includes("v2"), true);
+});

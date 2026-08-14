@@ -282,6 +282,26 @@
     return { prefix: prefix, hode: hode, kort: kort, guide: guide };
   }
 
+  // flettDeler (spec 2026-08-14-seksjonsvise-forslag §2): inversen av
+  // splitKortGuide. Erstatter navngitte deler og rekonstruerer med
+  // normaliserte blanklinje-skjøter — splitKortGuide-joinens kjente
+  // linjeskift-tap håndteres HER, én gang for alle konsumenter.
+  var FLETT_DELER = { prefix: 1, hode: 1, kort: 1, guide: 1 };
+  function flettDeler(originalTekst, deler) {
+    var d = splitKortGuide(originalTekst);
+    (Array.isArray(deler) ? deler : []).forEach(function (p) {
+      if (p && FLETT_DELER[p.del] === 1 &&
+          typeof p.ny_tekst === 'string' && p.ny_tekst.trim()) {
+        d[p.del] = p.ny_tekst;
+      }
+    });
+    var kropp = [d.hode, d.kort, d.guide]
+      .map(function (s) { return String(s || '').trim(); })
+      .filter(Boolean)
+      .join('\n\n');
+    return d.prefix + kropp + '\n';
+  }
+
   // ---- parse ----
 
   function parse(text) {
@@ -358,6 +378,7 @@
     normalize: normalize,
     sectionKey: sectionKey,
     splitKortGuide: splitKortGuide,
+    flettDeler: flettDeler,
     TAG_ALIASES: TAG_ALIASES,
     SECTION_ALIASES: SECTION_ALIASES,
   };

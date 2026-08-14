@@ -503,3 +503,34 @@ test('splitKortGuide: tom/ikke-streng tåles', () => {
   assert.deepEqual(SourceDoc.splitKortGuide(''), { prefix: '', hode: '', kort: '', guide: '' });
   assert.deepEqual(SourceDoc.splitKortGuide(null), { prefix: '', hode: '', kort: '', guide: '' });
 });
+
+// ==== flettDeler — invers av splitKortGuide (spec 2026-08-14-seksjonsvise-forslag §2) ====
+
+test('flettDeler: erstatter enkeltdeler, ignorerer ukjente, normaliserer skjøter', () => {
+  const doc = '---\nid: x\n---\n\n# T\n\nIntro.\n\n## Kort\n\nGammel kort.\n\n## Guide\n\nGammel guide.\n';
+  const ny = SourceDoc.flettDeler(doc, [
+    { del: 'kort', ny_tekst: '## Kort\n\nNY kort.' },
+    { del: 'tull', ny_tekst: 'ignoreres' },
+  ]);
+  assert.ok(ny.indexOf('NY kort.') >= 0);
+  assert.ok(ny.indexOf('Gammel kort.') === -1);
+  assert.ok(ny.indexOf('Gammel guide.') >= 0);          // urørt del består
+  assert.ok(ny.indexOf('---\nid: x') === 0);            // prefix rått
+  assert.ok(ny.indexOf('# T') >= 0);
+});
+
+test('flettDeler: round-trip — ingen deler gir normalisert original (linje-sett bevart)', () => {
+  const doc = '---\nid: y\n---\n\n# T\n\n## Kort\n\nK.\n\n## Guide\n\nG.\n';
+  const ut = SourceDoc.flettDeler(doc, []);
+  assert.deepEqual(ut.split('\n').filter(Boolean).sort(), doc.split('\n').filter(Boolean).sort());
+  assert.equal(SourceDoc.flettDeler(doc, null), ut);     // null tåles
+});
+
+test('flettDeler: guide-erstatning bevarer halen ETTER et klipp-scenario', () => {
+  // Poenget med runden: flettingen skjer mot UKLIPPET original — en ny
+  // kort-del skal aldri røre en lang guide-hale.
+  const doc = '## Kort\n\nK.\n\n## Guide\n\n' + 'hale'.repeat(3000) + '\n';
+  const ut = SourceDoc.flettDeler(doc, [{ del: 'kort', ny_tekst: '## Kort\n\nNY.' }]);
+  assert.ok(ut.indexOf('NY.') >= 0);
+  assert.ok(ut.indexOf('hale'.repeat(3000)) >= 0);
+});

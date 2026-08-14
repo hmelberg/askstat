@@ -34,6 +34,13 @@ export interface ProviderAgenticOptions {
   maxTokens?: number;
   maxClientToolCalls?: number;
   maxTurns?: number;
+  /** Veggklokke-budsjett per invokasjon (ms). turnsPerCall teller TURER,
+   *  men trege turer (lange LLM-strømmer + trege verktøykall) kan sprenge
+   *  plattformens harde grense FØR tur-telleren — Netlify dreper da
+   *  invokasjonen («edge function timed out», målt 2026-08-14) i stedet
+   *  for at vi rekker et ryddig continue. Sjekkes FØR hver ny tur (aldri
+   *  før den første — én turs fremdrift garanteres per invokasjon). */
+  veggklokkeMs?: number;
   resume?: AgenticResumeState;
   turnsPerCall?: number;
   continueExtra?: () => Record<string, unknown>;
@@ -112,7 +119,12 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
           });
           delete state.pending;
         }
+        const frist = Date.now() + (opts.veggklokkeMs ?? 22_000);
         for (let i = 0; i < turnsPerCall; i++) {
+          // Veggklokke-frist (se veggklokkeMs i opts): break lander på
+          // continue-emit-en under løkka — klienten re-POSTer sømløst,
+          // nøyaktig samme protokoll som når tur-budsjettet er brukt opp.
+          if (i > 0 && Date.now() >= frist) break;
           if (state.turn >= maxTurns) throw new Error("tool-loopen nådde maks antall turer");
           const turnLabel = state.turn === 0
             ? "🧠 Tolker spørsmålet og planlegger"

@@ -204,3 +204,24 @@ Deno.test("provider-løkka: resume med tomt getPackResult.text fletter en markø
   assert(seenContent.length > 0); // ALDRI en tom content-streng
   assert(seenContent.includes("fant ikke pakken"));
 });
+
+Deno.test("løkka: veggklokke-fristen yielder continue etter påbegynt tur (aldri 0 turer)", async () => {
+  let kjorte = 0;
+  const events = await collect(runProviderAgenticStream({
+    runTurn: () => {
+      kjorte++;
+      return Promise.resolve({
+        text: "", toolUses: [{ id: "c" + kjorte, name: "probe", input: {} }],
+        searchNotes: [], stop: "tool_use", usage: { inputTokens: 1, outputTokens: 1 },
+      } as ProviderTurnResult);
+    },
+    system: "SYS", userContent: "Q?", tools: [],
+    executeTool: () => Promise.resolve("ok"),
+    turnsPerCall: 8,
+    veggklokkeMs: 0,          // fristen er alt passert ved tur 2-sjekken
+  }));
+  assertEquals(kjorte, 1);    // minst én tur kjøres alltid — aldri null-fremdrift
+  const cont = events.find((e) => e.type === "continue") as Record<string, unknown>;
+  if (!cont) throw new Error("mangler continue: " + JSON.stringify(events));
+  assertEquals((cont.state as { turn: number }).turn, 1);
+});

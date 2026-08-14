@@ -55,8 +55,12 @@
   // → dokumentene deres (data/sources/<id>.md). 404/nettfeil per dokument
   // utelates STILLE (samme «bedre enn ingenting, aldri kast»-linje som
   // lagBuiltinKopi i js/packs.js) — en hallusinert eller nylig fjernet
-  // kilde skal ikke velte hele forslags-runden. Klippes til 8000 tegn
-  // (speiler REF_DOC_MAKS-grensen i byggForslagsPayload).
+  // kilde skal ikke velte hele forslags-runden. UKLIPPET (Task 2, spec
+  // 2026-08-14): state.refDocs er flette-/diffgrunnlaget for builtin-kortene
+  // i renderForslag, og et klipp her ville gjort diffen løgnaktig for
+  // dokumenter over 8000 tegn. byggForslagsPayload klipper fortsatt til
+  // 8000 på vei ut til modellen (linje ~125) — modellen ser samme mengde
+  // som før, kun klienten sitter nå på det uklippede dokumentet.
   async function hentRefDocs(ctx, deps) {
     deps = deps || {};
     var injisert = !!deps.fetchImpl;
@@ -82,7 +86,7 @@
     for (var i = 0; i < ids.length; i++) {
       try {
         var res = await fetchImpl('data/sources/' + ids[i] + '.md', opts);
-        if (res && res.ok) ut.push({ id: ids[i], text: klipp(await res.text(), 8000) });
+        if (res && res.ok) ut.push({ id: ids[i], text: await res.text() });
       } catch (e) { /* 404/nettfeil → utelates stille */ }
     }
     return ut;
@@ -141,6 +145,13 @@
     return !!(harKilder && friksjon);
   }
 
+  // Gyldige del-navn for forslagets deler-kontrakt (Task 2, spec 2026-08-14
+  // §3): DUPLISERT lokalt fra FLETT_DELER i js/source-doc.js (samme
+  // vokabular: prefix/hode/kort/guide) i stedet for å lese global.SourceDoc
+  // — parseForslagSvar kjøres i node-testene UTEN at source-doc.js er
+  // lastet, og parseren skal aldri avhenge av modul-lasterekkefølge.
+  var GYLDIGE_DELER = { prefix: 1, hode: 1, kort: 1, guide: 1 };
+
   // Svarparser (spec §3): fenced ```json-blokk foretrekkes; ellers
   // klammespenn (samme naive strategi som parseAskRoute i js/ask-view.js —
   // prompten krever JSON-objektet SIST i svaret). Parsefeil → ok:false og
@@ -170,12 +181,21 @@
     var liste = Array.isArray(obj.forslag) ? obj.forslag : [];
     return {
       ok: true,
-      forslag: liste.filter(function (f) {
-        return f && typeof f.id === 'string' && typeof f.ny_tekst === 'string' && f.ny_tekst.trim();
-      }).map(function (f) {
-        return { id: f.id, ny_tekst: f.ny_tekst,
+      forslag: liste.map(function (f) {
+        if (!f || typeof f.id !== 'string') return null;
+        // Deler-kontrakten (ingen bakoverkompat med gammel flat ny_tekst):
+        // hver del filtreres på gyldig del-navn OG ikke-tom ny_tekst-string;
+        // et forslag der ingen deler er gyldige droppes helt.
+        var deler = (Array.isArray(f.deler) ? f.deler : []).filter(function (d) {
+          return d && GYLDIGE_DELER[d.del] === 1 &&
+            typeof d.ny_tekst === 'string' && d.ny_tekst.trim();
+        }).map(function (d) {
+          return { del: d.del, ny_tekst: d.ny_tekst };
+        });
+        if (!deler.length) return null;
+        return { id: f.id, deler: deler,
                  begrunnelse: typeof f.begrunnelse === 'string' ? f.begrunnelse : '' };
-      }),
+      }).filter(Boolean),
       melding: typeof obj.melding === 'string' ? obj.melding : '',
       raatekst: raa,
       kode_sak: koderSak(obj),

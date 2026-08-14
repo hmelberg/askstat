@@ -64,10 +64,10 @@ test('skalViseKnapp: egne kilder + friksjon', () => {
 });
 
 test('parseForslagSvar: fenced json-blokk', () => {
-  const r = KF.parseForslagSvar('Litt prat.\n```json\n{"forslag":[{"id":"user:a","ny_tekst":"NY","begrunnelse":"fordi"}],"melding":"ok"}\n```');
+  const r = KF.parseForslagSvar('Litt prat.\n```json\n{"forslag":[{"id":"user:a","deler":[{"del":"kort","ny_tekst":"NY"}],"begrunnelse":"fordi"}],"melding":"ok"}\n```');
   assert.equal(r.ok, true);
   assert.equal(r.forslag.length, 1);
-  assert.deepEqual(r.forslag[0], { id: 'user:a', ny_tekst: 'NY', begrunnelse: 'fordi' });
+  assert.deepEqual(r.forslag[0], { id: 'user:a', deler: [{ del: 'kort', ny_tekst: 'NY' }], begrunnelse: 'fordi' });
   assert.equal(r.melding, 'ok');
 });
 
@@ -85,13 +85,31 @@ test('parseForslagSvar: søppel gir ok:false med raatekst', () => {
   assert.equal(r.raatekst, 'bare prosa uten json');
 });
 
-test('parseForslagSvar: forslag uten id/ny_tekst filtreres, tom ny_tekst filtreres', () => {
+test('parseForslagSvar: forslag uten id filtreres, forslag uten gyldige deler filtreres', () => {
   const r = KF.parseForslagSvar(JSON.stringify({
-    forslag: [{ id: 'user:a', ny_tekst: 'X' }, { id: 'user:b' }, { ny_tekst: 'Y' }, { id: 'user:c', ny_tekst: '   ' }],
+    forslag: [
+      { id: 'user:a', deler: [{ del: 'kort', ny_tekst: 'X' }] },
+      { id: 'user:b' },                                            // mangler deler helt
+      { deler: [{ del: 'kort', ny_tekst: 'Y' }] },                  // mangler id
+      { id: 'user:c', deler: [{ del: 'kort', ny_tekst: '   ' }] },  // kun tom tekst → ingen gyldige deler
+      { id: 'user:d', deler: [] },                                 // tom deler-liste
+    ],
   }));
   assert.equal(r.ok, true);
   assert.equal(r.forslag.length, 1);
+  assert.equal(r.forslag[0].id, 'user:a');
   assert.equal(r.forslag[0].begrunnelse, '');
+});
+
+test('parseForslagSvar: deler-kontrakten — filtrering av del-navn og tomme tekster', () => {
+  const r = KF.parseForslagSvar(JSON.stringify({ forslag: [
+    { id: 'user:a', deler: [{ del: 'kort', ny_tekst: 'X' }, { del: 'tull', ny_tekst: 'y' }, { del: 'guide', ny_tekst: '  ' }], begrunnelse: 'b' },
+    { id: 'user:b', deler: [{ del: 'ukjent', ny_tekst: 'z' }] },
+    { id: 'user:c', ny_tekst: 'GAMMEL FORM' },
+  ], melding: 'm' }));
+  assert.equal(r.forslag.length, 1);
+  assert.deepEqual(r.forslag[0].deler, [{ del: 'kort', ny_tekst: 'X' }]);
+  assert.equal(r.forslag[0].begrunnelse, 'b');
 });
 
 test('linjeDiff: identisk gir kun lik', () => {
@@ -207,6 +225,20 @@ test('hentRefDocs: register → matcher → dokumenter; 404 utelates stille', as
   // ess har dokument; ssb.md finnes ikke i stubben → utelatt stille
   assert.deepEqual(ut.map((d) => d.id), ['ess']);
   assert.ok(ut[0].text.indexOf('parquet anbefales') >= 0);
+});
+
+test('hentRefDocs: teksten klippes IKKE lenger (flettegrunnlag)', async () => {
+  const stor = 'g'.repeat(9000);
+  const svar = {
+    'data/data-sources.json': JSON.stringify([{ id: 'ess', base_url: 'https://api.ess.sikt.no/v1/' }]),
+    'data/sources/ess.md': stor,
+  };
+  const fetchImpl = async (url) => (url in svar
+    ? { ok: true, text: async () => svar[url] } : { ok: false, status: 404, text: async () => '' });
+  const ut = await KF.hentRefDocs({ sources: ['https://api.ess.sikt.no/v1/x'] }, { fetchImpl });
+  assert.equal(ut[0].text.length, 9000);
+  // …mens payloadbyggeren fortsatt klipper på vei ut:
+  assert.equal(KF.byggForslagsPayload({ docs: [], ref_docs: ut }, deps).ref_docs[0].text.length, 8000);
 });
 
 // Sluttreview-funn: `in`-sjekk mot state.refDocs er sann for nedarvede

@@ -149,6 +149,34 @@ test('forPyodideSync: ikke-styrt kilde helt uendret (regresjon)', () => {
   assert.deepEqual(Array.from(r.bytes), [9]);
 });
 
+// ── styrte kilder (2026-08-14, review-runde) — fraAdapter-unntaket ─────────
+// openstat.py sin EGEN dokumenterte adapter-API (Source.connect()/.read())
+// bygger data-URL-er fra base_url og fetcher OGSÅ via forPyodideSync (samme
+// funksjon som pd.read_csv-broen) — _fetch_bytes(..., fra_adapter=True) i
+// openstat.py setter det tredje argumentet HER. Uten unntaket ble adapterens
+// EGNE kall for en styrt kilde feilaktig avvist som «rå».
+test('forPyodideSync: fraAdapter=true hopper over styrt-guarden (openstat.py Source.read() sin egen vei)', () => {
+  RB._reset();
+  RB.configure(() => ({ registry: [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', styrt: true }] }));
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([3]) }));
+  const r = RB.forPyodideSync('https://data.ssb.no/api/pxwebapi/v2/tables/x/data', undefined, true);
+  RB.configure(null);
+  assert.equal(r.error, null);
+  assert.deepEqual(Array.from(r.bytes), [3]);
+});
+
+test('forPyodideSync: uten fraAdapter (default) blir SAMME styrt-URL fortsatt blokkert', () => {
+  RB._reset();
+  RB.configure(() => ({ registry: [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', styrt: true }] }));
+  let xhrCalled = false;
+  RB._setXhr(() => { xhrCalled = true; return { status: 200, bytes: new Uint8Array([3]) }; });
+  const r = RB.forPyodideSync('https://data.ssb.no/api/pxwebapi/v2/tables/x/data');
+  RB.configure(null);
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /STYRT kilde/);
+  assert.equal(xhrCalled, false);
+});
+
 test('S5 configure: deps når fetchRawUrl', async () => {
   RB._reset();
   const orig = DL.fetchRawUrl; const calls = [];

@@ -62,7 +62,7 @@ def test_eurostat_data_url():
 def test_connect_read_eurostat(monkeypatch):
     calls = []
 
-    def fake(url):
+    def fake(url, headers=None, fra_adapter=False):
         calls.append(url)
         return json.dumps(FIX).encode()
 
@@ -76,7 +76,7 @@ def test_connect_read_eurostat(monkeypatch):
 def test_connect_read_pxweb(monkeypatch):
     calls = []
 
-    def fake(url):
+    def fake(url, headers=None, fra_adapter=False):
         calls.append(url)
         return json.dumps(FIX).encode()
 
@@ -94,7 +94,7 @@ def test_pxweb_krever_tabell(monkeypatch):
 
 
 def test_read_csv_med_columns_subset(monkeypatch):
-    monkeypatch.setattr(ost, "_fetch_bytes", lambda url: b"a,b,c\n1,2,3\n4,5,6\n")
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: b"a,b,c\n1,2,3\n4,5,6\n")
     df = ost.read("https://x/f.csv", columns=["a", "c"])
     assert list(df.columns) == ["a", "c"]
     assert df.shape == (2, 2)
@@ -112,7 +112,7 @@ def test_create_add_composite_key():
 
 
 def test_create_add_fra_kilde(monkeypatch):
-    monkeypatch.setattr(ost, "_fetch_bytes", lambda url: b"k,x,ekstra\n1,10,99\n2,20,98\n")
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: b"k,x,ekstra\n1,10,99\n2,20,98\n")
     src = ost.connect("https://x/g.csv", kind="csv")
     d = ost.create(key="k")
     d.add(src, "x")
@@ -184,7 +184,7 @@ def test_dbnomics_paritet():
 def test_connect_read_worldbank(monkeypatch):
     calls = []
 
-    def fake(url, headers=None):
+    def fake(url, headers=None, fra_adapter=False):
         calls.append(url)
         # NB: "&page=" — bare "page=" matcher også per_page=20000!
         return json.dumps(WB_FIX["page2"] if "&page=" in url else WB_FIX["page1"]).encode()
@@ -200,7 +200,7 @@ def test_connect_read_worldbank(monkeypatch):
 def test_connect_read_sdmx_accept_og_fallback(monkeypatch):
     calls = []
 
-    def fake(url, headers=None):
+    def fake(url, headers=None, fra_adapter=False):
         calls.append((url, headers))
         if headers and "Accept" in headers:
             raise RuntimeError("HTTP 406 for " + url)   # ECB-veien
@@ -264,7 +264,7 @@ def test_translate_canonical_pxweb_aar():
 def test_read_sdmx_kanonisk_med_introspeksjon(monkeypatch):
     calls = []
 
-    def fake(url, headers=None):
+    def fake(url, headers=None, fra_adapter=False):
         calls.append(url)
         if "lastNObservations=1" in url:
             return (HDR_FIX["oecd"] + "\nOECD.X:Y(1.1),COL,A,LFEXP,Y,Y0,M,_Z,_Z,_Z,_Z,_Z,_Z,_Z,2023,73.8,1,,,,0\n").encode()
@@ -281,7 +281,7 @@ def test_read_sdmx_kanonisk_med_introspeksjon(monkeypatch):
 
 def test_read_dbnomics_kanonisk_aarsfilter(monkeypatch):
     monkeypatch.setattr(ost, "_fetch_bytes",
-                        lambda url, headers=None: json.dumps(DBN_FIX["ok"]).encode())
+                        lambda url, headers=None, fra_adapter=False: json.dumps(DBN_FIX["ok"]).encode())
     dbn = ost.connect("https://api.db.nomics.world/v22/series", kind="dbnomics")
     df = dbn.read("IMF/WEO:latest/NOR.NGDP_RPCH", years="2025:2026")
     assert list(df["period"]) == ["2025", "2026", "2025", "2026"]
@@ -457,7 +457,7 @@ def test_typemeta_uten_role_og_label_degraderer_pent():
 def test_source_read_pxweb_leverer_typet(monkeypatch):
     # Hele veien: read() på en pxweb-kilde skal levere typet ramme.
     monkeypatch.setattr(ost, "_fetch_bytes",
-                        lambda url, headers=None: json.dumps(FIX).encode())
+                        lambda url, headers=None, fra_adapter=False: json.dumps(FIX).encode())
     src = ost.connect("https://x.example/tables", kind="pxweb")
     df = src.read("09999")
     assert str(df["Kjonn"].dtype) == "category"
@@ -763,7 +763,7 @@ def test_fetch_bytes_emscripten_bro_treff_og_memo(monkeypatch):
 
     class Bridge:
         @staticmethod
-        def forPyodideSync(url, headers_json=None):
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
             seen.append((url, headers_json))
             return _FakeJsResult(data=b"a,b\n1,2\n")
 
@@ -778,7 +778,7 @@ def test_fetch_bytes_emscripten_bro_treff_og_memo(monkeypatch):
 def test_fetch_bytes_emscripten_bro_feil_er_runtimeerror(monkeypatch):
     class Bridge:
         @staticmethod
-        def forPyodideSync(url, headers_json=None):
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
             return _FakeJsResult(error="HTTP 404 for " + url)
 
     _install_fake_js(monkeypatch, bridge=Bridge)
@@ -791,7 +791,7 @@ def test_fetch_bytes_emscripten_headers_som_json(monkeypatch):
 
     class Bridge:
         @staticmethod
-        def forPyodideSync(url, headers_json=None):
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
             seen.append(headers_json)
             return _FakeJsResult(data=b"x")
 
@@ -826,3 +826,67 @@ def test_fetch_bytes_emscripten_uten_bro_faller_til_xhr(monkeypatch):
 
     _install_fake_js(monkeypatch, bridge=None, xhr=_XHR)
     assert ost._fetch_bytes("https://uten-bro.example/f.csv") == b"ab"
+
+
+# ── styrte kilder, review-runde 2026-08-14: fraAdapter-unntaket ─────────────
+# Funn: openstat.py sin EGEN dokumenterte adapter-API (Source.connect()/
+# .read(), docstring-eksempelet øverst i fila bruker SSBs base_url) bygger
+# data-URL-er fra base_url og fetcher OGSÅ via _fetch_bytes -> forPyodideSync
+# — akkurat den funksjonen styrt-guarden (js/read-bridge.js) sitter i. Uten et
+# unntak ble adapterens EGNE, anbefalte kall for en styrt kilde feilaktig
+# avvist som «rå». fra_adapter=True forteller JS-siden at URL-en er
+# adapterbygd (kanonisk per definisjon) — KUN Source.read() sine ni
+# _fetch_bytes-kall setter det; read_csv()/_typemeta_for() gjør det ALDRI
+# (de er nettopp de wrapped rå-leserne skinnen skal fortsette å stenge).
+
+def test_fetch_bytes_plumber_fra_adapter_til_forpyodidesync(monkeypatch):
+    seen = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
+            seen.append((url, headers_json, fra_adapter))
+            return _FakeJsResult(data=b"a,b\n1,2\n")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    ost._fetch_bytes("https://bro.example/adapter.csv", fra_adapter=True)
+    assert seen == [("https://bro.example/adapter.csv", None, True)]
+    ost._MEMO.clear()
+    ost._fetch_bytes("https://bro.example/raw.csv")
+    assert seen[-1] == ("https://bro.example/raw.csv", None, False)
+
+
+def test_source_read_generisk_gren_setter_fra_adapter_true(monkeypatch):
+    # Den generiske fallback-grenen i Source.read() (kind uten
+    # spesialhåndtering — akkurat formen ess har i data-sources.json i dag:
+    # tilgang="rest", intet kind-felt) er den grenen som lignet mest på en rå
+    # lesing sett fra JS-siden (Task 3-rapportens funn). Beviser at den
+    # likevel setter fra_adapter=True.
+    seen = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
+            seen.append(fra_adapter)
+            return _FakeJsResult(data=b"a,b\n1,2\n")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    ost.connect("https://api.styrttest.example/", kind="csv").read()
+    assert seen == [True]
+
+
+def test_read_csv_setter_ikke_fra_adapter(monkeypatch):
+    # ost.read_csv (og implisitt pd.read_csv-broen den speiler) er nettopp
+    # den wrapped rå-leseren styrt-skinnen skal fortsette å blokkere for
+    # styrte kilder — den skal ALDRI sette fra_adapter=True.
+    seen = []
+
+    class Bridge:
+        @staticmethod
+        def forPyodideSync(url, headers_json=None, fra_adapter=False):
+            seen.append(fra_adapter)
+            return _FakeJsResult(data=b"a,b\n1,2\n")
+
+    _install_fake_js(monkeypatch, bridge=Bridge)
+    ost.read_csv("https://bro.example/raw2.csv")
+    assert seen == [False]

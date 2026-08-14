@@ -33,12 +33,23 @@ __all__ = ["connect", "read", "create", "datasets",
 _MEMO = {}
 
 
-def _fetch_bytes(url, headers=None):
+def _fetch_bytes(url, headers=None, fra_adapter=False):
     """Rå bytes fra URL, memoisert per (URL, headere) i økten. I appen ruter
     emscripten-grenen via ReadBridge («samme bro, to fasader»: delt bytecache
     og proxy-fallback m/ auth ved CORS, som pd.read_csv-fasaden); standalone
     Pyodide uten ReadBridge bruker naken synkron XHR (binærtrygg via
-    x-user-defined-charset), CPython urllib."""
+    x-user-defined-charset), CPython urllib.
+
+    fra_adapter=True (styrte kilder, review-runde 2026-08-14): forteller
+    read-bridgens forPyodideSync at URL-en er BYGGET av Source.read() selv
+    (base_url + kind/tabell/parametre — aldri et brukerskrevet literal), så
+    styrt-guarden der skal IKKE håndheves. Unntaket er trygt fordi
+    adapterbygde URL-er per definisjon er kanoniske — trusselmodellen
+    styrt-skinnen lukker er treningsbias/vanemønstre (modellen/brukeren
+    skriver en kjent rå API-URL i stedet for å bruke adapteren), IKKE
+    adversarial bypass av selve adapteren. KUN Source.read() sine egne kall
+    setter dette (se der) — read_csv()/_typemeta_for() gjør IKKE det, de er
+    de wrapped rå-leserne skinnen skal fortsette å stenge."""
     memo_key = (url, tuple(sorted((headers or {}).items())))
     if memo_key in _MEMO:
         return _MEMO[memo_key]
@@ -50,8 +61,8 @@ def _fetch_bytes(url, headers=None):
         except Exception:
             rb = None
         if rb is not None:
-            r = rb.forPyodideSync(url, _json.dumps(headers)) if headers \
-                else rb.forPyodideSync(url)
+            headers_json = _json.dumps(headers) if headers else None
+            r = rb.forPyodideSync(url, headers_json, fra_adapter)
             if r.error:
                 raise RuntimeError(str(r.error))
             data = bytes(r.bytes.to_py())
@@ -776,9 +787,9 @@ class Source:
 
             def _sdmx_csv(url):
                 try:
-                    return _fetch_bytes(url, headers={"Accept": SDMX_ACCEPT})
+                    return _fetch_bytes(url, headers={"Accept": SDMX_ACCEPT}, fra_adapter=True)
                 except Exception:
-                    return _fetch_bytes(sdmx_fallback_url(url))   # ECB-veien
+                    return _fetch_bytes(sdmx_fallback_url(url), fra_adapter=True)   # ECB-veien
             if kind == "sdmx":
                 if needs_key:
                     # Kanonisk countries()/indicators()/filters(): nøkkelen
@@ -793,16 +804,16 @@ class Source:
                 raw = _sdmx_csv(target)
                 df = pd.read_csv(io.BytesIO(raw))
             elif kind == "worldbank":
-                docs = [_json.loads(_fetch_bytes(worldbank_data_url(target)).decode("utf-8"))]
+                docs = [_json.loads(_fetch_bytes(worldbank_data_url(target), fra_adapter=True).decode("utf-8"))]
                 meta = worldbank_meta(docs[0])
                 if meta["pages"] > 10:
                     raise ValueError(str(meta["total"]) + " rader fordelt på " + str(meta["pages"]) +
                                      " sider — snevre inn spørringen (date=…, færre land/indikatorer)")
                 for p in range(2, meta["pages"] + 1):
-                    docs.append(_json.loads(_fetch_bytes(worldbank_page_url(target, p)).decode("utf-8")))
+                    docs.append(_json.loads(_fetch_bytes(worldbank_page_url(target, p), fra_adapter=True).decode("utf-8")))
                 df = pd.DataFrame(worldbank_columns(docs))
             else:
-                doc = _json.loads(_fetch_bytes(dbnomics_data_url(target)).decode("utf-8"))
+                doc = _json.loads(_fetch_bytes(dbnomics_data_url(target), fra_adapter=True).decode("utf-8"))
                 df = pd.DataFrame(dbnomics_columns(doc))
                 if client_years is not None and len(df):
                     # years() for dbnomics: API-et har ikke tidsvindu-parametre
@@ -831,7 +842,7 @@ class Source:
                 qs += cparams_px
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
-            ds = _json.loads(_fetch_bytes(du).decode("utf-8"))
+            ds = _json.loads(_fetch_bytes(du, fra_adapter=True).decode("utf-8"))
             df = apply_typemeta(pd.DataFrame(columns_from_jsonstat(ds)),
                                 typemeta_from_jsonstat(ds))
             return df[list(columns)] if columns else df
@@ -846,11 +857,11 @@ class Source:
                     ).df()
                 except ImportError:
                     pass
-            df = pd.read_parquet(io.BytesIO(_fetch_bytes(url)))
+            df = pd.read_parquet(io.BytesIO(_fetch_bytes(url, fra_adapter=True)))
         elif kind == "json":
-            df = pd.DataFrame(_json.loads(_fetch_bytes(url).decode("utf-8")))
+            df = pd.DataFrame(_json.loads(_fetch_bytes(url, fra_adapter=True).decode("utf-8")))
         else:
-            df = pd.read_csv(io.BytesIO(_fetch_bytes(url)), sep=None, engine="python")
+            df = pd.read_csv(io.BytesIO(_fetch_bytes(url, fra_adapter=True)), sep=None, engine="python")
         return df[list(columns)] if columns else df
 
 

@@ -126,7 +126,7 @@
   var xhrImpl = null;
   function xhr(url, headers) { return (xhrImpl || syncXhr)(url, headers); }
 
-  function forPyodideSync(url, headersJson) {
+  function forPyodideSync(url, headersJson, fraAdapter) {
     // Styrt-avvisning (spec 2026-08-14-styrte-kilder, hook b): pd.read_csv(url)
     // i Pyodide ruter HIT (synkron — kan ikke avvente ensure/fetchRawUrl),
     // se _ost_url_buf i pyPatchSource under. fetchRawUrl (data-loader.js)
@@ -142,8 +142,24 @@
     // kjører). Treffer ingen av delene ENNÅ, slipper kallet gjennom her —
     // probe-verktøyet (server) er den PRIMÆRE skinnen modellen møter FØR
     // den skriver run_code i det hele tatt.
+    //
+    // fraAdapter (review-runde 2026-08-14): openstat.py sin EGEN
+    // dokumenterte adapter-API — Source.connect()/.read(), docstring-
+    // eksempelet øverst i openstat.py bruker SSBs base_url — bygger
+    // data-URL-er fra base_url + kind/tabell/parametre og fetcher OGSÅ via
+    // _fetch_bytes -> forPyodideSync (samme funksjon som pd.read_csv-broen).
+    // Uten et unntak ville guarden feilaktig blokkert appens egen
+    // dokumenterte, anbefalte måte å lese en styrt kilde PÅ. openstat.py sin
+    // _fetch_bytes(..., fra_adapter=True) — KUN kalt fra Source.read(), se
+    // der — setter dette tredje argumentet. Trygt fordi adapterbygde
+    // URL-er per definisjon er kanoniske (base_url + kjent sti-mønster,
+    // aldri en brukerskrevet literal): trusselmodellen styrt-skinnen lukker
+    // er treningsbias/vanemønstre (modellen skriver en kjent rå API-URL i
+    // stedet for å bruke adapteren), ikke adversarial bypass av selve
+    // adapteren. Wrapped rå-lesere (pd.read_csv-veien, pyPatchSource under)
+    // sender ALDRI dette — de skal fortsatt stenges.
     var DL = global.DataLoader;
-    if (DL && DL.styrtKildeFor) {
+    if (!fraAdapter && DL && DL.styrtKildeFor) {
       var d0 = currentDeps() || {};
       var reg0 = d0.registry || (DL._registrySnapshot ? DL._registrySnapshot() : []);
       var styrtHit = DL.styrtKildeFor(url, reg0);

@@ -353,6 +353,25 @@
       '  grepl("^(https?://|/api/hent\\\\?)", x)',
       // Henteren: manifest-treff -> lokal sti; ellers worker-XHR (direkte, så
       // proxy-retry ved status 0) -> bytes til FS -> sti. Høylytt ved feil.
+      //
+      // Styrt-skinne (sluttreview-fiks, finding 2): DETTE er R-veiens
+      // FAKTISKE fetch-punkt — literal-URL-er OG dynamisk bygde (enhver
+      // read.csv(x)/fromJSON(x)-kall der x er en URL, se .ost_wrap_reader
+      // under) ruter begge hit, i motsetning til rBridgePreRun sitt
+      // pre-run-scan i index.html (kun literaler, en ren HINT — en bom der
+      // koster ventetid, ALDRI korrekthet, se prefetchScript-kommentaren
+      // øverst i fila; et cache-miss der lar denne funksjonen prøve selv).
+      // Sjekket derfor HER, ikke bare før kjøring. Mekanismevalg: R kjører i
+      // egen webR-worker uten tilgang til window/DataLoader, MEN
+      // webr::eval_js sender selve JS-payloaden over en postMessage-kanal og
+      // KJØRER den på HOVEDTRÅDEN (fase 0-verifisert — se Module.FS-bruken
+      // under, samme kontekst). DataLoader (med styrtKildeFor/styrtMelding/
+      // _registrySnapshot — samme best-effort-registerpeek som
+      // forPyodideSync sin hook (b) over) er dermed NÅBAR derfra som et bart
+      // globalt navn, akkurat som Module er det. Dette er billigere OG
+      // sikrere enn å seede registeret inn i R via .ost_bridge_config: ingen
+      // ny R<->JS-kontrakt, ingen JSON-parsing R-side, og ÉN kildefunksjon
+      // for matching/melding (ingen fare for at en R-speilet kopi driver).
       '.ost_fetch <- function(url) {',
       '  hit <- mget(url, envir = .ost_bridge$paths, ifnotfound = list(NULL))[[1]]',
       '  if (!is.null(hit)) return(hit)',
@@ -371,6 +390,11 @@
       '    "    return x;",',
       '    "  }",',
       '    "  try {",',
+      '    "    if (typeof DataLoader !== \\"undefined\\" && DataLoader.styrtKildeFor) {",',
+      '    "      var _reg = DataLoader._registrySnapshot ? DataLoader._registrySnapshot() : [];",',
+      '    "      var _hit = DataLoader.styrtKildeFor(", .ost_json_str(url), ", _reg);",',
+      '    "      if (_hit) return \\"ERR:STYRT:\\" + DataLoader.styrtMelding(_hit.id);",',
+      '    "    }",',
       '    "    var direct = ", if (startsWith(url, "/api/hent?")) "true" else "false", ";",',
       '    "    var x = go(", .ost_json_str(abs_url), ", direct);",',
       '    "    if (x.status === 0 && !direct) x = go(", .ost_json_str(proxy_url), ", true);",',
@@ -386,6 +410,7 @@
       '  res <- as.character(webr::eval_js(js))',
       '  if (!startsWith(res, "OK:")) {',
       '    code <- sub("^ERR:", "", res)',
+      '    if (startsWith(code, "STYRT:")) stop(sub("^STYRT:", "", code))',   // styrtMelding verbatim — ingen HTTP-innpakning
       '    stop("kunne ikke hente ", url, " (", if (nzchar(code)) code else "ukjent feil",',
       '         "). CORS-stengte kilder krever /api/hent-proxy og n\\u00f8kkel/innlogging i AI-innstillingene.")',
       '  }',

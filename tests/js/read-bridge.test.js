@@ -333,6 +333,40 @@ test('rPatchSource: R-kilden parser som gyldig R (strukturell sjekk)', () => {
   assert.strictEqual(depth, 0);
 });
 
+// ── sluttreview-fiks, finding 2: R-veiens .ost_fetch (direct-then-proxy
+// worker-XHR) omgikk styrt-skinnen fullstendig — .ost_fetch er kalt for
+// BÅDE literal-URL-er OG dynamisk bygde (via .ost_wrap_reader, kjøres for
+// alle read.csv(x)/fromJSON(x)), i motsetning til rBridgePreRun sitt
+// pre-run-scan i index.html (kun literaler, kun en hint — se
+// prefetchScript-kommentaren). Fiksen sjekker DataLoader.styrtKildeFor
+// INNI den genererte JS-payloaden webr::eval_js sender til hovedtråden
+// (samme sted XMLHttpRequest/Module.FS alt kjører), FØR noen go()-kall —
+// ingen R-side registerkopi, samme kildefunksjoner som forPyodideSync sin
+// Pyodide-hook (hook b) bruker. Strukturell sjekk (ingen webR i CI) —
+// samme mønster som resten av rPatchSource-testene.
+test('rPatchSource: .ost_fetch sjekker DataLoader.styrtKildeFor FØR noen XHR (R-hull-fiks)', () => {
+  const src = RB.rPatchSource();
+  for (const needle of [
+    'DataLoader.styrtKildeFor(',
+    'DataLoader._registrySnapshot',
+    'DataLoader.styrtMelding(_hit.id)',
+    'ERR:STYRT:',
+  ]) assert.ok(src.includes(needle), 'mangler: ' + needle);
+  // Sjekken må stå i .ost_fetch, FØR direct/proxy go()-kallene — en sjekk
+  // etter ville latt XHR-en alt ha kjørt.
+  const fetchStart = src.indexOf('.ost_fetch <- function(url) {');
+  const fetchEnd = src.indexOf('.ost_wrap_reader <- function');
+  const body = src.slice(fetchStart, fetchEnd);
+  const checkIdx = body.indexOf('DataLoader.styrtKildeFor(');
+  const goCallIdx = body.indexOf('"    var x = go("');
+  assert.ok(checkIdx > -1 && goCallIdx > -1 && checkIdx < goCallIdx,
+    'styrt-sjekken må stå FØR go()-kallene i .ost_fetch-payloaden');
+  // R-siden: en STYRT-kode gir stop() med RÅ styrtMelding-teksten — ALDRI
+  // den generiske "kunne ikke hente ... CORS-stengte..."-HTTP-innpakningen
+  // (som ville forkludret meldingen med irrelevant CORS-språk).
+  assert.match(body, /if \(startsWith\(code, "STYRT:"\)\) stop\(sub\("\^STYRT:", "", code\)\)/);
+});
+
 // ── Task 3, omgjort i eksplisitt-dtypes-kirurgien (2026-07-28, Hans' over-
 // raskelsesprinsipp): fødselstyping -> fødsels-ANNOTERING. pyPatchSource skal
 // ALDRI lenger påvirke dtyper — pd.read_csv i appen skal være byte-lik naken

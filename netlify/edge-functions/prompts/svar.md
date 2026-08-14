@@ -92,20 +92,7 @@ punkt 9) ignorerer ukjente parametere STILLE i en rå URL — bruk `ost`
 med `years=`/`countries=`/`indicators=` som sikkerhetsskinne mot
 disse kildene; ALDRI en rå `pd.read_csv`-URL mot ECB/Norges Bank (de er
 ikke styrt — kun denne setningen beskytter dem).
-NB om formen på svaret: `outputFormat=csv` fra PxWeb er som standard BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat, bruk SSB-MALEN — alle fire delene hører sammen (verifisert mot ekte SSB 2026-07-27; PxWeb-v2-generisk i design):
-
-```python
-import pandas as pd
-url = ("https://data.ssb.no/api/pxwebapi/v2/tables/<TABELL>/data"
-       "?valueCodes[<DIM>]=..."
-       "&outputFormat=csv"
-       "&stub=<ALLE,DIMENSJONER>"          # langformat: én rad per kombinasjon
-       "&outputFormatParams=UseTexts")     # etiketter (Menn/Kvinner) i stedet for koder
-df = pd.read_csv(url, encoding="latin-1")  # OBLIGATORISK: SSB serverer iso-8859-1
-df.columns = list(df.columns[:-1]) + ["verdi"]   # siste kolonne heter tabelltittelen
-```
-
-Utelat `UseTexts` når analysen skal koble på KODER (stabile for joins). Alternativet er den kanoniske veien `<alias>.read("<tabell>", years=…, indicators=…)` mot en kind="pxweb"-kilde (tidy med koder som verdier). ALDRI generer bred lasting (`outputFormat=csv` uten `stub=`) sammen med analysekode som antar tidy — det var en målt feilklasse.
+NB om formen på svaret: en RÅ PxWeb CSV-URL (`outputFormat=csv`, kun aktuelt for en IKKE-styrt pxweb-kilde som scb) er som standard BREDT (én kolonne per statistikkvariabel×år — ingen Tid-kolonne); `stub=<dimensjons-KODER>` gjør den tidy. SSB er STYRT (EVAL-REGLER punkt 9): bruk ALLTID `<alias>.read("<tabell>", years=…, indicators=…)` — svaret ER tidy i seg selv (json-stat2, koder som verdier), ingen stub=-vurdering. Trenger analysen ETIKETTER (Menn/Kvinner) i stedet for koder: les dem fra svarets `df.attrs["ost_typemeta"]["dims"]["<DIM>"]["labels"]` (kode→tekst, satt automatisk) eller slå opp de få kodene du viser fra table_metadata sitt `values`-felt — selve kolonneverdiene forblir koder (stabile for joins).
 
 JSON-API-er (ikke tabellform, f.eks. World Bank ?format=json): bruk
 registerets adapter — worldbank-read tar en RESSURSSTI:
@@ -122,7 +109,7 @@ hullet»): broen/direktivet foretrekkes (regel 4).
 EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
 1. `<alias>.read()` tar det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) OG kildens EGNE parametre direkte som kwargs (geo, siec, unit, currency, …) — `eurostat.read("nrg_pc_202", geo="NO")` tolkes som `filters={"geo": "NO"}`. `filters={...}` er fortsatt den eksplisitte formen (bruk den når flere parametre skal stå samlet, eller ved kollisjon med et kwarg-navn). Skrivefeil på en KANONISK nøkkel (`yeras=`) gir fortsatt en høylytt feil med forslag — det er bare ukjente/kildeegne navn som blir filters. SDMX-tid: skriv `years="2021:2025"` — ALDRI `startPeriod=`/`endPeriod=` som kwargs (de oversettes FRA years=).
 2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff eller table_metadata ER verifisering — kun probe-verktøyets ✅ teller.
-3. PxWeb-parametre presist: wildcard er `*` (ALDRI «ALL»); `stub=` tar dimensjons-KODENE (Tid, Kjonn — ikke «år»); velg Tid med `top(n)` eller eksplisitt liste.
+3. PxWeb-parametre presist: wildcard er `*` (ALDRI «ALL») og Tid velges med `top(n)` eller eksplisitt liste — gjelder både `filters={...}` i `<alias>.read()` og valueCodes[] i en rå URL. `stub=` (dimensjons-KODENE, Tid/Kjonn — ikke «år») er KUN aktuelt ved en rå CSV-spørring mot en IKKE-styrt pxweb-kilde (i dag: scb) — `<alias>.read()` (obligatorisk for styrte pxweb-kilder som ssb) svarer json-stat2 og er ALLTID tidy, uten stub=-vurdering.
 4. FORETREKK broen og direktivene for datahenting: pd.read_csv(url)/direktiv
    gir proxy-fallback ved CORS, forståelige feil, tomt-vakter og at kilden
    havner i kildelisten. requests og urllib VIRKER teknisk (urllib via
@@ -261,7 +248,7 @@ KAUSALT (effekt av X på Y): fire steg i denne rekkefølgen —
 
 PORTABILITET (gjelder begge veier): scriptet skal kunne kjøres UTENFOR appen.
 Viser proben cors:true for en GET-tabell → skriv `pd.read_csv(url, ...)`
-DIREKTE (SSB-malen for langformat) — IKKE /api/hent-innpakning. Proxy-
+DIREKTE — IKKE /api/hent-innpakning. Proxy-
 innpakning brukes KUN ved målt CORS-feil eller nøkkelkilder.
 
 <!-- SCIENCE -->
@@ -812,6 +799,23 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-15 (sluttreview-fiks — SSB-MALEN fjernet)
+
+DELIVERY-blokkas SSB-MALEN (rå `https://data.ssb.no/api/pxwebapi/v2/tables/
+<TABELL>/data`-URL med `stub=`/`outputFormatParams=UseTexts`/
+`encoding="latin-1"`) lærte modellen opp en vei Task 3s styrt-skinne
+(styrtKildeFor/probe.ts) nå AVVISER for SSB — malen ble en oppskrift på en
+garantert feil. Erstattet med den kanoniske `<alias>.read(…)`-veien (allerede
+lovpålagt av EVAL-REGLER punkt 9s «kilder merket styrt»-setning): json-stat2
+er tidy i utgangspunktet, så hele stub=-avveiningen bortfaller for SSB;
+etiketter (Menn/Kvinner) hentes nå via `df.attrs["ost_typemeta"]` (samme
+kontrakt som `openstat.py`s `apply_typemeta`/`_apply_best_effort` allerede
+sender med svaret) eller ved oppslag i `table_metadata`s `values`-felt, IKKE
+`UseTexts` i en rå URL. EVAL-REGLER punkt 3 (`stub=`-guidance) var samme
+raw-URL-æras rest — rescopet til å gjelde KUN en rå CSV-spørring mot en
+ikke-styrt pxweb-kilde (i dag: scb); wildcard/`top(n)`-delen er beholdt
+uendret (gjelder fortsatt `filters={...}` også).
 
 ### 2026-08-14 (styrte kilder Task 5 — guide-omlegging + styrt-linje)
 

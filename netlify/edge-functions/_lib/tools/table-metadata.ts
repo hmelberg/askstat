@@ -235,7 +235,12 @@ async function pxwebMetadata(src: DataSource, tableId: string, f: typeof fetch, 
     id: tableId,
     title: String(json?.label ?? tableId),
     variables,
-    queryUrlTemplate: src.sporrings_url_mal?.replace("{id}", tableId),
+    // styrt (sluttreview-fiks, finding 4): rå spørrings-URL-malen er nettopp
+    // det byggLeseLinje/js-skinnen (styrtKildeFor) forbyr for en styrt kilde
+    // — å sende den med her lærte modellen den forbudte rå-veien like ved
+    // siden av den anbefalte lese_linje (withLeseLinje under). Ikke-styrte
+    // kilder beholder malen uendret.
+    queryUrlTemplate: src.styrt ? undefined : src.sporrings_url_mal?.replace("{id}", tableId),
   };
 }
 

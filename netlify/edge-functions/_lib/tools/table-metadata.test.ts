@@ -938,3 +938,27 @@ Deno.test("tableMetadata: styrt sdmx-kilde (norgesbank) får lese_linje i svaret
     '# df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
   );
 });
+
+// --- sluttreview-fiks, finding 4: queryUrlTemplate skal ALDRI stå ved siden
+// av lese_linje for en styrt kilde (den rå malen er nettopp det byggLeseLinje/
+// js-skinnen forbyr) — men uendret for en ikke-styrt kilde med samme mal. ---
+
+const STYRT_SSB_MED_MAL: DataSource[] = [{
+  id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell",
+  tilgang: "pxweb", base_url: "https://data.ssb.no/api/pxwebapi/v2/", cors: true, styrt: true,
+  sporrings_url_mal: "https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?outputFormat=csv",
+} as unknown as DataSource];
+
+Deno.test("tableMetadata: styrt kilde MED sporrings_url_mal → queryUrlTemplate undefined i svaret", async () => {
+  const m = await tableMetadata("ssb", "11342", { registry: STYRT_SSB_MED_MAL, fetchImpl: fakeMandatoryFetch, find: "oslo" });
+  assertEquals(m.queryUrlTemplate, undefined);
+  // lese_linje skal fortsatt stå der — suppresjonen rammer KUN queryUrlTemplate.
+  assert(m.lese_linje?.startsWith('# df = ssb.read('));
+});
+
+Deno.test("tableMetadata: ikke-styrt kilde MED sporrings_url_mal beholder queryUrlTemplate (regresjon)", async () => {
+  const m = await tableMetadata("ssb", "11342", { registry: SSB_SRC.map((s) => ({
+    ...s, sporrings_url_mal: "https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?outputFormat=csv",
+  })) as DataSource[], fetchImpl: fakeMandatoryFetch, find: "oslo" });
+  assertEquals(m.queryUrlTemplate, "https://data.ssb.no/api/pxwebapi/v2/tables/11342/data?outputFormat=csv");
+});

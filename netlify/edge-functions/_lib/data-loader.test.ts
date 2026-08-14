@@ -311,6 +311,26 @@ Deno.test("styrtKildeFor: prefiks + kodet form, kun styrt===true", () => {
   assertEquals(DL.styrtKildeFor(null, null), null);
 });
 
+// Host-match (sluttreview-fiks, finding 5): mirrors registry.ts sin
+// sourceForUrl-semantikk (eksakt vert) i tillegg til prefiks/kodet-formen
+// over — verifisert gap: en rå eurostat SDMX 2.1-URL deler VERT med
+// base_url ("ec.europa.eu") men ikke STI (base_url peker på
+// dissemination/statistics/1.0/data/, den faktiske URL-en på
+// dissemination/sdmx/2.1/data/) — prefiks-sjekken alene matchet ALDRI den,
+// selv om serverens probe.ts (host-basert) alt stengte den. Bevisst
+// akseptert kollateral: dette utvider treffet til hele ec.europa.eu.
+Deno.test("styrtKildeFor: host-match fanger eurostat sdmx/2.1 (annen sti, samme vert som base_url)", () => {
+  const reg = [
+    { id: "eurostat", base_url: "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/", styrt: true },
+  ];
+  const sdmxUrl = "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nrg_pc_202/?format=SDMX-CSV&geo=NO";
+  assertEquals(DL.styrtKildeFor(sdmxUrl, reg)?.id, "eurostat");
+  // proxy-pakket form (/api/hent?url=<kodet>) fanges likt via unwrap.
+  assertEquals(DL.styrtKildeFor("/api/hent?url=" + encodeURIComponent(sdmxUrl), reg)?.id, "eurostat");
+  // en annen vert treffer fortsatt ikke.
+  assertEquals(DL.styrtKildeFor("https://example.org/eurostat/api/dissemination/sdmx/2.1/data/x", reg), null);
+});
+
 // Integrasjonstest: rå url-direktiv mot en styrt kildes base_url kastes FØR
 // fetch (0 kall), mens adapterveien (# alias = ost.connect("<id>") + read())
 // går helt uendret gjennom. «styrttest»-oppføringen har BEVISST intet

@@ -43,15 +43,38 @@
   // en styrt kildes base_url. Adapterveien (registrert kilde/kind) treffer
   // ALDRI dette — se assertNoRawStyrtUrls' kommentar for hvorfor sjekken må
   // ligge FØR resolve(), ikke på det ferdig bygde item.url-et.
+  //
+  // Host-match (sluttreview-fiks, finding 5): speiler serverens sourceForUrl
+  // (registry.ts) — EKSAKT vert, IKKE prefiks/substring. Nødvendig fordi en
+  // styrt kildes base_url ofte er ÉN sti under verten (eurostats REST-mal:
+  // .../dissemination/statistics/1.0/data/), mens en faktisk rå SDMX-2.1-URL
+  // mot SAMME vert (.../dissemination/sdmx/2.1/data/…) deler vert men ikke
+  // prefiks — verken prefiks- eller kodet-substring-sjekken under fanget
+  // den, så klientskinnen (denne funksjonen) slapp den forbi selv om
+  // serverens probe.ts (host-basert sourceForUrl) ville stengt den. Samme
+  // /api/hent?url=<kodet>-unwrap som userAuthSourceFor over, så en
+  // proxy-pakket styrt-URL fanges av host-sjekken like godt som en rå.
+  // Kjent, akseptert kollateral (triage): dette utvider treffet til HELE
+  // ec.europa.eu-verten for eurostat, ikke bare dissemination-stien.
+  function hostOf(u) {
+    try { return new URL(String(u)).host || null; } catch (e) { return null; }
+  }
   function styrtKildeFor(url, registry) {
     var s = String(url == null ? '' : url);
     if (!s) return null;
     var reg = Array.isArray(registry) ? registry : [];
+    var target = s;
+    if (s.indexOf('/api/hent?') === 0) {
+      var m = /[?&]url=([^&]+)/.exec(s);
+      if (m) { try { target = decodeURIComponent(m[1]); } catch (e) { /* rå streng holder */ } }
+    }
+    var targetHost = hostOf(target);
     for (var i = 0; i < reg.length; i++) {
       var r = reg[i];
       if (!r || r.styrt !== true || !r.base_url) continue;
       var enc = encodeURIComponent(r.base_url);
       if (s.indexOf(r.base_url) >= 0 || s.indexOf(enc) >= 0) return { id: r.id };
+      if (targetHost && targetHost === hostOf(r.base_url)) return { id: r.id };
     }
     return null;
   }

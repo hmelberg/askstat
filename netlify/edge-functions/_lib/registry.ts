@@ -134,6 +134,12 @@ export function isSearchableSource(src: DataSource): boolean {
 export function renderRegistryBlock(reg: DataSource[], userKeys: string[] = []): string {
   const lines = reg.map((s) => {
     const bits = [`${s.tilgang}, base ${s.base_url}`];
+    // styrt (sluttreview-fiks, finding 3): uten denne bit-en var promptens
+    // egen «kilder merket styrt»-setning (DELIVERY-blokka) uverifiserbar ex
+    // ante — modellen måtte gjette hvilke kilder styrtKildeFor/probe.ts
+    // faktisk stenger rå URL-er mot. src.styrt er allerede det autoritative
+    // feltet (parseRegistry over, matchet av styrtKildeFor/sourceForUrl).
+    if (s.styrt) bits.push("styrt");
     if (isSearchableSource(s)) bits.push("søkbar via search_catalog");
     if (s.guide) bits.push("kildeguide følger med første search_catalog/table_metadata-svar (også ved feil)");
     if (s.auth?.user && s.auth.valgfri) {

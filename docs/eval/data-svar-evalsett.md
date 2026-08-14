@@ -8,14 +8,17 @@ Kriterier (alle må holde):
 2. Scriptet kjører (evt. etter ≤3 auto-reparasjoner).
 3. Datainnlasting følger grenseregelen (2026-07-27): `ost`-direktiver for
    register/nøkkel/POST/kanonisk spørring; ren `pd.read_csv(url)` er OK for
-   åpne GET-tabeller — og for SSB-langformat skal SSB-MALEN brukes
-   (`stub=` + `encoding="latin-1"`). Ingen ad-hoc requests/pyfetch-kode for
-   GET-bare uttrekk.
+   åpne GET-tabeller. SSB er STYRT (styrte kilder-runden 2026-08-14): rå
+   URL-er mot den (inkl. den gamle SSB-MALEN, `stub=`/`encoding="latin-1"`)
+   avvises av verktøyene — bruk ALLTID `ssb.read(…)`. Ingen ad-hoc
+   requests/pyfetch-kode for GET-bare uttrekk.
 4. Svaret skiller beskrivelse fra årsak, og oppgir antakelser ved kausale metoder.
 5. Ingen fabrikerte tabell-ID-er/kolonner (sjekk mot probe-loggen i progresslinjene).
 6. FORM-SAMSVAR (målt feilklasse 2026-07-27): lastingens form matcher
    analysekoden — aldri bred PxWeb-CSV (`outputFormat=csv` uten `stub=`)
-   sammen med kode som antar tidy langformat.
+   sammen med kode som antar tidy langformat. Gjelder i praksis kun
+   IKKE-styrte pxweb-kilder (i dag: scb) — SSB (styrt) bruker `ssb.read(…)`,
+   som er tidy i seg selv.
 7. ALDRI rå `pd.read_*`-URL mot SDMX-kilder (OECD/ECB/Norges Bank) — de
    ignorerer ukjente parametere stille; SDMX går via `ost` med kanonisk
    vokabular.

@@ -102,6 +102,22 @@ Deno.test("renderRegistryBlock never includes beskrivelse", () => {
   }
 });
 
+// styrt-bit (sluttreview-fiks, finding 3): promptens DELIVERY-blokk sier
+// "kilder merket styrt" — renderRegistryBlock må faktisk sette det merket
+// for at setningen skal være verifiserbar ex ante, ikke bare sant for de
+// kildene modellen tilfeldigvis møtte via probe/table_metadata-avvisning.
+Deno.test("renderRegistryBlock: styrt kilde får 'styrt'-bit; ikke-styrt får det ikke", () => {
+  const reg = parseRegistry([
+    { ...GYLDIG_KILDE, id: "ssb", styrt: true },
+    { ...GYLDIG_KILDE, id: "fri" },
+  ]) as DataSource[];
+  const block = renderRegistryBlock(reg);
+  const ssbLine = block.split("\n").find((l) => l.includes("**ssb**"));
+  const friLine = block.split("\n").find((l) => l.includes("**fri**"));
+  if (!ssbLine || !/\bstyrt\b/.test(ssbLine)) throw new Error("ssb mangler styrt-bit:\n" + ssbLine);
+  if (!friLine || /\bstyrt\b/.test(friLine)) throw new Error("fri feilmarkert styrt:\n" + friLine);
+});
+
 Deno.test("parseRegistry validates auth: env xor user, plassering incl. basic", () => {
   const base = { id: "k", navn: "K", utgiver: "K", beskrivelse: "K.", tillit: "etablert", tilgang: "rest",
     base_url: "https://api.k.example/", cors: false };

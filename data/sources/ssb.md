@@ -28,6 +28,17 @@ kilde: SSBs api-eksempler (janbrus), destillert 2026-07-31
 
 ## Reglene som forhindrer feil (les FØRST)
 
+**Arbeidsrekkefølgen (alltid denne, i denne rekkefølgen).**
+(1) Søk med ETT–TO ord (`query=befolkning`, ikke en hel frase) — søke-APIet
+matcher dårlig på lange fraser, og **0 treff betyr IKKE at kilden er nede
+eller utilgjengelig**: forlat ALDRI registerveien (`ssb.read`) på grunn av
+et tomt søk. (2) Kjenner du tabellnummeret (befolkning: 07459/11342), hopp
+over søket og gå RETT på `table_metadata`. (3) Hent metadata FØR du bygger
+spørringen — gjett aldri valueCodes; er koder fortsatt ukjente, er
+`valueCodes[<dim>]=*` (wildcard) lov på enhver dimensjon. Målt feilklasse
+2026-08-14: et tomt søk førte til 13 turer med URL-gjetting for et
+spørsmål eksempelet nederst i denne guiden besvarer direkte.
+
 **Mandatory-regelen.** En FILTRERT spørring mot `/data` MÅ oppgi verdier
 for ALLE dimensjoner som har `elimination: false` i tabellens metadata.
 To dimensjoner er ALLTID obligatoriske — `ContentsCode` (hva som måles)
@@ -101,6 +112,12 @@ med `GET /codelists/{id}` — koder fra ulike codelists må ikke blandes.
 
 ## Kjente feller
 
+- **Det gamle `/api/v0/...`-APIet skal ALDRI brukes** — det er POST-only
+  og CORS-stengt fra nettleseren (målt 2026-08-14: to bortkastede
+  kjøringer). Alt v0 kan, kan v2 med GET: ukjente koder løses med
+  `table_metadata` eller `valueCodes[<dim>]=*`, ikke med v0-POST.
+- **`/tables/{id}/variables` finnes ikke i v2** (404) — dimensjoner og
+  koder bor i `GET /tables/{id}/metadata`.
 - **`/v2-beta/` er beta, ikke en stabil produksjonssti** — 503 på
   søk/metadata/data 2026-07-25, 200 på de samme kallene 2026-07-31.
   Bruk `/v2/` uansett, ikke fordi beta-stien nødvendigvis er nede akkurat

@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { probeUrl } from "./probe.ts";
+import { parseRegistry } from "../registry.ts";
 
 function fakeFetch(body: string, headers: Record<string, string>): typeof fetch {
   return ((_i: string | URL | Request) =>
@@ -188,4 +189,26 @@ Deno.test("probe: SSB v0-API avvises med instruktiv v2-veiviser", async () => {
   assertEquals(r.ok, false);
   assertEquals((r.note ?? "").includes("v0"), true);
   assertEquals((r.note ?? "").includes("v2"), true);
+});
+
+// --- Styrt kilder (2026-08-14, Task 2) ---
+
+const GYLDIG_KILDE = {
+  id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "SSB.",
+  tillit: "offisiell", tilgang: "pxweb",
+  base_url: "https://data.ssb.no/api/pxwebapi/v2/", cors: true,
+};
+
+Deno.test("probe: styrt kilde avvises med lese-linje-veiviser, aldri fetch", async () => {
+  const reg = parseRegistry([{ ...GYLDIG_KILDE, id: "ssb",
+    base_url: "https://data.ssb.no/api/pxwebapi/v2/", styrt: true }]);
+  let kalt = 0;
+  const r = await probeUrl("https://data.ssb.no/api/pxwebapi/v2/tables/07459/data?x=1", {
+    registry: reg,
+    fetchImpl: (() => { kalt++; return Promise.resolve(new Response("x")); }) as typeof fetch,
+  });
+  assertEquals(r.ok, false);
+  assertEquals(kalt, 0);
+  assertEquals((r.note ?? "").includes("STYRT"), true);
+  assertEquals((r.note ?? "").includes("ssb.read"), true);
 });

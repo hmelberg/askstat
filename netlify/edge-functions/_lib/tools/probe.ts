@@ -46,6 +46,11 @@ export async function probeUrl(
   // Uten denne sender vi ingen Origin, så betinget-ACAO-kilder rapporterer falsk cors:false.
   const headers: Record<string, string> = { Origin: PROBE_ORIGIN };
   const src = deps.registry ? sourceForUrl(deps.registry, url) : null;
+  // Styrt kilder (2026-08-14): må bruke <id>.read(…) — avvis rå URL-er før fetch.
+  if (src?.styrt) {
+    return { ...empty, note:
+      `${src.id} er en STYRT kilde — rå URL-er avvises. Bruk ${src.id}.read(…): lese-linjen får du ferdig fra table_metadata.` };
+  }
   if (src?.tilgang === "sdmx") {
     headers["Accept"] = SDMX_DATA_ACCEPT;
     // Målt live 2026-08-01: OECDs data-endepunkt svarer HTTP 500 «languageTag1»

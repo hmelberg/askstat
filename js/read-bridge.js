@@ -127,6 +127,31 @@
   function xhr(url, headers) { return (xhrImpl || syncXhr)(url, headers); }
 
   function forPyodideSync(url, headersJson) {
+    // Styrt-avvisning (spec 2026-08-14-styrte-kilder, hook b): pd.read_csv(url)
+    // i Pyodide ruter HIT (synkron — kan ikke avvente ensure/fetchRawUrl),
+    // se _ost_url_buf i pyPatchSource under. fetchRawUrl (data-loader.js)
+    // dekker den ASYNKRONE broveien (prefetchScript/ensureText, brython/
+    // micropython sin replay-løkke) — men Pyodides FAKTISKE lesing går
+    // aldri via den funksjonen, så den skinnen alene ville latt Pyodide
+    // forbi. Registeret hentes best-effort (aldri en ny nettverkskall her —
+    // forPyodideSync sin egen kontrakt er synkron/aldri-kast): enten
+    // eksplisitt via deps.registry (configure()/window.__readBridgeDeps),
+    // eller — normaltilfellet — en peek på DataLoaders egen registercache
+    // (typisk alt varm: prefetchScript trigger samme henting via
+    // fetchRawUrl mens Pyodide-WASM-en booter, lenge før brukerkoden
+    // kjører). Treffer ingen av delene ENNÅ, slipper kallet gjennom her —
+    // probe-verktøyet (server) er den PRIMÆRE skinnen modellen møter FØR
+    // den skriver run_code i det hele tatt.
+    var DL = global.DataLoader;
+    if (DL && DL.styrtKildeFor) {
+      var d0 = currentDeps() || {};
+      var reg0 = d0.registry || (DL._registrySnapshot ? DL._registrySnapshot() : []);
+      var styrtHit = DL.styrtKildeFor(url, reg0);
+      if (styrtHit) {
+        return { bytes: null, error: DL.styrtMelding ? DL.styrtMelding(styrtHit.id) :
+          (styrtHit.id + ' er en STYRT kilde — rå URL-er avvises.') };
+      }
+    }
     // Runtime-ost (plan 2026-07-28): valgfri headers-JSON fra openstat.py
     // (_fetch_bytes, SDMX-Accept). JSON-streng, ikke objekt — en Python-dict
     // blir PyProxy på JS-siden og for..in enumererer den ikke. Ikke-tomme

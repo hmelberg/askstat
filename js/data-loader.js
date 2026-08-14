@@ -34,6 +34,60 @@
     return {};
   }
 
+  // styrtKildeFor (spec 2026-08-14-styrte-kilder-design §2): matcher EN URL
+  // mot registerets STYRTE (styrt===true) kilder — samme toleranse som
+  // js/kilde-forslag.js sin involverteInnebygde (direkte prefiks ELLER
+  // URL-kodet forekomst, som treffer proxy-formen /api/hent?url=<kodet>).
+  // Ren og null-safe: brukes FØR fetch fra to steder i denne fila
+  // (assertNoRawStyrtUrls og fetchRawUrl under) for å stenge rå lesing mot
+  // en styrt kildes base_url. Adapterveien (registrert kilde/kind) treffer
+  // ALDRI dette — se assertNoRawStyrtUrls' kommentar for hvorfor sjekken må
+  // ligge FØR resolve(), ikke på det ferdig bygde item.url-et.
+  function styrtKildeFor(url, registry) {
+    var s = String(url == null ? '' : url);
+    if (!s) return null;
+    var reg = Array.isArray(registry) ? registry : [];
+    for (var i = 0; i < reg.length; i++) {
+      var r = reg[i];
+      if (!r || r.styrt !== true || !r.base_url) continue;
+      var enc = encodeURIComponent(r.base_url);
+      if (s.indexOf(r.base_url) >= 0 || s.indexOf(enc) >= 0) return { id: r.id };
+    }
+    return null;
+  }
+
+  // Styrt-avvisningens tekst — verbatim identisk med serverens probe.ts
+  // (_lib/tools/probe.ts): begge lag skal si nøyaktig det samme til
+  // modellen/brukeren. Én kilde-funksjon her (i stedet for strengen skrevet
+  // ut to steder i denne fila + i js/read-bridge.js) så teksten ikke kan
+  // drifte fra seg selv.
+  function styrtMelding(id) {
+    return id + ' er en STYRT kilde — rå URL-er avvises. Bruk ' + id +
+      '.read(…): lese-linjen får du ferdig fra table_metadata.';
+  }
+
+  // Rå-vei-avvisning, hook (a): kalles FØR DD.resolve — sjekker de LITERALE
+  // connect()/load()-målstrengene brukeren skrev, ALDRI de ferdig resolvede
+  // item.url-ene. Grunnen: et resolvert item.url for en REGISTRERT kilde er
+  // base_url + rest — det starter OGSÅ med base_url, så en sjekk ETTER
+  // resolve() ville blokkert adapterveien for enhver styrt kilde uten eget
+  // «kind» (ess i data-sources.json i dag: tilgang="rest", intet kind-felt
+  // — akkurat den formen en plain-fallback-lesing tar). FØR resolve() er en
+  // registrert kildes load-mål et alias («ssb», «ssb/07459»), ALDRI selve
+  // base_url-en — kun ekte rå URL-direktiver (# df = ost.read("https://…")
+  // eller # x = ost.connect("https://…")) er isUrlish og kan i det hele
+  // tatt treffe styrtKildeFor her. Dermed sjekkes BÅDE connect- og
+  // load-målene: en rå connect til en styrt base_url skal stenges selv om
+  // selve read()-kallet etterpå bruker et alias, ikke en literal URL.
+  function assertNoRawStyrtUrls(parsed, registry) {
+    var mal = (parsed.connects || []).map(function (c) { return c.target; })
+      .concat((parsed.loads || []).map(function (l) { return l.target; }));
+    for (var i = 0; i < mal.length; i++) {
+      var treff = styrtKildeFor(mal[i], registry);
+      if (treff) throw new Error(styrtMelding(treff.id));
+    }
+  }
+
   // x-hent-truncated (R-URL-bro-oppfølging §2): proxyen avkorter ved 50MB
   // og flagger det — en avkortet CSV er FEIL DATA og skal feile høylytt,
   // aldri leveres stille (husets aldri-stille-feil-data).
@@ -163,6 +217,16 @@
     deps = deps || {};
     var fetchImpl = deps.fetchImpl || (typeof fetch !== 'undefined' ? fetch.bind(global) : null);
     if (!fetchImpl) throw new Error('fetchRawUrl: ingen fetch tilgjengelig');
+    // Styrt-skinne, hook (b): DENNE funksjonen ER produksjonsveien for rå
+    // URL-fetching — read-bridgens defaultFetcher (pd.read_csv m.fl. sin
+    // async/prefetch-vei) OG brython-/micropython-engine sin replay-løkke
+    // ruter begge hit direkte (se kommentarene i js/read-bridge.js).
+    // Registeret gjenbruker MODULENS EGEN cache (loadRegistry/
+    // _registryCache) — ingen ekstra nettverkskall hvis en tidligere
+    // resolveAndFetchLoads/fetchRawUrl-kjøring alt lastet den.
+    var registry = deps.registry || await loadRegistry(fetchImpl);
+    var styrtHit = styrtKildeFor(url, registry);
+    if (styrtHit) throw new Error(styrtMelding(styrtHit.id));
     async function viaProxy() {
       // /api/hent er auth-portet (Bearer eller X-Anthropic-Key) — uten samme
       // headere som direktiv-veien er fallbacken død (401, målt i smoke 6).
@@ -302,6 +366,8 @@
     var parsed = (script && typeof script === 'object') ? script : DD.parse(script);
     if (!parsed.loads.length) return { loads: [], remote: [] };
     var registry = deps.registry || await loadRegistry(fetchImpl);
+    // Styrt-skinne, hook (a) — FØR resolve(): se assertNoRawStyrtUrls over.
+    assertNoRawStyrtUrls(parsed, registry);
     var resolved = DD.resolve(parsed, registry);
     var bad = resolved.filter(function (r) { return r.error; });
     if (bad.length) throw new Error('Direktivfeil: ' + bad.map(function (b) { return b.error; }).join('; '));
@@ -660,10 +726,21 @@
   global.DataLoader = { proxyHeaders: proxyHeaders, resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
     _parseCacheTtl: parseCacheTtl,
+    // styrte kilder (2026-08-14): styrtKildeFor er den delte, testede
+    // matcheren (js/read-bridge.js sin forPyodideSync bruker den også, se
+    // der); styrtMelding er den ene kilde-strengen begge lag kaster.
+    styrtKildeFor: styrtKildeFor, styrtMelding: styrtMelding,
     // Test-only: the cross-run fetch cache is module-scoped by design (see
     // _bufCache above), which is exactly wrong for a test file that evals
     // this module once and shares it across every Deno.test case — without
     // this, tests using the same placeholder URL leak cached bytes into
     // each other. Not used by index.html.
-    _resetCacheForTests: function () { _bufCache = {}; } };
+    _resetCacheForTests: function () { _bufCache = {}; },
+    // Best-effort synkron snapshot av registercachen (styrte kilder, hook b
+    // for Pyodide): forPyodideSync i read-bridge.js kan ikke avvente
+    // loadRegistry (synkron kalt fra Python) — den leser HVA SOM ENN alt er
+    // lastet her (typisk varmt: prefetchScript trigger samme
+    // registerhenting via fetchRawUrl mens motoren booter). Aldri en ny
+    // fetch — kun en peek på _registryCache.
+    _registrySnapshot: function () { return _registryCache || []; } };
 })(typeof window !== 'undefined' ? window : globalThis);

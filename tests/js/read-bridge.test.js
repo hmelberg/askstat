@@ -114,6 +114,41 @@ test('forPyodideSync: cachet prefetch-feil forgifter ikke — sync-veien prøver
 // ── smoke-revisjon (S5 + M2 + S3b) ──────────────────────────────────────────
 const DL = globalThis.DataLoader;
 
+// ── styrte kilder (2026-08-14, Task 3) — hook (b), Pyodides sync-vei ───────
+// pd.read_csv(url) i Pyodide ruter via forPyodideSync (synkron), IKKE via
+// ensure/fetchRawUrl (den asynkrone broveien fetchRawUrl-testene i
+// data-loader.test.ts dekker) — se kommentaren i forPyodideSync selv.
+test('forPyodideSync: styrt kilde avvises FØR sync-fetch — via deps.registry (configure)', () => {
+  RB._reset();
+  RB.configure(() => ({ registry: [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', styrt: true }] }));
+  let xhrCalled = false;
+  RB._setXhr(() => { xhrCalled = true; return { status: 200, bytes: new Uint8Array([1]) }; });
+  const r = RB.forPyodideSync('https://data.ssb.no/api/pxwebapi/v2/tables/x/data');
+  RB.configure(null);
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /STYRT kilde/);
+  assert.match(r.error, /ssb\.read/);
+  assert.equal(xhrCalled, false, 'skinnen skal stenge FØR noen fetch, ikke etterpå');
+});
+
+test('forPyodideSync: styrt-sjekk via DataLoader._registrySnapshot når deps.registry mangler', () => {
+  RB._reset();
+  const orig = DL._registrySnapshot;
+  DL._registrySnapshot = () => [{ id: 'oecd', base_url: 'https://sdmx.oecd.org/public/rest/data/', styrt: true }];
+  try {
+    const r = RB.forPyodideSync('https://sdmx.oecd.org/public/rest/data/x');
+    assert.match(r.error, /STYRT kilde/);
+  } finally { DL._registrySnapshot = orig; }
+});
+
+test('forPyodideSync: ikke-styrt kilde helt uendret (regresjon)', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([9]) }));
+  const r = RB.forPyodideSync('https://api.fri.no/x');
+  assert.equal(r.error, null);
+  assert.deepEqual(Array.from(r.bytes), [9]);
+});
+
 test('S5 configure: deps når fetchRawUrl', async () => {
   RB._reset();
   const orig = DL.fetchRawUrl; const calls = [];

@@ -296,6 +296,67 @@ Deno.test("fetchRawUrl: proxy-fallback sender auth-headere (S5)", async () => {
   assertEquals(seen[1]["authorization"], "Bearer T1");
 });
 
+// Styrte kilder (2026-08-14, Task 3): script-lagets skinne. styrtKildeFor
+// er den rene matcheren; resolveAndFetchLoads/fetchRawUrl er de to
+// avskjæringspunktene (plan §Task 3 — se rapporten for hvorfor akkurat
+// disse to og ikke f.eks. item.url-et etter DD.resolve).
+Deno.test("styrtKildeFor: prefiks + kodet form, kun styrt===true", () => {
+  const reg = [
+    { id: "ssb", base_url: "https://data.ssb.no/api/pxwebapi/v2/", styrt: true },
+    { id: "fri", base_url: "https://api.fri.no/" },
+  ];
+  assertEquals(DL.styrtKildeFor("https://data.ssb.no/api/pxwebapi/v2/tables/x/data", reg)?.id, "ssb");
+  assertEquals(DL.styrtKildeFor("/api/hent?url=https%3A%2F%2Fdata.ssb.no%2Fapi%2Fpxwebapi%2Fv2%2Ftables%2Fx", reg)?.id, "ssb");
+  assertEquals(DL.styrtKildeFor("https://api.fri.no/x", reg), null);
+  assertEquals(DL.styrtKildeFor(null, null), null);
+});
+
+// Integrasjonstest: rå url-direktiv mot en styrt kildes base_url kastes FØR
+// fetch (0 kall), mens adapterveien (# alias = ost.connect("<id>") + read())
+// går helt uendret gjennom. «styrttest»-oppføringen har BEVISST intet
+// kind-felt (speiler ess i data-sources.json i dag: tilgang="rest", ingen
+// kind) — den formen som ELLERS ville havnet i akkurat den samme generiske
+// fetchBytes-fallback-grenen som en rå URL. At denne testen består beviser
+// at sjekken skiller «brukeren skrev en URL literal» fra «resolve() bygde
+// en URL fra registeret», IKKE «har item et kind-felt».
+Deno.test("styrt: rå url-direktiv kastes FØR fetch; registrert kilde (uten kind) går uendret gjennom", async () => {
+  const reg = [
+    { id: "styrttest", base_url: "https://data.ssb.no/api/pxwebapi/v2/", styrt: true },
+  ];
+  const calls: string[] = [];
+  const fetchImpl = ((input: string | URL | Request) => {
+    calls.push(String(input));
+    return Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
+  }) as typeof fetch;
+
+  const rejected = await DL.resolveAndFetchLoads(
+    '# df = ost.read("https://data.ssb.no/api/pxwebapi/v2/tables/x/data")',
+    { fetchImpl, registry: reg }).then(() => null, (e: Error) => e);
+  if (!rejected) throw new Error("rå url-direktiv mot styrt kilde kastet ikke");
+  if (!/STYRT kilde/.test(rejected.message) || !/styrttest\.read/.test(rejected.message)) {
+    throw new Error("uventet feilmelding: " + rejected.message);
+  }
+  assertEquals(calls.length, 0);   // aldri fetchet
+
+  const script = [
+    '# styrttest = ost.connect("styrttest")',
+    '# df = styrttest.read("x/data")',
+  ].join("\n");
+  const out = await DL.resolveAndFetchLoads(script, { fetchImpl, registry: reg });
+  assertEquals(out.loads.map((o: { alias: string }) => o.alias), ["df"]);
+  assertEquals(calls.length, 1);   // adapterveien fetchet normalt
+});
+
+Deno.test("fetchRawUrl: styrt kilde avvises FØR fetch (hook b — read-bridge/replay-motorenes produksjonsvei)", async () => {
+  const reg = [{ id: "styrt2", base_url: "https://api.styrt2.example/", styrt: true }];
+  let calls = 0;
+  const fetchImpl = (() => { calls++; return Promise.resolve(new Response("x", { status: 200 })); }) as typeof fetch;
+  await assertRejects(
+    () => DL.fetchRawUrl("https://api.styrt2.example/x/data.csv", { fetchImpl, registry: reg }),
+    Error, "STYRT kilde");
+  assertEquals(calls, 0);
+});
+
 // Parquet-deteksjon (funn 2026-08-13, ESS-klassen): formatet ligger i en
 // URL-KODET query-param bak /api/hent — verken .parquet-endelse eller
 // parquet-content-type finnes, så sniffen falt til CSV og lesingen ga

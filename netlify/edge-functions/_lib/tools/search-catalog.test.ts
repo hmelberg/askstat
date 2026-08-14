@@ -334,3 +334,36 @@ Deno.test("ecbSearch: ingen treff gir tom liste", async () => {
   const hits = await searchCatalog("ecb", "zzznomatch", { registry: REG, origin: "https://app.test", fetchImpl: fakeEcbXmlFetch(ECB_DATAFLOW_XML) });
   assertEquals(hits, []);
 });
+
+// Progressivt søkefallback (2026-08-15, målt Oslo-runde 6): flerords-fraser
+// gir 0 treff i PxWeb-klassens søk selv når enkeltord treffer — modellen ga
+// da opp katalogveien. Tomt treff på full frase → prøv ordene enkeltvis
+// (lengste først, maks 2, ord ≥4 tegn); feil retryes ALDRI, kun tomhet.
+Deno.test("searchCatalog: tomt frase-treff faller tilbake til enkeltord (lengste først)", async () => {
+  const kall: string[] = [];
+  const f = ((input: string | URL | Request) => {
+    const url = decodeURIComponent(String(input));
+    kall.push(url);
+    const tables = url.includes("query=befolkning&")
+      ? [{ id: "06913", label: "Befolkning og endringer", firstPeriod: "1951", lastPeriod: "2025" }]
+      : [];
+    return Promise.resolve(new Response(JSON.stringify({ tables }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+  }) as typeof fetch;
+  const hits = await searchCatalog("ssb", "befolkning Oslo folketall", { registry: REG, origin: ORIGIN, fetchImpl: f });
+  assertEquals(hits.length, 1);
+  assertEquals(hits[0].id, "06913");
+  // full frase først, deretter lengste ord («befolkning», 10 > «folketall», 9)
+  assertEquals(kall.length, 2);
+  assertEquals(kall[0].includes("befolkning Oslo folketall"), true);
+  assertEquals(kall[1].includes("query=befolkning&"), true);
+});
+
+Deno.test("searchCatalog: ettords-søk uten treff retryes ikke; treff på frase kortslutter", async () => {
+  let kall = 0;
+  const tom = (() => { kall++; return Promise.resolve(new Response(JSON.stringify({ tables: [] }), {
+    status: 200, headers: { "content-type": "application/json" } })); }) as typeof fetch;
+  await searchCatalog("ssb", "befolkning", { registry: REG, origin: ORIGIN, fetchImpl: tom });
+  assertEquals(kall, 1);
+});

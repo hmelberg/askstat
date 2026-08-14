@@ -40,6 +40,35 @@ export async function searchCatalog(
   if (src.tilgang !== "sdmx" && !isSearchableSource(src)) {
     throw new Error(`kilden '${sourceId}' er ikke søkbar — bruk web_search + probe i stedet`);
   }
+  // Progressivt søkefallback (2026-08-15, målt Oslo-runde 6): flerords-
+  // fraser gir 0 treff i PxWeb-klassens søk selv når enkeltordene treffer —
+  // modellen ga da opp katalogveien og gikk omveier. Tomt treff på full
+  // frase → prøv ordene enkeltvis (lengste først = mest informativt, maks
+  // 2 forsøk, ord ≥4 tegn så «i»/«av» aldri søkes). Feil retryes ALDRI —
+  // kun tomhet; en feilende retry svelges stille (frase-resultatet, tomt,
+  // er sannheten da).
+  const første = await kjørKatalogSøk(src, sourceId, query, deps, f);
+  if (første.length) return første;
+  const ord = query.split(/\s+/).filter((w) => w.length >= 4);
+  if (ord.length >= 2) {
+    ord.sort((a, b) => b.length - a.length);
+    for (const o of ord.slice(0, 2)) {
+      try {
+        const treff = await kjørKatalogSøk(src, sourceId, o, deps, f);
+        if (treff.length) return treff;
+      } catch { /* retry-feil svelges — frase-resultatet står */ }
+    }
+  }
+  return første;
+}
+
+async function kjørKatalogSøk(
+  src: DataSource,
+  sourceId: string,
+  query: string,
+  deps: CatalogDeps,
+  f: typeof fetch,
+): Promise<CatalogHit[]> {
   switch (src.tilgang) {
     case "pxweb": return pxwebSearch(src, query, f);
     case "ckan": return fdkSearch(src, query, f);

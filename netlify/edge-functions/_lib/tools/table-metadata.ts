@@ -32,12 +32,87 @@ export interface TableMeta {
   // verdilistene alt er dekningsfiltrert (målt 2026-08-04: uten dette valgte
   // modellen gyldige-men-tomme kodekombinasjoner og brant kjøringer).
   tilgjengelighet?: string;
+  // styrte kilder (styrte kilder-runden, Task 4): en FERDIG, kjørbar
+  // read()-linje for pxweb/sdmx — se byggLeseLinje under. Fraværende for
+  // ikke-styrte kilder og for kinds byggLeseLinje ikke støtter.
+  lese_linje?: string;
   // worldbank/dbnomics-adapterne (Task 5) returnerer en frittstående
   // Record<string, unknown> — ikke det variabel/kode-formede TableMeta-skjemaet
   // (de har ingen dimensjons-katalog å hente). Indekssignaturen gjør TableMeta
   // strukturelt kompatibel med Record<string, unknown> UTEN å svekke typingen
   // av de faste feltene over for de registerbaserte adapterne.
   [key: string]: unknown;
+}
+
+// byggLeseLinje: en FERDIG, kjørbar read()-linje for STYRTE pxweb/sdmx-kilder
+// (styrte kilder-runden, Task 4 — se task-4-brief.md). Styrte kilder har
+// INGEN annen dokumentert lesevei (rå URL-er avvises, se probe.ts/
+// js/data-loader.js sin styrt-melding: "lese-linjen får du ferdig fra
+// table_metadata") — uten dette måtte modellen konstruere read()-signaturen
+// fra spesifikasjon alene. Ren funksjon, ingen fetch/side-effekt — kalles
+// fra tableMetadata sin svar-sammenstilling (withLeseLinje under), men
+// eksportert og deno-testet direkte.
+//
+// pxweb: eksempelkodene for regions=/indicators= tas fra FØRSTE verdi i
+// hhv. Region/ContentsCode-dimensjonene når de finnes (ellers en
+// <kode>-plassholder — dimensjonen kan mangle fra svaret, eller stå tom
+// etter et find= som tømte den). Øvrige MANDATORY-dimensjoner (utenom
+// Region/ContentsCode/tidsdimensjonen selv, som years= allerede dekker)
+// tas med som filters={"<DIM>": "<kode>"} — flere dimensjoner gir flere
+// nøkler i samme objekt.
+//
+// sdmx: ingen av TableVariable-feltene bærer et pålitelig mandatory-signal
+// for sdmx (se mandatory-feltets doc-kommentar over — kun pxweb setter
+// det, aldri gjettet for andre adaptere), så sdmx-linja er et FAST
+// mal-uttrykk (kun flowRef-en/tableId substituert) — modellen fyller inn
+// <MANDATORY_DIM>/<kode> selv fra dimensjonslisten table_metadata allerede
+// har levert i samme svar.
+export function byggLeseLinje(
+  source: DataSource,
+  tableId: string,
+  dimensions: TableVariable[],
+): string | undefined {
+  if (!source.styrt) return undefined;
+  if (source.tilgang === "pxweb") return pxwebLeseLinje(source.id, tableId, dimensions);
+  if (source.tilgang === "sdmx") return sdmxLeseLinje(source.id, tableId);
+  return undefined;
+}
+
+function forsteKode(dim: TableVariable | undefined): string {
+  return dim?.values?.[0]?.code ?? "<kode>";
+}
+
+function pxwebLeseLinje(id: string, tableId: string, dims: TableVariable[]): string {
+  const region = dims.find((d) => d.code === "Region");
+  const contents = dims.find((d) => d.code === "ContentsCode");
+  const ovrige = dims.filter((d) =>
+    d.mandatory === true && !d.time && d.code !== "Region" && d.code !== "ContentsCode"
+  );
+  const args = [
+    `"${tableId}"`,
+    `regions=["${forsteKode(region)}"]`,
+    `years="2015:2024"`,
+    `indicators=["${forsteKode(contents)}"]`,
+  ];
+  if (ovrige.length) {
+    const filters = ovrige.map((d) => `"${d.code}": "${forsteKode(d)}"`).join(", ");
+    args.push(`filters={${filters}}`);
+  }
+  return `# df = ${id}.read(${args.join(", ")})`;
+}
+
+function sdmxLeseLinje(id: string, tableId: string): string {
+  return `# df = ${id}.read("${tableId}", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})`;
+}
+
+// withLeseLinje: kobler byggLeseLinje inn i svar-sammenstillingen for
+// pxweb/sdmx-dispatchen i tableMetadata under — ETT sted, slik at både
+// sdmxMetadata sin JSON-gren OG dens ecbMetadata-XML-delegering (begge
+// returnerer via case "sdmx") fanges likt.
+function withLeseLinje(src: DataSource, tableId: string, meta: TableMeta): TableMeta {
+  const linje = byggLeseLinje(src, tableId, meta.variables);
+  if (linje !== undefined) meta.lese_linje = linje;
+  return meta;
 }
 
 const MAX_VALUES = 40;
@@ -87,8 +162,8 @@ export async function tableMetadata(
   const src = findSource(deps.registry, sourceId);
   if (!src) throw new Error(`ukjent kilde '${sourceId}'`);
   switch (src.tilgang) {
-    case "pxweb": return pxwebMetadata(src, tableId, f, deps.find);
-    case "sdmx": return sdmxMetadata(src, tableId, f, deps.find);
+    case "pxweb": return withLeseLinje(src, tableId, await pxwebMetadata(src, tableId, f, deps.find));
+    case "sdmx": return withLeseLinje(src, tableId, await sdmxMetadata(src, tableId, f, deps.find));
     default:
       switch (src.kind) {
         case "fhi": return fhiMetadata(src, tableId, f, deps.find);

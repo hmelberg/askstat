@@ -1,7 +1,8 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { pickValues, tableMetadata } from "./table-metadata.ts";
+import { byggLeseLinje, pickValues, tableMetadata } from "./table-metadata.ts";
 import { findSource, parseRegistry } from "../registry.ts";
 import type { DataSource } from "../registry.ts";
+import type { TableVariable } from "./table-metadata.ts";
 
 const REG = parseRegistry([
   { id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell", tilgang: "pxweb",
@@ -828,4 +829,112 @@ Deno.test("eurostat metadata: tableId URL-enkodes i BEGGE kall (dataflow og cont
   });
   assertEquals(calls.some((u) => u.includes("dataflow/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
   assertEquals(calls.some((u) => u.includes("contentconstraint/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
+});
+
+// --- byggLeseLinje (styrte kilder-runden, Task 4) ---------------------------
+// Ren funksjon: en FERDIG, kjørbar read()-linje for styrte kilder (pxweb/sdmx)
+// slik at modellen ikke må konstruere read()-signaturen fra spesifikasjon
+// alene — se task-4-brief.md.
+
+function styrtKilde(overrides: Partial<DataSource>): DataSource {
+  return {
+    id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell",
+    tilgang: "pxweb", base_url: "https://data.ssb.no/api/pxwebapi/v2/", cors: true,
+    styrt: true,
+    ...overrides,
+  } as DataSource;
+}
+
+const LL_REGION: TableVariable = {
+  code: "Region", label: "region", time: false, valuesTruncated: false, mandatory: false,
+  values: [{ code: "0301", label: "Oslo" }, { code: "0300", label: "Viken" }],
+};
+const LL_CONTENTS: TableVariable = {
+  code: "ContentsCode", label: "statistikkvariabel", time: false, valuesTruncated: false, mandatory: true,
+  values: [{ code: "Folkemengde", label: "Personer" }],
+};
+const LL_KJONN: TableVariable = {
+  code: "Kjonn", label: "kjønn", time: false, valuesTruncated: false, mandatory: true,
+  values: [{ code: "1", label: "Menn" }, { code: "2", label: "Kvinner" }],
+};
+const LL_TID: TableVariable = {
+  code: "Tid", label: "år", time: true, valuesTruncated: false, mandatory: true,
+  values: [{ code: "2024", label: "2024" }],
+};
+
+Deno.test("byggLeseLinje pxweb: Region+ContentsCode+Kjonn-mandatory → filters med Kjonn, Region/ContentsCode/Tid IKKE i filters", () => {
+  const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_REGION, LL_CONTENTS, LL_KJONN, LL_TID]);
+  assertEquals(
+    linje,
+    '# df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"], filters={"Kjonn": "1"})',
+  );
+});
+
+Deno.test("byggLeseLinje pxweb: ingen øvrige mandatory-dimensjoner → ingen filters=", () => {
+  const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_REGION, LL_CONTENTS, LL_TID]);
+  assertEquals(
+    linje,
+    '# df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
+  );
+});
+
+Deno.test("byggLeseLinje pxweb: Region/ContentsCode mangler → <kode>-plassholder", () => {
+  const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_TID]);
+  assertEquals(
+    linje,
+    '# df = ssb.read("05839", regions=["<kode>"], years="2015:2024", indicators=["<kode>"])',
+  );
+});
+
+Deno.test("byggLeseLinje sdmx: flowRef inn, faste countries/filters-plassholdere", () => {
+  const src = styrtKilde({ id: "norgesbank", tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/" });
+  const linje = byggLeseLinje(src, "NB,EXR", []);
+  assertEquals(
+    linje,
+    '# df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
+  );
+});
+
+Deno.test("byggLeseLinje: ukjent kind (tilgang utenfor pxweb/sdmx) → undefined", () => {
+  const src = styrtKilde({ id: "eurostat", tilgang: "rest", kind: "eurostat", base_url: "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/" });
+  assertEquals(byggLeseLinje(src, "EI_LMHR_M", [LL_REGION]), undefined);
+});
+
+Deno.test("byggLeseLinje: ikke-styrt kilde → undefined selv om tilgang=pxweb", () => {
+  const src = styrtKilde({ styrt: false });
+  assertEquals(byggLeseLinje(src, "05839", [LL_REGION, LL_CONTENTS]), undefined);
+});
+
+// --- svar-sammenstillingen: tableMetadata kobler lese_linje inn for styrte pxweb/sdmx-kilder ---
+
+const STYRT_SSB_SRC: DataSource[] = [{
+  id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "test", tillit: "offisiell",
+  tilgang: "pxweb", base_url: "https://data.ssb.no/api/pxwebapi/v2/", cors: true, styrt: true,
+} as unknown as DataSource];
+
+Deno.test("tableMetadata: styrt pxweb-kilde får lese_linje i svaret", async () => {
+  // find:"oslo" tømmer Region (>40 koder) til nøyaktig ETT treff, samme
+  // fixture/mønster som "mandatory fra elimination"-testen over — gir en
+  // forutsigbar FØRSTE Region-kode ("0301") å forvente i lese_linje.
+  const m = await tableMetadata("ssb", "11342", { registry: STYRT_SSB_SRC, fetchImpl: fakeMandatoryFetch, find: "oslo" });
+  assertEquals(
+    m.lese_linje,
+    '# df = ssb.read("11342", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
+  );
+});
+
+Deno.test("tableMetadata: ikke-styrt pxweb-kilde får INGEN lese_linje i svaret", async () => {
+  const m = await tableMetadata("ssb", "11342", { registry: SSB_SRC, fetchImpl: fakeMandatoryFetch });
+  assertEquals(m.lese_linje, undefined);
+});
+
+Deno.test("tableMetadata: styrt sdmx-kilde (norgesbank) får lese_linje i svaret", async () => {
+  const reg = parseRegistry([{ id: "norgesbank", navn: "Norges Bank", utgiver: "Norges Bank", beskrivelse: "test",
+    tillit: "offisiell", tilgang: "sdmx", kind: "sdmx", base_url: "https://data.norges-bank.no/api/data/", cors: true,
+    styrt: true }]);
+  const m = await tableMetadata("norgesbank", "NB,EXR", { registry: reg, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE) });
+  assertEquals(
+    m.lese_linje,
+    '# df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
+  );
 });

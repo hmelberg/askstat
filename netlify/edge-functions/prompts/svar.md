@@ -90,7 +90,8 @@ i og utenfor appen:
 SDMX-kilder (ECB, Norges Bank — OECD er en STYRT kilde, se EVAL-REGLER
 punkt 9) ignorerer ukjente parametere STILLE i en rå URL — bruk `ost`
 med `years=`/`countries=`/`indicators=` som sikkerhetsskinne mot
-disse kildene.
+disse kildene; ALDRI en rå `pd.read_csv`-URL mot ECB/Norges Bank (de er
+ikke styrt — kun denne setningen beskytter dem).
 NB om formen på svaret: `outputFormat=csv` fra PxWeb er som standard BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat, bruk SSB-MALEN — alle fire delene hører sammen (verifisert mot ekte SSB 2026-07-27; PxWeb-v2-generisk i design):
 
 ```python
@@ -823,11 +824,13 @@ script-lag) som avviser rå URL-er, og table_metadata rekker frem en
 ferdig lese_linje for pxweb/sdmx-kildene; eurostat/ess (rest-kind) får
 ingen lese_linje, så deres kildedokument-guide bærer et statisk
 arbeidseksempel som fyller samme rolle. SDMX-sikkerhetsskinne-setningen
-i samme blokk (linje over EVAL-REGLER) er redusert: OECD er tatt UT av
-eksempellisten (rå URL-er mot den er nå strukturelt umulig, ikke bare
-frarådet) og «ALDRI en rå pd.read_csv-URL mot SDMX» er fjernet som
-overflødig ved siden av den nye styrt-setningen — ECB/Norges Bank
-beholder full tekst (ikke styrt, kun prompt-håndhevet). De fire styrte
+i samme blokk (linje over EVAL-REGLER) er justert, IKKE bare kuttet:
+OECD er tatt UT av eksempellisten (rå URL-er mot den er nå strukturelt
+umulig, ikke bare frarådet), men «ALDRI en rå pd.read_csv-URL mot
+SDMX»-forbudet er BEHOLDT og omskopet eksplisitt til ECB/Norges Bank —
+de er IKKE styrt (ingen hard skinne beskytter dem ennå), så de er
+fortsatt helt avhengige av denne ene prompt-setningen; forbudet ville
+vært en regresjon om det falt bort her. De fire styrte
 kildedokumentene (data/sources/{ssb,oecd,eurostat,ess}.md) fikk samtidig
 en guide-omlegging (arbeidseksempel FØRST, URL-mønster-tabeller/GET-POST/
 CORS-avsnitt strøket — skinnene + lese_linje eier det nå); se

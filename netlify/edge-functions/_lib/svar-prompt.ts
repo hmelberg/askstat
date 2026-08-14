@@ -272,7 +272,8 @@ i og utenfor appen:
 SDMX-kilder (ECB, Norges Bank — OECD er en STYRT kilde, se EVAL-REGLER
 punkt 9) ignorerer ukjente parametere STILLE i en rå URL — bruk \`ost\`
 med \`years=\`/\`countries=\`/\`indicators=\` som sikkerhetsskinne mot
-disse kildene.
+disse kildene; ALDRI en rå \`pd.read_csv\`-URL mot ECB/Norges Bank (de er
+ikke styrt — kun denne setningen beskytter dem).
 NB om formen på svaret: \`outputFormat=csv\` fra PxWeb er som standard BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat, bruk SSB-MALEN — alle fire delene hører sammen (verifisert mot ekte SSB 2026-07-27; PxWeb-v2-generisk i design):
 
 \`\`\`python

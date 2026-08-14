@@ -5,6 +5,7 @@ utgiver: SSB
 tillit: offisiell
 tilgang: pxweb
 kind: pxweb
+styrt: true
 base_url: https://data.ssb.no/api/pxwebapi/v2/
 sok_endepunkt: https://data.ssb.no/api/pxwebapi/v2/tables?query={q}&lang=no
 cors: true

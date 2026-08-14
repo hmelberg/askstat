@@ -9,6 +9,7 @@ cors: true
 join_nokler: [geo (NUTS/ISO2), time]
 sporrings_url_mal: https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&{dim}={kode}
 kind: eurostat
+styrt: true
 tags: [makro]
 order: 1
 ---

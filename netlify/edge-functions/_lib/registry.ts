@@ -32,6 +32,9 @@ export interface DataSource {
   tags?: string[];  // fritekst-etiketter, f.eks. "mikro"/"makro" (kilder-profil-output-runden
                      // 2026-08-08 Task 3 fyller feltet inn i data-sources.json); leses
                      // defensivt her — fravær = ingen tags, ingen validering påkrevd ennå.
+  styrt?: boolean;  // true = "styrt kilde" (styrte kilder-runden, Task 1) — front matter i
+                     // data/sources/<id>.md; fravær/ikke-boolsk verdi tolkes som false,
+                     // parseRegistry kaster ALDRI på feltet (se coercion under).
 }
 
 const TILLIT = new Set(["offisiell", "etablert", "funnet"]);
@@ -68,7 +71,7 @@ export function parseRegistry(json: unknown): DataSource[] {
         throw new Error(`kilde ${e.id}: auth.valgfri krever user:true (og må være true)`);
       }
     }
-    return e as unknown as DataSource;
+    return { ...e, styrt: e.styrt === true } as unknown as DataSource;
   });
 }
 

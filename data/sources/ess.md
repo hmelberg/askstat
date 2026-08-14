@@ -6,6 +6,7 @@ tillit: offisiell
 tilgang: rest
 base_url: https://api.ess.sikt.no/
 cors: false
+styrt: true
 auth:
   type: api_key
   env: ESS_API_KEY

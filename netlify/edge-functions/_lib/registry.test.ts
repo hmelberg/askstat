@@ -18,6 +18,24 @@ const VALID = [{
   auth: { type: "api_key", env: "FRED_API_KEY", plassering: "query:api_key" },
 }];
 
+// styrt-flagget (styrte kilder-runden, Task 1): GYLDIG_KILDE er en minimal
+// gyldig fixture — kun de påkrevde feltene — til bruk i tester som ikke
+// bryr seg om resten av registerformen.
+const GYLDIG_KILDE = {
+  id: "ssb", navn: "SSB", utgiver: "SSB", beskrivelse: "SSB.",
+  tillit: "offisiell", tilgang: "pxweb",
+  base_url: "https://data.ssb.no/api/pxwebapi/v2/", cors: true,
+};
+
+Deno.test("parseRegistry: styrt-flagget tas imot, fravær er falsy", () => {
+  const [a, b] = parseRegistry([
+    { ...GYLDIG_KILDE, id: "ssb", styrt: true },
+    { ...GYLDIG_KILDE, id: "fri" },
+  ]);
+  assertEquals(a.styrt, true);
+  assertEquals(!!b.styrt, false);
+});
+
 Deno.test("parseRegistry accepts valid entries", () => {
   const reg = parseRegistry(VALID);
   assertEquals(reg.length, 2);

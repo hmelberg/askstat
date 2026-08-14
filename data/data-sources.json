@@ -6,6 +6,7 @@
     "tillit": "offisiell",
     "tilgang": "pxweb",
     "kind": "pxweb",
+    "styrt": true,
     "base_url": "https://data.ssb.no/api/pxwebapi/v2/",
     "sok_endepunkt": "https://data.ssb.no/api/pxwebapi/v2/tables?query={q}&lang=no",
     "cors": true,
@@ -37,6 +38,7 @@
     ],
     "sporrings_url_mal": "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&{dim}={kode}",
     "kind": "eurostat",
+    "styrt": true,
     "tags": [
       "makro"
     ],
@@ -78,6 +80,7 @@
       "TIME_PERIOD"
     ],
     "kind": "sdmx",
+    "styrt": true,
     "tags": [
       "makro"
     ],
@@ -408,6 +411,7 @@
     "tilgang": "rest",
     "base_url": "https://api.ess.sikt.no/",
     "cors": false,
+    "styrt": true,
     "auth": {
       "type": "api_key",
       "env": "ESS_API_KEY",

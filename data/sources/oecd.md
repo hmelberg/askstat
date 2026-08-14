@@ -8,6 +8,7 @@ base_url: https://sdmx.oecd.org/public/rest/data/
 cors: true
 join_nokler: [LOCATION (ISO3), TIME_PERIOD]
 kind: sdmx
+styrt: true
 tags: [makro]
 order: 3
 ---

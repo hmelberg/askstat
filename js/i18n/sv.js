@@ -195,6 +195,7 @@ window.M2PY_I18N.sv = {
   "Applied — takes effect on your next question": "Tillämpad — gäller från din nästa fråga",
   "Apply": "Tillämpa",
   "Discard": "Förkasta",
+  "Document too large for a safe PR — edit it in the repo": "Dokumentet är för stort för en säker PR — redigera det i repot",
   "Feedback — what should change in the next round?": "Feedback — vad bör ändras i nästa runda?",
   "Getting suggestions …": "Hämtar förslag …",
   "Improve source description": "Förbättra källbeskrivningen",

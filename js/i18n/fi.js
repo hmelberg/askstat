@@ -195,6 +195,7 @@ window.M2PY_I18N.fi = {
   "Applied — takes effect on your next question": "Käytössä — voimassa seuraavasta kysymyksestäsi",
   "Apply": "Käytä",
   "Discard": "Hylkää",
+  "Document too large for a safe PR — edit it in the repo": "Asiakirja on liian suuri turvalliselle PR:lle — muokkaa sitä repossa",
   "Feedback — what should change in the next round?": "Palaute — mitä pitäisi muuttaa seuraavalla kierroksella?",
   "Getting suggestions …": "Haetaan ehdotuksia …",
   "Improve source description": "Paranna lähdekuvausta",

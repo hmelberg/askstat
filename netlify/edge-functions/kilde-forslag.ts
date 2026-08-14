@@ -41,7 +41,11 @@ REGLER
    (maskinfeltene øverst — endres KUN når feilen beviselig sitter der),
    "hode" (tittel/innledning), "kort" (## Kort-blokken) eller "guide" (alle
    øvrige seksjoner). Deler du ikke nevner, står urørt. Endre færrest mulige
-   deler — aldri send en uendret del på nytt.
+   deler — aldri send en uendret del på nytt. Er dokumentets guide-del svært
+   stor (over ~15 000 tegn) og endringen ligger der: ikke re-emitter hele
+   guiden — beskriv i stedet endringen presist i "melding" (hvilken
+   linje/påstand som bør endres, og til hva), så brukeren kan gjøre den i
+   editoren.
 4. Ærlig tomt svar er gyldig: ligger feilen i modellens kodevaner eller i en
    innebygd kilde du ikke har fått teksten til, skal "forslag" være tom og
    "melding" forklare hvorfor. Dikt ALDRI en endring for å ha noe å levere.
@@ -53,7 +57,9 @@ REGLER
    \`## Kort\`-seksjonen; feil BRUK av riktig kilde → \`## Guide\`-seksjonen.
    Navngi laget i "begrunnelse".
 8. Mangler \`## Kort\` i originalen, generer den som egen "kort"-del (2–4
-   setninger destillert fra langversjonen).
+   setninger destillert fra langversjonen). I dokumenter UTEN ## Kort-
+   overskrift regnes FØRSTE prosa-avsnitt som dagens kort-del — en ny
+   kort-del ERSTATTER det avsnittet, så innarbeid innholdet dets.
 
 KODESAK
 

@@ -195,6 +195,7 @@ window.M2PY_I18N.zh = {
   "Applied — takes effect on your next question": "已应用——将在你下次提问时生效",
   "Apply": "应用",
   "Discard": "放弃",
+  "Document too large for a safe PR — edit it in the repo": "文档过大，无法安全提交 PR——请在仓库中直接编辑",
   "Feedback — what should change in the next round?": "反馈——下一轮应该改进什么？",
   "Getting suggestions …": "正在获取建议……",
   "Improve source description": "改进数据源描述",

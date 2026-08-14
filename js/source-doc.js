@@ -289,12 +289,25 @@
   var FLETT_DELER = { prefix: 1, hode: 1, kort: 1, guide: 1 };
   function flettDeler(originalTekst, deler) {
     var d = splitKortGuide(originalTekst);
+    var prefixErstattet = false;
     (Array.isArray(deler) ? deler : []).forEach(function (p) {
       if (p && FLETT_DELER[p.del] === 1 &&
           typeof p.ny_tekst === 'string' && p.ny_tekst.trim()) {
         d[p.del] = p.ny_tekst;
+        if (p.del === 'prefix') prefixErstattet = true;
       }
     });
+    // Feilfunn (sluttreview, seksjonsvise-forslag): den ORIGINALE prefixen
+    // (fra splitKortGuide, rå slice av dokumentet) bærer alltid egne
+    // linjeskift — men en modell-levert erstatning gjør det ikke alltid
+    // (f.eks. front matter uten avsluttende blanklinje). Uten normalisering
+    // smelter d.prefix + kropp sammen på ÉN linje ('---# T'),
+    // SourceDoc.parse mister ALLE maskinfelter, og feilen er usynlig i
+    // per-del-diffen. Originalens prefix røres ALDRI her — kun en faktisk
+    // erstatning normaliseres.
+    if (prefixErstattet && d.prefix && !/\n$/.test(d.prefix)) {
+      d.prefix += '\n\n';
+    }
     var kropp = [d.hode, d.kort, d.guide]
       .map(function (s) { return String(s || '').trim(); })
       .filter(Boolean)

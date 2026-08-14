@@ -571,10 +571,25 @@
         });
         if (f.begrunnelse) bKort.appendChild(el('div', 'ask-pop-hint', f.begrunnelse));
         var bRad = el('div', 'sources-info-actions');
-        // Ingen lokal skrivevei for innebygde dokumenter (bevisst): kun PR
-        // (adminGate server-side er sperren) eller Forkast. ny_tekst er den
-        // FLETTEDE fulltekst — endepunktet erstatter hele filen.
-        bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: nyTekst }, bRad));
+        // Målrettet guide-PR-guard (sluttreview-funn, Important): state.
+        // refDocs er uklippet (Task 2), MEN payloaden til modellen klipper
+        // hvert ref_doc til 8000 tegn (byggForslagsPayload) — modellen så
+        // ALDRI halen av et større dokument. En guide-del skrevet fra det
+        // trunkerte bildet ERSTATTER likevel hele guiden ved fletting, så en
+        // PR herfra ville stille slette en usett hale. Gjelder KUN guide-
+        // delen: prefix/hode/kort overlapper ikke halen og får fortsatt PR
+        // selv på store dokumenter (flettingen bevarer halen for dem).
+        var bGuideUtenHale = original.length > 8000 &&
+          f.deler.some(function (p) { return p.del === 'guide'; });
+        if (bGuideUtenHale) {
+          bKort.appendChild(el('div', 'ask-pop-hint',
+            T('Document too large for a safe PR — edit it in the repo')));
+        } else {
+          // Ingen lokal skrivevei for innebygde dokumenter (bevisst): kun PR
+          // (adminGate server-side er sperren) eller Forkast. ny_tekst er den
+          // FLETTEDE fulltekst — endepunktet erstatter hele filen.
+          bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: nyTekst }, bRad));
+        }
         var bForkast = el('button', 'ai-codeblock-btn', T('Discard'));
         bForkast.type = 'button';
         bForkast.addEventListener('click', function () { bKort.remove(); });

@@ -526,6 +526,21 @@ test('flettDeler: round-trip — ingen deler gir normalisert original (linje-set
   assert.equal(SourceDoc.flettDeler(doc, null), ut);     // null tåles
 });
 
+// Sluttreview-funn (Critical, seksjonsvise-forslag): en modell-levert
+// prefix-del uten avsluttende linjeskift skal IKKE smelte sammen med
+// kroppen ('---# T') — flettDeler må normalisere skjøten slik at resultatet
+// fortsatt parser til gyldige maskinfelter.
+test('flettDeler: prefix-erstatning uten trailing newline normaliseres — parse gjenkjenner felt+tittel', () => {
+  const doc = '---\nid: gammel\n---\n\n# T\n\nIntro.\n\n## Kort\n\nK.\n\n## Guide\n\nG.\n';
+  const ut = SourceDoc.flettDeler(doc, [
+    { del: 'prefix', ny_tekst: '---\nid: x\nbase_url: https://b\n---' },
+  ]);
+  const parsed = SourceDoc.parse(ut);
+  assert.equal(parsed.fields.id, 'x');
+  assert.equal(parsed.fields.base_url, 'https://b');
+  assert.equal(parsed.title, 'T');
+});
+
 test('flettDeler: guide-erstatning bevarer halen ETTER et klipp-scenario', () => {
   // Poenget med runden: flettingen skjer mot UKLIPPET original — en ny
   // kort-del skal aldri røre en lang guide-hale.

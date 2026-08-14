@@ -866,7 +866,7 @@ Deno.test("byggLeseLinje pxweb: Region+ContentsCode+Kjonn-mandatory → filters 
   const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_REGION, LL_CONTENTS, LL_KJONN, LL_TID]);
   assertEquals(
     linje,
-    '# df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"], filters={"Kjonn": "1"})',
+    '# ✅ ferdig verifisert vei (ingen probe): df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"], filters={"Kjonn": "1"})',
   );
 });
 
@@ -874,7 +874,7 @@ Deno.test("byggLeseLinje pxweb: ingen øvrige mandatory-dimensjoner → ingen fi
   const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_REGION, LL_CONTENTS, LL_TID]);
   assertEquals(
     linje,
-    '# df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
+    '# ✅ ferdig verifisert vei (ingen probe): df = ssb.read("05839", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
   );
 });
 
@@ -882,7 +882,7 @@ Deno.test("byggLeseLinje pxweb: Region/ContentsCode mangler → <kode>-plasshold
   const linje = byggLeseLinje(styrtKilde({}), "05839", [LL_TID]);
   assertEquals(
     linje,
-    '# df = ssb.read("05839", regions=["<kode>"], years="2015:2024", indicators=["<kode>"])',
+    '# ✅ ferdig verifisert vei (ingen probe): df = ssb.read("05839", regions=["<kode>"], years="2015:2024", indicators=["<kode>"])',
   );
 });
 
@@ -891,7 +891,7 @@ Deno.test("byggLeseLinje sdmx: flowRef inn, faste countries/filters-plassholdere
   const linje = byggLeseLinje(src, "NB,EXR", []);
   assertEquals(
     linje,
-    '# df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
+    '# ✅ ferdig verifisert vei (ingen probe): df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
   );
 });
 
@@ -919,7 +919,7 @@ Deno.test("tableMetadata: styrt pxweb-kilde får lese_linje i svaret", async () 
   const m = await tableMetadata("ssb", "11342", { registry: STYRT_SSB_SRC, fetchImpl: fakeMandatoryFetch, find: "oslo" });
   assertEquals(
     m.lese_linje,
-    '# df = ssb.read("11342", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
+    '# ✅ ferdig verifisert vei (ingen probe): df = ssb.read("11342", regions=["0301"], years="2015:2024", indicators=["Folkemengde"])',
   );
 });
 
@@ -935,7 +935,7 @@ Deno.test("tableMetadata: styrt sdmx-kilde (norgesbank) får lese_linje i svaret
   const m = await tableMetadata("norgesbank", "NB,EXR", { registry: reg, fetchImpl: fakeSdmxFetch(NB_EXR_DSD_FIXTURE) });
   assertEquals(
     m.lese_linje,
-    '# df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
+    '# ✅ ferdig verifisert vei (ingen probe): df = norgesbank.read("NB,EXR", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})',
   );
 });
 
@@ -953,7 +953,7 @@ Deno.test("tableMetadata: styrt kilde MED sporrings_url_mal → queryUrlTemplate
   const m = await tableMetadata("ssb", "11342", { registry: STYRT_SSB_MED_MAL, fetchImpl: fakeMandatoryFetch, find: "oslo" });
   assertEquals(m.queryUrlTemplate, undefined);
   // lese_linje skal fortsatt stå der — suppresjonen rammer KUN queryUrlTemplate.
-  assert(m.lese_linje?.startsWith('# df = ssb.read('));
+  assert(m.lese_linje?.includes('df = ssb.read('));
 });
 
 Deno.test("tableMetadata: ikke-styrt kilde MED sporrings_url_mal beholder queryUrlTemplate (regresjon)", async () => {

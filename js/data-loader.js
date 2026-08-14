@@ -86,7 +86,8 @@
   // drifte fra seg selv.
   function styrtMelding(id) {
     return id + ' er en STYRT kilde — rå URL-er avvises. Bruk ' + id +
-      '.read(…): lese-linjen får du ferdig fra table_metadata.';
+      '.read(…), som trenger ingen probe-✅ (adapterveien er ferdig ' +
+      'verifisert): lese-linjen får du ferdig fra table_metadata.';
   }
 
   // Rå-vei-avvisning, hook (a): kalles FØR DD.resolve — sjekker de LITERALE

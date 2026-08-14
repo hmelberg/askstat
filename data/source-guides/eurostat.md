@@ -5,7 +5,8 @@
 Eurostat er en styrt kilde uten `kind`-basert `lese_linje` fra
 `table_metadata` (kun pxweb/sdmx-kilder får den) — eksempelet under ER
 derfor den kanoniske lese-linjen for eurostat: kopier og juster kun
-datasettkode/filtre.
+datasettkode/filtre. Den er ferdig verifisert — `eurostat.read` trenger
+aldri probe (probe avviser uansett alle rå eurostat-URL-er).
 
 ```
 # e = eurostat.read("nama_10_gdp", years="2015:2024", filters={"geo": "NO", "unit": "CP_MEUR", "na_item": "B1GQ"})

@@ -98,11 +98,16 @@ function pxwebLeseLinje(id: string, tableId: string, dims: TableVariable[]): str
     const filters = ovrige.map((d) => `"${d.code}": "${forsteKode(d)}"`).join(", ");
     args.push(`filters={${filters}}`);
   }
-  return `# df = ${id}.read(${args.join(", ")})`;
+  return `${LESE_LINJE_PREFIKS}df = ${id}.read(${args.join(", ")})`;
 }
 
+// Affordansen bor i miljøet, ikke bare i prompten: uten «ingen probe»-merket
+// jaktet modellen på en probe-bar URL for ærlighetsregelens ✅ (målt
+// Oslo-runde 7, seks avviste prober) — styrte kilder HAR ingen slik URL.
+const LESE_LINJE_PREFIKS = "# ✅ ferdig verifisert vei (ingen probe): ";
+
 function sdmxLeseLinje(id: string, tableId: string): string {
-  return `# df = ${id}.read("${tableId}", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})`;
+  return `${LESE_LINJE_PREFIKS}df = ${id}.read("${tableId}", years="2015:2024", countries=["NOR"], filters={"<MANDATORY_DIM>": "<kode>"})`;
 }
 
 // withLeseLinje: kobler byggLeseLinje inn i svar-sammenstillingen for

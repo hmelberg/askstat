@@ -10,7 +10,9 @@ flowRef er KOMMA-form og skal KOPIERES ordrett fra
 search_datasets/search_catalog-treffet — slash-form 404-er («Could not
 find Dataflow»); id-er inneholder @ og komma, «rens» dem aldri.
 `table_metadata` gir en ferdig `lese_linje` for valgt dataflow: kopier
-og juster kun parameterverdiene.
+og juster kun parameterverdiene. Lese-linjen er ferdig verifisert —
+`oecd.read` trenger aldri probe (probe avviser uansett alle rå
+OECD-URL-er).
 
 - countries= → REF_AREA, indicators= → MEASURE; ALT annet i filters={"<DIM>": "<kode>"} — dimensjonene og kodene får du fra table_metadata (bruk find= for lange lister).
 - Nøkkelstien (punktumdelte dimensjoner) bygger lasteren selv — bygg den ALDRI for hånd, og aldri /all + startPeriod som kwargs. years= er eneste tidsvei.

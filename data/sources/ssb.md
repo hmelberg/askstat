@@ -39,7 +39,9 @@ Verifisert 2026-07-31: `Region=0301` (Oslo kommune) sammen med
 `ContentsCode=Folkemengde` gir data uten 400. Fant du ikke riktig
 regionkode i kodelisten? Bruk `find="Oslo"` i `table_metadata` fremfor å
 gjette koder — `table_metadata` gir også en ferdig `lese_linje` for
-valgt tabell: kopier og juster kun parameterverdiene.
+valgt tabell: kopier og juster kun parameterverdiene. Lese-linjen er
+ferdig verifisert — `ssb.read` trenger aldri probe (probe avviser
+uansett alle rå SSB-URL-er).
 
 ## Mandatory-regelen
 

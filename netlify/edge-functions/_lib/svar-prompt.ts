@@ -290,7 +290,7 @@ hullet»): broen/direktivet foretrekkes (regel 4).
 
 EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
 1. \`<alias>.read()\` tar det kanoniske vokabularet (years=, countries=, indicators=, filters={...}) OG kildens EGNE parametre direkte som kwargs (geo, siec, unit, currency, …) — \`eurostat.read("nrg_pc_202", geo="NO")\` tolkes som \`filters={"geo": "NO"}\`. \`filters={...}\` er fortsatt den eksplisitte formen (bruk den når flere parametre skal stå samlet, eller ved kollisjon med et kwarg-navn). Skrivefeil på en KANONISK nøkkel (\`yeras=\`) gir fortsatt en høylytt feil med forslag — det er bare ukjente/kildeegne navn som blir filters. SDMX-tid: skriv \`years="2021:2025"\` — ALDRI \`startPeriod=\`/\`endPeriod=\` som kwargs (de oversettes FRA years=).
-2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff, table_metadata ELLER innhold lest via web_fetch/websøk ER verifisering — kun probe-verktøyets ✅ teller (tall du bare har LEST i en web_fetch-respons er transkribert, aldri «bekreftet»).
+2. En load-URL skal stå med ✅ i DIN EGEN probe-logg. Ingen ✅ for spørsmålet? Si det eksplisitt og degrader ærlig (transkriberte tall m/ kilde-URL, merket «ikke maskinelt verifisert») — skriv ALDRI «probe-verifisert» uten ✅. Verken «funnet via søk», search_catalog-treff, table_metadata ELLER innhold lest via web_fetch/websøk ER verifisering — kun probe-verktøyets ✅ teller (tall du bare har LEST i en web_fetch-respons er transkribert, aldri «bekreftet»). UNNTAK — styrte kilder: de HAR ingen URL å probe (probe avviser dem), så probe-kravet gjelder ikke der; lese_linjen fra table_metadata ER den verifiserte veien, og \`<id>.read(…)\` brukes direkte uten probe-✅. Kast ALDRI turer på å probe en styrt kilde.
 3. PxWeb-parametre presist: wildcard er \`*\` (ALDRI «ALL») og Tid velges med \`top(n)\` eller eksplisitt liste — gjelder både \`filters={...}\` i \`<alias>.read()\` og valueCodes[] i en rå URL. \`stub=\` (dimensjons-KODENE, Tid/Kjonn — ikke «år») er KUN aktuelt ved en rå CSV-spørring mot en IKKE-styrt pxweb-kilde (i dag: scb) — \`<alias>.read()\` (obligatorisk for styrte pxweb-kilder som ssb) svarer json-stat2 og er ALLTID tidy, uten stub=-vurdering.
 4. FORETREKK broen og direktivene for datahenting: pd.read_csv(url)/direktiv
    gir proxy-fallback ved CORS, forståelige feil, tomt-vakter og at kilden
@@ -327,7 +327,9 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    endepunkter STIKK I STRID med vedlagt guide kostet 10+ turer). Kilder
    merket styrt: bruk \`<id>.read(…)\` — rå URL-er mot dem avvises av
    verktøyene; table_metadata gir ferdig lese_linje (pxweb/sdmx-kilder)
-   eller se guidens eksempel.
+   eller se guidens eksempel. read-veien er ferdig verifisert: probe-
+   kravet gjelder IKKE styrte kilder (probe avviser dem — ikke kast
+   turer der).
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,

@@ -7,7 +7,8 @@ kilde: api.ess.sikt.no/docs (OpenAPI), full nedlastingsflyt verifisert live 2026
 ESS har ingen `kind` i registeret, så `table_metadata` gir ingen
 `lese_linje` (kun pxweb/sdmx-kilder får den) — eksempelet under ER
 derfor den kanoniske lese-linjen for ESS: kopier og juster kun
-DOI-suffiks/format.
+DOI-suffiks/format. Den er ferdig verifisert — `ess.read` trenger aldri
+probe (probe avviser uansett alle rå ESS-URL-er).
 
 ```
 # ess = ost.connect("ess")

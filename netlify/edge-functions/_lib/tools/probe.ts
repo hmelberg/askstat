@@ -49,7 +49,7 @@ export async function probeUrl(
   // Styrt kilder (2026-08-14): må bruke <id>.read(…) — avvis rå URL-er før fetch.
   if (src?.styrt) {
     return { ...empty, note:
-      `${src.id} er en STYRT kilde — rå URL-er avvises. Bruk ${src.id}.read(…): lese-linjen får du ferdig fra table_metadata.` };
+      `${src.id} er en STYRT kilde — ikke probe den: rå URL-er avvises, og ${src.id}.read(…) trenger INGEN probe-✅ (adapterveien er ferdig verifisert). Hent lese_linje fra table_metadata og juster kun parameterverdiene.` };
   }
   if (src?.tilgang === "sdmx") {
     headers["Accept"] = SDMX_DATA_ACCEPT;

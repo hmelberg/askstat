@@ -21,7 +21,7 @@
       "norge"
     ],
     "beskrivelse": "Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.",
-    "quirks": "GET med valueCodes per dimensjon mot `/v2/`; default-respons er json-stat2 (tidy, UTF-8) — bruk `<alias>.read(...)`, eller parse json-stat2 manuelt: verdiene ligger i `value`-arrayet og dimensjonene i `dimension` på ROTNIVÅ (en `dataset`-innpakning betyr at du har fått gammel json-stat v1 fra feil API). `outputFormat=csv` er bred og latin-1 — unngå den. Det gamle `/api/v0/...`-APIet er POST-only og CORS-stengt — bruk det aldri, heller ikke til metadata-henting. `pyjstat.from_json_stat` er ikke tilgjengelig i kjøremiljøet.",
+    "quirks": "PxWebApi v2 — svarer json-stat2 (tidy, koder som verdier) via\n`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342.",
     "guide": true
   },
   {
@@ -43,7 +43,7 @@
       "makro"
     ],
     "beskrivelse": "Eurostat — official EU/EFTA statistics (incl. Norway): economy, population, health, environment, and other harmonized European indicators.",
-    "quirks": "kind(eurostat): json-stat2 via statistics/1.0/data/<kode>?format=JSON&lang=en + direkte dimensjonsfiltre (geo=NO&na_item=B1GQ — ikke valueCodes); sinceTimePeriod/untilTimePeriod for tid; katalog-proben bruker lastTimePeriod=1 og 400-er kombinert med brukerens tidsfiltre (strippes av proben). base_url endret 2026-07-25 til data-endepunktet (før: dissemination-roten) så «connect eurostat» virker uten full URL.",
+    "quirks": "Norge er med i de fleste Eurostat-datasett (EFTA-rapportering), ofte også regionalt (NUTS: NO0…-koder). Datasettkoder er små bokstaver (f.eks. nama_10_gdp, hlth_sha11_hf) — store bokstaver gir treff-feil.",
     "guide": true
   },
   {
@@ -85,7 +85,7 @@
       "makro"
     ],
     "beskrivelse": "OECD — comparative statistics for OECD member and partner countries: economy, labour, health, and social policy via SDMX.",
-    "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow> på KOMMA-form (slash-form 404-er: «Could not find Dataflow», målt 2026-08-01) — search_catalog/search_datasets gir id-en ferdig på denne formen. Utvalg skrives ALLTID med det kanoniske vokabularet (years=/countries=/indicators=/filters={}); lasteren bygger den punktumdelte nøkkelen selv fra kildens egen CSV-header. Skriv ALDRI startPeriod=/endPeriod= som kwarg (parseren avviser dem — years= oversettes til dem) og bygg ikke nøkkelstien for hånd. Adapteren henter CSV via Accept-header (application/vnd.sdmx.data+csv;labels=id — verifisert 2026-07-25); c[DIM]=filtre ignoreres STILLE (SDMX 3.0-syntaks, API-et er 2.1). CORS: reflektert origin.",
+    "quirks": "SDMX 2.1; ressurssti = <agency>,<dataflow> på KOMMA-form (slash-form 404-er: «Could not find Dataflow», målt 2026-08-01) — search_catalog/search_datasets gir id-en ferdig på denne formen. Utvalg skrives ALLTID med det kanoniske vokabularet (years=/countries=/indicators=/filters={}); lasteren bygger den punktumdelte nøkkelen selv fra kildens egen CSV-header. Skriv ALDRI startPeriod=/endPeriod= som kwarg (parseren avviser dem — years= oversettes til dem) og bygg ikke nøkkelstien for hånd.",
     "guide": true
   },
   {
@@ -421,7 +421,7 @@
       "mikro"
     ],
     "beskrivelse": "European Social Survey — attitudes and welfare survey microdata for around 30 European countries (incl. Norway), 2002 onward, delivered per survey round.",
-    "quirks": "survey-mikrodata (holdninger/velferd/helse, ~30 europeiske land inkl. Norge, 2002–): parquet/csv per fil-DOI; suksess = 307-redirect til signert fil-URL (~1 t gyldig, proxyen følger); ess11-csv = 32 MB verifisert — se guiden",
+    "quirks": "Survey-mikrodata om holdninger/velferd/helse/tillit/livskvalitet, ~30 europeiske land inkl. Norge, 11 runder 2002–2023, personnivå. Levert per fil-DOI (én fil per runde/utgave) som parquet (default)/csv/sav/dta; ess11-csv ≈ 32 MB — foretrekk `fileFormat=parquet` for store filer/runder.",
     "guide": true
   },
   {

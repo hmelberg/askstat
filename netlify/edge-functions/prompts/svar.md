@@ -87,9 +87,10 @@ i og utenfor appen:
 | Åpen tabell-URL (ingen nøkkel, ingen POST) | pandas/R `read_csv` direkte | `co2 = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")` |
 | Nøkkel, proxy (CORS/POST), kanonisk spørring, database/tabell | `ost`-direktiv | `# ledighet = ssb.read("05839", years="2000:2009", indicators=["Personer"])` |
 
-SDMX-kilder (OECD, ECB, Norges Bank) ignorerer ukjente parametere STILLE i en
-rå URL — bruk `ost` med `years=`/`countries=`/`indicators=` som
-sikkerhetsskinne mot disse kildene, ALDRI en rå `pd.read_csv`-URL mot SDMX.
+SDMX-kilder (ECB, Norges Bank — OECD er en STYRT kilde, se EVAL-REGLER
+punkt 9) ignorerer ukjente parametere STILLE i en rå URL — bruk `ost`
+med `years=`/`countries=`/`indicators=` som sikkerhetsskinne mot
+disse kildene.
 NB om formen på svaret: `outputFormat=csv` fra PxWeb er som standard BREDT (én kolonne per statistikkvariabel×år, f.eks. «Personer 2024» — ingen Tid-kolonne). Skal analysen ha tidy langformat, bruk SSB-MALEN — alle fire delene hører sammen (verifisert mot ekte SSB 2026-07-27; PxWeb-v2-generisk i design):
 
 ```python
@@ -153,7 +154,10 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    er BINDENDE bruksanvisning for kilden og overstyrer egne antakelser om
    API-et: les den FØR du bygger spørringen, og bryt aldri dens
    eksplisitte forbud (målt feilklasse: v0-fallback og gjettede
-   endepunkter STIKK I STRID med vedlagt guide kostet 10+ turer).
+   endepunkter STIKK I STRID med vedlagt guide kostet 10+ turer). Kilder
+   merket styrt: bruk `<id>.read(…)` — rå URL-er mot dem avvises av
+   verktøyene; table_metadata gir ferdig lese_linje (pxweb/sdmx-kilder)
+   eller se guidens eksempel.
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
@@ -807,6 +811,27 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
 - Rute "språk" når aldri hit — den besvares direkte av `/api/ask-ruter`.
 
 ## Endringslogg
+
+### 2026-08-14 (styrte kilder Task 5 — guide-omlegging + styrt-linje)
+
+EVAL-REGLER punkt 9 (DELIVERY) fikk en ny sluttsetning: «Kilder merket
+styrt: bruk `<id>.read(…)` — rå URL-er mot dem avvises av verktøyene;
+table_metadata gir ferdig lese_linje (pxweb/sdmx-kilder) eller se
+guidens eksempel.» — styrte kilder (ssb/oecd/eurostat/ess, spec
+2026-08-14-styrte-kilder-design.md) har nå en hard skinne (probe +
+script-lag) som avviser rå URL-er, og table_metadata rekker frem en
+ferdig lese_linje for pxweb/sdmx-kildene; eurostat/ess (rest-kind) får
+ingen lese_linje, så deres kildedokument-guide bærer et statisk
+arbeidseksempel som fyller samme rolle. SDMX-sikkerhetsskinne-setningen
+i samme blokk (linje over EVAL-REGLER) er redusert: OECD er tatt UT av
+eksempellisten (rå URL-er mot den er nå strukturelt umulig, ikke bare
+frarådet) og «ALDRI en rå pd.read_csv-URL mot SDMX» er fjernet som
+overflødig ved siden av den nye styrt-setningen — ECB/Norges Bank
+beholder full tekst (ikke styrt, kun prompt-håndhevet). De fire styrte
+kildedokumentene (data/sources/{ssb,oecd,eurostat,ess}.md) fikk samtidig
+en guide-omlegging (arbeidseksempel FØRST, URL-mønster-tabeller/GET-POST/
+CORS-avsnitt strøket — skinnene + lese_linje eier det nå); se
+task-5-report.md for detaljer per dokument.
 
 ### 2026-08-13 (figur-runden — FIGURER-regelen i MODE_PY)
 

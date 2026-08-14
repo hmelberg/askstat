@@ -19,7 +19,8 @@ order: 0
 
 ## Kort
 
-GET med valueCodes per dimensjon mot `/v2/`; default-respons er json-stat2 (tidy, UTF-8) — bruk `<alias>.read(...)`, eller parse json-stat2 manuelt: verdiene ligger i `value`-arrayet og dimensjonene i `dimension` på ROTNIVÅ (en `dataset`-innpakning betyr at du har fått gammel json-stat v1 fra feil API). `outputFormat=csv` er bred og latin-1 — unngå den. Det gamle `/api/v0/...`-APIet er POST-only og CORS-stengt — bruk det aldri, heller ikke til metadata-henting. `pyjstat.from_json_stat` er ikke tilgjengelig i kjøremiljøet.
+PxWebApi v2 — svarer json-stat2 (tidy, koder som verdier) via
+`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342.
 
 ## Guide
 
@@ -27,57 +28,32 @@ GET med valueCodes per dimensjon mot `/v2/`; default-respons er json-stat2 (tidy
 
 kilde: SSBs api-eksempler (janbrus), destillert 2026-07-31
 
-## Reglene som forhindrer feil (les FØRST)
+## Komplett eksempel (Oslos folkemengde, tabell 11342)
 
-**Arbeidsrekkefølgen (alltid denne, i denne rekkefølgen).**
-(1) Søk med ETT–TO ord (`query=befolkning`, ikke en hel frase) — søke-APIet
-matcher dårlig på lange fraser, og **0 treff betyr IKKE at kilden er nede
-eller utilgjengelig**: forlat ALDRI registerveien (`ssb.read`) på grunn av
-et tomt søk. (2) Kjenner du tabellnummeret (befolkning: 07459/11342), hopp
-over søket og gå RETT på `table_metadata`. (3) Hent metadata FØR du bygger
-spørringen — gjett aldri valueCodes; er koder fortsatt ukjente, er
-`valueCodes[<dim>]=*` (wildcard) lov på enhver dimensjon. Målt feilklasse
-2026-08-14: et tomt søk førte til 13 turer med URL-gjetting for et
-spørsmål eksempelet nederst i denne guiden besvarer direkte.
+```
+# ssb = ost.connect("ssb")
+# oslo = ssb.read("11342", regions=["0301"], indicators=["Folkemengde"], years="2015:2024")
+```
 
-**Mandatory-regelen.** En FILTRERT spørring mot `/data` MÅ oppgi verdier
-for ALLE dimensjoner som har `elimination: false` i tabellens metadata.
-To dimensjoner er ALLTID obligatoriske — `ContentsCode` (hva som måles)
-og `Tid` (tid) — selv i tabeller med bare ett innholdsalternativ. Mangler
-én: SSB svarer `400 Bad Request` med `title`-feltet
-`"Missing selection for mandantory variable"` (ja, SSBs egen stavefeil —
-«mandantory»). Responsen ellers er bare `type`/`title`/`status` — INGEN
-liste over hvilke koder som mangler (derfor har appen sin egen
-feiloversettelse, `mandatoryErrorMessage`, som slår opp mot
-`table_metadata` for å fortelle hvilke dimensjoner/koder som trengs).
-Sjekk `mandatory`-flagget per dimensjon i `table_metadata`-svaret FØR du
-bygger spørringen — ikke gjett hvilke som trengs.
+Verifisert 2026-07-31: `Region=0301` (Oslo kommune) sammen med
+`ContentsCode=Folkemengde` gir data uten 400. Fant du ikke riktig
+regionkode i kodelisten? Bruk `find="Oslo"` i `table_metadata` fremfor å
+gjette koder — `table_metadata` gir også en ferdig `lese_linje` for
+valgt tabell: kopier og juster kun parameterverdiene.
 
-**Kanonisk lesevei.** Default-responsen fra `/tables/{id}/data` (uten
-`outputFormat=`) er json-stat2 — tidy, UTF-8-kodet JSON — og det er
-dette `<alias>.read(...)` (direktivveien) bruker under panseret. Ber du
-i stedet eksplisitt om `outputFormat=csv`, får du CSV som er BRED (én
-kolonne per Tid-verdi) og kodet i latin-1 (iso-8859-1) — begge deler
-feller for kode som antar tidy UTF-8. Skriv aldri en rå
-`outputFormat=csv`-URL sammen med analysekode som forventer tidy data —
-la default (json-stat2) stå, eller bruk `<alias>.read(...)`.
+## Mandatory-regelen
 
-## URL-mønstre
-
-| Formål | Endepunkt |
-|---|---|
-| Søk tabeller | `GET /tables?query=<ord>&lang=no` |
-| Tabellinfo | `GET /tables/{id}` |
-| Metadata (dimensjoner, koder, elimination) | `GET /tables/{id}/metadata` |
-| Data | `GET`/`POST /tables/{id}/data?...` |
-| Kodelisteoppslag | `GET /codelists/{id}` |
-
-Base: `https://data.ssb.no/api/pxwebapi/v2/`. Bruk alltid `/v2/`, ikke
-`/v2-beta/` — sistnevnte er en beta-sti SSB ikke garanterer stabilitet
-på: søk/metadata/data svarte 503 der 2026-07-25, men de samme
-endepunktene svarte 200 igjen ved probe 2026-07-31 (nedetiden var
-trolig forbigående). Uansett stabilitet akkurat nå: «beta» i stien er i
-seg selv god nok grunn til å styre unna i kode som skal vare.
+En FILTRERT spørring MÅ oppgi verdier for ALLE dimensjoner som har
+`elimination: false` i tabellens metadata. To dimensjoner er ALLTID
+obligatoriske — `ContentsCode` (hva som måles, `indicators=`) og `Tid`
+(tid, `years=`) — selv i tabeller med bare ett innholdsalternativ:
+`indicators=["<koden>"]` skal med likevel. Mangler én: SSB svarer `400
+Bad Request` med `title`-feltet `"Missing selection for mandantory
+variable"` (ja, SSBs egen stavefeil — «mandantory»); responsen ellers
+er bare `type`/`title`/`status` — INGEN liste over hvilke koder som
+mangler. Sjekk `mandatory`-flagget per dimensjon i
+`table_metadata`-svaret FØR du bygger spørringen — ikke gjett hvilke
+som trengs.
 
 ## Tidsuttrykk (Tid-dimensjonen)
 
@@ -99,58 +75,24 @@ intervall (`years="2015:"`) oversettes til `valueCodes[Tid]=from(2015)`.
 
 ## Codelists (aggregering/utvalg)
 
-Listet per dimensjon i `dimension.<variabel>.extension.codeLists` i
-metadata, to typer:
-
-- `agg_`-prefiks — aggregering, mange koder summeres til én (f.eks.
-  kommune → fylke)
-- `vs_`-prefiks — valueset, et alternativt (ofte kortere) utvalg av koder
-
-Bruk i spørring: `codelist[Region]=agg_...&valueCodes[Region]=*`. Med en
-aggregeringscodelist styrer `outputValues[Region]=aggregated|single` om
-summerte eller enkeltverdier returneres. Slå opp selve kodene/etikettene
-med `GET /codelists/{id}` — koder fra ulike codelists må ikke blandes.
+Region- og andre dimensjonskoder kan komme i to typer kodelister
+(`dimension.<variabel>.extension.codeLists` i metadata): `agg_`-prefiks
+er en AGGREGERING (mange koder summeres til én, f.eks. kommune →
+fylke), `vs_`-prefiks er et VALUESET (et alternativt, ofte kortere
+utvalg av koder). Koder fra ulike codelists må ikke blandes.
 
 ## Kjente feller
 
-- **Det gamle `/api/v0/...`-APIet skal ALDRI brukes** — det er POST-only
-  og CORS-stengt fra nettleseren (målt 2026-08-14: to bortkastede
-  kjøringer). Alt v0 kan, kan v2 med GET: ukjente koder løses med
-  `table_metadata` eller `valueCodes[<dim>]=*`, ikke med v0-POST.
+- **PxWebApi v1 (= `/api/v0/`) er stengt i appen** — bruk PxWeb v2 via
+  `ssb.read(...)`; rå URL-er mot SSB avvises uansett av verktøyene
+  (styrt kilde).
 - **`/tables/{id}/variables` finnes ikke i v2** (404) — dimensjoner og
-  koder bor i `GET /tables/{id}/metadata`.
-- **`/v2-beta/` er beta, ikke en stabil produksjonssti** — 503 på
-  søk/metadata/data 2026-07-25, 200 på de samme kallene 2026-07-31.
-  Bruk `/v2/` uansett, ikke fordi beta-stien nødvendigvis er nede akkurat
-  nå, men fordi SSB ikke lover at den forblir oppe.
-- **`outputFormat=csv` er bred og latin-1** — default (json-stat2, uten
-  `outputFormat=`) er tidy, UTF-8-kodet JSON, og det er det
-  `<alias>.read(...)` bruker.
-- **CORS på data-endepunktet har variert over tid** — registerets
-  quirks-notat fra 2026-07-25 målte `access-control-allow-origin`
-  fraværende der; et nytt probe 2026-07-31 målte den til stede (`*`, på
-  både 200- og 400-svar). Stol på et ferskt probe-resultat fremfor denne
-  filen for om CORS finnes akkurat nå — og uansett utfall er en rå
-  `fetch()` trygg å forsøke først: appens datahenting faller automatisk
-  tilbake til `/api/hent`-proxyen ved CORS-feil, aldri en stille feil.
+  koder bor i `table_metadata`.
 - **`range(fra,til)` finnes ikke** — bruk `top(n)`/`from(år)`, eller
   enumerer eksplisitte tidskoder for et lukket intervall.
-- Ukjent variabel-/verdikode, feil tidsformat, for mange celler (sjekk
-  `/config` → `maxDataCells`) og manglende obligatorisk dimensjon gir
-  alle `400` — `title`-feltet i responsen forteller hvilken (ingen
-  kodeliste følger med).
-
-## Komplett eksempel (Oslos folkemengde, tabell 11342)
-
-```
-# ssb = ost.connect("ssb")
-# oslo = ssb.read("11342", regions=["0301"], indicators=["Folkemengde"], years="2015:2024")
-```
-
-Verifisert 2026-07-31: `Region=0301` (Oslo kommune) sammen med
-`ContentsCode=Folkemengde` gir data uten 400. Fant du ikke riktig
-regionkode i kodelisten? Bruk `find="Oslo"` i `table_metadata` fremfor å
-gjette koder.
+- Ukjent variabel-/verdikode, feil tidsformat, for mange celler og
+  manglende obligatorisk dimensjon gir alle `400` — `title`-feltet i
+  responsen forteller hvilken (ingen kodeliste følger med).
 
 ## Om kilden
 

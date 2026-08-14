@@ -2,40 +2,40 @@
 
 kilde: api.ess.sikt.no/docs (OpenAPI), full nedlastingsflyt verifisert live 2026-08-06
 
-## Hva dette er
+## Komplett eksempel (runde 11, csv, missing rekodet)
 
-Europas viktigste holdnings-/velferdssurvey: ~30 land (inkl. Norge), 11
-runder 2002–2023, personnivå. Sterke moduler om helse, velferdsstat,
-tillit, subjektiv livskvalitet. Data leveres per FIL-DOI (én fil per
-runde/utgave), format parquet (default), csv, sav eller dta.
-
-## Ingen adapter — proxy-formen direkte, nøkkelen injiseres
-
-ESS har ingen `kind` i registeret → ingen kanonisk `ess.read(...)`.
-API-et sender ingen CORS-headere, og site-nøkkelen (`ESS_API_KEY` — en
-ESS-bruker-ID Sikt selv dokumenterer som sporings-ID, ikke autentisering)
-injiseres av `/api/hent` som `userId`-queryparam for alt mot verten
-`api.ess.sikt.no`. Ta ALDRI med userId selv — bare bruk proxy-formen:
+ESS har ingen `kind` i registeret, så `table_metadata` gir ingen
+`lese_linje` (kun pxweb/sdmx-kilder får den) — eksempelet under ER
+derfor den kanoniske lese-linjen for ESS: kopier og juster kun
+DOI-suffiks/format.
 
 ```
-# navn = ost.read("/api/hent?url=<url-enkodet mål UTEN userId>")
+# ess = ost.connect("ess")
+# ess11 = ess.read("v1/data/dataFile/10.21338/ess11e01_0?fileFormat=csv&recodeMissingValues=true")
 ```
 
-## Endepunktet (ett)
+`ess.read(...)` limer registerets `base_url` sammen med stien du gir —
+skriv ALDRI `ost.read("/api/hent?url=<full ESS-URL>")`: ESS er en STYRT
+kilde, og en slik literal URL (selv proxy-innpakket) avvises av
+verktøyene. Ta ALDRI med `userId` selv — nøkkelen (`ESS_API_KEY`, en
+ESS-bruker-ID Sikt selv dokumenterer som sporings-ID) injiseres
+server-side fordi kilden har `cors: false` og `auth` i registeret.
+Verifisert live 2026-08-06 (ekte bruker-ID): runde 11-csv ga **32,4
+MB**, kolonner `name, essround, edition, proddate, idno, cntry,
+dweight, pweight, nwspol, …`.
 
-```
-GET https://api.ess.sikt.no/v1/data/dataFile/{doiPrefix}/{doiSuffix}
-    ?fileFormat=csv|parquet|sav|dta[&recodeMissingValues=true]
-```
+## Sti og parametre (DOI, format)
 
-- DOI-er er på FIL-nivå: prefix `10.21338`, suffix som `ess11e01_0`
+Stien til `.read(...)` er
+`v1/data/dataFile/<doiPrefix>/<doiSuffix>?fileFormat=csv|parquet|sav|dta[&recodeMissingValues=true]`.
+
+- DOI-er er på FIL-nivå: prefix `10.21338`, suffiks som `ess11e01_0`
   (= ESS runde 11, hovedfil, utgave 01_0; mønster `ess{runde}e{utgave}`).
   Studie-DOI-er (NSD-ESS10-2020-typen) virker IKKE her.
 - `recodeMissingValues=true` rekoder ESS' missing-koder (66/77/88/99-
   familien) til ekte missing — bruk den, ellers MÅ du filtrere kodene selv.
-- Suksess = **307-redirect** til en signert Azure-fil-URL (~1 time
-  gyldig) — proxyen følger redirecten; ikke gjenbruk den signerte URL-en
-  senere, gjør heller et nytt kall.
+- Suksess er et signert, tidsbegrenset filsvar (~1 t gyldig) — kjør et
+  nytt `read(...)`-kall i stedet for å gjenbruke en tidligere URL.
 - **50 MB-fella (målt i smoke 2026-08-06):** siste UTGAVE av en runde
   (f.eks. ess11e04_0, 31 land) er >50 MB som CSV → proxyen AVKORTER
   (`x-hent-truncated`) og lesingen feiler. Velg `fileFormat=parquet`
@@ -43,18 +43,6 @@ GET https://api.ess.sikt.no/v1/data/dataFile/{doiPrefix}/{doiSuffix}
   dine er med — sjekk landlisten FØR du velger fil, ikke etter.
 - Svært store filer er ekskludert fra API-et (dokumentert); kumulative
   flerlandsfiler kan mangle — degrader da til per-runde-filer.
-
-Verifisert live 2026-08-06 (ekte bruker-ID): runde 11-csv = 200 via
-307-redirect, **32,4 MB**, kolonner `name, essround, edition, proddate,
-idno, cntry, dweight, pweight, nwspol, …` — inntil ~30 MB csv er OK i
-appen, men foretrekk `fileFormat=parquet` (mindre og typet). Ugyldig/
-manglende userId gir 400 med kode 205.
-
-Eksempel (runde 11, csv, missing rekodet):
-
-```
-# ess11 = ost.read("/api/hent?url=https%3A%2F%2Fapi.ess.sikt.no%2Fv1%2Fdata%2FdataFile%2F10.21338%2Fess11e01_0%3FfileFormat%3Dcsv%26recodeMissingValues%3Dtrue")
-```
 
 ## Finn DOI-suffikser og variabler
 

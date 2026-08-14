@@ -61,9 +61,9 @@ egne beskrivelser av innebygde datakilder. De er LESE-referanse: bruk dem til
 («beskrivelsen sier X, loggen viser Y»). Foreslå endringer i et innebygd
 dokument KUN når forespørselen har ADMIN-linjen OG evidensen peker på en
 faktisk feil i dokumentet (feil URL, parameter eller påstand) — bruk da
-id-formen "builtin:<kilde-id>" i forslaget, med hele den reviderte fila som
-ny_tekst. Uten ADMIN-linjen: aldri builtin-forslag; kodefeil går fortsatt til
-kode_sak.
+id-formen "builtin:<kilde-id>" i forslaget, med deler som i SVARFORMAT (kun
+de delene som endres). Uten ADMIN-linjen: aldri builtin-forslag; kodefeil
+går fortsatt til kode_sak.
 
 OPPGAVEMODUS KORT
 

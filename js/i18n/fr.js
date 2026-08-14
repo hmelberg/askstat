@@ -195,7 +195,6 @@ window.M2PY_I18N.fr = {
   "Applied — takes effect on your next question": "Appliqué — prend effet à votre prochaine question",
   "Apply": "Appliquer",
   "Discard": "Ignorer",
-  "Document too large for a safe PR — edit it in the repo": "Document trop volumineux pour une PR sûre — modifiez-le dans le dépôt",
   "Feedback — what should change in the next round?": "Retour — que faudrait-il changer au prochain tour ?",
   "Getting suggestions …": "Récupération des suggestions …",
   "Improve source description": "Améliorer la description de la source",

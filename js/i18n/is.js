@@ -195,7 +195,6 @@ window.M2PY_I18N.is = {
   "Applied — takes effect on your next question": "Beitt — gildir frá næstu spurningu þinni",
   "Apply": "Beita",
   "Discard": "Henda",
-  "Document too large for a safe PR — edit it in the repo": "Skjalið er of stórt fyrir örugga PR — breyttu því í geymslunni",
   "Feedback — what should change in the next round?": "Ábending — hverju ætti að breyta í næstu umferð?",
   "Getting suggestions …": "Sæki tillögur …",
   "Improve source description": "Bæta heimildarlýsinguna",

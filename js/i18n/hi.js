@@ -195,7 +195,6 @@ window.M2PY_I18N.hi = {
   "Applied — takes effect on your next question": "लागू किया गया — यह आपके अगले प्रश्न से प्रभावी होगा",
   "Apply": "लागू करें",
   "Discard": "अस्वीकार करें",
-  "Document too large for a safe PR — edit it in the repo": "दस्तावेज़ सुरक्षित PR के लिए बहुत बड़ा है — इसे रिपॉज़िटरी में संपादित करें",
   "Feedback — what should change in the next round?": "प्रतिक्रिया — अगले दौर में क्या बदलना चाहिए?",
   "Getting suggestions …": "सुझाव प्राप्त किए जा रहे हैं …",
   "Improve source description": "स्रोत विवरण सुधारें",

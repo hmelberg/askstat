@@ -195,7 +195,6 @@ window.M2PY_I18N.de = {
   "Applied — takes effect on your next question": "Übernommen — gilt ab deiner nächsten Frage",
   "Apply": "Übernehmen",
   "Discard": "Verwerfen",
-  "Document too large for a safe PR — edit it in the repo": "Dokument zu groß für eine sichere PR — bearbeite es im Repo",
   "Feedback — what should change in the next round?": "Feedback — was sollte in der nächsten Runde geändert werden?",
   "Getting suggestions …": "Vorschläge werden geholt …",
   "Improve source description": "Quellenbeschreibung verbessern",

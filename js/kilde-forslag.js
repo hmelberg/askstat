@@ -549,32 +549,32 @@
         // nedarvede egenskaper som __proto__/constructor fra å se ut som
         // treff) — spec 2026-08-14 §2 + sluttreview-funn.
         if (!erAdmin() || !erGyldigRefDocId(bid, state.refDocs)) return;
+        // Flett mot UKLIPPET original (Task 2/3, spec 2026-08-14 §2-3):
+        // state.refDocs er nå uklippet, så flettingen bevarer halen —
+        // 8k-klipp-vakten som tidligere sto her er overflødig og fjernet.
+        var original = state.refDocs[bid];
+        var nyTekst = global.SourceDoc && global.SourceDoc.flettDeler ?
+          global.SourceDoc.flettDeler(original, f.deler) : null;
+        if (nyTekst == null) return;   // utenkelig i nettleser, vakt likevel
         var bKort = el('div', 'kf-kort');
         bKort.appendChild(el('h4', null, bid + ' (' + T('built-in') + ')'));
-        var bDiff = el('div', 'kf-diff');
-        linjeDiff(state.refDocs[bid], f.ny_tekst).forEach(function (d) {
-          bDiff.appendChild(el('div', 'kf-diff-' + d.type,
-            (d.type === 'ny' ? '+ ' : d.type === 'slettet' ? '− ' : '  ') + d.tekst));
+        // Diff PER ENDRET DEL (mindre kort, mer lesbare enn én helhetsdiff).
+        var bDeltOpp = global.SourceDoc.splitKortGuide(original);
+        f.deler.forEach(function (p) {
+          bKort.appendChild(el('div', 'ask-pop-hint', p.del));
+          var bDiff = el('div', 'kf-diff');
+          linjeDiff(bDeltOpp[p.del], p.ny_tekst).forEach(function (d) {
+            bDiff.appendChild(el('div', 'kf-diff-' + d.type,
+              (d.type === 'ny' ? '+ ' : d.type === 'slettet' ? '− ' : '  ') + d.tekst));
+          });
+          bKort.appendChild(bDiff);
         });
-        bKort.appendChild(bDiff);
         if (f.begrunnelse) bKort.appendChild(el('div', 'ask-pop-hint', f.begrunnelse));
         var bRad = el('div', 'sources-info-actions');
-        // 8k-klipp-vakt (sluttreview-funn): hentRefDocs klipper innebygde
-        // dokumenter til 8000 tegn FØR modellen ser dem, men builtin
-        // ny_tekst erstatter HELE data/sources/<id>.md via PR. For et
-        // dokument som traff klippet (≥8000 tegn her) har modellen ALDRI
-        // sett halen — en PR ville stille slette den. Tilby diff + Forkast
-        // uten PR-knapp i så fall (lengste dokument i dag er 6913 tegn,
-        // så dette er foreløpig latent, men ikke usannsynlig).
-        var bKlippet = state.refDocs[bid].length >= 8000;
-        if (bKlippet) {
-          bKort.appendChild(el('div', 'ask-pop-hint',
-            T('Document too large for a safe PR — edit it in the repo')));
-        } else {
-          // Ingen lokal skrivevei for innebygde dokumenter (bevisst):
-          // kun PR (adminGate server-side er sperren) eller Forkast.
-          bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: f.ny_tekst }, bRad));
-        }
+        // Ingen lokal skrivevei for innebygde dokumenter (bevisst): kun PR
+        // (adminGate server-side er sperren) eller Forkast. ny_tekst er den
+        // FLETTEDE fulltekst — endepunktet erstatter hele filen.
+        bRad.appendChild(lagPrKnapp({ id: f.id, name: bid, of: bid, ny_tekst: nyTekst }, bRad));
         var bForkast = el('button', 'ai-codeblock-btn', T('Discard'));
         bForkast.type = 'button';
         bForkast.addEventListener('click', function () { bKort.remove(); });
@@ -584,14 +584,25 @@
         return;
       }
       var pr = global.Profiles && global.Profiles.get ? global.Profiles.get(String(f.id).slice(5)) : null;
+      // Flett mot UKLIPPET original (Task 3, spec 2026-08-14 §2-3): pr.text
+      // er allerede uklippet (Profiles eier hele teksten).
+      var original = pr ? pr.text : '';
+      var nyTekst = global.SourceDoc && global.SourceDoc.flettDeler ?
+        global.SourceDoc.flettDeler(original, f.deler) : null;
+      if (nyTekst == null) return;   // utenkelig i nettleser, vakt likevel
       var kort = el('div', 'kf-kort');
       kort.appendChild(el('h4', null, pr ? pr.name : f.id));
-      var diffBoks = el('div', 'kf-diff');
-      linjeDiff(pr ? pr.text : '', f.ny_tekst).forEach(function (d) {
-        var linje = el('div', 'kf-diff-' + d.type, (d.type === 'ny' ? '+ ' : d.type === 'slettet' ? '− ' : '  ') + d.tekst);
-        diffBoks.appendChild(linje);
+      // Diff PER ENDRET DEL (mindre kort, mer lesbare enn én helhetsdiff).
+      var deltOpp = global.SourceDoc.splitKortGuide(original);
+      f.deler.forEach(function (p) {
+        kort.appendChild(el('div', 'ask-pop-hint', p.del));
+        var diffBoks = el('div', 'kf-diff');
+        linjeDiff(deltOpp[p.del], p.ny_tekst).forEach(function (d) {
+          var linje = el('div', 'kf-diff-' + d.type, (d.type === 'ny' ? '+ ' : d.type === 'slettet' ? '− ' : '  ') + d.tekst);
+          diffBoks.appendChild(linje);
+        });
+        kort.appendChild(diffBoks);
       });
-      kort.appendChild(diffBoks);
       if (f.begrunnelse) kort.appendChild(el('div', 'ask-pop-hint', f.begrunnelse));
       var rad = el('div', 'sources-info-actions');
       var bruk = el('button', 'ai-response-insert-btn', T('Apply'));
@@ -600,7 +611,7 @@
       forkast.type = 'button';
       bruk.addEventListener('click', function () {
         if (!pr) return;
-        global.Profiles.update(String(f.id).slice(5), { text: f.ny_tekst });
+        global.Profiles.update(String(f.id).slice(5), { text: nyTekst });
         // Editoren kan stå åpen bak modalen med stale tekstfelt (sluttreview-
         // funn): varsle så den kan lese inn den aksepterte teksten.
         try {
@@ -618,7 +629,7 @@
           id: f.id,
           name: pr ? pr.name : f.id,
           of: (pr && pr.origin && pr.origin.source === 'builtin-copy' && pr.origin.of) || undefined,
-          ny_tekst: f.ny_tekst,
+          ny_tekst: nyTekst,
         }, rad));
       }
       kort.appendChild(rad);

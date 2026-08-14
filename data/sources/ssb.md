@@ -13,11 +13,12 @@ sporrings_url_mal: https://data.ssb.no/api/pxwebapi/v2/tables/{id}/data?valueCod
 tags: [makro, norge]
 order: 0
 ---
+
 # Statistisk sentralbyrå (PxWebApi 2)
 
 ## Kort
 
-GET med valueCodes per dimensjon mot `/v2/`; default-respons er json-stat2 (tidy, UTF-8) — bruk `<alias>.read(...)` eller parse `raw["dataset"]["value"]` manuelt (nøkkelen er `dataset`, ikke `dimension`). `outputFormat=csv` er bred og latin-1 — unngå den. Det gamle `/api/v0/...`-APIet er POST-only og CORS-stengt — bruk det aldri, heller ikke til metadata-henting. `pyjstat.from_json_stat` er ikke tilgjengelig i kjøremiljøet — bruk `<alias>.read(...)` eller manuell parsing via `raw["dataset"]`.
+GET med valueCodes per dimensjon mot `/v2/`; default-respons er json-stat2 (tidy, UTF-8) — bruk `<alias>.read(...)`, eller parse json-stat2 manuelt: verdiene ligger i `value`-arrayet og dimensjonene i `dimension` på ROTNIVÅ (en `dataset`-innpakning betyr at du har fått gammel json-stat v1 fra feil API). `outputFormat=csv` er bred og latin-1 — unngå den. Det gamle `/api/v0/...`-APIet er POST-only og CORS-stengt — bruk det aldri, heller ikke til metadata-henting. `pyjstat.from_json_stat` er ikke tilgjengelig i kjøremiljøet.
 
 ## Guide
 
@@ -153,3 +154,4 @@ gjette koder.
 ## Om kilden
 
 Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.
+

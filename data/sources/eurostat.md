@@ -44,6 +44,15 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
 - geo-koder er Eurostats egne: "NO" (ikke NOR), EU-aggregat "EU27_2020". Sjekk kodene med table_metadata(find="Norway") — aldri gjett.
 - years="2015:2024" oversettes til sinceTimePeriod/untilTimePeriod. Kvartals-/månedsdata: filtrer heller med kildens egne tidskoder via filters.
 - Uttrekk uten filters kan bli enorme — velg alltid geo + de sentrale dimensjonene eksplisitt.
+- **unit-fella (målt eval-rundene 2–3, une_rt_m):** tabeller med en
+  unit-dimensjon leverer FØRSTE unit-kategori STILLE når `unit=` utelates
+  — for ledighets-/rate-tabeller får du da absoluttall (THS_PER) som ser
+  ut som rare prosenter. Sett ALLTID `unit=` eksplisitt (ledighetsrate:
+  `unit="PC_ACT"`); gyldige koder står i table_metadata.
+- **Rangeringer/flerlandssammenligninger:** behold geo-kolonnen hele
+  veien og merge/sortér PÅ den — aldri posisjonsjoin av separate verdi-
+  og landlister (målt: riktige verdier koblet til feil land tre av tre
+  runder når dette glapp). Print (geo, value)-parene før du rangerer.
 
 ## Om kilden
 

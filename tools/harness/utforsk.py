@@ -39,6 +39,10 @@ TIMEOUT_S = 10
 # tabeller som faktisk er verifisert mot kilden hører hjemme her
 # (sluttreview 2026-08-15: en scb-plassholder med SSBs tabellnummer ville
 # garantert 404 — slettet).
+STATFIN_TABELLER = ["tyti"]   # MAPPE (guiden: naviger GET {base}/tyti → tabelliste; metadata = GET tabell-URL)
+DST_TABELLER = ["FOLK1A"]                               # klassisk befolkningstabell
+FHI_TABELLER = [("daar", "754"), ("nokkel", "394")]     # daar/754 fra guiden; nokkel/394 målt i eval
+
 FALLBACK_TABELLER = {
     "ssb": ["07459", "14706"],
     "eurostat": ["ei_lmhr_m", "prc_hicp_manr"],
@@ -48,6 +52,11 @@ FALLBACK_TABELLER = {
     # dokumenterte eksempel (EXR, komma-formen målt 2026-08-01).
     "oecd": ["OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M"],
     "ecb": ["ECB,EXR"],
+    # statfin/dst/fhi (kilder-runde 4): former fra guidenes verifiserte
+    # eksempler (2026-07-23) + eval-målt fhi/nokkel/394.
+    "statfin": STATFIN_TABELLER,
+    "dst": DST_TABELLER,
+    "fhi": FHI_TABELLER,
 }
 
 STORBYER = ["Oslo", "Bergen", "Trondheim", "Stavanger", "Stockholm", "Göteborg", "København"]
@@ -84,7 +93,7 @@ class Budsjett:
 # ── HTTP-hjelpere (rå urllib — søke-/metadatafasen er IKKE del av openstat.py
 #    sitt Source.read()-kontraktflate, så vi henter selv) ────────────────────
 
-def _http(url, budsjett, headers=None, som_json=True, timeout_s=None):
+def _http(url, budsjett, headers=None, som_json=True, timeout_s=None, body=None):
     """Ett HTTP GET — parset som JSON (som_json=True) eller rå tekst (CSV o.l.).
     (resultat, None) ved suksess, (None, feilmelding) ved feil — kaster aldri
     (spec §0: en feil her skal bli et FUNN i utkastet, ikke en krasjet kjøring).
@@ -92,8 +101,15 @@ def _http(url, budsjett, headers=None, som_json=True, timeout_s=None):
     gjelde selv om kallet feilet)."""
     hdrs = {"User-Agent": "askstat-utforsk"}
     hdrs.update(headers or {})
+    data_bytes = None
+    if body is not None:
+        # POST m/JSON-kropp (kilder-runde 4: statfin/fhi-uttrekk er POST) —
+        # appen pakker disse via /api/hent-proxyens body-param; utforskeren
+        # kjører i CPython uten CORS og kaller direkte, samme kropp.
+        data_bytes = json.dumps(body).encode("utf-8")
+        hdrs.setdefault("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs), timeout=(timeout_s or TIMEOUT_S)) as r:
+        with urllib.request.urlopen(urllib.request.Request(url, data=data_bytes, headers=hdrs), timeout=(timeout_s or TIMEOUT_S)) as r:
             data = r.read()
         return (json.loads(data.decode("utf-8")) if som_json else data.decode("utf-8", "replace")), None
     except urllib.error.HTTPError as e:
@@ -722,6 +738,165 @@ def lesemonstre_sti(kilde_id, src, alias, monstre, budsjett):
     return ut, [notat]
 
 
+
+
+# ── statfin/dst/fhi (kilder-runde 4, 2026-08-15): kinds uten python-adapter —
+# utforskeren verifiserer appens DOKUMENTERTE API-former (data/sources/*.md,
+# verifisert 2026-07-23) direkte i CPython (ingen CORS her; i appen går
+# POST-uttrekkene via /api/hent-proxyens body-param — noteres i utkastet).
+
+
+def _rest_lesing(navn, linje, budsjett, url, body=None, parser=None, headers=None):
+    resultat, feil = _http(url, budsjett, som_json=False, body=body, headers=headers, timeout_s=25)
+    if feil:
+        return {"navn": navn, "linje": linje, "ok": False, "rader": None, "kolonner": None, "feil": feil}
+    try:
+        rader, kolonner = parser(resultat)
+        return {"navn": navn, "linje": linje, "ok": True, "rader": rader, "kolonner": kolonner, "feil": None}
+    except Exception as e:
+        return {"navn": navn, "linje": linje, "ok": False, "rader": None, "kolonner": None,
+                "feil": "svar lot seg ikke parse: %s" % e}
+
+
+def _csv_parser(skille):
+    def parse(tekst):
+        linjer = [l for l in tekst.splitlines() if l.strip()]
+        return max(0, len(linjer) - 1), linjer[0].split(skille) if linjer else []
+    return parse
+
+
+def _jsonstat_parser(tekst):
+    cols = ost.columns_from_jsonstat(json.loads(tekst))
+    return len(cols.get("value", [])), list(cols)
+
+
+def metadata_statfin(kilde, tabell_sti, budsjett):
+    if not tabell_sti.endswith(".px"):
+        # Mappe: naviger (guiden 2026-07-23: GET mappe → [{id,type,text},...])
+        # og velg første tabell — én ekstra kall, samme mønster som appen.
+        mappe, feil = _http_json(kilde["base_url"].rstrip("/") + "/" + tabell_sti, budsjett)
+        if feil:
+            return {"tabell": tabell_sti, "feil": "mappenavigasjon feilet: %s" % feil}
+        tabeller = [e.get("id") for e in (mappe or []) if str(e.get("id", "")).endswith(".px")]
+        if not tabeller:
+            return {"tabell": tabell_sti, "feil": "ingen .px-tabeller i mappen"}
+        tabell_sti = tabell_sti + "/" + tabeller[0]
+    url = kilde["base_url"].rstrip("/") + "/" + tabell_sti
+    doc, feil = _http_json(url, budsjett)
+    if feil:
+        return {"tabell": tabell_sti, "feil": feil}
+    dims = [{"navn": v.get("code"), "n_koder": len(v.get("values", [])),
+             "mandatory": not v.get("elimination", False), "rolle": "time" if v.get("time") else None,
+             "koder": [str(x) for x in v.get("values", [])[:5]],
+             "etiketter": dict(zip([str(x) for x in v.get("values", [])[:5]],
+                                   [str(x) for x in v.get("valueTexts", [])[:5]]))}
+            for v in doc.get("variables", [])]
+    return {"tabell": tabell_sti, "tittel": doc.get("title", tabell_sti), "dims": dims, "feil": None,
+            "notat": "PxWeb v1: metadata via GET på tabell-URLen; UTTREKK krever POST "
+                     "(ingen CORS på POST — i appen alltid via /api/hent?url=…&body=…)."}
+
+
+def lesemonstre_statfin(kilde, metadata_tabeller, budsjett):
+    ut = []
+    for m in metadata_tabeller:
+        if m.get("feil") or not m.get("dims"):
+            continue
+        url = kilde["base_url"].rstrip("/") + "/" + m["tabell"]
+        tidsdim = next((d for d in m["dims"] if d.get("rolle") == "time" or
+                        str(d.get("navn", "")).lower().startswith(("vuosi", "tid", "år", "aika"))), None)
+        valg = []
+        for d in m["dims"]:
+            if d is tidsdim or not d.get("koder"):
+                continue
+            if d.get("mandatory"):
+                valg.append({"code": d["navn"], "selection": {"filter": "item", "values": [d["koder"][0]]}})
+        if tidsdim and tidsdim.get("koder"):
+            valg.append({"code": tidsdim["navn"], "selection": {"filter": "item", "values": [tidsdim["koder"][-1]]}})
+        body = {"query": valg, "response": {"format": "csv"}}
+        linje = ('# load /api/hent?url=<enkodet %s>&body=<enkodet %s> as df'
+                 % (url, json.dumps(body, ensure_ascii=False)))
+        ut.append(_rest_lesing("PxWeb v1 POST-uttrekk (%s)" % m["tabell"], linje, budsjett,
+                               url, body=body, parser=_csv_parser(",")))
+        break
+    return ut, ["Uttrekk er POST u/CORS-header — appen MÅ bruke /api/hent-proxyens body-param "
+                "(GET-metadata/navigasjon har CORS * og kan gå direkte)."]
+
+
+def metadata_dst(kilde, tabell_id, budsjett):
+    url = kilde["base_url"].rstrip("/") + "/tableinfo/" + tabell_id + "?format=JSON"
+    doc, feil = _http_json(url, budsjett)
+    if feil:
+        return {"tabell": tabell_id, "feil": feil}
+    dims = [{"navn": v.get("id"), "n_koder": len(v.get("values", [])),
+             "mandatory": not v.get("elimination", False), "rolle": "time" if v.get("time") else None,
+             "koder": [str(x.get("id")) for x in v.get("values", [])[:5]],
+             "etiketter": {str(x.get("id")): str(x.get("text")) for x in v.get("values", [])[:5]}}
+            for v in doc.get("variables", [])]
+    return {"tabell": tabell_id, "tittel": doc.get("text", tabell_id), "dims": dims, "feil": None}
+
+
+def lesemonstre_dst(kilde, metadata_tabeller, budsjett):
+    ut = []
+    for m in metadata_tabeller:
+        if m.get("feil") or not m.get("dims"):
+            continue
+        tidsdim = next((d for d in m["dims"] if d.get("rolle") == "time"), None)
+        params = []
+        for d in m["dims"]:
+            if d is tidsdim or not d.get("koder"):
+                continue
+            if d.get("mandatory"):
+                params.append("%s=%s" % (d["navn"], d["koder"][0]))
+        if tidsdim and tidsdim.get("koder"):
+            params.append("%s=%s" % (tidsdim["navn"], tidsdim["koder"][-1]))
+        url = (kilde["base_url"].rstrip("/") + "/data/" + m["tabell"] + "/CSV"
+               + ("?" + "&".join(params) if params else ""))
+        linje = 'pd.read_csv("%s", sep=";")' % url
+        ut.append(_rest_lesing("GET CSV (%s)" % m["tabell"], linje, budsjett, url,
+                               parser=_csv_parser(";")))
+        break
+    return ut, ["CSV bruker ; som skilletegn (sep=';' i pandas). /tables?format=JSON er katalogen."]
+
+
+def metadata_fhi(kilde, reg_og_id, budsjett):
+    reg, tid = reg_og_id
+    url = kilde["base_url"].rstrip("/") + "/" + reg + "/table/" + tid + "/dimension"
+    doc, feil = _http_json(url, budsjett)
+    if feil:
+        return {"tabell": "%s/%s" % (reg, tid), "feil": feil}
+    dims = []
+    for v in (doc if isinstance(doc, list) else doc.get("dimensions", [])):
+        kats = v.get("categories") or v.get("values") or []
+        # Målt kilder-runde 4: kategoriene er hierarkiske {label, value,
+        # children}-objekter — koden er value-feltet (hele dictens repr som
+        # «kode» ga kjempekropper og 400). children ignoreres (topp-nivå
+        # holder for eksempelkoder; noteres ærlig).
+        koder = [str(k.get("value", k) if isinstance(k, dict) else k) for k in kats[:5]]
+        dims.append({"navn": v.get("code") or v.get("id"), "n_koder": len(kats),
+                     "mandatory": True, "rolle": None, "koder": koder, "etiketter": {}})
+    return {"tabell": "%s/%s" % (reg, tid), "tittel": v0 if (v0 := doc if isinstance(doc, str) else None) else "%s/%s" % (reg, tid),
+            "dims": dims, "feil": None,
+            "notat": "FHI: ALLE dimensjoner må filtreres i POST-uttrekket (400 ellers); kun json-stat2."}
+
+
+def lesemonstre_fhi(kilde, metadata_tabeller, budsjett):
+    ut = []
+    for m in metadata_tabeller:
+        if m.get("feil") or not m.get("dims"):
+            continue
+        reg_tid = m["tabell"]
+        url = kilde["base_url"].rstrip("/") + "/" + reg_tid.split("/")[0] + "/table/" + reg_tid.split("/")[1] + "/data"
+        valg = [{"code": d["navn"], "filter": "item",
+                 "values": [next((k for k in d["koder"] if k.lower() == "total"), d["koder"][0])]}
+                for d in m["dims"] if d.get("koder")]
+        body = {"dimensions": valg, "response": {"format": "json-stat2"}}
+        linje = ('# load /api/hent?url=<enkodet %s>&body=<enkodet %s> as df'
+                 % (url, json.dumps(body, ensure_ascii=False)))
+        ut.append(_rest_lesing("POST json-stat2 (%s)" % reg_tid, linje, budsjett,
+                               url, body=body, parser=_jsonstat_parser))
+    return ut, ["ALLE dimensjoner må filtreres (400 ellers); kun json-stat2; POST via proxyens body-param i appen."]
+
+
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
     """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
     BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
@@ -756,6 +931,12 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                     metadata_tabeller.append(metadata_eurostat(kilde, tid, budsjett))
                 elif kind == "sdmx":
                     metadata_tabeller.append(metadata_sdmx(kilde, tid, budsjett))
+                elif kind == "statfin":
+                    metadata_tabeller.append(metadata_statfin(kilde, tid, budsjett))
+                elif kind == "dst":
+                    metadata_tabeller.append(metadata_dst(kilde, tid, budsjett))
+                elif kind == "fhi":
+                    metadata_tabeller.append(metadata_fhi(kilde, tid, budsjett))
                 elif kind in ("worldbank", "dbnomics"):
                     pass  # sti-/maskebasert — ingen metadata-endepunkt (ærlig note i lesemønstrene)
                 else:
@@ -776,6 +957,12 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                 lesninger, ekstra_notater = lesemonstre_eurostat(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
             elif kind == "sdmx":
                 lesninger, ekstra_notater = lesemonstre_sdmx(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            elif kind == "statfin":
+                lesninger, ekstra_notater = lesemonstre_statfin(kilde, metadata_tabeller, budsjett)
+            elif kind == "dst":
+                lesninger, ekstra_notater = lesemonstre_dst(kilde, metadata_tabeller, budsjett)
+            elif kind == "fhi":
+                lesninger, ekstra_notater = lesemonstre_fhi(kilde, metadata_tabeller, budsjett)
             elif kind == "worldbank":
                 lesninger, ekstra_notater = lesemonstre_sti(kilde_id, src, kilde_id, WB_MONSTRE, budsjett)
             elif kind == "dbnomics":

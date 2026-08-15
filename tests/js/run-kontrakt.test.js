@@ -290,3 +290,40 @@ test('runSvarLoop emitterer FEIL-linje til prosessloggen (spec 2026-08-15 §1)',
   // FEIL:\n-prefikset er kontrakt mot modellen og skal strippes i visningen.
   assert.ok(src.includes("replace(/^FEIL:\\n/"), 'FEIL-prefiks-strippingen mangler');
 });
+
+// Bare-alias-i-riktig-navnerom (sluttreview 2026-08-15 funn 1, CRITICAL):
+// ALL brukerkode i python-modus kjører i _g (en frittstående dict opprettet
+// i getInterpreterCorePython) — IKKE i pyodide.globals (__main__), som
+// boot-snuttens runPythonAsync-kall kjører i. En tidligere versjon bandt
+// bare-aliasene (eurostat, ssb, …) via globals().setdefault(...) i den
+// boot-snutten — feil navnerom, så eurostat.read(...) ga NameError i appen
+// selv om booten "lyktes". Låst her: bindingen (connect_alias) skal finnes
+// i getInterpreterCorePython-området (der _g opprettes) og IKKE lenger i
+// boot-snuttens runPythonAsync-løkke (som fortsatt eier _REGISTRY-
+// injeksjonen — modultilstand deles korrekt på tvers av navnerom via
+// sys.modules["openstat"]).
+test('index.html: bare-alias-bindingen (connect_alias) skjer i _g-navnerommet, ikke i boot-snuttens runPythonAsync-løkke', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
+
+  const coreStart = html.indexOf('function getInterpreterCorePython(');
+  assert.ok(coreStart > -1, 'fant ikke getInterpreterCorePython');
+  const coreEnd = html.indexOf('\n`;\n    }\n', coreStart);
+  assert.ok(coreEnd > coreStart, 'fant ikke slutten på getInterpreterCorePython (python-template-literalen)');
+  const core = html.slice(coreStart, coreEnd);
+  assert.ok(/_g\s*=\s*\{"__name__":\s*"__main__"/.test(core),
+    '_g-opprettelsen ble ikke funnet i getInterpreterCorePython — ankeret for denne testen har flyttet seg');
+  assert.ok(core.includes('connect_alias'),
+    'getInterpreterCorePython binder ikke lenger aliasene i _g — eurostat.read(...) vil NameError-e i appen (sluttreview funn 1)');
+  assert.ok(/_g\.setdefault\(/.test(core),
+    'alias-bindingen setter ikke lenger navnene via _g.setdefault(...) — sjekk idempotens/fail-open-mønsteret');
+
+  const bootStart = html.indexOf('// Registerkilde-tilstand til openstat-modulen');
+  assert.ok(bootStart > -1, 'fant ikke boot-snuttens kommentar (registerkilde-injeksjonen ved pyodide-boot)');
+  const bootCatchAt = html.indexOf('catch (eAlias)', bootStart);
+  assert.ok(bootCatchAt > bootStart, 'fant ikke slutten på boot-snutten (catch (eAlias))');
+  const boot = html.slice(bootStart, bootCatchAt);
+  assert.ok(boot.includes('_ost_mod._REGISTRY = _j.loads(_OST_REGISTRY_JSON)'),
+    'boot-snutten setter ikke lenger _ost_mod._REGISTRY — dette skal den fortsatt gjøre (delt modultilstand)');
+  assert.ok(!boot.includes('connect_alias'),
+    'boot-snutten binder fortsatt aliaser via runPythonAsync/pyodide.globals — feil navnerom (sluttreview funn 1)');
+});

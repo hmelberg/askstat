@@ -8114,6 +8114,25 @@ def to_microdata(df, name=None, make_active=True):
 _g = {"__name__": "__main__", "__builtins__": builtins, "e": e, "micro_interpreter": e, "pd": pd, "np": np, "numpy": np, "pandas": pd}
 _g["show"] = show
 _g["to_microdata"] = to_microdata
+# Bare-alias-binding i RIKTIG navnerom (sluttreview 2026-08-15 funn 1): ALL
+# brukerkode kjører i _g (se _exec_pyodide_block(code, g) under og
+# kjøreveiene som kaller den), IKKE i pyodide.globals (__main__). Boot-
+# snuttens gamle globals().setdefault(...)-løkke (fjernet, se index.html sin
+# "Registerkilde-tilstand til openstat-modulen"-kommentar) bandt derfor
+# aliasene i feil dict, og eurostat.read(...) ga NameError i appen selv om
+# boot "lyktes". _REGISTRY selv er allerede satt på det DELTE modulobjektet
+# sys.modules["openstat"] av boot-snutten (kjører én gang, FØR dette) — et
+# ferskt import her ser den uansett navnerom. setdefault: brukerkode som
+# selv har definert navnet vinner (idempotent, kan kjøre ved hver
+# _g-opprettelse). fail-open: manglende/tom registry skal aldri knekke
+# sesjonsoppstarten.
+try:
+    import openstat as _ost_mod
+    _g.setdefault("ost", _ost_mod)
+    for _ost_e in getattr(_ost_mod, "_REGISTRY", None) or []:
+        _g.setdefault(_ost_e["id"], _ost_mod.connect_alias(_ost_e["id"]))
+except Exception:
+    pass
 def _exec_pyodide_block(code, g, show_commands=False, only_last=False):
     """REPL-style: alle Expr-setninger vises (tabell, Plotly, matplotlib PNG).
     Hvis show_commands=True echoes hver top-level statement med '>>> ' /
@@ -10688,13 +10707,23 @@ sys.modules["ost"] = sys.modules["openstat"]
 `);
         } catch (e) { console.warn('openstat register:', e); }
       }
-      // Bare-alias som ekte kode (spec 2026-08-15 §2): bind registerkildene
-      // som toppnivå-navn (ssb, eurostat, …) så modellens naturlige
-      // eurostat.read(...) virker som kjørbar Python — miljøet holder det
-      // EVAL-regel 1 lover. Idempotent og fail-open: registerfeil skal
-      // aldri knekke Python-booten. Modulnavnet er "openstat" (se
-      // sys.modules["openstat"] rett over — samme spec_from_loader-
-      // mekanisme, ikke "ost", det er kun et alias-innslag i sys.modules).
+      // Registerkilde-tilstand til openstat-modulen (spec 2026-08-15 §2).
+      // VIKTIG (sluttreview 2026-08-15 funn 1): denne snutten setter KUN
+      // _ost_mod._REGISTRY — den binder IKKE lenger bare-aliasene (ssb,
+      // eurostat, …) som toppnivå-navn. Det den gjorde her (globals().set-
+      // default(...)) bandt navnene inn i pyodide.globals (__main__), men
+      // ALL brukerkode kjører i _g — en frittstående dict opprettet i
+      // getInterpreterCorePython (se _exec_pyodide_block(code, g)) — så
+      // eurostat.read(...) fortsatt ga NameError i selve appen selv om
+      // denne snutten "lyktes". _REGISTRY-tilordningen derimot MÅ skje her:
+      // den muterer det DELTE modulobjektet sys.modules["openstat"], som er
+      // synlig for et ferskt "import openstat" i ETHVERT navnerom (inkl.
+      // _g) uansett hvor tilordningen skjedde. Selve alias-bindingen skjer
+      // nå der _g opprettes (index.html, getInterpreterCorePython) —
+      // idempotent (setdefault) og fail-open der også.
+      // Modulnavnet er "openstat" (se sys.modules["openstat"] rett over —
+      // samme spec_from_loader-mekanisme, ikke "ost", det er kun et alias-
+      // innslag i sys.modules).
       // loadRegistry(fetchImpl) MÅ få en ekte fetch her: funksjonen har
       // ingen default og fanger internt TypeError fra en manglende
       // fetchImpl til _registryCache = [] — og _registryCache er module-
@@ -10715,9 +10744,7 @@ sys.modules["ost"] = sys.modules["openstat"]
         await pyodide.runPythonAsync(
           'import json as _j\n' +
           'import openstat as _ost_mod\n' +
-          '_ost_mod._REGISTRY = _j.loads(_OST_REGISTRY_JSON)\n' +
-          'for _e in _ost_mod._REGISTRY:\n' +
-          '    globals().setdefault(_e["id"], _ost_mod.connect_alias(_e["id"]))\n'
+          '_ost_mod._REGISTRY = _j.loads(_OST_REGISTRY_JSON)\n'
         );
       } catch (eAlias) { console.warn('alias-binding hoppet over:', eAlias); }
       setStatus(leftStatus, 'Ready.');

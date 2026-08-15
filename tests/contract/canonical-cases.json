@@ -36,6 +36,14 @@
     { "name": "pxweb years uten startaar er feil",
       "kind": "pxweb", "rest": "07459",
       "canonical": { "years": { "from": null, "to": "2009" } },
-      "expect_error": "startår" }
+      "expect_error": "startår" },
+    { "name": "worldbank liste-i-filters gir instruktiv feil (sluttreview 2026-08-15 funn 2a)",
+      "kind": "worldbank", "rest": "country/NOR/indicator/A",
+      "canonical": { "filters": { "source": ["2", "40"] } },
+      "expect_error": "støttes ikke.*worldbank" },
+    { "name": "sdmx liste-i-filters gir instruktiv feil (sluttreview 2026-08-15 funn 2b)",
+      "kind": "sdmx", "rest": "EXR",
+      "canonical": { "filters": { "FREQ": ["M", "D"] } },
+      "expect_error": "støttes ikke.*sdmx" }
   ]
 }

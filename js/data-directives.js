@@ -64,6 +64,17 @@
       // virker — se eurostat-grenen under). Uten en MÅLT liste-brukstilfelle
       // for WB latt jeg denne linja stå — endres først når et konkret
       // filters={"<param>": [...]}-behov måles mot WB.
+      // Sluttreview 2026-08-15 funn 2a: en liste-verdi ble tidligere
+      // komma-joinet STILLE her (samme feilmønster eurostat hadde før
+      // fiksen over) — WB-parametrene er skalare. Speiler openstat.py sin
+      // ValueError (~openstat.py:676) eksakt, FØR dagens komma-join.
+      var wbFilterKeys = Object.keys(c.filters || {});
+      for (var wbi = 0; wbi < wbFilterKeys.length; wbi++) {
+        var wbk = wbFilterKeys[wbi];
+        if (isArr(c.filters[wbk])) {
+          return { error: "liste-verdi for filters['" + wbk + "'] støttes ikke for worldbank — WB-parametrene er skalare (én verdi per parameter)" };
+        }
+      }
       Object.keys(c.filters || {}).forEach(function (k) { params.push(k + '=' + c.filters[k]); });
       return out;
     }
@@ -113,6 +124,18 @@
     }
     if (kind === 'sdmx') {
       if (c.regions) return { error: 'regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) eller filters(<DIM>=…)' };
+      // Sluttreview 2026-08-15 funn 2b: denne armen ser filters KUN via
+      // needsSdmxKey-payloaden under (bygges lenger ned, ikke her) — en
+      // liste-verdi ble tidligere sendt videre inn i nøkkelsti-byggingen
+      // (stille feil URL i stedet for feil). Guarden ligger FØR needsSdmxKey
+      // bygges. Speiler openstat.py sin ValueError (~openstat.py:736) eksakt.
+      var sdmxFilterKeys = Object.keys(c.filters || {});
+      for (var sdi = 0; sdi < sdmxFilterKeys.length; sdi++) {
+        var sdk = sdmxFilterKeys[sdi];
+        if (isArr(c.filters[sdk])) {
+          return { error: "liste-verdi for filters['" + sdk + "'] støttes ikke ennå for sdmx-kilder — angi én kode, eller bruk flere read()-kall" };
+        }
+      }
       if (y && y.from) params.push('startPeriod=' + y.from);
       if (y && y.to) params.push('endPeriod=' + y.to);
       if (c.countries || c.indicators || c.filters) {

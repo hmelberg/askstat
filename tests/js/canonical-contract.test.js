@@ -22,7 +22,9 @@ for (const c of fasit.cases) {
       return;
     }
     assert.ok(!tr.error, tr.error);
-    assert.deepEqual([...tr.params].sort(), [...c.expect_params].sort());
+    // sluttreview 2026-08-15 funn 3 (minor): deepStrictEqual — strict
+    // sammenligning, samme mønster som resten av kontraktstestene.
+    assert.deepStrictEqual([...tr.params].sort(), [...c.expect_params].sort());
     if (c.expect_rest !== undefined) assert.equal(tr.rest, c.expect_rest);
   });
 }

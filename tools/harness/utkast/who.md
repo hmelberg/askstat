@@ -16,9 +16,17 @@ pd.read_json(".../api/WHOSIS_000001?$filter=SpatialDim eq 'NOR'") — value-list
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- R (dokumentert, ikke testet her): `WHO (CRAN, GHO-API)`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- R (dokumentert, ikke testet her): [`WHO`](https://cran.r-project.org/package=WHO)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

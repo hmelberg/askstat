@@ -988,21 +988,27 @@ def _dbnomics_smoke():
         raise RuntimeError("0 rader")
     return "fetch_series AMECO/ZUTN → %d rader (live)" % len(df)
 
+PYPI = "https://pypi.org/project/%s/"
+CRAN = "https://cran.r-project.org/package=%s"
 OKOSYSTEM = {
-    "ssb":      {"py": [("pyjstat", _pyjstat_smoke)], "r": ["PxWebApiData (SSBs egen)", "pxweb (rOpenGov)"]},
-    "scb":      {"py": [("pyjstat", _pyjstat_smoke)], "r": ["pxweb (rOpenGov)"]},
-    "statfin":  {"py": [("pyjstat", _pyjstat_smoke)], "r": ["pxweb (rOpenGov)"]},
-    "eurostat": {"py": [("eurostat", None)], "r": ["eurostat (rOpenGov)", "restatapi"]},
-    "oecd":     {"py": [("sdmx1", None)], "r": ["rsdmx", "OECD"]},
-    "ecb":      {"py": [("sdmx1", None)], "r": ["rsdmx", "ecb"]},
-    "norgesbank": {"py": [("sdmx1", None)], "r": ["rsdmx"]},
-    "worldbank": {"py": [("wbgapi", None)], "r": ["WDI"]},
-    "dbnomics": {"py": [("dbnomics", _dbnomics_smoke)], "r": ["rdbnomics"]},
-    "fred":     {"py": [("fredapi", None)], "r": ["fredr"]},
-    "owid":     {"py": [("owid-catalog", None)], "r": []},
-    "dst":      {"py": [], "r": ["danstat (CRAN)", "dkstat"]},
+    "ssb":      {"py": [("pyjstat", _pyjstat_smoke, "https://github.com/predicador37/pyjstat")],
+                 "r": [("PxWebApiData (SSBs egen)", CRAN % "PxWebApiData"), ("pxweb (rOpenGov)", "https://github.com/rOpenGov/pxweb")]},
+    "scb":      {"py": [("pyjstat", _pyjstat_smoke, "https://github.com/predicador37/pyjstat")],
+                 "r": [("pxweb (rOpenGov)", "https://github.com/rOpenGov/pxweb")]},
+    "statfin":  {"py": [("pyjstat", _pyjstat_smoke, "https://github.com/predicador37/pyjstat")],
+                 "r": [("pxweb (rOpenGov)", "https://github.com/rOpenGov/pxweb")]},
+    "eurostat": {"py": [("eurostat", None, PYPI % "eurostat")],
+                 "r": [("eurostat (rOpenGov)", "https://github.com/rOpenGov/eurostat"), ("restatapi", CRAN % "restatapi")]},
+    "oecd":     {"py": [("sdmx1", None, "https://github.com/khaeru/sdmx")], "r": [("rsdmx", "https://github.com/opensdmx/rsdmx"), ("OECD", CRAN % "OECD")]},
+    "ecb":      {"py": [("sdmx1", None, "https://github.com/khaeru/sdmx")], "r": [("rsdmx", "https://github.com/opensdmx/rsdmx"), ("ecb", CRAN % "ecb")]},
+    "norgesbank": {"py": [("sdmx1", None, "https://github.com/khaeru/sdmx")], "r": [("rsdmx", "https://github.com/opensdmx/rsdmx")]},
+    "worldbank": {"py": [("wbgapi", None, "https://github.com/tgherzog/wbgapi")], "r": [("WDI", CRAN % "WDI")]},
+    "dbnomics": {"py": [("dbnomics", _dbnomics_smoke, PYPI % "dbnomics")], "r": [("rdbnomics", CRAN % "rdbnomics")]},
+    "fred":     {"py": [("fredapi", None, "https://github.com/mortada/fredapi")], "r": [("fredr", "https://github.com/sboysel/fredr")]},
+    "owid":     {"py": [("owid-catalog", None, PYPI % "owid-catalog")], "r": []},
+    "dst":      {"py": [], "r": [("danstat", CRAN % "danstat"), ("dkstat", "https://github.com/rOpenGov/dkstat")]},
     "fhi":      {"py": [], "r": []},
-    "who":      {"py": [], "r": ["WHO (CRAN, GHO-API)"]},
+    "who":      {"py": [], "r": [("WHO", CRAN % "WHO")]},
     "datanorge": {"py": [], "r": []},
 }
 
@@ -1037,14 +1043,21 @@ def verifiser_pakke(pakke, smoke):
 
 def okosystem_seksjon(kilde_id):
     oko = OKOSYSTEM.get(kilde_id, {"py": [], "r": []})
-    linjer = ["## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)", ""]
+    linjer = ["## Økosystem (klientpakker)", "",
+              "Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i",
+              "python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)",
+              "der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder",
+              "(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan",
+              "feile i wasm (kun urllib er patchet). For portable skript utenfor",
+              "appen gjelder pakkene fullt ut.", ""]
     if oko["py"]:
-        for pakke, smoke in oko["py"]:
+        for pakke, smoke, url in oko["py"]:
             status = verifiser_pakke(pakke, smoke)
             print("  pakke %s: %s" % (pakke, status))
-            linjer.append("- Python `%s` — %s" % (pakke, status))
+            linjer.append("- Python [`%s`](%s) — %s" % (pakke, url, status))
     if oko["r"]:
-        linjer.append("- R (dokumentert, ikke testet her): " + ", ".join("`%s`" % x for x in oko["r"]))
+        linjer.append("- R (dokumentert, ikke testet her): " +
+                      ", ".join("[`%s`](%s)" % (navn, url) for navn, url in oko["r"]))
     if not oko["py"] and not oko["r"]:
         linjer.append("- Ingen kjente dedikerte klientpakker — bruk API-formene over direkte.")
     return "\n".join(linjer)

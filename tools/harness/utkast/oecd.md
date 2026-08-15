@@ -41,10 +41,18 @@ Feil: liste-verdi for filters['REF_AREA'] støttes ikke ennå for sdmx-kilder �
 `oecd.read("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M", years="2024:2025", filters={"REF_AREA": ["GRC", "SWE"], "MEASURE": "UNE_LF_M", "UNIT_MEASURE": "PT_LF_SUB", "TRANSFORMATION": "_Z", "ADJUSTMENT": "N", "SEX": "M", "AGE": "Y15T24", "ACTIVITY": "_Z", "FREQ": "A"})`
 → liste-verdi for filters['REF_AREA'] støttes ikke ennå for sdmx-kilder — angi én kode, eller bruk flere read()-kall
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `sdmx1` — verifisert: install + import
-- R (dokumentert, ikke testet her): `rsdmx`, `OECD`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`sdmx1`](https://github.com/khaeru/sdmx) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`rsdmx`](https://github.com/opensdmx/rsdmx), [`OECD`](https://cran.r-project.org/package=OECD)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

@@ -57,10 +57,18 @@ eurostat.read("prc_hicp_manr", countries=["NO"], years="2024:2026", filters={"co
 `eurostat.read("ei_lmhr_m", years="2024:2025", filters={"s_adj": "NSA", "geo": "NO,SE"})`
 → «ei_lmhr_m»: uttrekket kom TOMT tilbake (0 datarader) — sjekk filtre/dekning (koder, år, land); slakk én dimensjon og prøv igjen. Flere land angis som countries=["NO", "SE"] — kommaliste i én geo=-param gir stille tomt fra Eurostat.
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `eurostat` — verifisert: install + import
-- R (dokumentert, ikke testet her): `eurostat (rOpenGov)`, `restatapi`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`eurostat`](https://pypi.org/project/eurostat/) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`eurostat (rOpenGov)`](https://github.com/rOpenGov/eurostat), [`restatapi`](https://cran.r-project.org/package=restatapi)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

@@ -16,9 +16,17 @@ POST search-api m/{'q': 'befolkning', 'filters': {'type': {'value': 'datasets'}}
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
+
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
 
 - Ingen kjente dedikerte klientpakker — bruk API-formene over direkte.
+
 
 ## Søkenotater
 - «befolkning»: søk feilet: HTTP 405: {"timestamp":"2026-08-15T22:23:28.046Z","status":405,"error":"Method Not Allowed","path":"/search"}

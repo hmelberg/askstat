@@ -22,10 +22,18 @@
 ## Kjente feller (målt i denne utforskningen)
 Uttrekk er POST u/CORS-header — appen MÅ bruke /api/hent-proxyens body-param (GET-metadata/navigasjon har CORS * og kan gå direkte).
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `pyjstat` — verifisert: 4 rader fra delt json-stat2-fixture (offline)
-- R (dokumentert, ikke testet her): `pxweb (rOpenGov)`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`pyjstat`](https://github.com/predicador37/pyjstat) — verifisert: 4 rader fra delt json-stat2-fixture (offline)
+- R (dokumentert, ikke testet her): [`pxweb (rOpenGov)`](https://github.com/rOpenGov/pxweb)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

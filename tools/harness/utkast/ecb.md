@@ -37,10 +37,18 @@ Feil: liste-verdi for filters['CURRENCY'] støttes ikke ennå for sdmx-kilder �
 `ecb.read("ECB,EXR", years="2024:2025", filters={"FREQ": "A", "CURRENCY": ["ARS", "AUD"], "CURRENCY_DENOM": "EUR", "EXR_TYPE": "SP00", "EXR_SUFFIX": "A"})`
 → liste-verdi for filters['CURRENCY'] støttes ikke ennå for sdmx-kilder — angi én kode, eller bruk flere read()-kall
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `sdmx1` — verifisert: install + import
-- R (dokumentert, ikke testet her): `rsdmx`, `ecb`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`sdmx1`](https://github.com/khaeru/sdmx) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`rsdmx`](https://github.com/opensdmx/rsdmx), [`ecb`](https://cran.r-project.org/package=ecb)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

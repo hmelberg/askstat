@@ -48,10 +48,18 @@ norgesbank.read("IR", years="2020:2025", filters={"FREQ": "A", "INSTRUMENT_TYPE"
 `norgesbank.read("EXR", years="2024:2025", filters={"FREQ": ["B", "A"], "BASE_CUR": "HUF", "QUOTE_CUR": "NOK", "TENOR": "SP"})`
 → liste-verdi for filters['FREQ'] støttes ikke ennå for sdmx-kilder — angi én kode, eller bruk flere read()-kall
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `sdmx1` — verifisert: install + import
-- R (dokumentert, ikke testet her): `rsdmx`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`sdmx1`](https://github.com/khaeru/sdmx) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`rsdmx`](https://github.com/opensdmx/rsdmx)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

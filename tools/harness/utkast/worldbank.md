@@ -28,10 +28,18 @@ worldbank.read("country/NOR/indicator/SP.POP.TOTL", years="2020:2024")
 ## Kjente feller (målt i denne utforskningen)
 Sti-/maskebasert kilde: ingen generisk metadata-probe — dimensjonskunnskapen bor i stien/masken (se lesemønstrene over).
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `wbgapi` — verifisert: install + import
-- R (dokumentert, ikke testet her): `WDI`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`wbgapi`](https://github.com/tgherzog/wbgapi) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`WDI`](https://cran.r-project.org/package=WDI)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

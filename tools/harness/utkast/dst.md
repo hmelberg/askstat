@@ -23,9 +23,17 @@ pd.read_csv("https://api.statbank.dk/v1/data/FOLK1A/CSV?Tid=2009K1", sep=";")
 ## Kjente feller (målt i denne utforskningen)
 CSV bruker ; som skilletegn (sep=';' i pandas). /tables?format=JSON er katalogen.
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- R (dokumentert, ikke testet her): `danstat (CRAN)`, `dkstat`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- R (dokumentert, ikke testet her): [`danstat`](https://cran.r-project.org/package=danstat), [`dkstat`](https://github.com/rOpenGov/dkstat)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

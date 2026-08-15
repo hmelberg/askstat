@@ -114,7 +114,12 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    gir proxy-fallback ved CORS, forståelige feil, tomt-vakter og at kilden
    havner i kildelisten. requests og urllib VIRKER teknisk (urllib via
    sikkerhetsnett-patch), men gir deg INGENTING av dette — bruk dem kun når
-   et bibliotek krever det, og oppgi da kilde-URL-en eksplisitt i svaret.
+   et bibliotek krever det, og oppgi da kilde-URL-en eksplisitt i svaret. For en
+   IKKE-STYRT kilde uten adapter-/direktivdekning KAN en dokumentert
+   klientpakke brukes i python-modus (auto-installeres ved import;
+   sdmx→sdmx1-aliaset finnes) — men ALDRI mot styrte kilder (pakkens
+   HTTP avvises av skinnen), og requests-baserte pakker kan feile i
+   wasm (kun urllib er patchet). Oppgi kilde-URL-en i svaret som ellers.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv `pd.read_csv(url, ...)` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
 7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-

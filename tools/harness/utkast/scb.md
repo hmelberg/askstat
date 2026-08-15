@@ -50,10 +50,18 @@ scb.read("TAB4562", indicators=["000000VP"], years="2024", lang="en")
 
 **Aggregat-via-utelatelse (TAB4562):** kjøringen «Enkeltvalg (TAB4562)» over UTELOT Region og Vattenanslutning (elimination:true i metadata) — 1 rad(er) kom likevel tilbake, altså et aggregat over disse dimensjonene, ikke en feil.
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `pyjstat` — verifisert: 4 rader fra delt json-stat2-fixture (offline)
-- R (dokumentert, ikke testet her): `pxweb (rOpenGov)`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`pyjstat`](https://github.com/predicador37/pyjstat) — verifisert: 4 rader fra delt json-stat2-fixture (offline)
+- R (dokumentert, ikke testet her): [`pxweb (rOpenGov)`](https://github.com/rOpenGov/pxweb)
+
 
 ## Søkenotater
 - «befolkning»: 20 treff — topp 3: TAB4552 (Befolkningens anslutning till kommunalt vatten och avlopp. Å); TAB4560 (Befolkningen efter region och typ av avloppsanslutning. År 2); TAB4562 (Befolkningen efter region och typ av vattenanslutning. År 20)

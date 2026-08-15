@@ -112,10 +112,17 @@ ssb.read("14706", indicators=["KPIJustIndMnd"], filters={"Tid": ["2026M06", "202
 `ssb.read("14706", indicators=["KPIJustIndMnd"], years="2024:2025")`
 → HTTP 400 for https://data.ssb.no/api/pxwebapi/v2/tables/14706/data?lang=no&valueCodes[ContentsCode]=KPIJustIndMnd&valueCodes[Tid]=2024,2025&outputFormat=json-stat2: {"type":"Parameter error","title":"Non-existent value","status":400} — reparasjon: sjekk kodene mot table_metadata (bruk find="…" for lange kodelister); vil du ha TOTALEN: UTELAT eliminerbare dimensjoner fra read-linjen
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `pyjstat` — verifisert: 4 rader fra delt json-stat2-fixture (offline)
-- R (dokumentert, ikke testet her): `PxWebApiData (SSBs egen)`, `pxweb (rOpenGov)`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`pyjstat`](https://github.com/predicador37/pyjstat) — verifisert: 4 rader fra delt json-stat2-fixture (offline)
+- R (dokumentert, ikke testet her): [`PxWebApiData (SSBs egen)`](https://cran.r-project.org/package=PxWebApiData), [`pxweb (rOpenGov)`](https://github.com/rOpenGov/pxweb)
 
 
 ## Søkenotater

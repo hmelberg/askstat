@@ -16,10 +16,18 @@ pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE")
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
-## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+## Økosystem (klientpakker)
 
-- Python `fredapi` — verifisert: install + import
-- R (dokumentert, ikke testet her): `fredr`
+Adapterne er førstevalget i appen. Python-pakkene under KAN brukes i
+python-modus (auto-installeres ved import; sdmx→sdmx1-aliaset finnes)
+der adapterne ikke dekker behovet — MEN aldri mot STYRTE kilder
+(pakkens HTTP avvises av skinnen), og requests-baserte pakker kan
+feile i wasm (kun urllib er patchet). For portable skript utenfor
+appen gjelder pakkene fullt ut.
+
+- Python [`fredapi`](https://github.com/mortada/fredapi) — verifisert: install + import
+- R (dokumentert, ikke testet her): [`fredr`](https://github.com/sboysel/fredr)
+
 
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

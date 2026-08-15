@@ -22,6 +22,12 @@ order: 6
 
 krever api_key (injiseres av /api/hent); file_type=json
 
+**Nøkkelfri lesing (verifisert 2026-08-15, 943 rader):**
+`pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE")`
+— fredgraph-formen trenger ingen nøkkel (CORS varierer: stol på proben,
+proxy ved målt cors:false). API-et under base_url krever api_key
+(injiseres av /api/hent).
+
 ## Om kilden
 
 FRED (Federal Reserve Bank of St. Louis) — US and international macroeconomic and financial time series.

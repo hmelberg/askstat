@@ -103,6 +103,11 @@ utvalg av koder). Koder fra ulike codelists må ikke blandes.
   manglende obligatorisk dimensjon gir alle `400` — `title`-feltet i
   responsen forteller hvilken (ingen kodeliste følger med).
 
+- **`years=` mot en IKKE-årlig tabell gir 400 «Non-existent value»** (målt
+  2026-08-15 — et ANNET feilmønster enn range()-feilens «Illegal selection
+  expression»): månedstabeller velger tid med
+  `filters={"Tid": ["2026M06", …]}`, aldri `years=`.
+
 ## Om kilden
 
 Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.

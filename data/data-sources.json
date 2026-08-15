@@ -104,7 +104,7 @@
       "makro"
     ],
     "beskrivelse": "WHO Global Health Observatory — global health indicators (mortality, disease burden, health systems) by country and year.",
-    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste"
+    "quirks": "OData: /api/{INDIKATORKODE}?$filter=...; JSON med value-liste\n\n**Verifisert eksempel (2026-08-15, 66 rader):**\n`GET {base}WHOSIS_000001?$filter=SpatialDim eq 'NOR'` (forventet\nlevealder, Norge) — JSON-svarets `value`-liste er radene."
   },
   {
     "id": "owid",
@@ -146,7 +146,7 @@
       "makro"
     ],
     "beskrivelse": "FRED (Federal Reserve Bank of St. Louis) — US and international macroeconomic and financial time series.",
-    "quirks": "krever api_key (injiseres av /api/hent); file_type=json"
+    "quirks": "krever api_key (injiseres av /api/hent); file_type=json\n\n**Nøkkelfri lesing (verifisert 2026-08-15, 943 rader):**\n`pd.read_csv(\"https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE\")`\n— fredgraph-formen trenger ingen nøkkel (CORS varierer: stol på proben,\nproxy ved målt cors:false). API-et under base_url krever api_key\n(injiseres av /api/hent)."
   },
   {
     "id": "norgesbank",
@@ -165,7 +165,7 @@
       "norge"
     ],
     "beskrivelse": "Norges Bank — Norway's central bank statistics: exchange rates, interest rates, and other Norwegian monetary/financial series via SDMX.",
-    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen fra search_catalog (NB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette."
+    "quirks": "SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen fra search_catalog (NB,EXR) virker også (målt 2026-08-01). Tid og utvalg skrives med det kanoniske vokabularet (years=/countries=/filters={}) — ALDRI startPeriod= som kwarg (parseren avviser den; years= oversettes til den). Verifisert 2026-07-25: kun Accept application/vnd.sdmx.data+csv;labels=id gir komma-CSV med rene koder — format=csv gir semikolon+labels, Accept text/csv gir XML. Adapteren håndterer dette.\n\n**Verifisert eksempel (2026-08-16, 502 rader):**\n`norgesbank.read(\"EXR\", years=\"2024:2025\", filters={\"FREQ\": \"B\",\n\"BASE_CUR\": \"USD\", \"QUOTE_CUR\": \"NOK\", \"TENOR\": \"SP\"})` — liste-verdier\ni filters avvises med instruktiv feil (én kode per dimensjon)."
   },
   {
     "id": "ecb",
@@ -286,7 +286,7 @@
       "finland"
     ],
     "beskrivelse": "Statistics Finland (StatFin) — official Finnish statistics: population, economy, labour, and other topics by region.",
-    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk."
+    "quirks": "Verifisert 2026-07-23: ingen PxWebApi 2 finnes (pxdata.stat.fi/api/v2, api.stat.fi/v2 osv. gir alle 404) — kun v1 (PXWeb) finnes, derfor ingen sok_endepunkt/pxweb-adapter; mappenavigasjon er GET/JSON, f.eks. .../StatFin/ og .../StatFin/tyti/ (tyti=arbeidskraftsundersøkelsen) lister tabeller ({id,type,text,updated}); tabell-metadata (variabelkoder) hentes med GET på tabell-URLen (f.eks. .../StatFin/tyti/135y.px), MEN selve datauttrekket krever POST med JSON-body {query:[{code,selection:{filter:'item',values:[...]}}, ...],response:{format:'csv'}}; navigasjon+metadata (GET) sender Access-Control-Allow-Origin: *, men datauttrekket (POST) sender INGEN CORS-header — må derfor alltid gå via /api/hent-proxy; mønster: POST-uttrekk GET-innpakkes via proxyens body-param, f.eks. GET /api/hent?url=<url-enkodet https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/tyti/135y.px>&body=<url-enkodet {\"query\":[{\"code\":\"timeperiod_m\",\"selection\":{\"filter\":\"item\",\"values\":[\"2026M05\"]}}],\"response\":{\"format\":\"csv\"}}> as tabell; finn tabell-id og variabelkoder ved å navigere mappestrukturen (web_search + probe) og lese metadata før uttrekk.\n\n**Verifisert ende-til-ende (2026-08-15):** mappenavigasjon `GET\n{base}/tyti` → tabelliste → metadata `GET {base}/tyti/11pk.px` →\nPOST-uttrekk med `{\"query\": [{\"code\": \"contentscode\", \"selection\":\n{\"filter\": \"item\", \"values\": [\"tyti-Palkansaajat_yht\"]}}, {\"code\":\n\"timeperiod_y\", \"selection\": {\"filter\": \"item\", \"values\": [\"2013\"]}}],\n\"response\": {\"format\": \"csv\"}}` (proxy-innpakket i appen) — 1 datarad."
   },
   {
     "id": "dst",
@@ -307,7 +307,7 @@
       "danmark"
     ],
     "beskrivelse": "Statistics Denmark (StatBank) — official Danish statistics: population, economy, labour, and other topics by region.",
-    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog."
+    "quirks": "Verifisert 2026-07-23: GET /v1/data/{tabell}/CSV med variabelfiltre som query-parametre (f.eks. ?Tid=2024K1) gir CSV med ; som skilletegn; /v1/tableinfo/{tabell}?format=JSON gir variabler og koder; /v1/tables?format=JSON lister alle tabeller ({id,text,firstPeriod,lastPeriod,variables}) — ingen søkeadapter, bruk tabellisten som katalog.\n\n**Verifisert eksempel (2026-08-15):**\n`pd.read_csv(\"https://api.statbank.dk/v1/data/FOLK1A/CSV?Tid=2009K1\", sep=\";\")`\n— FOLK1A er befolkningstabellen; gyldige Tid-koder står i\n`/v1/tableinfo/FOLK1A?format=JSON`."
   },
   {
     "id": "fhi",
@@ -328,7 +328,7 @@
       "norge"
     ],
     "beskrivelse": "Norwegian Institute of Public Health (FHI) — Norwegian public-health registry statistics (e.g. cardiovascular disease, infectious disease, vaccination), mostly at national level.",
-    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw"
+    "quirks": "Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, sysvak, ...); {reg}/table lister tabeller; {reg}/table/{id}/dimension gir dimensjonskoder+kategorier; uttrekk=POST .../table/{id}/data — ALLE dimensjoner må filtreres (400 ellers), kun format 'json-stat2' (csv avvist); geo-nivå ofte kun nasjonalt (GEO=1 kategori i stikkprøve), kommunenivå ubekreftet; POST innpakkes via proxy, verifisert eksempel: # load /api/hent?url=<url-enkodet https://statistikk-data.fhi.no/api/open/v1/daar/table/754/data>&body=<url-enkodet {\"dimensions\":[{\"code\":\"DAAR\",\"filter\":\"item\",\"values\":[\"2020\",\"2021\"]},{\"code\":\"KJONN\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"HJERTEKAR\",\"filter\":\"item\",\"values\":[\"Total\"]},{\"code\":\"MEASURE_TYPE\",\"filter\":\"item\",\"values\":[\"RATE_NO\"]}],\"response\":{\"format\":\"json-stat2\"}}> as fhi_raw\n\n- **Dimension-endepunktets kategorier er hierarkiske** `{label, value,\n  children}`-objekter — `value`-feltet er koden (verifisert 2026-08-15:\n  2-åringer = `\"2_2\"`, år = `\"2002_2002\"`, hele landet = `\"0\"`); bruk\n  aldri label-teksten som kode. Verifisert også nokkel/394\n  (barnevaksinasjon) i tillegg til daar/754."
   },
   {
     "id": "dbnomics",

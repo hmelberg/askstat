@@ -897,6 +897,68 @@ def lesemonstre_fhi(kilde, metadata_tabeller, budsjett):
     return ut, ["ALLE dimensjoner må filtreres (400 ellers); kun json-stat2; POST via proxyens body-param i appen."]
 
 
+
+
+# ── fil-/rest-kilder u/kind (kilder-runde 5, 2026-08-16): kuraterte,
+# dokumenterte URL-mønstre per kilde-id (guidene, verifisert der annotert).
+# owid: csvType=filtered-fella er MÅLT (2026-08-04: uten den ignoreres
+# country=/time= STILLE); who: GHO OData; fred: nøkkelfri fredgraph-form
+# (EVAL-regel 5 — api.stlouisfed.org-basen krever nøkkel og røres ikke);
+# datanorge: POST-søk m/q-feltet (ikke 'query') + filters.type=datasets
+# (målt 2026-07-03) — katalogkilde, ingen datalesing.
+def _json_verdiliste_parser(tekst):
+    d = json.loads(tekst)
+    rader = d.get("value", []) if isinstance(d, dict) else d
+    return len(rader), (list(rader[0].keys())[:8] if rader and isinstance(rader[0], dict) else [])
+
+
+def _json_treff_parser(tekst):
+    d = json.loads(tekst)
+    treff = d.get("hits", []) if isinstance(d, dict) else []
+    return len(treff), ["hits"]
+
+
+URL_MONSTRE = {
+    "owid": [
+        ("Full grapher-CSV (life-expectancy)",
+         'pd.read_csv("https://ourworldindata.org/grapher/life-expectancy.csv")',
+         "https://ourworldindata.org/grapher/life-expectancy.csv", None, None),
+        ("Filtrert (csvType=filtered — UTEN den ignoreres country/time STILLE, målt 2026-08-04)",
+         'pd.read_csv("https://ourworldindata.org/grapher/life-expectancy.csv?csvType=filtered&country=NOR~SWE&time=2015..2024")',
+         "https://ourworldindata.org/grapher/life-expectancy.csv?csvType=filtered&country=NOR~SWE&time=2015..2024", None, None),
+    ],
+    "fred": [
+        ("Nøkkelfri fredgraph-CSV (EVAL-regel 5; CORS varierer — proxy i appen ved målt cors:false)",
+         'pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE")',
+         "https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE", None, None),
+    ],
+    "who": [
+        ("GHO OData m/$filter (WHOSIS_000001 = forventet levealder)",
+         'pd.read_json(".../api/WHOSIS_000001?$filter=SpatialDim eq \'NOR\'") — value-lista er radene',
+         "https://ghoapi.azureedge.net/api/WHOSIS_000001?$filter=SpatialDim%20eq%20%27NOR%27", None, "verdiliste"),
+    ],
+    "datanorge": [
+        ("POST-søk (q-feltet, filters.type=datasets — målt: 'query' og utelatt type gir konsept-støy)",
+         "POST search-api m/{'q': 'befolkning', 'filters': {'type': {'value': 'datasets'}}}",
+         None, {"q": "befolkning", "filters": {"type": {"value": "datasets"}}}, "treff"),
+    ],
+}
+
+
+def lesemonstre_url(kilde_id, kilde, budsjett):
+    ut = []
+    for navn, linje, url, body, parser_navn in URL_MONSTRE.get(kilde_id, []):
+        if url is None:
+            url = kilde.get("sok_endepunkt") or kilde["base_url"]
+        parser = (_json_verdiliste_parser if parser_navn == "verdiliste"
+                  else _json_treff_parser if parser_navn == "treff"
+                  else _csv_parser(","))
+        ut.append(_rest_lesing(navn, linje, budsjett, url, body=body, parser=parser))
+    notat = ("Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i "
+             "URL-mønstrene over (alle KJØRT).")
+    return ut, [notat]
+
+
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
     """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
     BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
@@ -937,6 +999,8 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                     metadata_tabeller.append(metadata_dst(kilde, tid, budsjett))
                 elif kind == "fhi":
                     metadata_tabeller.append(metadata_fhi(kilde, tid, budsjett))
+                elif kilde_id in URL_MONSTRE:
+                    pass  # fil-/katalogkilde — mønstrene bærer kunnskapen (ærlig note i lesefasen)
                 elif kind in ("worldbank", "dbnomics"):
                     pass  # sti-/maskebasert — ingen metadata-endepunkt (ærlig note i lesemønstrene)
                 else:
@@ -957,6 +1021,8 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                 lesninger, ekstra_notater = lesemonstre_eurostat(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
             elif kind == "sdmx":
                 lesninger, ekstra_notater = lesemonstre_sdmx(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            elif kilde_id in URL_MONSTRE:
+                lesninger, ekstra_notater = lesemonstre_url(kilde_id, kilde, budsjett)
             elif kind == "statfin":
                 lesninger, ekstra_notater = lesemonstre_statfin(kilde, metadata_tabeller, budsjett)
             elif kind == "dst":

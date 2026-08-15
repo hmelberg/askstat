@@ -33,6 +33,23 @@
   var L1_CAP = 1500;
   var L3_CAP = 40000;
   var TOTAL_BUDGET = 80000;
+
+  // Pakka drar kildene sine på (målt Oslo-runde 10: Norgespakka lærte
+  // modellen «bruk SSB» mens SSB sto avskrudd i kildevelgeren — to
+  // signaler i konflikt kostet tre runder omveier). Kildene en pakke
+  // bygger på: eksplisitt `sources`-felt i data/packs/index.json
+  // (temapakker som norway/finland), pluss src-<id>-konvensjonen for
+  // kind:source-pakker. Ren funksjon — kalleren (sources-modal) gjør
+  // selve på-skruingen via Profiles.toggleSourceOff.
+  function kilderForPakke(entry) {
+    var ids = Array.isArray(entry && entry.sources)
+      ? entry.sources.map(String)
+      : [];
+    if (entry && entry.kind === 'source' && /^src-/.test(String(entry.id || ''))) {
+      ids.push(String(entry.id).replace(/^src-/, ''));
+    }
+    return ids;
+  }
   // Front matter-bevisst manifest (kildedokumenter-runden Task 4 fix,
   // review-funn 2026-08-10): community-pakker konvertert av
   // `node tools/source_docs.mjs convert-packs` bytter sin gamle fenced
@@ -560,6 +577,7 @@
       // filterCatalog eksponeres på instansen fordi Import-utforskeren bor i
       // js/sources-modal.js (Task 5) og ikke har tilgang til modul-scopet her.
       filterCatalog: filterCatalog,
+      kilderForPakke: kilderForPakke,
       lagBuiltinKopi: lagBuiltinKopi,
       oppdaterKopiFraOriginal: oppdaterKopiFraOriginal,
       builtinOverstyringer: builtinOverstyringer,
@@ -604,6 +622,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { makePacks: makePacks, compose: compose, filterCatalog: filterCatalog };
+    module.exports = { makePacks: makePacks, compose: compose, filterCatalog: filterCatalog,
+                       kilderForPakke: kilderForPakke };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

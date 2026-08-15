@@ -256,7 +256,19 @@
             // mønster fra den gamle manageren: raden bygges på nytt, ikke
             // muteres på plass).
             if (e.builtin) Prof.toggleSourceOff(e.regId);
-            else { Prof.togglePack(e.id); P.ensureSelected(); }
+            else {
+              Prof.togglePack(e.id);
+              // Pakka drar kildene sine på (se kilderForPakke i js/packs.js):
+              // KUN når pakka nettopp ble slått PÅ — av-skruing av en kilde
+              // ETTER pakkevalg er brukerens rett og røres aldri.
+              if (Prof.packsState().ids.indexOf(e.id) >= 0 && P.kilderForPakke) {
+                var offNaa = Prof.sourcesOff();
+                P.kilderForPakke(e).forEach(function (sid) {
+                  if (offNaa.indexOf(sid) >= 0) Prof.toggleSourceOff(sid);
+                });
+              }
+              P.ensureSelected();
+            }
           });
           var nm = document.createElement('button');
           nm.type = 'button';

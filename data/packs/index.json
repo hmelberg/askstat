@@ -11,6 +11,11 @@
       "tags": [
         "makro",
         "norge"
+      ],
+      "sources": [
+        "ssb",
+        "fhi",
+        "norgesbank"
       ]
     },
     {
@@ -23,6 +28,9 @@
       "tags": [
         "makro",
         "finland"
+      ],
+      "sources": [
+        "statfin"
       ]
     },
     {

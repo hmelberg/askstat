@@ -814,3 +814,22 @@ test('compose: overview og kuraterte pakker er uendret', () => {
   assert.equal(ut[0].level, 'full');
   assert.equal(ut[1].level, 'full');
 });
+
+// ── pakka drar kildene sine på (målt Oslo-runde 10: Norgespakka + avskrudd SSB) ──
+const { kilderForPakke } = require('../../js/packs.js');
+
+test('kilderForPakke: sources-felt for temapakker, src-konvensjonen for kind:source', () => {
+  assert.deepEqual(kilderForPakke({ id: 'norway', sources: ['ssb', 'fhi', 'norgesbank'] }),
+    ['ssb', 'fhi', 'norgesbank']);
+  assert.deepEqual(kilderForPakke({ id: 'src-brfss', kind: 'source' }), ['brfss']);
+  assert.deepEqual(kilderForPakke({ id: 'us-health-surveys', kind: 'overview' }), []);
+  assert.deepEqual(kilderForPakke(null), []);
+});
+
+test('kilderForPakke: index.json-fasit — norway/finland deklarerer kildene sine', () => {
+  const idx = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'data', 'packs', 'index.json'), 'utf8'));
+  const norway = idx.packs.find((p) => p.id === 'norway');
+  const finland = idx.packs.find((p) => p.id === 'finland');
+  assert.deepEqual(kilderForPakke(norway), ['ssb', 'fhi', 'norgesbank']);
+  assert.deepEqual(kilderForPakke(finland), ['statfin']);
+});

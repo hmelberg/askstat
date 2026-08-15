@@ -1,35 +1,176 @@
 {
   "kommentar": "Kildeharnessens spørsmålssett (spec 2026-08-15-kildeharness §3). Gjenbruker docs/eval/ask-evalsett.md-kjernen + ukens målte eksempler + tre nye mønstre. fasit.sjekker er MEKANISKE der det går: tall_i_intervall sjekkes mot svarets tall, kilde_i_spor mot prosesslinjene, aldri_raa_host mot hele sporet.",
-  "budsjett": { "ramme_totalt": 30, "brukt": 0, "maks_per_runde": 8, "maks_runder_per_okt": 2 },
+  "budsjett": {
+    "ramme_totalt": 30,
+    "brukt": 8,
+    "maks_per_runde": 8,
+    "maks_runder_per_okt": 2
+  },
   "sporsmal": [
-    { "id": "oslo-folketall", "sporsmal": "Hvordan har folketallet i Oslo utviklet seg siste ti år?",
-      "rute": "data", "kilder": ["ssb"], "tema": ["folkemengde", "befolkning", "kommune"],
-      "fasit": { "tall_i_intervall": { "verdi": "siste folketall Oslo", "min": 650000, "maks": 800000 },
-                 "kilde_i_spor": "ssb", "aldri_raa_host": ["data.ssb.no"], "figur": true } },
-    { "id": "norden-ledighet", "sporsmal": "Hvilke nordiske land har høyest arbeidsledighet nå?",
-      "rute": "data", "kilder": ["eurostat", "dbnomics"], "tema": ["unemployment", "arbeidsledighet", "harmonized"],
-      "fasit": { "kilde_i_spor": "eurostat|dbnomics", "aldri_raa_host": ["ec.europa.eu"],
-                 "minst_land": 4, "samme_periode": true } },
-    { "id": "inflasjon-no-euro", "sporsmal": "Hvordan har inflasjonen i Norge vært sammenlignet med eurosonen de siste to årene?",
-      "rute": "data", "kilder": ["ssb", "eurostat"], "tema": ["konsumprisindeks", "KPI", "HICP", "inflasjon"],
-      "fasit": { "kilde_i_spor": "ssb.*eurostat|eurostat.*ssb", "aldri_raa_host": ["data.ssb.no", "ec.europa.eu"],
-                 "merknad": "SSB 14706 (Tolvmanedersendring), IKKE 14710 (indeksnivå) — målt felle inflasjons-runden 2026-08-15" } },
-    { "id": "helse-bnp", "sporsmal": "Hvor stor andel av BNP bruker Norge på helse, sammenlignet med nabolandene?",
-      "rute": "data", "kilder": ["oecd", "worldbank"], "tema": ["health expenditure", "helseutgifter", "SHA"],
-      "fasit": { "tall_i_intervall": { "verdi": "Norge helse %BNP", "min": 7, "maks": 13 },
-                 "kilde_i_spor": "oecd|worldbank" } },
-    { "id": "lykke-no-de", "sporsmal": "Er folk lykkeligere i Norge enn i Tyskland?",
-      "rute": "data", "kilder": ["ess"], "tema": ["happiness", "lykke", "well-being", "survey"],
-      "fasit": { "kilde_i_spor": "ess", "vekter_i_spor": "anweight|dweight",
-                 "merknad": "e01 mangler anweight → dweight×pweight-fallback (målt 2026-08-06)" } },
-    { "id": "nb-styringsrente", "sporsmal": "Hvordan har Norges Banks styringsrente utviklet seg siste fem år?",
-      "rute": "data", "kilder": ["norgesbank"], "tema": ["styringsrente", "policy rate", "IR"],
-      "fasit": { "kilde_i_spor": "norgesbank", "aldri_raa_host": ["data.norges-bank.no"], "nytt_monster": "sdmx enkeltkilde" } },
-    { "id": "imf-weo-norge", "sporsmal": "Hvordan har IMFs vekstanslag for Norge endret seg i de siste WEO-rundene?",
-      "rute": "data", "kilder": ["dbnomics"], "tema": ["WEO", "NGDP_RPCH", "forecast"],
-      "fasit": { "kilde_i_spor": "dbnomics", "nytt_monster": "dbnomics serie-maske" } },
-    { "id": "fhi-vaksinasjon", "sporsmal": "Hvor høy er barnevaksinasjonsdekningen i Norge, og varierer den mellom fylker?",
-      "rute": "data", "kilder": ["fhi"], "tema": ["vaksinasjon", "barnevaksinasjon", "dekning"],
-      "fasit": { "kilde_i_spor": "fhi", "nytt_monster": "fhi norsk helsestatistikk" } }
+    {
+      "id": "oslo-folketall",
+      "sporsmal": "Hvordan har folketallet i Oslo utviklet seg siste ti år?",
+      "rute": "data",
+      "kilder": [
+        "ssb"
+      ],
+      "tema": [
+        "folkemengde",
+        "befolkning",
+        "kommune"
+      ],
+      "fasit": {
+        "tall_i_intervall": {
+          "verdi": "siste folketall Oslo",
+          "min": 650000,
+          "maks": 800000
+        },
+        "kilde_i_spor": "ssb",
+        "aldri_raa_host": [
+          "data.ssb.no"
+        ],
+        "figur": true
+      }
+    },
+    {
+      "id": "norden-ledighet",
+      "sporsmal": "Hvilke nordiske land har høyest arbeidsledighet nå?",
+      "rute": "data",
+      "kilder": [
+        "eurostat",
+        "dbnomics"
+      ],
+      "tema": [
+        "unemployment",
+        "arbeidsledighet",
+        "harmonized"
+      ],
+      "fasit": {
+        "kilde_i_spor": "eurostat|dbnomics",
+        "aldri_raa_host": [
+          "ec.europa.eu"
+        ],
+        "minst_land": 4,
+        "samme_periode": true
+      }
+    },
+    {
+      "id": "inflasjon-no-euro",
+      "sporsmal": "Hvordan har inflasjonen i Norge vært sammenlignet med eurosonen de siste to årene?",
+      "rute": "data",
+      "kilder": [
+        "ssb",
+        "eurostat"
+      ],
+      "tema": [
+        "konsumprisindeks",
+        "KPI",
+        "HICP",
+        "inflasjon"
+      ],
+      "fasit": {
+        "kilde_i_spor": "ssb.*eurostat|eurostat.*ssb",
+        "aldri_raa_host": [
+          "data.ssb.no",
+          "ec.europa.eu"
+        ],
+        "merknad": "SSB 14706 (Tolvmanedersendring), IKKE 14710 (indeksnivå) — målt felle inflasjons-runden 2026-08-15"
+      }
+    },
+    {
+      "id": "helse-bnp",
+      "sporsmal": "Hvor stor andel av BNP bruker Norge på helse, sammenlignet med nabolandene?",
+      "rute": "data",
+      "kilder": [
+        "oecd",
+        "worldbank"
+      ],
+      "tema": [
+        "health expenditure",
+        "helseutgifter",
+        "SHA"
+      ],
+      "fasit": {
+        "tall_i_intervall": {
+          "verdi": "Norge helse %BNP",
+          "min": 7,
+          "maks": 13
+        },
+        "kilde_i_spor": "oecd|worldbank"
+      }
+    },
+    {
+      "id": "lykke-no-de",
+      "sporsmal": "Er folk lykkeligere i Norge enn i Tyskland?",
+      "rute": "data",
+      "kilder": [
+        "ess"
+      ],
+      "tema": [
+        "happiness",
+        "lykke",
+        "well-being",
+        "survey"
+      ],
+      "fasit": {
+        "kilde_i_spor": "ess",
+        "vekter_i_spor": "anweight|dweight",
+        "merknad": "e01 mangler anweight → dweight×pweight-fallback (målt 2026-08-06)"
+      }
+    },
+    {
+      "id": "nb-styringsrente",
+      "sporsmal": "Hvordan har Norges Banks styringsrente utviklet seg siste fem år?",
+      "rute": "data",
+      "kilder": [
+        "norgesbank"
+      ],
+      "tema": [
+        "styringsrente",
+        "policy rate",
+        "IR"
+      ],
+      "fasit": {
+        "kilde_i_spor": "norgesbank",
+        "aldri_raa_host": [
+          "data.norges-bank.no"
+        ],
+        "nytt_monster": "sdmx enkeltkilde"
+      }
+    },
+    {
+      "id": "imf-weo-norge",
+      "sporsmal": "Hvordan har IMFs vekstanslag for Norge endret seg i de siste WEO-rundene?",
+      "rute": "data",
+      "kilder": [
+        "dbnomics"
+      ],
+      "tema": [
+        "WEO",
+        "NGDP_RPCH",
+        "forecast"
+      ],
+      "fasit": {
+        "kilde_i_spor": "dbnomics",
+        "nytt_monster": "dbnomics serie-maske"
+      }
+    },
+    {
+      "id": "fhi-vaksinasjon",
+      "sporsmal": "Hvor høy er barnevaksinasjonsdekningen i Norge, og varierer den mellom fylker?",
+      "rute": "data",
+      "kilder": [
+        "fhi"
+      ],
+      "tema": [
+        "vaksinasjon",
+        "barnevaksinasjon",
+        "dekning"
+      ],
+      "fasit": {
+        "kilde_i_spor": "fhi",
+        "nytt_monster": "fhi norsk helsestatistikk"
+      }
+    }
   ]
 }

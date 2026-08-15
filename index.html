@@ -10688,6 +10688,38 @@ sys.modules["ost"] = sys.modules["openstat"]
 `);
         } catch (e) { console.warn('openstat register:', e); }
       }
+      // Bare-alias som ekte kode (spec 2026-08-15 §2): bind registerkildene
+      // som toppnivå-navn (ssb, eurostat, …) så modellens naturlige
+      // eurostat.read(...) virker som kjørbar Python — miljøet holder det
+      // EVAL-regel 1 lover. Idempotent og fail-open: registerfeil skal
+      // aldri knekke Python-booten. Modulnavnet er "openstat" (se
+      // sys.modules["openstat"] rett over — samme spec_from_loader-
+      // mekanisme, ikke "ost", det er kun et alias-innslag i sys.modules).
+      // loadRegistry(fetchImpl) MÅ få en ekte fetch her: funksjonen har
+      // ingen default og fanger internt TypeError fra en manglende
+      // fetchImpl til _registryCache = [] — og _registryCache er module-
+      // scoped og aldri invalidert (kun sidelast resetter den, se
+      // js/data-loader.js). Så tidlig i booten ville et bart
+      // loadRegistry()-kall (uten fetchImpl) derfor forgiftet
+      // registercachen med [] for RESTEN av økten — også for senere
+      // resolveAndFetchLoads/styrte-kilde-oppslag. fetch.bind(window)
+      // speiler fallbacken data-loader.js selv bruker internt
+      // (deps.fetchImpl || fetch.bind(global)).
+      try {
+        var regAlias = await window.DataLoader.loadRegistry(fetch.bind(window));
+        var forPy = (regAlias || []).map(function (r) {
+          return { id: r.id, base_url: r.base_url,
+                   kind: r.kind || (r.tilgang === 'pxweb' || r.tilgang === 'sdmx' ? r.tilgang : null) };
+        }).filter(function (r) { return r.id && r.base_url && /^[a-z0-9_]+$/.test(r.id); });
+        pyodide.globals.set('_OST_REGISTRY_JSON', JSON.stringify(forPy));
+        await pyodide.runPythonAsync(
+          'import json as _j\n' +
+          'import openstat as _ost_mod\n' +
+          '_ost_mod._REGISTRY = _j.loads(_OST_REGISTRY_JSON)\n' +
+          'for _e in _ost_mod._REGISTRY:\n' +
+          '    globals().setdefault(_e["id"], _ost_mod.connect_alias(_e["id"]))\n'
+        );
+      } catch (eAlias) { console.warn('alias-binding hoppet over:', eAlias); }
       setStatus(leftStatus, 'Ready.');
       return pyodide;
     }

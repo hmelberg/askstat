@@ -899,6 +899,23 @@ def connect(url, kind=None):
     return Source(url, kind)
 
 
+# Bare-alias som ekte kode (spec 2026-08-15 §2, målt norden-runden
+# 2026-08-15: modellen skrev eurostat.read(...) som kjørbar Python og
+# fikk NameError — prompten (EVAL-regel 1) lærer formen, så miljøet må
+# holde det den lover). _REGISTRY settes av appens boot-kode (JS eier
+# kind-avledningen — én kilde til sannhet om registeret); utenfor appen
+# er lista tom og connect_alias feiler instruktivt.
+_REGISTRY = []
+
+
+def connect_alias(source_id):
+    for e in _REGISTRY:
+        if e.get("id") == source_id:
+            return Source(e.get("base_url"), e.get("kind") or None)
+    raise ValueError("ukjent kilde '" + str(source_id) + "' — utenfor appen: bruk "
+                     "ost.connect(url, kind=...) med kildens base-URL")
+
+
 def read(url, table=None, columns=None, kind=None, **query):
     return Source(url, kind).read(table, columns=columns, **query)
 

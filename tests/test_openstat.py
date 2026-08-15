@@ -960,3 +960,22 @@ def test_memo_nokles_paa_fra_adapter_adapter_cache_forgifter_ikke_raa_lesing(mon
     with pytest.raises(RuntimeError, match="STYRT kilde"):
         ost.read_csv(du)   # rå lesing — skal treffe bridgen (og bli avvist), ALDRI adapterens memo
     assert calls == [True, False]
+
+
+def test_connect_alias_binder_registerkilder():
+    # Bare-alias som ekte kode (spec 2026-08-15 §2, målt norden-runden:
+    # NameError på eurostat.read → «adapteren er ikke tilgjengelig»).
+    gammel = ost._REGISTRY
+    ost._REGISTRY = [
+        {"id": "eurostat", "base_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data", "kind": "eurostat"},
+        {"id": "ssb", "base_url": "https://data.ssb.no/api/pxwebapi/v2/tables", "kind": "pxweb"},
+    ]
+    try:
+        e = ost.connect_alias("eurostat")
+        assert e.kind == "eurostat"
+        s = ost.connect_alias("ssb")
+        assert s.kind == "pxweb"
+        with pytest.raises(ValueError, match="ukjent kilde 'nope'"):
+            ost.connect_alias("nope")
+    finally:
+        ost._REGISTRY = gammel

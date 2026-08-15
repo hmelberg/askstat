@@ -693,6 +693,35 @@ def skriv_utkast(kilde_id, kilde, dato, tema, sok_rader, metadata_tabeller, lesn
 
 # ── Hovedløp ──────────────────────────────────────────────────────────────
 
+
+
+# ── worldbank/dbnomics (kilder-runde 3, 2026-08-15): sti-/serie-maskebaserte
+# kilder — ingen generisk metadata-probe (noteres ærlig); lesemønstrene
+# speiler de TESTEDE kallformene (tests/test_openstat.py
+# test_connect_read_worldbank / test_read_dbnomics_kanonisk_aarsfilter).
+# Stiene/maskene under er kuraterte og verifiserte (WB: BNP + folketall,
+# kjente indikator-id-er fra guiden; dbnomics: IMF WEO-masken fra
+# sporsmal.json-fasiten og dbnomics.md).
+WB_MONSTRE = [
+    ("Enkeltland (BNP)", "country/NOR/indicator/NY.GDP.MKTP.CD", {"years": "2015:2024"}),
+    ("Flerland (BNP, ; -separert)", "country/NOR;SWE/indicator/NY.GDP.MKTP.CD", {"years": "2020:2024"}),
+    ("Annen indikator (folketall)", "country/NOR/indicator/SP.POP.TOTL", {"years": "2020:2024"}),
+]
+DBN_MONSTRE = [
+    ("Enkeltserie (IMF WEO Norge)", "IMF/WEO:latest/NOR.NGDP_RPCH", {"years": "2020:2026"}),
+    ("Flerserie-maske (+)", "IMF/WEO:latest/NOR+SWE.NGDP_RPCH", {"years": "2022:2026"}),
+]
+
+
+def lesemonstre_sti(kilde_id, src, alias, monstre, budsjett):
+    ut = []
+    for navn, sti, kw in monstre:
+        ut.append(kjor_lesing(kilde_id, src, alias, sti, dict(kw), navn, budsjett))
+    notat = ("Sti-/maskebasert kilde: ingen generisk metadata-probe — "
+             "dimensjonskunnskapen bor i stien/masken (se lesemønstrene over).")
+    return ut, [notat]
+
+
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
     """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
     BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
@@ -727,6 +756,8 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                     metadata_tabeller.append(metadata_eurostat(kilde, tid, budsjett))
                 elif kind == "sdmx":
                     metadata_tabeller.append(metadata_sdmx(kilde, tid, budsjett))
+                elif kind in ("worldbank", "dbnomics"):
+                    pass  # sti-/maskebasert — ingen metadata-endepunkt (ærlig note i lesemønstrene)
                 else:
                     metadata_tabeller.append({"tabell": tid,
                                               "feil": "kind '%s' har ingen metadata-henter i utforsk.py ennå" % kind})
@@ -745,6 +776,10 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
                 lesninger, ekstra_notater = lesemonstre_eurostat(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
             elif kind == "sdmx":
                 lesninger, ekstra_notater = lesemonstre_sdmx(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            elif kind == "worldbank":
+                lesninger, ekstra_notater = lesemonstre_sti(kilde_id, src, kilde_id, WB_MONSTRE, budsjett)
+            elif kind == "dbnomics":
+                lesninger, ekstra_notater = lesemonstre_sti(kilde_id, src, kilde_id, DBN_MONSTRE, budsjett)
             else:
                 print("  kind '%s' har ingen lese-mønster-generator i utforsk.py ennå — hopper over hentefasen" % kind)
         except BudsjettStopp as e:

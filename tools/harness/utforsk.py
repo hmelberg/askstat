@@ -525,9 +525,25 @@ def lesemonstre_sdmx(kilde_id, kilde, src, alias, metadata_tabeller, budsjett):
 # ── Rendring ──────────────────────────────────────────────────────────────
 
 def render_kort(kilde_id, kilde, metadata_tabeller, sok_treff_id, tema):
+    """Kvalitetsfunn (Task 4-review, 2026-08-15): for kilder UTEN
+    sok_endepunkt (eurostat, norgesbank her) ble tema fra sporsmal.json
+    likevel vist under den samme «Tema utforsket» ledeteksten som
+    kilder der frasene FAKTISK ble kjørt mot et søkeendepunkt — men
+    ordene ble aldri søkt (sok_fase kjører ikke) og styrer heller ikke
+    tabellvalget (velg_metadata_tabeller returnerer FALLBACK_TABELLER
+    uansett tema/sok_id). Det er en overklaiming av «utforsket»
+    («målt, ikke ment»-prinsippet, spec §0/§1) — rettet ved å skille
+    de to tilfellene i teksten i stedet for å fjerne linjen (ordene er
+    fortsatt nyttig kontekst: de viser hvilke spørsmål kilden dekker
+    ifølge sporsmal.json)."""
     linjer = []
-    if tema:
-        linjer.append("**Tema utforsket:** " + ", ".join(tema))
+    if tema and kilde.get("sok_endepunkt"):
+        linjer.append("**Tema utforsket (søkt):** " + ", ".join(tema))
+    elif tema:
+        linjer.append(
+            "**Tema fra spørsmålssettet** (kilden mangler `sok_endepunkt` — disse ordene "
+            "ble IKKE søkt; tabellvalget under kom fra FALLBACK_TABELLER, ikke fra tema): "
+            + ", ".join(tema))
     for m in metadata_tabeller:
         if m.get("feil"):
             linjer.append("- Tabell/dataflow `%s`: metadata IKKE hentet — %s" % (m["tabell"], m["feil"]))

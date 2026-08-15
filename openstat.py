@@ -619,7 +619,16 @@ def _canonical_from_query(query):
                 c["years"] = {"from": a.strip() or None,
                               "to": (b.strip() or None) if sep else (a.strip() or None)}
         elif k == "filters":
-            c["filters"] = {str(fk): str(fv) for fk, fv in dict(v).items()}
+            # Batteriet fant (2026-08-15, task-3b): str() på liste-verdier
+            # lagde repr-strenger («['DK', 'FI']») FØR _translate_canonical
+            # fikk se dem — liste-fiksen fra norden-runden traff derfor
+            # aldri via den offentlige read()-inngangen (kun ved direkte
+            # _translate_canonical-kall, som enhetstesten brukte). Lister
+            # bevares her; formen (én param/verdi vs. komma-join) avgjøres
+            # av _translate_canonical, ikke her.
+            c["filters"] = {str(fk): ([str(x) for x in fv] if isinstance(fv, (list, tuple))
+                                      else str(fv))
+                            for fk, fv in dict(v).items()}
         elif k == "all":
             c["all"] = bool(v)
         else:
@@ -855,6 +864,18 @@ class Source:
             for k, v in query.items():
                 if isinstance(v, dict):
                     qs += [str(k) + "[" + str(dk) + "]=" + str(dv) for dk, dv in v.items()]
+                elif isinstance(v, (list, tuple)):
+                    # Batteriet fant (2026-08-15, task-3b): kwarg-formen
+                    # prompten lærer, f.eks. eurostat.read("x", geo=["NO","SE"]),
+                    # er ikke et kanonisk nøkkelord — den lander her, forbi
+                    # _canonical_from_query, og ble tidligere str()-coercet til
+                    # repr. Samme regel som filters-grenen i _translate_canonical:
+                    # eurostat vil ha én k=verdi-param per element (kommaform gir
+                    # stille tomt), pxweb tar valueCodes-kommaformen.
+                    if kind == "eurostat":
+                        qs += [str(k) + "=" + str(x) for x in v]
+                    else:
+                        qs.append(str(k) + "=" + ",".join(str(x) for x in v))
                 else:
                     qs.append(str(k) + "=" + str(v))
             if canonical_px:

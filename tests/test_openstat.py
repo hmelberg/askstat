@@ -287,6 +287,47 @@ def _json_bytes(doc):
     return _j.dumps(doc).encode("utf-8")
 
 
+_JSONSTAT_EN_RAD = (b'{"version":"2.0","class":"dataset","id":["geo","time"],'
+                    b'"size":[1,1],"dimension":{"geo":{"category":{"index":{"NO":0}}},'
+                    b'"time":{"category":{"index":{"2024":0}}}},"value":[4.2]}')
+
+
+def test_read_eurostat_listefilter_overlever_offentlig_inngang(monkeypatch):
+    # Batteriet fant (2026-08-15): _canonical_from_query str()-coercet lister
+    # til repr FØR oversettelsen — fiksen fra norden-runden traff aldri via
+    # read(). Testen går gjennom den OFFENTLIGE inngangen, aldri
+    # _translate_canonical direkte (det var hullet i forrige regresjon).
+    urler = []
+
+    def fange(url, headers=None, fra_adapter=False):
+        urler.append(url)
+        return _JSONSTAT_EN_RAD
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fange)
+    e = ost.connect("https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data",
+                    kind="eurostat")
+    e.read("ei_lmhr_m", filters={"geo": ["DK", "FI"], "s_adj": "SA"})
+    assert "geo=DK" in urler[0] and "geo=FI" in urler[0]
+    assert "[" not in urler[0]  # aldri repr-strenger i URL-en
+
+    e.read("ei_lmhr_m", geo=["NO", "SE"])  # kwarg-formen prompten lærer
+    assert "geo=NO" in urler[1] and "geo=SE" in urler[1]
+    assert "[" not in urler[1]
+
+
+def test_read_pxweb_listefilter_overlever_offentlig_inngang(monkeypatch):
+    urler = []
+
+    def fange(url, headers=None, fra_adapter=False):
+        urler.append(url)
+        return _JSONSTAT_EN_RAD
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fange)
+    s = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")
+    s.read("07459", filters={"Kjonn": ["1", "2"]})
+    assert "valueCodes[Kjonn]=1,2" in urler[0]
+
+
 def test_translate_canonical_pxweb_aar():
     _, p1, _, _ = ost._translate_canonical("pxweb", "05839", {"years": {"from": "2007", "to": "2009"}})
     assert p1 == ["valueCodes[Tid]=2007,2008,2009"]

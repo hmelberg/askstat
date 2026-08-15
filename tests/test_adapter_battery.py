@@ -37,23 +37,15 @@ def test_ssb_aggregat_via_utelatte_eliminerbare_dims():
     assert len(df) > 0
 
 
-@pytest.mark.xfail(reason=(
-    "MÅLT LIVE 2026-08-15: _canonical_from_query() (openstat.py) gjør "
-    "c['filters'] = {k: str(v) ...} UBETINGET — en liste-verdi "
-    "(filters={'geo': ['DK','FI',...]}) blir str()'et til Python-repr-"
-    "strengen \"['DK', 'FI', ...]\" FØR _translate_canonical ser den, så "
-    "isinstance(v, (list, tuple))-sjekken (linje ~677, norden-runde-fiksen "
-    "mot Eurostats kommaform-stille-tomt) treffer aldri via den offentlige "
-    ".read(filters=…)-inngangen — kun via direkte kall til "
-    "_translate_canonical (slik test_openstat.py rad 261 gjør) unngås "
-    "bugen. Reelt utfall: http.client.InvalidURL (mellomrom fra repr-"
-    "strengen) i stedet for stille-tomt. Berører trolig ALLE kind med "
-    "liste-verdi i filters={}, ikke bare eurostat — utenfor scope å fikse "
-    "her (kun openstat.py-endring løser det); rapportert i task-3-report.md."))
 @live
 def test_eurostat_flerland_maanedsserie():
     # Norden-runden: kommaformen geo=NO,SE svarer Eurostat STILLE TOMT på —
     # liste-verdier skal bli én param per verdi og gi data for alle fem.
+    # Task 3b (2026-08-15): dette caset var xfail — _canonical_from_query()
+    # str()-coercet listen til repr FØR _translate_canonical fikk se den,
+    # så norden-runde-fiksen traff aldri via den offentlige .read()-
+    # inngangen (kun via direkte _translate_canonical-kall). Fikset i
+    # openstat.py; caset skal nå passere som alle de andre.
     df = ost.connect(EUROSTAT, kind="eurostat").read(
         "ei_lmhr_m", filters={"geo": ["DK", "FI", "IS", "NO", "SE"], "s_adj": "SA"},
         years="2024:2026")

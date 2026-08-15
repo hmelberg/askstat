@@ -1782,7 +1782,11 @@
           try {
             var DLx = window.DataLoader;
             if (DLx && DLx.styrtKildeIScript) {
-              var styrtHitS = DLx.styrtKildeIScript(script, await DLx.loadRegistry());
+              // loadRegistry KREVER fetchImpl — uten den kaster try-blokka
+              // og cacher [] PERMANENT (truthy modul-cache; funnet i Task 2,
+              // samme felle som alias-bindingen traff): første run_code
+              // ville forgiftet registeret for hele sesjonen.
+              var styrtHitS = DLx.styrtKildeIScript(script, await DLx.loadRegistry(fetch.bind(window)));
               if (styrtHitS) {
                 return { ok: false, result: 'FEIL:\n' + DLx.styrtMelding(styrtHitS.id) +
                   ' (rå HTTP mot ' + styrtHitS.host + ' i scriptet — avvist før kjøring)' };

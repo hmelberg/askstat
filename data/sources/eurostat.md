@@ -43,7 +43,11 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
 - Kildens EGNE dimensjoner (geo, unit, na_item, sex, age, siec …) kan gis i filters={} ELLER skrives direkte som egne parametre på direktivlinja (f.eks. `geo="NO", unit="PC_GDP"`) — de oversettes automatisk til filters. indicators= finnes IKKE for eurostat (velg med filters); countries=/regions= aksepteres og oversettes til geo=-parametre — men foretrekk filters={"geo": "..."} så utvalget står samlet ett sted.
 - geo-koder er Eurostats egne: "NO" (ikke NOR), EU-aggregat "EU27_2020". Sjekk kodene med table_metadata(find="Norway") — aldri gjett.
 - years="2015:2024" oversettes til sinceTimePeriod/untilTimePeriod. Kvartals-/månedsdata: filtrer heller med kildens egne tidskoder via filters.
-- Uttrekk uten filters kan bli enorme — velg alltid geo + de sentrale dimensjonene eksplisitt.
+- **Uttrekk uten filters kan OOM-e kjøremiljøet** (målt 2026-08-16:
+  prc_hicp_manr uten coicop/geo/unit ga gjentatte minneallokeringsfeil;
+  i stramme miljøer dør fanen): velg ALLTID geo + de sentrale
+  dimensjonene eksplisitt (HICP: `coicop="CP00"` for totalindeksen,
+  `unit="RCH_A"` for årsrate).
 - **unit-fella (målt eval-rundene 2–3, une_rt_m):** tabeller med en
   unit-dimensjon leverer FØRSTE unit-kategori STILLE når `unit=` utelates
   — for ledighets-/rate-tabeller får du da absoluttall (THS_PER) som ser

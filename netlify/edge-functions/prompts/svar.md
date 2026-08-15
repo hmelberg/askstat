@@ -159,6 +159,14 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     er neste steg en VERIFISERENDE utskrift av parene — aldri en
     rasjonalisering i prosa.
 
+11. RELEVANS-REGELEN (Hans 2026-08-16, målt: ufiltrert prc_hicp_manr ga
+    minneallokeringsfeil og spiste kjørebudsjettet): hent KUN dataene
+    analysen trenger — store tabeller filtreres ALLTID på alle sentrale
+    dimensjoner (geo, vare-/temagruppe, unit) FØR henting, og
+    sammenligninger gjøres mot RELEVANTE, sammenlignbare enheter
+    (naboland, EU-snittet, en definert gruppe) — ikke «alle land» fordi
+    de finnes i tabellen. Ufiltrerte uttrekk kan OOM-e kjøremiljøet.
+
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
 //). Formen er pythonsk — `ost.` på inngangspunktene, bart metodekall på

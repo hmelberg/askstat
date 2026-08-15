@@ -47,11 +47,20 @@ STORBYER = ["Oslo", "Bergen", "Trondheim", "Stavanger", "Stockholm", "Göteborg"
 NORDEN = ["NO", "SE", "DK", "FI", "IS"]
 
 
+class BudsjettStopp(Exception):
+    """Egen unntakstype for kall-tak-stopp (review-funn 1, fikserunde 1,
+    2026-08-15) — SKILT fra vanlige feil nettopp for å kunne fanges presist
+    inne i utforsk_en_kilde og avslutte fasene der, i stedet for å krasje
+    hele flerkildekjøringen og miste kildens eget (delvis samlede) utkast."""
+
+
 class Budsjett:
-    """Global kall-teller + høflighetspause per kilde. Kaster hvis en kilde
-    skulle finne på å be om et 16. HTTP-kall — det skal aldri skje ved normal
-    bruk (mønstrene under er tallfestet til godt under taket), men er en
-    hard stopp fremfor en stille overskridelse (spec §0-ånden)."""
+    """Global kall-teller + høflighetspause per kilde. Kaster BudsjettStopp
+    hvis en kilde skulle finne på å be om et 16. HTTP-kall — det skal aldri
+    skje ved normal bruk (mønstrene under er tallfestet til godt under
+    taket), men er en hard stopp fremfor en stille overskridelse
+    (spec §0-ånden). utforsk_en_kilde fanger BudsjettStopp og skriver
+    utkastet med det som er samlet så langt, med en ærlig note."""
 
     def __init__(self, kilde_id):
         self.kilde_id = kilde_id
@@ -60,8 +69,8 @@ class Budsjett:
     def bruk(self):
         self.n += 1
         if self.n > MAKS_KALL:
-            raise RuntimeError("%s: HTTP-kall %d overskrider taket (%d) — avbryter utforskningen"
-                               % (self.kilde_id, self.n, MAKS_KALL))
+            raise BudsjettStopp("%s: HTTP-kall %d overskrider taket (%d)"
+                                % (self.kilde_id, self.n, MAKS_KALL))
         time.sleep(PAUSE_S)
 
 
@@ -181,13 +190,26 @@ def pxweb_base(kilde):
     return b if b.endswith("/tables") else b + "/tables"
 
 
+def _parse_dims_guardet(doc, tabell_id):
+    """Review-funn 2 (fikserunde 1, 2026-08-15): et HTTP-vellykket, men
+    avvikende json-stat2-svar (uventet form, manglende felter) skal bli et
+    FUNN i utkastet, ikke en krasjet kjøring — samme aldri-crash-kontrakt som
+    HTTP-laget (_http). (dims, feil) — nøyaktig ett av dem er ikke-None."""
+    try:
+        return _dimensjoner_fra_jsonstat(doc), None
+    except Exception as e:
+        return None, "metadata lot seg ikke parse: %s: %s" % (type(e).__name__, e)
+
+
 def metadata_pxweb(kilde, tabell_id, budsjett):
     url = pxweb_base(kilde) + "/" + tabell_id + "/metadata?lang=no"
     doc, feil = _http_json(url, budsjett)
     if feil:
         return {"tabell": tabell_id, "feil": feil}
-    return {"tabell": tabell_id, "tittel": doc.get("label", tabell_id),
-            "dims": _dimensjoner_fra_jsonstat(doc), "feil": None}
+    dims, feil = _parse_dims_guardet(doc, tabell_id)
+    if feil:
+        return {"tabell": tabell_id, "feil": feil}
+    return {"tabell": tabell_id, "tittel": doc.get("label", tabell_id), "dims": dims, "feil": None}
 
 
 def metadata_eurostat(kilde, tabell_id, budsjett):
@@ -195,8 +217,10 @@ def metadata_eurostat(kilde, tabell_id, budsjett):
     doc, feil = _http_json(url, budsjett)
     if feil:
         return {"tabell": tabell_id, "feil": feil}
-    return {"tabell": tabell_id, "tittel": doc.get("label", tabell_id),
-            "dims": _dimensjoner_fra_jsonstat(doc), "feil": None,
+    dims, feil = _parse_dims_guardet(doc, tabell_id)
+    if feil:
+        return {"tabell": tabell_id, "feil": feil}
+    return {"tabell": tabell_id, "tittel": doc.get("label", tabell_id), "dims": dims, "feil": None,
             "notat": "kun siste periode probet (lastTimePeriod=1, budsjetthensyn) — "
                      "full tidsspenn IKKE hentet i denne utforskningen."}
 
@@ -278,23 +302,24 @@ def _sorter_kwargs(kw):
     return {k: kw[k] for k in _KWARG_ORDER if k in kw}
 
 
-def _finn_kode(dim, *etikett_substr, unntatt=None, foretrukket_lengde=4):
+def _finn_kode(dim, *etikett_substr, unntatt=None):
     """Kode der etiketten inneholder ett av substrengene (case-insensitiv) —
     brukt til å velge meningsfulle eksempelkoder (Oslo, Bergen) uten å
-    hardkode kodeverk per kilde. Blant treff: foretrekk 4-tegns koder
-    (SSBs kommunenivå) — målt 2026-08-15: «Oslo» matcher BÅDE fylkeskoden
-    «03» og kommunekoden «0301» (samme etikett «Oslo - Oslove»); uten denne
-    presedensen valgte den enkleste implementasjonen fylkeskoden ved en
-    tilfeldighet av indeksrekkefølgen, ikke kommunen appens egne
-    eksempler (0301) alltid har brukt."""
+    hardkode kodeverk per kilde. Blant treff: foretrekk den LENGSTE koden —
+    målt 2026-08-15: «Oslo» matcher BÅDE fylkeskoden «03» og kommunekoden
+    «0301» (samme etikett «Oslo - Oslove»); kommunenivået er alltid den mer
+    spesifikke (lengre) koden. Review-funn 3 (fikserunde 1, 2026-08-15):
+    en tidligere versjon hardkodet «foretrukket 4-tegns kode», en SSB-
+    spesifikk magisk konstant som ville gitt stille feil kode for enhver
+    annen pxweb-kildes kodelengde-konvensjon (f.eks. scb). «Lengst vinner»
+    er kildeagnostisk og løser det samme Oslo-tilfellet: max() med
+    likhet returnerer FØRSTE treff i indeksrekkefølge, så «0301» (indeks
+    før «0399», som også inneholder «Oslo») vinner uendret."""
     kandidater = [k for k in dim["koder"] if k != unntatt and
                   any(s.lower() in str(dim["etiketter"].get(k, "")).lower() for s in etikett_substr)]
     if not kandidater:
         return None
-    for k in kandidater:
-        if len(k) == foretrukket_lengde:
-            return k
-    return kandidater[0]
+    return max(kandidater, key=len)
 
 
 def _dim(dims, rolle):
@@ -599,44 +624,69 @@ def skriv_utkast(kilde_id, kilde, dato, tema, sok_rader, metadata_tabeller, lesn
 # ── Hovedløp ──────────────────────────────────────────────────────────────
 
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
+    """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
+    BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
+    RESTEN av fasene (de ville uansett feilet umiddelbart på samme tak), og
+    skriv_utkast kjøres til slutt med det som faktisk ble samlet, pluss en
+    ærlig note om hvor stoppen skjedde. Kilden mister dermed ALDRI utkastet
+    sitt bare fordi budsjettet ble strammere enn ventet for akkurat den."""
     kilde = register[kilde_id]
     budsjett = Budsjett(kilde_id)
+    kind = kilde.get("kind")
     print("== %s ==" % kilde_id)
 
+    stoppet_ved = None
+
     tema = tema_fraser(kilde_id, sporsmal)
+    sok_rader, sok_id = [], []
     if kilde.get("sok_endepunkt"):
-        sok_rader, sok_id = sok_fase(kilde, tema, budsjett)
-    else:
-        sok_rader, sok_id = [], []
+        try:
+            sok_rader, sok_id = sok_fase(kilde, tema, budsjett)
+        except BudsjettStopp as e:
+            stoppet_ved = "søkefasen (%s)" % e
     print("  søk: %d fraser, %d kall brukt" % (len(sok_rader), budsjett.n))
 
-    tabell_ider = velg_metadata_tabeller(kilde_id, sok_id)
-    kind = kilde.get("kind")
     metadata_tabeller = []
-    for tid in tabell_ider:
-        if kind == "pxweb":
-            metadata_tabeller.append(metadata_pxweb(kilde, tid, budsjett))
-        elif kind == "eurostat":
-            metadata_tabeller.append(metadata_eurostat(kilde, tid, budsjett))
-        elif kind == "sdmx":
-            metadata_tabeller.append(metadata_sdmx(kilde, tid, budsjett))
-        else:
-            metadata_tabeller.append({"tabell": tid,
-                                      "feil": "kind '%s' har ingen metadata-henter i utforsk.py ennå" % kind})
+    if stoppet_ved is None:
+        tabell_ider = velg_metadata_tabeller(kilde_id, sok_id)
+        try:
+            for tid in tabell_ider:
+                if kind == "pxweb":
+                    metadata_tabeller.append(metadata_pxweb(kilde, tid, budsjett))
+                elif kind == "eurostat":
+                    metadata_tabeller.append(metadata_eurostat(kilde, tid, budsjett))
+                elif kind == "sdmx":
+                    metadata_tabeller.append(metadata_sdmx(kilde, tid, budsjett))
+                else:
+                    metadata_tabeller.append({"tabell": tid,
+                                              "feil": "kind '%s' har ingen metadata-henter i utforsk.py ennå" % kind})
+        except BudsjettStopp as e:
+            stoppet_ved = "metadatafasen (%s)" % e
     print("  metadata: %d tabeller, %d kall brukt" % (len(metadata_tabeller), budsjett.n))
 
-    connect_base = pxweb_base(kilde) if kind == "pxweb" else kilde["base_url"]
-    src = ost.connect(connect_base, kind=kind)
-    if kind == "pxweb":
-        lesninger, ekstra_notater = lesemonstre_pxweb(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
-    elif kind == "eurostat":
-        lesninger, ekstra_notater = lesemonstre_eurostat(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
-    elif kind == "sdmx":
-        lesninger, ekstra_notater = lesemonstre_sdmx(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
-    else:
-        lesninger, ekstra_notater = [], []
-        print("  kind '%s' har ingen lese-mønster-generator i utforsk.py ennå — hopper over hentefasen" % kind)
+    lesninger, ekstra_notater = [], []
+    if stoppet_ved is None:
+        connect_base = pxweb_base(kilde) if kind == "pxweb" else kilde["base_url"]
+        src = ost.connect(connect_base, kind=kind)
+        try:
+            if kind == "pxweb":
+                lesninger, ekstra_notater = lesemonstre_pxweb(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            elif kind == "eurostat":
+                lesninger, ekstra_notater = lesemonstre_eurostat(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            elif kind == "sdmx":
+                lesninger, ekstra_notater = lesemonstre_sdmx(kilde_id, kilde, src, kilde_id, metadata_tabeller, budsjett)
+            else:
+                print("  kind '%s' har ingen lese-mønster-generator i utforsk.py ennå — hopper over hentefasen" % kind)
+        except BudsjettStopp as e:
+            stoppet_ved = "hentefasen (%s)" % e
     print("  lesinger: %d kjørt, %d kall brukt (av tak %d)" % (len(lesninger), budsjett.n, MAKS_KALL))
+
+    if stoppet_ved:
+        print("  BUDSJETT-STOPP i %s — skriver utkast med det som ble samlet før stoppen." % stoppet_ved)
+        ekstra_notater = list(ekstra_notater) + [
+            "**Budsjett-stopp:** utforskningen ble avbrutt i %s — HTTP-kall-taket (%d per kilde) "
+            "ble nådd. Alt annet i dette utkastet er likevel EKTE, målte funn fra det som rakk å "
+            "kjøre før stoppen; senere faser (om noen) ble aldri startet." % (stoppet_ved, MAKS_KALL)]
 
     path = skriv_utkast(kilde_id, kilde, dato, tema, sok_rader, metadata_tabeller, lesninger, ekstra_notater)
     print("  skrev %s" % path)
@@ -657,8 +707,19 @@ def main():
         sys.exit(1)
 
     dato = datetime.date.today().isoformat()
+    noen_feilet = False
     for kilde_id in ider:
-        utforsk_en_kilde(kilde_id, register, sporsmal, dato)
+        # Review-funn 1b (fikserunde 1, 2026-08-15): én kildes uventede krasj
+        # (alt annet enn BudsjettStopp, som allerede fanges INNE i
+        # utforsk_en_kilde) skal ikke ta ned resten av en flerkildekjøring —
+        # noter feilen og fortsett til neste kilde; exit 1 hvis noen feilet.
+        try:
+            utforsk_en_kilde(kilde_id, register, sporsmal, dato)
+        except Exception as e:
+            noen_feilet = True
+            print("  FEIL: %s stoppet med en uventet feil (%s) — %s" % (kilde_id, type(e).__name__, e))
+    if noen_feilet:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

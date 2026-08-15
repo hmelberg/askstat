@@ -53,6 +53,11 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
   veien og merge/sortér PÅ den — aldri posisjonsjoin av separate verdi-
   og landlister (målt: riktige verdier koblet til feil land tre av tre
   runder når dette glapp). Print (geo, value)-parene før du rangerer.
+- **Glissen siste måned (målt ×2, une_rt_m juli 2026):** siste periode i
+  månedstabeller kan mangle tall for noen land — pivot/fyll på tvers gir
+  da STOKKEDE verdier som ser plausible ut. For rangeringer: bruk siste
+  KOMPLETTE periode (dropp perioder med NaN for noen av enhetene), og
+  aldri ffill/bfill på tvers av enheter.
 
 ## Om kilden
 

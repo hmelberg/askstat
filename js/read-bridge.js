@@ -114,7 +114,13 @@
     xhr.overrideMimeType('text/plain; charset=x-user-defined');
     for (var h in (headers || {})) xhr.setRequestHeader(h, headers[h]);
     try { xhr.send(null); } catch (e) { return { status: 0, bytes: null }; }
-    if (xhr.status === 0 || xhr.status >= 400) return { status: xhr.status, bytes: null };
+    if (xhr.status === 0 || xhr.status >= 400) {
+      // Feilkroppen er grunnsannheten (målt inflasjons-runden 2026-08-15:
+      // «HTTP 400» uten SSBs «Non-existent value for …» kostet 5+ blinde
+      // reparasjonsrunder på python-veien) — ta med de første tegnene.
+      return { status: xhr.status, bytes: null,
+               body: String(xhr.responseText || '').slice(0, 300) };
+    }
     var t = xhr.responseText, u8 = new Uint8Array(t.length);
     for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;
     return { status: xhr.status, bytes: u8,
@@ -214,7 +220,11 @@
       return { bytes: null, error: 'avkortet ved proxyens 50MB-grense (x-hent-truncated) for ' + url };
     }
     if (r.bytes === null) {
-      return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url };
+      // r.body (syncXhr, kun ved feilstatus): kildens egen feilkropp —
+      // «Non-existent value for …» fra SSB er mer reparérbar enn noe vi
+      // kan skrive selv.
+      return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url +
+        (r.body ? ': ' + r.body : '') };
     }
     if (!hdrs) cache[url] = { bytes: r.bytes, contentType: '' };
     return { bytes: r.bytes, error: null };

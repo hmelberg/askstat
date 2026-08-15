@@ -1096,3 +1096,44 @@ def test_kanonisk_kontrakt(case):
     assert sorted(params) == sorted(case["expect_params"])
     if "expect_rest" in case:
         assert rest == case["expect_rest"]
+
+
+def test_fetch_bytes_cpython_tar_med_feilkroppen(monkeypatch):
+    # Feilkroppen er grunnsannheten (målt inflasjons-runden 2026-08-15):
+    # CPython-veien kastet HTTPError uten kroppen — batteriet/evalueren
+    # trenger samme grunnsannhet som appen.
+    import io as _io
+    import urllib.error
+    import urllib.request
+
+    def fake_urlopen(req, **kw):
+        raise urllib.error.HTTPError(
+            "https://x/tables/07459/data", 400, "Bad Request", {},
+            _io.BytesIO(b"Non-existent value for dimension ContentsCode: FinnesIkke"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    ost._MEMO.clear()
+    with pytest.raises(RuntimeError, match="HTTP 400 .*Non-existent value"):
+        ost._fetch_bytes("https://x/tables/07459/data")
+
+
+def test_read_pxweb_400_gir_reparasjonshint(monkeypatch):
+    # B-fiksen: 400 på pxweb/eurostat-lesing får reparasjonshintet
+    # (sjekk koder m/find=; utelat eliminerbare dims for totalen).
+    def fake(url, headers=None, fra_adapter=False):
+        raise RuntimeError("HTTP 400 for " + url + ": Non-existent value for dimension ContentsCode")
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    s = ost.connect("https://x/tables", kind="pxweb")
+    with pytest.raises(ValueError, match="Non-existent value.*reparasjon.*table_metadata"):
+        s.read("07459", indicators=["FinnesIkke"])
+
+
+def test_read_pxweb_404_gir_tabellhint(monkeypatch):
+    def fake(url, headers=None, fra_adapter=False):
+        raise RuntimeError("HTTP 404 for " + url)
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    s = ost.connect("https://x/tables", kind="pxweb")
+    with pytest.raises(ValueError, match="HTTP 404 .*search_catalog"):
+        s.read("99999")

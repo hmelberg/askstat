@@ -80,3 +80,17 @@ def test_norgesbank_valutakurs():
     df = ost.connect("https://data.norges-bank.no/api/data", kind="sdmx").read(
         "EXR", years="2024:2025", filters={"BASE_CUR": "USD", "QUOTE_CUR": "NOK", "FREQ": "M"})
     assert len(df) > 0
+
+
+@live
+def test_ssb_ugyldig_kode_gir_feilkropp_og_hint():
+    # Feilkropp-fiksen (inflasjons-runden 2026-08-15): en bevisst ugyldig
+    # kode skal gi SSBs egen feiltekst + reparasjonshintet — aldri bare
+    # «HTTP 400». Låser både _fetch_bytes-kroppen og read-hintet live.
+    with pytest.raises(ValueError) as ei:
+        ost.connect(SSB, kind="pxweb").read(
+            "07459", regions=["0301"], years="2023:2024", indicators=["FinnesIkke"])
+    s = str(ei.value)
+    assert "HTTP 400" in s
+    assert "reparasjon" in s and "table_metadata" in s
+    assert len(s) > len("HTTP 400 for x") + 40  # kroppen er faktisk med

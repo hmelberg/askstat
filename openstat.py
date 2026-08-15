@@ -87,11 +87,24 @@ def _fetch_bytes(url, headers=None, fra_adapter=False):
                 raise RuntimeError("HTTP " + str(req.status) + " for " + url)
             data = bytes(ord(c) & 0xFF for c in req.responseText)
     else:
-        from urllib.request import Request, urlopen
+        import urllib.request
+        from urllib.error import HTTPError
         hdrs = {"User-Agent": "openstat"}
         hdrs.update(headers or {})
-        with urlopen(Request(url, headers=hdrs)) as r:
-            data = r.read()
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs)) as r:
+                data = r.read()
+        except HTTPError as e:
+            # Feilkroppen er grunnsannheten (målt inflasjons-runden
+            # 2026-08-15): «HTTP 400» uten kildens «Non-existent value
+            # for …» kostet 5+ blinde reparasjonsrunder. Speiler
+            # read-bridgens syncXhr-body-fiks — samme melding begge veier.
+            try:
+                kropp = e.read(300).decode("utf-8", "replace").strip()
+            except Exception:
+                kropp = ""
+            raise RuntimeError("HTTP %d for %s%s"
+                               % (e.code, url, (": " + kropp) if kropp else ""))
     _MEMO[memo_key] = data
     return data
 
@@ -921,7 +934,23 @@ class Source:
                 qs += cparams_px
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
-            ds = _json.loads(_fetch_bytes(du, fra_adapter=True).decode("utf-8"))
+            # Reparasjonshint på 400/404 (målt inflasjons-runden 2026-08-15:
+            # modellen gjettet mandatory/bindestrek/Tid-teorier i 5+ runder
+            # uten dem). Feilkroppen følger alt med fra _fetch_bytes —
+            # hintet peker på de to målte reparasjonene.
+            try:
+                ds = _json.loads(_fetch_bytes(du, fra_adapter=True).decode("utf-8"))
+            except Exception as ePx:
+                s_feil = str(ePx)
+                if "HTTP 400" in s_feil:
+                    raise ValueError(s_feil + " — reparasjon: sjekk kodene mot "
+                                     "table_metadata (bruk find=\"…\" for lange kodelister); "
+                                     "vil du ha TOTALEN: UTELAT eliminerbare dimensjoner "
+                                     "fra read-linjen")
+                if "HTTP 404" in s_feil:
+                    raise ValueError(s_feil + " — tabell-id-en finnes ikke hos kilden: "
+                                     "sjekk id-en fra search_catalog")
+                raise
             df = apply_typemeta(pd.DataFrame(columns_from_jsonstat(ds)),
                                 typemeta_from_jsonstat(ds))
             # Speiler assertHarDatarader i js/data-loader.js: 0 datarader

@@ -672,3 +672,25 @@ test('styrtKildeIScript: ikke-styrt host og tomt register gir null', () => {
   assert.equal(DL.styrtKildeIScript(s, STYRT_REG), null);
   assert.equal(DL.styrtKildeIScript('x = "https://data.ssb.no/x"', []), null);
 });
+
+// ── feilkroppen er grunnsannheten (målt inflasjons-runden 2026-08-15:
+// «HTTP 400» uten SSBs «Non-existent value …» kostet 5+ blinde
+// reparasjonsrunder på python-veien) ────────────────────────────────────────
+test('forPyodideSync: HTTP-feil tar med feilkroppen i meldingen', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 400, bytes: null,
+    body: 'Non-existent value for dimension ContentsCode: FinnesIkke' }));
+  const r = RB.forPyodideSync('https://x.example/tables/07459/data');
+  RB._setXhr(null);
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /HTTP 400/);
+  assert.match(r.error, /Non-existent value for dimension ContentsCode/);
+});
+
+test('forPyodideSync: HTTP-feil uten kropp gir samme melding som før', () => {
+  RB._reset();
+  RB._setXhr(() => ({ status: 500, bytes: null }));
+  const r = RB.forPyodideSync('https://x.example/f.csv');
+  RB._setXhr(null);
+  assert.equal(r.error, 'HTTP 500 for https://x.example/f.csv');
+});

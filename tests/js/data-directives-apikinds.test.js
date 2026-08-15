@@ -470,3 +470,20 @@ test('resolve av «# x = datacommons.read(…)» mot registeroppføringen: auto-
   assert.equal(item.url, 'https://api.datacommons.org/v2/Count_Person?entity.dcids=country/NOR');
   assert.equal(item.table, 'Count_Person');
 });
+
+// ── registerstyrt språk-default (forbedringsrunden 2026-08-15, SCB-fella:
+// 400 på lang=no-defaulten, 200 på sv/en — curl-verifisert) ────────────────
+test('resolve: pxweb-kilde m/sprak-felt får lang=<sprak>; eksplisitt lang vinner', () => {
+  const registry = [{ id: 'scb', tilgang: 'pxweb', kind: 'pxweb', sprak: 'en',
+    base_url: 'https://api.scb.se/ov0104/v2beta/api/v2/tables' }];
+  const r1 = DD.resolve(DD.parse('# a = scb.read("TAB4552")'), registry);
+  assert.match(r1[0].url, /[?&]lang=en/);
+  const r2 = DD.resolve(DD.parse('# b = scb.read("TAB4552?lang=sv")'), registry);
+  assert.match(r2[0].url, /[?&]lang=sv/);
+  assert.ok(!/lang=en/.test(r2[0].url));
+  // Kilde UTEN sprak-felt: uendret (lang settes først i pxweb.js buildUrl).
+  const reg2 = [{ id: 'ssb', tilgang: 'pxweb', kind: 'pxweb',
+    base_url: 'https://data.ssb.no/api/pxwebapi/v2/tables' }];
+  const r3 = DD.resolve(DD.parse('# c = ssb.read("07459")'), reg2);
+  assert.ok(!/lang=/.test(r3[0].url));
+});

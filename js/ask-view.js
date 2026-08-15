@@ -927,6 +927,28 @@
       // språk-rute eller nøkkelfeil) — vis knapperaden. onDelta-strømming
       // kaller ALDRI showAnswer, så raden forblir skjult mens det jobbes.
       actionsRow.hidden = false;
+      // Rangeringsvernet (forbedringsrunden 2026-08-15, js/rangeringsvern.js):
+      // (etikett, verdi)-par i svaret sjekkes mot output-parene — DELVIS
+      // mismatch er det målte stokke-signalet (norden ×3) og varsles som
+      // ⚠️-linje i detaljsporet (samme kanal harness-evalene høster).
+      // Fail-open: vernet skal aldri knekke svar-visningen.
+      try {
+        if (window.Rangeringsvern) {
+          var rvKlone = answerBox.cloneNode(true);
+          Array.prototype.forEach.call(rvKlone.querySelectorAll('.ask-out-slot'),
+            function (n) { n.remove(); });
+          var rvOut = ((document.getElementById('outputArea') || {}).innerText || '') + '\n' +
+            Array.prototype.map.call(document.querySelectorAll('#askAnswer .ask-out-slot'),
+              function (sl) { return sl.innerText; }).join('\n');
+          var rv = window.Rangeringsvern.sjekk(rvKlone.innerText, rvOut);
+          if (rv.verdikt === 'avvik') {
+            var rvd = document.createElement('div');
+            rvd.textContent = '⚠️ Rangeringsvern: ' + rv.avvik.length + ' av ' + rv.par.length +
+              ' (navn, tall)-par i svaret gjenfinnes IKKE som par i output — verifiser rangeringen mot outputen.';
+            if (processBox) processBox.appendChild(rvd);
+          }
+        }
+      } catch (eRv) { /* fail-open */ }
     }
     // S2-porten er PÅ KUN ved eksplisitt opt-in (localStorage.md_ask_confirm='1')
     // — ask auto-kjører som standard (Hans 2026-07-29). Injeksjonsrisikoen fra

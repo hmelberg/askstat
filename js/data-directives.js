@@ -778,6 +778,13 @@
         // tester) skal ikke få et doblet tables/tables/-segment.
         var tableForItem = restPath;
         if (kind === 'pxweb') {
+          // Registerstyrt språk-default (forbedringsrunden 2026-08-15, målt
+          // kilder-runde 2: SCB 400-er på lang=no-defaulten fra
+          // pxweb.js buildUrl; 200 på sv/en). Kun når brukeren ikke selv
+          // har valgt lang — eksplisitt valg vinner alltid.
+          if (src && src.sprak && !/(^|&)lang=/i.test(restQuery)) {
+            restQuery = restQuery ? restQuery + '&lang=' + src.sprak : 'lang=' + src.sprak;
+          }
           if (restPath.indexOf('tables/') === 0) restPath = restPath.slice(7);
           tableForItem = restPath;
           if (!/\/tables$/.test(base.replace(/\/+$/, ''))) restPath = 'tables/' + restPath;

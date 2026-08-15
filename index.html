@@ -10737,7 +10737,7 @@ sys.modules["ost"] = sys.modules["openstat"]
       try {
         var regAlias = await window.DataLoader.loadRegistry(fetch.bind(window));
         var forPy = (regAlias || []).map(function (r) {
-          return { id: r.id, base_url: r.base_url,
+          return { id: r.id, base_url: r.base_url, sprak: r.sprak || null,
                    kind: r.kind || (r.tilgang === 'pxweb' || r.tilgang === 'sdmx' ? r.tilgang : null) };
         }).filter(function (r) { return r.id && r.base_url && /^[a-z0-9_]+$/.test(r.id); });
         pyodide.globals.set('_OST_REGISTRY_JSON', JSON.stringify(forPy));
@@ -12898,6 +12898,7 @@ async def _m2py_run_segment(_seg_json):
   <script src="js/login.js"></script>
   <script src="js/konto-sync.js"></script>
   <script src="js/kilde-forslag.js"></script>
+  <script src="js/rangeringsvern.js"></script>
   <script src="js/ask-view.js"></script>
   <script src="js/portable-export.js"></script>
   <script src="js/github-storage.js"></script>

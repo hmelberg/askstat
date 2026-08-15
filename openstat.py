@@ -821,9 +821,13 @@ _EDITOR_ONLY = {
 class Source:
     """Én datakilde: en fil-URL eller en API-base (kind='pxweb')."""
 
-    def __init__(self, url, kind=None):
+    def __init__(self, url, kind=None, sprak=None):
         self.url = str(url)
         self.kind = kind
+        # Registerstyrt språk-default (forbedringsrunden 2026-08-15, målt
+        # kilder-runde 2: SCB 400-er på lang=no som _build_url ellers
+        # defaulter til for ALLE pxweb-kilder; 200 på sv/en).
+        self.sprak = sprak
 
     def read(self, table=None, columns=None, **query):
         for _bad in _EDITOR_ONLY:
@@ -874,7 +878,21 @@ class Source:
                         raise ValueError("fant ikke dimensjonene i kildens CSV-header — angi nøkkelstien selv")
                     target = base + "/" + sdmx_key_path(dims, needs_key) + (("?" + "&".join(qs)) if qs else "")
                 raw = _sdmx_csv(target)
+                # Tomt-guard (forbedringsrunden 2026-08-15, målt ecb-utkast:
+                # pandas' «No columns to parse from file» på tom CSV er
+                # ureparérbar for modellen): speiler pxweb/eurostat-grenens
+                # aldri-stille-tomt-kontrakt.
+                if not raw.strip():
+                    raise ValueError("«" + str(rest) + "»: uttrekket kom TOMT tilbake — "
+                                     "dimensjonskodene finnes hver for seg, men "
+                                     "nøkkelkombinasjonen har ingen serie; juster én "
+                                     "dimensjon (sjekk eksempelkoder i table_metadata)")
                 df = pd.read_csv(io.BytesIO(raw))
+                if not len(df):
+                    raise ValueError("«" + str(rest) + "»: uttrekket kom TOMT tilbake "
+                                     "(kun header) — nøkkelkombinasjonen har ingen "
+                                     "observasjoner i tidsvinduet; utvid years= eller "
+                                     "juster én dimensjon")
             elif kind == "worldbank":
                 docs = [_json.loads(_fetch_bytes(worldbank_data_url(target), fra_adapter=True).decode("utf-8"))]
                 meta = worldbank_meta(docs[0])
@@ -932,6 +950,10 @@ class Source:
             if canonical_px:
                 _, cparams_px, _, _ = _translate_canonical(kind, str(table), canonical_px)
                 qs += cparams_px
+            if (kind == "pxweb" and getattr(self, "sprak", None)
+                    and not any(str(q).lower().startswith("lang=") for q in qs)):
+                # Uten denne setter _build_url lang=no — målt 400 hos SCB.
+                qs.append("lang=" + str(self.sprak))
             target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
             # Reparasjonshint på 400/404 (målt inflasjons-runden 2026-08-15:
@@ -983,8 +1005,8 @@ class Source:
         return df[list(columns)] if columns else df
 
 
-def connect(url, kind=None):
-    return Source(url, kind)
+def connect(url, kind=None, sprak=None):
+    return Source(url, kind, sprak=sprak)
 
 
 # Bare-alias som ekte kode (spec 2026-08-15 §2, målt norden-runden
@@ -999,7 +1021,7 @@ _REGISTRY = []
 def connect_alias(source_id):
     for e in _REGISTRY:
         if e.get("id") == source_id:
-            return Source(e.get("base_url"), e.get("kind") or None)
+            return Source(e.get("base_url"), e.get("kind") or None, sprak=e.get("sprak"))
     raise ValueError("ukjent kilde '" + str(source_id) + "' — utenfor appen: bruk "
                      "ost.connect(url, kind=...) med kildens base-URL")
 

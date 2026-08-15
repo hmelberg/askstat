@@ -1137,3 +1137,30 @@ def test_read_pxweb_404_gir_tabellhint(monkeypatch):
     s = ost.connect("https://x/tables", kind="pxweb")
     with pytest.raises(ValueError, match="HTTP 404 .*search_catalog"):
         s.read("99999")
+
+
+def test_read_sdmx_tomt_uttrekk_gir_instruktiv_feil(monkeypatch):
+    # Forbedringsrunden 2026-08-15 (målt ecb-utkast: «No columns to parse
+    # from file» fra pandas på tom CSV): tomt sdmx-uttrekk skal gi husets
+    # instruktive tomt-feil, ikke en kryptisk parse-feil.
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None, fra_adapter=False: b"")
+    o = ost.connect("https://data.norges-bank.no/api/data", kind="sdmx")
+    with pytest.raises(ValueError, match="TOMT.*nøkkelkombinasjon"):
+        o.read("EXR/D.USD.NOK.SP00.A", years="2024:2025")
+
+
+def test_read_pxweb_sprak_default_overstyrer_lang_no(monkeypatch):
+    # SCB-fella (kilder-runde 2, curl-verifisert: 400 på lang=no, 200 på
+    # sv/en): registerstyrt sprak-felt skal gi lang=<sprak> i URL-en når
+    # brukeren ikke selv har valgt lang.
+    urler = []
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None, fra_adapter=False:
+                        (urler.append(url), json.dumps(FIX).encode())[1])
+    s = ost.connect("https://api.scb.se/ov0104/v2beta/api/v2/tables", kind="pxweb", sprak="en")
+    s.read("TAB4552", indicators=["000000YE"], years="2020")
+    assert "lang=en" in urler[0] and "lang=no" not in urler[0]
+    # Eksplisitt lang= fra brukeren vinner over sprak-defaulten:
+    s.read("TAB4552", indicators=["000000YE"], years="2020", lang="sv")
+    assert "lang=sv" in urler[1] and "lang=en" not in urler[1]

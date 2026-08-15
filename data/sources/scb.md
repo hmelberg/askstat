@@ -5,6 +5,7 @@ utgiver: SCB
 tillit: offisiell
 tilgang: pxweb
 kind: pxweb
+sprak: en
 base_url: https://api.scb.se/ov0104/v2beta/api/v2/
 sok_endepunkt: https://api.scb.se/ov0104/v2beta/api/v2/tables?query={q}&lang=sv
 cors: true

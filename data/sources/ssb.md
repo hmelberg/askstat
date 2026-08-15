@@ -20,7 +20,8 @@ order: 0
 ## Kort
 
 PxWebApi v2 — svarer json-stat2 (tidy, koder som verdier) via
-`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342.
+`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342,
+for KPI/inflasjon: 14706 (vekstrater)/14710 (indeksnivå).
 
 ## Guide
 
@@ -92,6 +93,12 @@ utvalg av koder). Koder fra ulike codelists må ikke blandes.
   koder bor i `table_metadata`.
 - **`range(fra,til)` finnes ikke** — bruk `top(n)`/`from(år)`, eller
   enumerer eksplisitte tidskoder for et lukket intervall.
+- **Tolvmånedersvekst i KPI: bruk 14706 (avledede serier,
+  `indicators=["Tolvmanedersendring"]`) — 14710 er indeksNIVÅET, ikke
+  veksten.** Fritekstsøket viser sjelden 14706 (målt: aldri i topp-3 for
+  naturlige fraser); modellen brant 5+ runder på 14710-omveien i
+  inflasjons-runden 2026-08-15. Tabellen live-verifiseres av
+  kildeharnessen (tools/harness/utforsk.py).
 - Ukjent variabel-/verdikode, feil tidsformat, for mange celler og
   manglende obligatorisk dimensjon gir alle `400` — `title`-feltet i
   responsen forteller hvilken (ingen kodeliste følger med).

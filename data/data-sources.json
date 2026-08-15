@@ -21,7 +21,7 @@
       "norge"
     ],
     "beskrivelse": "Statistics Norway — official Norwegian statistics: population, economy, labour, health, education, and more, down to municipality level.",
-    "quirks": "PxWebApi v2 — svarer json-stat2 (tidy, koder som verdier) via\n`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342.",
+    "quirks": "PxWebApi v2 — svarer json-stat2 (tidy, koder som verdier) via\n`<alias>.read(...)`; kjente tabellnumre for befolkning: 07459/11342,\nfor KPI/inflasjon: 14706 (vekstrater)/14710 (indeksnivå).",
     "guide": true
   },
   {

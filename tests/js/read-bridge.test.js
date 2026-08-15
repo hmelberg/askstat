@@ -641,3 +641,34 @@ test('rPatchSource: .ost_json_str tåler kontrolltegn (\\n/\\r/\\t escapes + C0-
   assert.ok(src.includes('[\\x01-\\x1f]'), 'mangler C0-stripping (\\x01-\\x1f droppes)');
   assert.ok(src.includes('fixed = TRUE'), 'skal bruke fixed=TRUE — ingen regex-metatolkning av mønster/erstatning');
 });
+
+// ── styrte kilder — hook (c), script-tekst-skannen (målt Oslo-runde 8+9:
+// håndskrevet XHR/js.fetch mot data.ssb.no gikk utenom hook a og b) ───────
+const STYRT_REG = [{ id: 'ssb', base_url: 'https://data.ssb.no/api/pxwebapi/v2/', styrt: true }];
+
+test('styrtKildeIScript: styrt host i kodelinje treffes — også dynamisk bygde URL-er', () => {
+  const s = [
+    'import js',
+    'BASE = "https://data.ssb.no/api/v0/no/table/"',
+    'r = js.fetch(BASE + "07459", {"method": "POST"})',
+  ].join('\n');
+  const hit = DL.styrtKildeIScript(s, STYRT_REG);
+  assert.equal(hit && hit.id, 'ssb');
+  assert.equal(hit && hit.host, 'data.ssb.no');
+});
+
+test('styrtKildeIScript: host KUN i kommentarlinje er lov (kildehenvisninger)', () => {
+  const s = [
+    '# kilde: https://data.ssb.no/api/pxwebapi/v2/tables/07459',
+    '-- kilde: https://data.ssb.no/statbank',
+    '// kilde: https://data.ssb.no/statbank',
+    'df = ssb.read("07459", years="2015:2024", indicators=["Personer1"])',
+  ].join('\n');
+  assert.equal(DL.styrtKildeIScript(s, STYRT_REG), null);
+});
+
+test('styrtKildeIScript: ikke-styrt host og tomt register gir null', () => {
+  const s = 'df = pd.read_csv("https://ourworldindata.org/grapher/co2.csv")';
+  assert.equal(DL.styrtKildeIScript(s, STYRT_REG), null);
+  assert.equal(DL.styrtKildeIScript('x = "https://data.ssb.no/x"', []), null);
+});

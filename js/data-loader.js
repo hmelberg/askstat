@@ -90,6 +90,37 @@
       'verifisert): lese-linjen får du ferdig fra table_metadata.';
   }
 
+  // Styrt-skinne, hook (c) — hele script-TEKSTEN (målt Oslo-runde 8+9):
+  // håndskrevet XHR/js.fetch med dynamisk bygde URL-er går utenom både
+  // direktiv-skannen (hook a — krever loads i scriptet) og read-bridge
+  // (hook b — krever de patchede leserne), men HOSTEN står så godt som
+  // alltid som litteral i kildekoden («data.ssb.no» sto i begge målte
+  // fluktscript). Rene kommentarlinjer hoppes over: kildehenvisninger i
+  // kommentarer er legitime (og påbudt av prompten), og direktiver bruker
+  // aliaser, aldri hosts — de rammes ikke. Returnerer treffet i stedet for
+  // å kaste: kalleren (run_code-veien i ai-chat.js) eier feilformatet.
+  function styrtKildeIScript(script, registry) {
+    var reg = Array.isArray(registry) ? registry : [];
+    var styrte = [];
+    for (var i = 0; i < reg.length; i++) {
+      var r = reg[i];
+      if (r && r.styrt === true && r.base_url) {
+        var h = hostOf(r.base_url);
+        if (h) styrte.push({ id: r.id, host: h });
+      }
+    }
+    if (!styrte.length) return null;
+    var linjer = String(script == null ? '' : script).split('\n');
+    for (var j = 0; j < linjer.length; j++) {
+      var l = linjer[j];
+      if (/^\s*(#|--|\/\/)/.test(l)) continue;
+      for (var k = 0; k < styrte.length; k++) {
+        if (l.indexOf(styrte[k].host) >= 0) return { id: styrte[k].id, host: styrte[k].host };
+      }
+    }
+    return null;
+  }
+
   // Rå-vei-avvisning, hook (a): kalles FØR DD.resolve — sjekker de LITERALE
   // connect()/load()-målstrengene brukeren skrev, ALDRI de ferdig resolvede
   // item.url-ene. Grunnen: et resolvert item.url for en REGISTRERT kilde er
@@ -498,12 +529,19 @@
           var er400 = item.kind === 'pxweb' && /(HTTP|proxy) 400 /.test(String(ePx && ePx.message));
           if (!er400) throw ePx;
           var missingPx = [];
+          var ugyldigePx = [];
           try {
             var mBytes = await fetchBytes(Object.assign({}, item, { url: PX.metadataUrl(item.url) }));
-            missingPx = PX.missingMandatory(item.url, JSON.parse(new TextDecoder().decode(mBytes.buf)));
+            var metaPx = JSON.parse(new TextDecoder().decode(mBytes.buf));
+            missingPx = PX.missingMandatory(item.url, metaPx);
+            // Ugyldige koder (målt Oslo-runde 9): gjettes aggregatkoder fra
+            // andre tabeller er 400-en ellers uoversatt — sjekkes KUN når
+            // ingen mandatory mangler (mandatory-meldingen er mer presis).
+            if (!missingPx.length && PX.invalidCodes) ugyldigePx = PX.invalidCodes(item.url, metaPx);
           } catch (eMeta) { throw ePx; }   // metadata-feil → original feil
-          if (!missingPx.length) throw ePx;
-          throw new Error(PX.mandatoryErrorMessage(item.table || item.alias, missingPx));
+          if (missingPx.length) throw new Error(PX.mandatoryErrorMessage(item.table || item.alias, missingPx));
+          if (ugyldigePx.length) throw new Error(PX.invalidCodesMessage(item.table || item.alias, ugyldigePx));
+          throw ePx;
         }
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
@@ -754,6 +792,9 @@
     // matcheren (js/read-bridge.js sin forPyodideSync bruker den også, se
     // der); styrtMelding er den ene kilde-strengen begge lag kaster.
     styrtKildeFor: styrtKildeFor, styrtMelding: styrtMelding,
+    // hook (c): script-tekst-skannen + registerlasteren run_code-veien i
+    // ai-chat.js trenger for å kalle den (deler modulens _registryCache).
+    styrtKildeIScript: styrtKildeIScript, loadRegistry: loadRegistry,
     // Test-only: the cross-run fetch cache is module-scoped by design (see
     // _bufCache above), which is exactly wrong for a test file that evals
     // this module once and shares it across every Deno.test case — without

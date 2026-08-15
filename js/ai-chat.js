@@ -1765,6 +1765,20 @@
           if (Object.keys(userKeys).length && mode === 'python') {
             script = 'KEYS = ' + JSON.stringify(userKeys) + '\n' + script;
           }
+          // Styrt-skinne, hook (c) (målt Oslo-runde 8+9): håndskrevet
+          // XHR/fetch mot en styrt host avvises FØR kjøring — se
+          // styrtKildeIScript i js/data-loader.js. Fail-open ved
+          // registerfeil (skinnen skal aldri knekke run_code-veien selv).
+          try {
+            var DLx = window.DataLoader;
+            if (DLx && DLx.styrtKildeIScript) {
+              var styrtHitS = DLx.styrtKildeIScript(script, await DLx.loadRegistry());
+              if (styrtHitS) {
+                return { ok: false, result: 'FEIL:\n' + DLx.styrtMelding(styrtHitS.id) +
+                  ' (rå HTTP mot ' + styrtHitS.host + ' i scriptet — avvist før kjøring)' };
+              }
+            }
+          } catch (eStyrt) { /* fail-open */ }
           insertScriptIntoEditor(script);
           var err = await runScriptAndCaptureError(signal);
           var out = document.getElementById('outputArea');
@@ -1783,7 +1797,12 @@
             ok: !err,
             result: err
               ? 'FEIL:\n' + maskKnownKeyValues(String(err)).slice(0, 20000)
-              : 'OK. OUTPUT (truncated):\n' + outText.slice(0, 20000) +
+              // «(truncated)» sto her UBETINGET (målt Oslo-runde 9: modellen
+              // trodde komplett output var avkuttet og re-hentet/byttet
+              // strategi) — etiketten skal være sann, og si hvor mye.
+              : 'OK. OUTPUT' + (outText.length > 20000
+                  ? ' (avkuttet etter 20000 av ' + outText.length + ' tegn)' : '') +
+                ':\n' + outText.slice(0, 20000) +
                 (manifest ? '\n' + manifest : ''),
           };
         };

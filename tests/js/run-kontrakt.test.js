@@ -10,7 +10,9 @@ const path = require('node:path');
 
 test('mdAskExecuteScript-literalene består (OK./FEIL:-kontrakten)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
-  assert.ok(src.includes("'OK. OUTPUT (truncated):\\n'"), 'OK.-literalen mangler/endret');
+  assert.ok(src.includes("'OK. OUTPUT'"), 'OK.-literalen mangler/endret');
+  // Ærlig trunkering (Oslo-runde 9): etiketten er betinget og navngir omfanget.
+  assert.ok(src.includes("' (avkuttet etter 20000 av '"), 'avkuttet-etiketten mangler/endret');
   assert.ok(src.includes("'FEIL:\\n'"), 'FEIL:-literalen mangler/endret');
 });
 

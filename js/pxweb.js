@@ -366,7 +366,52 @@
       '(400 Missing selection). Legg til i read-linjen: ' + deler.join(' | ');
   }
 
+  // Ugyldige koder (målt Oslo-runde 9): modellen gjetter aggregatkoder fra
+  // ANDRE tabeller (Kjonn="0", Alder="000") — SSB 400-er da uten brukbar
+  // forklaring. Sammenlign valgte valueCodes mot metadataens kodelister;
+  // seleksjonsuttrykk (*, top(n), from(...)) er aldri koder og hoppes over.
+  // Samme mønster som missingMandatory: ren analyse, kun på 400-feilveien.
+  function invalidCodes(url, meta) {
+    var q = String(url || '');
+    var dims = (meta || {}).dimension || {};
+    var out = [];
+    var re = /[?&]valueCodes\[([^\]]+)\]=([^&]*)/g;
+    var m;
+    while ((m = re.exec(q))) {
+      var d = dims[m[1]];
+      if (!d) continue;               // ukjent dimensjon: SSBs egen 400-tekst navngir den
+      var gyldige = categoryCodes(d);
+      var valgte;
+      try { valgte = decodeURIComponent(m[2]).split(','); }
+      catch (e) { valgte = String(m[2]).split(','); }
+      var bad = valgte.filter(function (v) {
+        return v && !/[*()]/.test(v) && gyldige.indexOf(v) < 0;
+      });
+      if (!bad.length) continue;
+      var labels = (d.category || {}).label || {};
+      out.push({
+        dim: m[1], bad: bad,
+        eliminerbar: ((d.extension || {}).elimination === true),
+        eksempler: gyldige.slice(0, 10).map(function (c) {
+          return labels[c] && labels[c] !== c ? c + ' (' + labels[c] + ')' : c;
+        }),
+      });
+    }
+    return out;
+  }
+
+  function invalidCodesMessage(table, invalid) {
+    var deler = (invalid || []).map(function (iv) {
+      var rad = iv.dim + ': ugyldig kode ' + iv.bad.join(', ') +
+        ' — gyldige: ' + iv.eksempler.join(', ');
+      if (iv.eliminerbar) rad += '; vil du ha TOTALEN: UTELAT dimensjonen fra read-linjen (den er eliminerbar)';
+      return rad;
+    });
+    return 'PxWeb-tabell ' + table + ' avviste spørringen (400, ugyldige koder). ' + deler.join(' | ');
+  }
+
   var api = { dataUrl: dataUrl, metadataUrl: metadataUrl,
+              invalidCodes: invalidCodes, invalidCodesMessage: invalidCodesMessage,
               eurostatDataUrl: eurostatDataUrl, dataUrlFor: dataUrlFor,
               columnsFromJsonStat: columnsFromJsonStat, columnsToCsv: columnsToCsv,
               PXWEB_ALL_MAX_CELLS: PXWEB_ALL_MAX_CELLS, expandAllUrl: expandAllUrl,

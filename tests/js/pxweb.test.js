@@ -281,3 +281,44 @@ test('mandatoryErrorMessage: nevner dim, read-syntaks og koder', () => {
   assert.match(msg, /indicators=/);
   assert.match(msg, /Folkemengde \(Personer\)/);
 });
+
+// ── ugyldige koder / 400-oversettelse (målt Oslo-runde 9: gjettede
+// aggregatkoder fra ANDRE tabeller — Kjonn="0", Alder="000") ──
+test('invalidCodes: finner koder som ikke står i metadataens kodeliste', () => {
+  const meta = {
+    dimension: {
+      Kjonn: { label: 'kjønn', category: { index: { 1: 0, 2: 1 }, label: { 1: 'Menn', 2: 'Kvinner' } }, extension: { elimination: true } },
+      Region: { label: 'region', category: { index: { '0301': 0 }, label: { '0301': 'Oslo' } }, extension: { elimination: false } },
+    },
+  };
+  const url = 'https://x/tables/07459?valueCodes[Kjonn]=0&valueCodes[Region]=0301';
+  const ugyldige = PX.invalidCodes(url, meta);
+  assert.strictEqual(ugyldige.length, 1);
+  assert.strictEqual(ugyldige[0].dim, 'Kjonn');
+  assert.deepStrictEqual(ugyldige[0].bad, ['0']);
+  assert.strictEqual(ugyldige[0].eliminerbar, true);
+  assert.deepStrictEqual(ugyldige[0].eksempler, ['1 (Menn)', '2 (Kvinner)']);
+});
+
+test('invalidCodes: seleksjonsuttrykk (*, top(n), from(...)) og gyldige koder gir tomt', () => {
+  const meta = {
+    dimension: {
+      Tid: { label: 'år', category: { index: { 2024: 0 } } },
+      Region: { label: 'region', category: { index: { '0301': 0 } } },
+    },
+  };
+  assert.strictEqual(PX.invalidCodes(
+    'https://x/t?valueCodes[Tid]=top(10)&valueCodes[Region]=0301', meta).length, 0);
+  assert.strictEqual(PX.invalidCodes(
+    'https://x/t?valueCodes[Tid]=*&valueCodes[Region]=from(0301)', meta).length, 0);
+});
+
+test('invalidCodesMessage: navngir kode, gyldige alternativer og utelat-hintet', () => {
+  const msg = PX.invalidCodesMessage('07459', [{
+    dim: 'Kjonn', bad: ['0'], eliminerbar: true, eksempler: ['1 (Menn)', '2 (Kvinner)'],
+  }]);
+  assert.match(msg, /07459/);
+  assert.match(msg, /Kjonn: ugyldig kode 0/);
+  assert.match(msg, /1 \(Menn\)/);
+  assert.match(msg, /UTELAT dimensjonen/);
+});

@@ -786,6 +786,16 @@
               throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
             }
             runResult = await handlers.onRunCode(pendingRun);
+            // FEIL-linja i prosessloggen (spec 2026-08-15 §1, målt: tre
+            // blinddiagnose-runder fordi run_result-FEIL aldri var synlig
+            // for mennesker). Sentralt her — begge kallere (ask-view og
+            // AI-panelet) får den via sin egen onProgress. Teksten er
+            // alt nøkkel-maskert av mdAskExecuteScript.
+            if (runResult && runResult.ok === false && handlers.onProgress) {
+              var feilLinje = String(runResult.result || '')
+                .replace(/^FEIL:\n/, '').split('\n')[0].slice(0, 160);
+              if (feilLinje) handlers.onProgress({ text: '⚠️ Kjøring feilet: ' + feilLinje });
+            }
             resume = cont;   // run_code ender alltid invokasjonen med en continue
             continue;
           }

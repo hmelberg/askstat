@@ -279,3 +279,14 @@ test('KEYS-regex-drift: fallback i index.html og KEYS_LINE_RE i data-directives.
   assert.ok(aiChat.includes("'KEYS = ' + JSON.stringify(userKeys) + '\\n' + script"),
     'ai-chat.js sitt injeksjonsformat (KEYS = <JSON>\\n<script>) har endret seg — regexene over må oppdateres i takt');
 });
+
+// FEIL-linja i prosessloggen (spec 2026-08-15 §1): kjørefeil skal være
+// synlige i prosessloggen. runSvarLoop emitterer én gang for ALLE kallere
+// (ask-view og AI-panelet) via handlers.onProgress, som er delt på tvers.
+test('runSvarLoop emitterer FEIL-linje til prosessloggen (spec 2026-08-15 §1)', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'ai-chat.js'), 'utf8');
+  // Emisjonen skjer sentralt i løkka (én gang for ALLE kallere), etter onRunCode.
+  assert.ok(src.includes("'⚠️ Kjøring feilet: '"), 'FEIL-prosesslinje-literalen mangler');
+  // FEIL:\n-prefikset er kontrakt mot modellen og skal strippes i visningen.
+  assert.ok(src.includes("replace(/^FEIL:\\n/"), 'FEIL-prefiks-strippingen mangler');
+});

@@ -941,10 +941,13 @@
             Array.prototype.map.call(document.querySelectorAll('#askAnswer .ask-out-slot'),
               function (sl) { return sl.innerText; }).join('\n');
           var rv = window.Rangeringsvern.sjekk(rvKlone.innerText, rvOut);
-          if (rv.verdikt === 'avvik') {
+          if (rv.verdikt === 'avvik' || rv.verdikt === 'uverifisert') {
             var rvd = document.createElement('div');
-            rvd.textContent = '⚠️ Rangeringsvern: ' + rv.avvik.length + ' av ' + rv.par.length +
-              ' (navn, tall)-par i svaret gjenfinnes IKKE som par i output — verifiser rangeringen mot outputen.';
+            rvd.textContent = rv.verdikt === 'avvik'
+              ? ('⚠️ Rangeringsvern: ' + rv.avvik.length + ' av ' + rv.par.length +
+                 ' (navn, tall)-par i svaret gjenfinnes IKKE som par i output — verifiser rangeringen mot outputen.')
+              : ('⚠️ Rangeringsvern: svaret bærer en rangering (' + rv.par.length +
+                 ' par), men INGEN av parene er printet i output — rangeringen er uverifiserbar (kjør (enhet, verdi)-par-utskriften).');
             if (processBox) processBox.appendChild(rvd);
           }
         }

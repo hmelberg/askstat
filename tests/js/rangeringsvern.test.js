@@ -36,9 +36,17 @@ test('sjekk: korrekt rangering gir ok', () => {
   assert.equal(RV.sjekk(svar, OUTPUT_FASIT).verdikt, 'ok');
 });
 
-test('sjekk: ingen printede par → utestbar (regel 10-miss, ikke stokkebevis)', () => {
+test('sjekk: rang-først-tabell (målt r5: «1 | Island | 6 %») gir par', () => {
+  const svar = 'Rang\tLand\tRate\n1\t🇮🇸 Island\t6 %\n2\t🇩🇰 Danmark\t5 %\n3\t🇳🇴 Norge\t4 %';
+  const par = RV.parFraSvar(svar);
+  assert.equal(par.length, 3);
+  assert.equal(par[0].etikett.indexOf('Island') >= 0, true);
+  assert.equal(par[0].verdi, 6);
+});
+
+test('sjekk: ingen printede par → uverifisert (regel 10-miss, eget verdikt)', () => {
   const svar = 'Land\tRate\nFinland\t10\nDanmark\t6';
-  assert.equal(RV.sjekk(svar, 'bare en figur her, ingen tall-linjer').verdikt, 'utestbar');
+  assert.equal(RV.sjekk(svar, 'bare en figur her, ingen tall-linjer').verdikt, 'uverifisert');
 });
 
 test('sjekk: <2 kandidater → utestbar', () => {

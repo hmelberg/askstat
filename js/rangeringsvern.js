@@ -27,9 +27,15 @@
     String(answerText || '').split('\n').forEach(function (linje) {
       var celler = linje.split('\t').map(function (c) { return c.trim(); });
       if (celler.length < 2 || celler.length > 6) return;
-      var etikett = celler[0].replace(/[^\wæøåÆØÅéüö \-]/g, '').trim();
-      if (!/[a-zA-ZæøåÆØÅ]{3}/.test(etikett)) return;
-      for (var i = 1; i < celler.length; i++) {
+      // Etiketten er første TEKST-celle — rang-først-tabeller («1 | Island |
+      // 6 %», målt eval-runde 5) har rangtallet i celle 0.
+      var ei = -1;
+      for (var k = 0; k < celler.length - 1; k++) {
+        if (/[a-zA-ZæøåÆØÅ]{3}/.test(celler[k].replace(/[^\wæøåÆØÅéüö \-]/g, ''))) { ei = k; break; }
+      }
+      if (ei < 0) return;
+      var etikett = celler[ei].replace(/[^\wæøåÆØÅéüö \-]/g, '').trim();
+      for (var i = ei + 1; i < celler.length; i++) {
         var v = forsteTall(celler[i]);
         if (v !== null && /\d/.test(celler[i])) {
           ut.push({ etikett: etikett, verdi: v });
@@ -75,7 +81,10 @@
       else avvik.push(p);
     });
     if (avvik.length === 0) return { verdikt: 'ok', par: par, avvik: [] };
-    if (treff === 0) return { verdikt: 'utestbar', par: par, avvik: avvik };
+    // Ingen treff = parene ble aldri printet (regel 10-miss): svaret bærer
+    // en rangering ingen output kan verifisere — eget, mykere verdikt
+    // (målt eval-runde 5: figur-only output + stokket juli-rangering).
+    if (treff === 0) return { verdikt: 'uverifisert', par: par, avvik: avvik };
     return { verdikt: 'avvik', par: par, avvik: avvik };
   }
 

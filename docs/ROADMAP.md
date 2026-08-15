@@ -177,6 +177,19 @@ i småting-batchen.*
 
 ## AI-assistenten
 
+- [ ] **Mulig FJERNING: fix B (søkefallback) og hook (c) (styrt-host-
+      script-skann)** (notert 2026-08-15 etter SSB-av-oppklaringen): begge
+      ble bestilt på diagnoser fra Oslo-rundene 8–10, som viste seg
+      forurenset av at SSB var skrudd av i kildevelgeren — ikke av feilene
+      de fikser. Fix B = enkeltord-retry i search_catalog-dispatchen
+      (_lib/tools/search-catalog.ts, kjørKatalogSøk-løkka + 2 tester);
+      hook (c) = styrtKildeIScript i js/data-loader.js + kallet i
+      mdAskExecuteScript (ai-chat.js) + 3 tester. Begge er små og
+      selvstendige — fjerning rører ikke styrte-kilder-kjernen. Behold
+      hvis videre målinger (med riktig kildetilstand) viser at flerords-
+      søk faktisk gir 0 treff, eller at modellen hånd-ruller HTTP mot
+      styrte hosts selv med åpen read-vei; fjern ellers ved neste
+      forenklings-runde.
 - [ ] **Kildevelgeren: instruktiv «skrudd AV»-feiltekst** (fra Oslo-runde
       10, 2026-08-15): når en kilde finnes men er filtrert bort av brukerens
       kildevalg (doc.sources_off/landvalg), sier verktøyene i dag bare

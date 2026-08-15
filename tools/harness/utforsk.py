@@ -43,6 +43,11 @@ FALLBACK_TABELLER = {
     "ssb": ["07459", "14706"],
     "eurostat": ["ei_lmhr_m", "prc_hicp_manr"],
     "norgesbank": ["EXR", "IR"],
+    # oecd/ecb (kilder-runde 2, 2026-08-15): verifiserte flows — oecd fra
+    # guiden/batteriet (arbeidsledighet, målt live), ecb fra guidens
+    # dokumenterte eksempel (EXR, komma-formen målt 2026-08-01).
+    "oecd": ["OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M"],
+    "ecb": ["ECB,EXR"],
 }
 
 STORBYER = ["Oslo", "Bergen", "Trondheim", "Stavanger", "Stockholm", "Göteborg", "København"]
@@ -79,7 +84,7 @@ class Budsjett:
 # ── HTTP-hjelpere (rå urllib — søke-/metadatafasen er IKKE del av openstat.py
 #    sitt Source.read()-kontraktflate, så vi henter selv) ────────────────────
 
-def _http(url, budsjett, headers=None, som_json=True):
+def _http(url, budsjett, headers=None, som_json=True, timeout_s=None):
     """Ett HTTP GET — parset som JSON (som_json=True) eller rå tekst (CSV o.l.).
     (resultat, None) ved suksess, (None, feilmelding) ved feil — kaster aldri
     (spec §0: en feil her skal bli et FUNN i utkastet, ikke en krasjet kjøring).
@@ -88,7 +93,7 @@ def _http(url, budsjett, headers=None, som_json=True):
     hdrs = {"User-Agent": "askstat-utforsk"}
     hdrs.update(headers or {})
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs), timeout=TIMEOUT_S) as r:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs), timeout=(timeout_s or TIMEOUT_S)) as r:
             data = r.read()
         return (json.loads(data.decode("utf-8")) if som_json else data.decode("utf-8", "replace")), None
     except urllib.error.HTTPError as e:
@@ -104,8 +109,8 @@ def _http_json(url, budsjett, headers=None):
     return _http(url, budsjett, headers=headers, som_json=True)
 
 
-def _http_text(url, budsjett, headers=None):
-    return _http(url, budsjett, headers=headers, som_json=False)
+def _http_text(url, budsjett, headers=None, timeout_s=None):
+    return _http(url, budsjett, headers=headers, som_json=False, timeout_s=timeout_s)
 
 
 # ── Oppstart: register + spørsmålssett ───────────────────────────────────────
@@ -127,6 +132,11 @@ def tema_fraser(kilde_id, sporsmal, maks=5):
             for t in q.get("tema", []):
                 if t not in ut:
                     ut.append(t)
+    if not ut:
+        # Kilde uten spørsmål i sporsmal.json (målt kilder-runde 2: scb fikk
+        # tomt søk) — generiske fraser som virker på skandinaviske + engelske
+        # kataloger, så søkefasen alltid har noe å måle.
+        ut = ["befolkning", "population", "arbeidsmarknad"]
     return ut[:maks]
 
 
@@ -206,12 +216,26 @@ def _parse_dims_guardet(doc, tabell_id):
 def metadata_pxweb(kilde, tabell_id, budsjett):
     url = pxweb_base(kilde) + "/" + tabell_id + "/metadata?lang=no"
     doc, feil = _http_json(url, budsjett)
+    notat = None
+    if feil and "Unsupported language" in str(feil):
+        # Målt kilder-runde 2 (scb): 400 «Unsupported language» på lang=no,
+        # 200 på sv/en (curl-verifisert). NB: BEGGE adapterlag (openstat.py
+        # _build_url og js/pxweb.js buildUrl) defaulter lang=no for alle
+        # pxweb-kilder — appens scb-lesinger uten eksplisitt lang= rammes
+        # (kodesak-kandidat: registerstyrt språk-default).
+        doc, feil = _http_json(url.replace("lang=no", "lang=en"), budsjett)
+        notat = ("FELLE (målt): kilden avviser lang=no (400 Unsupported "
+                 "language) — bruk lang=en/sv eksplisitt i alle kall.")
     if feil:
         return {"tabell": tabell_id, "feil": feil}
     dims, feil = _parse_dims_guardet(doc, tabell_id)
     if feil:
         return {"tabell": tabell_id, "feil": feil}
-    return {"tabell": tabell_id, "tittel": doc.get("label", tabell_id), "dims": dims, "feil": None}
+    ut = {"tabell": tabell_id, "tittel": doc.get("label", tabell_id), "dims": dims, "feil": None}
+    if notat:
+        ut["notat"] = notat
+        ut["lang_override"] = "en"
+    return ut
 
 
 def metadata_eurostat(kilde, tabell_id, budsjett):
@@ -235,6 +259,10 @@ def metadata_sdmx(kilde, flow_id, budsjett):
     — noteres ærlig i stedet for å gjettes (spec §1)."""
     url = kilde["base_url"].rstrip("/") + "/" + flow_id + "/all?lastNObservations=1"
     text, feil = _http_text(url, budsjett, headers={"Accept": ost.SDMX_ACCEPT})
+    if feil and "406" in str(feil):
+        # ECB 406-er på sdmx-csv-Accept (målt kilder-runde 2, dokumentert i
+        # data/sources/ecb.md) — adapterens format=csvdata-fallback speiles.
+        text, feil = _http_text(ost.sdmx_fallback_url(url + "&format=csvfile"), budsjett, timeout_s=25)
     if feil:
         return {"tabell": flow_id, "feil": feil}
     linjer = [l for l in text.splitlines() if l.strip()]
@@ -301,7 +329,14 @@ def _sorter_kwargs(kw):
     """Stabil rekkefølge på read()-kwargs — matcher stilen i data/sources/*.md
     (regions/countries, indicators, years, filters) fremfor tilfeldig
     innsettingsrekkefølge."""
-    return {k: kw[k] for k in _KWARG_ORDER if k in kw}
+    ut = {k: kw[k] for k in _KWARG_ORDER if k in kw}
+    # Ukjente nøkler BEHOLDES bakerst (målt kilder-runde 2: lang="en" fra
+    # scb-språkfella ble stille droppet her — harnessens egen variant av
+    # feilklassen den jakter på).
+    for k in kw:
+        if k not in ut:
+            ut[k] = kw[k]
+    return ut
 
 
 def _finn_kode(dim, *etikett_substr, unntatt=None):
@@ -344,6 +379,10 @@ def _finn_storby(dim, byer=STORBYER, unntatt_kode=None):
 
 
 def lesemonstre_pxweb(kilde_id, kilde, src, alias, metadata_tabeller, budsjett):
+    # lang_override (målt scb): metadata-fasen fant at kilden avviser
+    # lang=no — alle lesinger må da sende lang= eksplisitt (leftover-kwarg
+    # → &lang=en i URL-en; _build_url unnlater lang=no når lang alt er satt).
+
     ut, ekstra_notater = [], []
     gjort_flervalg = False
     for m in metadata_tabeller:
@@ -352,6 +391,19 @@ def lesemonstre_pxweb(kilde_id, kilde, src, alias, metadata_tabeller, budsjett):
         tabell, dims = m["tabell"], m["dims"]
         geo, metric, tid = _dim(dims, "geo"), _dim(dims, "metric"), _dim(dims, "time")
         kwargs_felles = {}
+        if m.get("lang_override"):
+            kwargs_felles["lang"] = m["lang_override"]
+        # Obligatoriske ØVRIGE dimensjoner (målt kilder-runde 2: SCB TAB4552
+        # krever TypAnsl — «Missing selection for mandantory variable», SCBs
+        # egen skrivefeil): samme prinsipp som appens lese_linje-bygger
+        # (table-metadata.ts pxwebLeseLinje) — mandatory utenfor
+        # metric/time/geo får første kode i filters.
+        ovrige_mand = {d["navn"]: d["koder"][0]
+                       for d in dims
+                       if d.get("mandatory") and d.get("koder")
+                       and d.get("rolle") not in ("metric", "time", "geo")}
+        if ovrige_mand:
+            kwargs_felles["filters"] = ovrige_mand
         if metric:
             kwargs_felles["indicators"] = [metric["koder"][0]]
         arlig = bool(tid) and all(re.match(r"^\d{4}$", k) for k in tid["koder"][-5:])

@@ -177,6 +177,21 @@ i småting-batchen.*
 
 ## AI-assistenten
 
+- [ ] **Kildevelgeren: instruktiv «skrudd AV»-feiltekst** (fra Oslo-runde
+      10, 2026-08-15): når en kilde finnes men er filtrert bort av brukerens
+      kildevalg (doc.sources_off/landvalg), sier verktøyene i dag bare
+      «ukjent kilde '<id>'» — modellen gjettet «ikke tilgjengelig i dette
+      miljøet» og brant tre runder på omveier (Eurostat/Oslo kommunes
+      statistikkbank). Serveren vet forskjellen i filtreringsøyeblikket
+      (svar.ts har både fullt og filtrert register): feilteksten bør si
+      «kilden '<id>' er skrudd AV i brukerens kildeinnstillinger — bruk en
+      annen kilde eller be brukeren skru den på; ikke forsøk omveier».
+- [ ] **Registerblokka lister avskrudde kilder** (samme runde): én linje
+      «Avskrudd av brukeren: <ids>» i prompten, så modellen vet det fra
+      tur 1 i stedet for å oppdage det ved å feile. Ses i sammenheng med
+      punktet over — samme av-liste, to overflater (miljøfakta-prinsippet:
+      si det både der modellen planlegger og der den feiler).
+
 - [x] **Auto-retting nivå 1 for python- og r-modus i v2-flyten** — levert
       2026-07-22 (commits b3daf09+766f558): modus-dispatch i `runFastQueryV2`
       (microdata byte-frosset, reviewer-verifisert), syntakssjekk via

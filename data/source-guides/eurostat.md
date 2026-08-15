@@ -34,3 +34,8 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
   da STOKKEDE verdier som ser plausible ut. For rangeringer: bruk siste
   KOMPLETTE periode (dropp perioder med NaN for noen av enhetene), og
   aldri ffill/bfill på tvers av enheter.
+- **Revisjonstabeller (målt r6-1): unngå tabeller med `revdate`-dimensjon**
+  (sanntids-/revisjonsvarianter, ofte `_rt`-suffiks) for vanlige spørsmål —
+  hundrevis av revisjonsdatoer per serie brenner kjøringer; bruk
+  standardtabellen (une_rt_m er OK — «rt» der er del av navnet, ikke
+  revisjonsdimensjon).

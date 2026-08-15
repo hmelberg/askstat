@@ -1,0 +1,25 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Trend in key Norwegian macroeconomic indicators (GDP growth, unemployment rate, inflation, household income) — most recent available years, national and/or international sources (SSB, Norges Bank, OECD).",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i ssb: «BNP fastlands-Norge vekst» …",
+  "⏳ Søker i ssb: «arbeidsledighet AKU» …",
+  "⏳ Søker i ssb: «konsumprisindeks inflasjon» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ Henter variabler for ssb/12880 …",
+  "⏳ Søker i ssb: «arbeidsledighet registrert AKU prosent» …",
+  "⏳ Henter variabler for ssb/14706 …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "📝 Jeg har nok metadata. Tabell 12880 dekker BNP Fastlands-Norge, arbeidsledighetsrate, KPI, årslønn og disponibel realinntekt – alt i én tabell. Tabell 14706 gir månedlig KPI-vekst. Jeg bruker 12880 som",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) … (30 s)",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) …"
+ ],
+ "answer": "2015\n2020\n2025\n−2\n0\n2\n4\n2015\n2020\n2025\n2030\n3.5\n4\n4.5\n2024\n2025\n2026\n2027\n2\n3\n4\n5\n2015\n2020\n2025\n2030\n0\n2\n4\n6\nHistorikk\nSSB-prognose\nÅrslønn\nDisponibel realinntekt\nÅrslønn (prog.)\nRealinntekt (prog.)\nNorsk økonomi – nøkkeltall 2015–2027\n%\n%\n%\n%\nBNP Fastlands-Norge – vekst (%)\nArbeidsledighetsrate (%, AKU)\nInflasjon – KPI 12-mnd (%)\nÅrslønn vs. disponibel realinntekt (%)\n3.0% (jul 2026)\n3.0% (jul 2026)\nMål 2%\nNorsk økonomi 2022–2027: et sammensatt bilde\n\nSvaret er delvis bedre, delvis fortsatt krevende – avhengig av hvilken målestokk man bruker.\n\n📊 Nøkkeltall (SSB, tabell 12880)\nÅr\tBNP Fastland (%)\tLedighet (%)\tInflasjon KPI (%)\tÅrslønn (%)\tRealinntekt (%)\n2022\t5,2\t3,2\t5,8\t4,3\t0,0\n2023\t0,9\t3,6\t5,5\t5,2\t–0,9\n2024\t0,6\t4,0\t3,1\t5,6\t+3,0\n2025*\t1,7\t4,5\t3,1\t4,9\t+3,3\n2026*\t1,7\t4,6\t3,2\t4,4\t+2,7\n2027*\t2,0\t4,4\t2,5\t3,7\t+1,9\n\n* SSB-prognose (fra tabell 12880)\n\n🔎 Hva forteller tallene?\n\nBNP-vekst – lav, men ikke alarmerande\nBNP for Fastlands-Norge falt bratt fra høykonjunkturen i 2022 (5,2 %) til nær stagnasjon i 2023–2024 (0,9 og 0,6 %). SSBs prognose antyder en forsiktig opptur mot 1,7–2,0 % i 2025–2027 – historisk normalt for Norge, men ikke oppsving i noen sterk forstand.\n\nArbeidsledigheten – stigende trend\nLedigheten har klatret fra 3,2 % i 2022 til 4,0 % i 2024, og SSB venter ytterligere økning til om lag 4,5–4,6 % i 2025–2026 – det høyeste siden tidlig 2010-tall. Et arbeidsmarked som svakner er det tydeligste negative signalet i tallene.\n\nInflasjon – på vei ned, men over målet\nEtter toppåret 2022 (5,8 %) er KPI-veksten kommet ned til 3,1 % i 2024. Månedstallene for 2026 (SSB 14706) svinger rundt 3,0 %, siste avlesning juli 2026: 3,0 %. Norges Banks inflasjonsmål er 2 % – prisveksten er altså fremdeles for høy, noe som holder styringsrenten oppe.\n\nKjøpekraft og realinntekt – den klare lyspunkten\nEtter å ha vært negativ i 2023 (–0,9 %) snudde husholdningenes disponible realinntekt markert i 2024 (+3,0 %). Årsaken er enkel: lønnsveksten (5,6 % i 2024) oversteg inflasjonen (3,1 %) for første gang på flere år. Det betyr at nordmenn flest har fått styrket kjøpekraft igjen.\n\n🧭 Samlet vurdering\nTema\tTrend\nVekst i fastlandsøkonomien\t↗ forsiktig bedring fra bunnen\nArbeidsmarkedet\t↘ svakner\nInflasjon\t↘ avtar, men over 2%-mål\nReallønn / kjøpekraft\t↗ tydelig bedring siden 2024\n\nDet store vendepunktet kom i 2024: lønnsveksten begynte å slå inflasjonen, og realinntektene steg igjen. Samtidig tynger høy rente og svak vekst sysselsettingen. SSBs prognose for 2026–2027 er moderat optimistisk – gradvis normalisering, men uten markert oppsving.\n\nKilder: SSB tabell 12880 (makroøkonomiske hovedstørrelser, regnskap og prognoser) og SSB tabell 14706 (KPI månedlig, 12-månedersvekst). Prognoseår 2025–2027 er SSBs egne framskrivinger.",
+ "output": "\n2015\n2020\n2025\n−2\n0\n2\n4\n2015\n2020\n2025\n2030\n3.5\n4\n4.5\n2024\n2025\n2026\n2027\n2\n3\n4\n5\n2015\n2020\n2025\n2030\n0\n2\n4\n6\nHistorikk\nSSB-prognose\nÅrslønn\nDisponibel realinntekt\nÅrslønn (prog.)\nRealinntekt (prog.)\nNorsk økonomi – nøkkeltall 2015–2027\n%\n%\n%\n%\nBNP Fastlands-Norge – vekst (%)\nArbeidsledighetsrate (%, AKU)\nInflasjon – KPI 12-mnd (%)\nÅrslønn vs. disponibel realinntekt (%)\n3.0% (jul 2026)\n3.0% (jul 2026)\nMål 2%",
+ "sporsmal": "går det bedre eller verre med norsk økonomi?",
+ "utfall": "kontrakt-PASS (firepanels-dashboard m/SSB-prognoser på vagt spørsmål)"
+}

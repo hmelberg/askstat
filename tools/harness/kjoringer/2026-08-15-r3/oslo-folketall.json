@@ -1,0 +1,23 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Population of Oslo municipality, annual figures, approximately 2014–2024, from official sources such as Statistics Norway (SSB).",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i ssb: «folkemengde Oslo kommune» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "📝 Jeg har alt jeg trenger — guiden bekrefter koden direkte. Tabell **11342** er perfekt, og koden er verifisert i guiden. Kjører nå:",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) … (10 s)",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …"
+ ],
+ "badgeText": null,
+ "badgeWarn": false,
+ "answer": "Oslos befolkningsvekst 2015–2026\n\nOslo har vokst jevnt og trutt det siste tiåret. Fra 647 676 innbyggere i 2015 til 728 714 per 1. januar 2026 — en økning på 81 038 personer, tilsvarende 12,5 %.\n\n2016\n2018\n2020\n2022\n2024\n2026\n0\n100k\n200k\n300k\n400k\n500k\n600k\n700k\nBefolkning i Oslo 2015–2026\nÅr\nInnbyggere\nNøkkeltrekk fra tallene\nÅr\tInnbyggere\tVekst fra 2015\n2015\t647 676\t–\n2017\t666 759\t+2,9 %\n2019\t681 071\t+5,2 %\n2021\t697 010\t+7,6 %\n2023\t709 037\t+9,5 %\n2025\t724 290\t+11,8 %\n2026\t728 714\t+12,5 %\n\nVeksten har variert år for år:\n\nSterkest vekst kom i 2020 (+1,82 % på ett år), trolig drevet av statistisk etterslep og pandemi-relaterte registreringseffekter.\nSvakest vekst i 2021–2022 (+0,4–0,5 % per år), da pandemi og lavere innvandring dempet tilstrømmingen.\nVeksten har flatet noe ut de siste par årene, men er fortsatt positiv.\nForbehold\n\nTallene gjelder registrert befolkning 1. januar hvert år (bosatte i folkeregisteret), ikke faktisk dagbefolkning. Mindre endringer i kommunegrenser og registreringspraksis kan påvirke sammenlignbarheten over tid.\n\nKilde: SSB tabell 11342 – Areal og befolkning i kommuner, fylker og hele landet, Oslo kommune (0301).",
+ "hasFigure": true,
+ "output": "\n2016\n2018\n2020\n2022\n2024\n2026\n0\n100k\n200k\n300k\n400k\n500k\n600k\n700k\nBefolkning i Oslo 2015–2026\nÅr\nInnbyggere",
+ "answerProse": "Oslos befolkningsvekst 2015–2026\nOslo har vokst jevnt og trutt det siste tiåret. Fra 647 676 innbyggere i 2015 til 728 714 per 1. januar 2026 — en økning på 81 038 personer, tilsvarende 12,5 %.\n\nNøkkeltrekk fra tallene\n\n\n\nÅr\nInnbyggere\nVekst fra 2015\n\n\n\n\n2015\n647 676\n–\n\n\n2017\n666 759\n+2,9 %\n\n\n2019\n681 071\n+5,2 %\n\n\n2021\n697 010\n+7,6 %\n\n\n2023\n709 037\n+9,5 %\n\n\n2025\n724 290\n+11,8 %\n\n\n2026\n728 714\n+12,5 %\n\n\n\nVeksten har variert år for år:\n\nSterkest vekst kom i 2020 (+1,82 % på ett år), trolig drevet av statistisk etterslep og pandemi-relaterte registreringseffekter.\nSvakest vekst i 2021–2022 (+0,4–0,5 % per år), da pandemi og lavere innvandring dempet tilstrømmingen.\nVeksten har flatet noe ut de siste par årene, men er fortsatt positiv.\n\nForbehold\nTallene gjelder registrert befolkning 1. januar hvert år (bosatte i folkeregisteret), ikke faktisk dagbefolkning. Mindre endringer i kommunegrenser og registreringspraksis kan påvirke sammenlignbarheten over tid.\nKilde: SSB tabell 11342 – Areal og befolkning i kommuner, fylker og hele landet, Oslo kommune (0301).\n",
+ "sporsmal": "Hvordan har folketallet i Oslo utviklet seg siste ti år?",
+ "utfall": "PASS"
+}

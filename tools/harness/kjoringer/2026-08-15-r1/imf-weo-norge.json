@@ -1,0 +1,33 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: IMF World Economic Outlook (WEO) GDP growth forecasts for Norway across recent WEO vintages (e.g., April 2023, October 2023, April 2024, October 2024) — tracking how the projected real GDP growth rate for Norway has been revised upward or downward between successive WEO releases.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i dbnomics: «IMF WEO Norway GDP growth forecast» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ Henter variabler for dbnomics/IMF/WEO:latest …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "⏳ Henter variabler for dbnomics/IMF/WEO:latest …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …",
+  "⏳ 🔎 Websøk: IMF WEO Norway NGDP_RPCH forecast vintages 2024 2025",
+  "📝 Bra – koden `NOR` og `NGDP_RPCH` er bekreftet. DBnomics-speilet er indeksert til mai 2025. Nå søker jeg også etter versionerte WEO-datasett for å kunne sammenligne på tvers av WEO-runder, og henter da",
+  "⏳ Søker kataloger (stats): «IMF WEO World Economic Outlook by vintages Norway GDP growth» …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) …",
+  "📝 DBnomics er ikke søkbar direkte, men jeg har kodene jeg trenger. DBnomics-speilet gir kun `:latest`-serien (seneste WEO). For å sammenligne på tvers av WEO-runder trenger jeg de versjonerte WEO-CSV-fi",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 6) …",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 7) …",
+  "📝 Dataene er inne. Nå bygger jeg analysen og figuren.",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 8) …"
+ ],
+ "badgeText": null,
+ "badgeWarn": false,
+ "answer": "Her er en fullstendig analyse av hvordan IMFs vekstanslag for Norge har utviklet seg på tvers av fem WEO-runder (april 2023 – april 2025).\n\nIMFs BNP-vekstanslag for Norge – utvikling på tvers av WEO-runder\n\nDatakilde: DBnomics / IMF WEO (NGDP_RPCH = reell BNP-vekst, % endring p.a.), versjonerte datasett Apr 2023 – Apr 2025.\n\nFanout: Alle anslag i én figur\n2022\n2024\n2026\n2028\n0\n0.5\n1\n1.5\n2\n2.5\n3\n3.5\nApr 2023\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\n\nDen stiplede vertikale linjen markerer skillet mellom perioder med mesteparten realiserte tall (venstre) og fremtidsanslag (høyre).\n\nRevisjonshistorikk per målår\n2022\n2023\n2024\n2025\n2026\n2027\n2028\n2029\n0\n0.5\n1\n1.5\n2\n2.5\n3\n3.5\nApr 2023\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\nIMFs BNP-vekstanslag for Norge (reell BNP, % endring p.a.)\nÅr\nReell BNP-vekst (%)\nHoveddrivere og mønstre\n2023 – kraftig nedrevidering\n\nDet store historien er nedjusteringen av 2023-anslaget. I april 2023 ventet IMF +2,1 % vekst for Norge. Et år senere (april 2024) var anslaget kollapset til +0,5 %, og i april 2025 ble fasiten satt til knappe +0,07 % – en akkumulert nedjustering på over 2 prosentpoeng. Reell BNP-vekst sank til 0,5 prosent i 2023, ned fra et syklisk toppunkt på 3,5 prosent i gjennomsnitt i 2021–22. Privat forbruk og bruttoinvesteringer, særlig boliginvesteringer, falt i kjølvannet av strammere finansielle betingelser.\n\n2024 – V-sving fra under- til overjustering\n\nAnslaget for 2024 gikk den andre veien: fra +2,5 % (apr 2023) ned til +1,5 % (okt 2023/apr 2024), og tilbake opp til +2,1 % i april 2025. Fasiten er nå inne: I 2024 vokste samlet BNP med 2,1 prosent, drevet av rekordhøy naturgassutvinning, mens fastlands-BNP steg 0,6 prosent, understøttet av økte offentlige utgifter.\n\n2025 og fremover – forsiktig optimisme\n\nFor 2025 ble anslaget løftet fra +1,2 % (okt 2023, det pessimistiske bunnpunktet) til +2,1 % i siste WEO. Fastlands-BNP er ventet å vokse med 1,5 prosent i 2025, løftet av lettelse i finansielle betingelser, ekspansiv finanspolitikk og bedring i reelle inntekter. For 2026 og 2027 er revisjonene marginale (±0,2 pp).\n\nOppsummeringstabell – anslag per WEO-runde (reell BNP-vekst, %)\nÅr\tApr 2023\tOkt 2023\tApr 2024\tOkt 2024\tApr 2025\n2022\t3,28\t3,28\t3,01\t3,01\t3,25\n2023\t2,14\t2,28\t0,51\t0,48\t0,07\n2024\t2,54\t1,50\t1,52\t1,55\t2,10\n2025\t1,83\t1,23\t1,92\t1,83\t2,14\n2026\t1,48\t1,48\t1,70\t1,69\t1,72\n2027\t1,35\t1,35\t1,58\t1,60\t1,55\nForbehold\nTallene er total-BNP (inkl. olje og gass), ikke fastlands-BNP. IMFs Article IV-rapporter peker på at fastlands-BNP er den foretrukne indikatoren for den underliggende konjunkturutviklingen i Norge – og disse to størrelsene divergerte kraftig i 2024 (totalt +2,1 % vs. fastland +0,6 %).\nDBnomics-speilet ble sist indeksert mai 2025 – WEO-rundene etter dette (inkl. juli 2025-oppdateringen) er ikke reflektert. Global vekst er anslått til 3,0 prosent i 2026 og 3,4 prosent i 2027, i store trekk uendret fra april 2026-utgaven av WEO.\nWEO er et konsensus/politikkrelatert anslag, ikke en prognose i streng statistisk forstand. Revisjonene reflekterer både ny informasjon og endringer i IMFs analytiske rammeverk.",
+ "hasFigure": true,
+ "output": "\n",
+ "sporsmal": "Hvordan har IMFs vekstanslag for Norge endret seg i de siste WEO-rundene?",
+ "utfall": "PASS m/slitasje"
+}

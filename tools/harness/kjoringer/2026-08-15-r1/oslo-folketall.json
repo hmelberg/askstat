@@ -1,0 +1,26 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Population of Oslo municipality, annual figures, last 10 years (approx. 2014–2024), from official sources such as SSB.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i ssb: «befolkning folkemengde Oslo kommune» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "📝 Guiden gir meg direkte eksempelet jeg trenger. Tabell **11342** er rett, med regionkode `0301` for Oslo og indikator `Folkemengde`. Jeg kjører nå scriptet med data for 2015–2025.",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "📝 Kolonnenavnet er sannsynligvis annerledes. Jeg sjekker kolonner og justerer:",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …",
+  "📝 Data er lastet. Kolonnen heter `value`. Jeg kjører nå den komplette analysen:",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) …"
+ ],
+ "badgeText": null,
+ "badgeWarn": false,
+ "answer": "Oslos befolkningsutvikling 2015–2025\n\nOslo har vokst jevnt og trutt de siste ti årene, fra 647 676 innbyggere i 2015 til 724 290 i 2025 — en total økning på 76 614 personer (+11,8 %).\n\n2016\n2018\n2020\n2022\n2024\n0\n2k\n4k\n6k\n8k\n10k\n12k\nTre faser skiller seg ut:\nFase\tÅr\tHva skjer\nSterk vekst\t2016–2017\t+10 700 og +8 400 — innvandring og urbanisering driver veksten\nPandemi-akselerasjon\t2020\t+12 423 — det høyeste enkeltåret i perioden\nBremsing\t2021–2022\tVeksten faller til +3 500 og +2 800 — mulig effekt av pandemi-relatert tilbakeflytting til distriktene\nNy oppgang\t2023–2025\tVeksten normaliserer seg til +6 000–9 000 per år\nLitt overraskende: pandemi-topp i 2020\n\nDet høye talet i 2020 skyldes trolig statistisk timing: folkemengden måles ved 1. januar hvert år. Tallet for 2020 (januar 2020) reflekterer dermed veksten frem til pandemien brøt ut i mars — og fanger opp en periode med sterk arbeidsinnvandring.\n\nKilde: SSB, tabell 11342 — Areal og befolkning i kommuner, fylker og hele landet. Befolkningstallet er per 1. januar hvert år.",
+ "hasFigure": true,
+ "output": "\n",
+ "sporsmal": "Hvordan har folketallet i Oslo utviklet seg siste ti år?",
+ "utfall": "PASS"
+}

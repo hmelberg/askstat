@@ -1,0 +1,27 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Current unemployment rate (%) for the Nordic countries (Norway, Sweden, Denmark, Finland, Iceland), most recent available period, preferably from a harmonised source such as Eurostat or OECD.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i dbnomics: «unemployment rate Nordic countries harmonised» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ Søker kataloger (stats): «unemployment rate Nordic harmonised monthly» …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "📝 OECD månedlig arbeidsledighet er perfekt. La meg hente metadata for å finne riktige dimensjonskoder.",
+  "⏳ Henter variabler for oecd/OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …",
+  "📝 Jeg har alle kodene jeg trenger. Nå kjører jeg ett komplett script.",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) …",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 6) … (10 s)",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 7) …"
+ ],
+ "badgeText": null,
+ "answer": "Finland har klart høyest arbeidsledighet i Norden, fulgt av Sverige. Norge kommer best ut av de fem landene.\n\nHer er rangeringen per desember 2025 (siste tilgjengelige måned, sesongkorrigert):\n\nLand\tArbeidsledighet (%)\tPeriode\n🇫🇮 Finland\t10,4 %\tDes 2025\n🇸🇪 Sverige\t8,8 %\tDes 2025\n🇩🇰 Danmark\t6,0 %\tDes 2025\n🇮🇸 Island\t5,3 %\tDes 2025\n🇳🇴 Norge\t4,3 %\tDes 2025\nJan 2022\nJul 2022\nJan 2023\nJul 2023\nJan 2024\nJul 2024\nJan 2025\nJul 2025\n4%\n6%\n8%\n10%\nLand\nSverige\nDanmark\nIsland\nFinland\nNorge\nHarmonisert arbeidsledighet – Norden (sesongkorrigert)\nArbeidsledighet (%)\n\nTidsseriene viser et tydelig nivåskille mellom landene.\n\nJan 2022\nJul 2022\nJan 2023\nJul 2023\nJan 2024\nJul 2024\nJan 2025\nJul 2025\n4%\n6%\n8%\n10%\nLand\nSverige\nDanmark\nIsland\nFinland\nNorge\nHarmonisert arbeidsledighet – Norden (sesongkorrigert)\nArbeidsledighet (%)\nTolkning\nFinland skiller seg markant ut med over 10 % – nesten 2,5 ganger Norges nivå. Finland har historisk sett høyere strukturledighet enn de øvrige nordiske landene, delvis knyttet til langsommere matching i arbeidsmarkedet og høyere ungdomsledighet.\nSverige har hatt en stigende tendens siden 2022 og ligger nå klart over det nordiske gjennomsnittet. Svak konjunktur og høy rente har bidratt til økt ledighet.\nDanmark og Island ligger i midtsjiktet, begge med relativt stramme arbeidsmarkeder.\nNorge er det landet med lavest ledighet, noe som reflekterer høy oljepengebruk, sterk etterspørsel i offentlig sektor og lavere konjunkturnedgang.\nForbehold\nTall er harmoniserte månedstall fra OECD Labour Force Statistics (sesongkorrigerte), som muliggjør sammenligning på tvers av land.\nIsland har et lite arbeidsmarked, så tallene kan svinge mer fra måned til måned.\nNasjonale ledighetstall (f.eks. NAV for Norge) kan avvike noe fra de harmoniserte OECD-tallene på grunn av ulike definisjoner.\n\nKilde: OECD, Monthly unemployment rates (DSD_LFS@DF_IALFS_UNE_M), desember 2025.",
+ "output": "\nJan 2022\nJul 2022\nJan 2023\nJul 2023\nJan 2024\nJul 2024\nJan 2025\nJul 2025\n4%\n6%\n8%\n10%\nLand\nSverige\nDanmark\nIsland\nFinland\nNorge\nHarmonisert arbeidsledighet – Norden (sesongkorrigert)\nArbeidsledighet (%)\nJan 2022\nJul 2022\nJan 2023\nJul 2023\nJan 2024\nJul 2024\nJan 2025\nJul 2025\n4%\n6%\n8%\n10%\nLand\nSverige\nDanmark\nIsland\nFinland\nNorge\nHarmonisert arbeidsledighet – Norden (sesongkorrigert)\nArbeidsledighet (%)",
+ "sporsmal": "Hvilke nordiske land har høyest arbeidsledighet nå?",
+ "utfall": "RIKTIG (etter eurostat-guide-fiksen)"
+}

@@ -345,6 +345,17 @@ endres) og setter den faktisk kjørte koden inn i editoren. Les koden der
 før du evt. går tilbake med `#askSwitchCode`-knappen (samme handling,
 motsatt vei) eller «New question».
 
+### 2.5b Arkivér kjøringen (Hans' bestilling 2026-08-15)
+
+Hver kjørings FULLE høstefil lagres i repoet:
+`tools/harness/kjoringer/<dato>-r<runde>/<id>.json` (genererte spørsmål:
+finn på en kort id, f.eks. `gen-turisme`; felle: `felle-<tema>`). Fila er
+§2.5-harvest-objektet UENDRET pluss to felter kontrolleren legger til:
+`"sporsmal"` (teksten som ble sendt) og `"utfall"` (dommen fra §3).
+Arkivet committes i SAMME commit som rundens rapport. Formål:
+reproduserbarhet, re-scoring når sjekkene forbedres, og svar-diffing på
+tvers av runder. Nøkler forekommer aldri i harvests (maskert før DOM).
+
 ### 2.6 Klargjør neste spørsmål
 
 Klikk «New question» (`button#askNewBtn`) for å nullstille kortet uten å

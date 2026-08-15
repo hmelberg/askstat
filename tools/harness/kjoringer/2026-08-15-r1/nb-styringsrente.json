@@ -1,0 +1,23 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Norges Bank's policy rate (styringsrente) monthly or quarterly values over the last five years (approximately 2020–2025), showing changes over time.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i norgesbank: «styringsrente policy rate» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ Henter variabler for norgesbank/NB,IR …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) … (10 s)",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) …"
+ ],
+ "badgeText": null,
+ "badgeWarn": false,
+ "answer": "Her er en fullstendig gjennomgang av styringsrentens utvikling de siste fem år, basert på månedlige data fra Norges Bank.\n\nNorges Banks styringsrente 2020–2025\n2020\n2021\n2022\n2023\n2024\n2025\n2026\n0\n1\n2\n3\n4\nDe fire fasene\nPeriode\tHendelse\tRente\nJan 2020\tUtgangspunkt\t1,50 %\nMai 2020\tHistorisk bunn (covid-kutt)\t~0,00–0,05 %\nSep 2021\tFørste heving – innleder innstrammingssyklusen\t0,25 %\nJan 2022\tFortsatt gradvis oppgang\t0,50 %\nJan 2023\tMarkert høyere\t2,75 %\nSep 2023\tTopp nådd\t4,25–4,50 %\nDes 2024\tFørste rentekutt\t4,50 % → 4,25 %\nDes 2025\tSiste observasjon\t4,00 %\nTolkning\n\n1. Coronakollaps (2020): Norges Bank kuttet styringsrenten tre ganger i løpet av tre uker i mars 2020 – fra 1,50 % helt ned mot 0 %. Det var første gang i historien at renten var nede på dette nivået.\n\n2. Innstrammingssyklusen (2021–2023): Fra september 2021 startet den kraftigste rentehevingssyklusen på over 20 år, drevet av høy inflasjon og presset arbeidsmarked. På to år ble renten hevet fra nær null til 4,50 % – et nivå som sist ble sett rundt årtusenskiftet.\n\n3. Rentetopp og pause (2023–2024): Renten holdt seg på toppen gjennom 2024 mens banken vurderte om inflasjonen var tilstrekkelig dempet.\n\n4. Lettelse starter (2024–2025): Mot slutten av 2024 falt renten for første gang, og ved utgangen av 2025 er den på 4,00 % – fortsatt høy i historisk sammenheng, men med en forsiktig nedadgående trend.\n\nKilde: Norges Bank SDMX – datasett NB,IR (Policy rate), månedlige observasjoner. Data lastet direkte fra data.norges-bank.no.",
+ "hasFigure": true,
+ "output": "\n",
+ "sporsmal": "Hvordan har Norges Banks styringsrente utviklet seg siste fem år?",
+ "utfall": "PASS"
+}

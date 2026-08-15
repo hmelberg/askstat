@@ -2,6 +2,7 @@
 # paritet med js/pxweb.js håndheves via delt fixture
 # (tests/fixtures/pxweb_dataset.json — leses også av tests/js/pxweb.test.js).
 import json
+import os
 import pathlib
 import sys
 
@@ -1075,3 +1076,23 @@ def test_connect_alias_binder_registerkilder():
             ost.connect_alias("nope")
     finally:
         ost._REGISTRY = gammel
+
+
+def _kontrakt_caser():
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract", "canonical-cases.json")
+    with open(p, encoding="utf-8") as f:
+        return [c for c in json.load(f)["cases"] if c.get("only") in (None, "py")]
+
+
+@pytest.mark.parametrize("case", _kontrakt_caser(), ids=lambda c: c["name"])
+def test_kanonisk_kontrakt(case):
+    # Paritetsvernet (spec 2026-08-15 §4): samme fasit kjøres av node —
+    # driftes én side, feiler den siden her/der, aldri stille.
+    if case.get("expect_error"):
+        with pytest.raises(ValueError, match=case["expect_error"]):
+            ost._translate_canonical(case["kind"], case.get("rest", ""), case["canonical"])
+        return
+    rest, params, _, _ = ost._translate_canonical(case["kind"], case.get("rest", ""), case["canonical"])
+    assert sorted(params) == sorted(case["expect_params"])
+    if "expect_rest" in case:
+        assert rest == case["expect_rest"]

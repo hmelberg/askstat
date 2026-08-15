@@ -278,6 +278,22 @@ def test_read_worldbank_listefilter_gir_instruktiv_feil_ikke_krasj(monkeypatch):
         wb.read("country/NOR/indicator/NY.GDP.MKTP.CD", filters={"source": ["2", "40"]})
 
 
+def test_read_worldbank_direkte_kwarg_liste_gir_instruktiv_feil_ikke_repr(monkeypatch):
+    # Re-review-funn (fikserunde 2, 2026-08-15): naboen til FUNN 2 — en
+    # liste-verdi som DIREKTE kwarg (ikke filters={}) til sdmx/worldbank/
+    # dbnomics traff den ubetingede "%s=%s"-løkka (~linje 827) og lekket
+    # repr i URL-en. "source" er en ekte dokumentert WB-parameter (se
+    # _EDITOR_ONLY-kommentaren i openstat.py). Feilen skal komme FØR
+    # nettverkskall, samme mønster som filters-testen over.
+    def fange(url, headers=None, fra_adapter=False):
+        raise AssertionError("skal aldri fetche — feilen kommer i oversettelseslaget")
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fange)
+    wb = ost.connect("https://api.worldbank.org/v2", kind="worldbank")
+    with pytest.raises(ValueError, match="worldbank"):
+        wb.read("country/NOR/indicator/NY.GDP.MKTP.CD", source=["2", "40"])
+
+
 def test_translate_canonical_liste_i_filters():
     # Paritet med js/data-directives.js (fiks 2026-08-05, MÅLT i
     # ledighets-verifiseringen med 5 land): Eurostat svarer STILLE TOMT

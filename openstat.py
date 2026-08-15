@@ -824,6 +824,18 @@ class Source:
             canonical = _canonical_from_query(query)
             rest = str(table) if table else ""
             needs_key = client_years = None
+            # Re-review-funn (fikserunde 2, 2026-08-15): samme bug-klasse
+            # som fikserunde 1 — direkte kwarg til sdmx/worldbank/dbnomics
+            # (f.eks. wb.read(path, source=["2","40"]), «source» er en ekte
+            # dokumentert WB-parameter, se _EDITOR_ONLY-kommentaren over) ga
+            # tidligere repr-lekkasje via ubetinget "%s=%s". Ingen join-magi
+            # her — vi vet ikke at noen av disse API-ene har en meningsfull
+            # flerverdi-form for et vilkårlig kwarg, så en instruktiv feil
+            # er tryggere enn å gjette en sammenføyningsregel (spec §0).
+            for _k, _v in query.items():
+                if isinstance(_v, (list, tuple)):
+                    raise ValueError("liste-verdi for '" + str(_k) + "' støttes ikke som direkte "
+                                     "kwarg for " + kind + " — angi én verdi")
             qs = ["%s=%s" % (k, v) for k, v in query.items()]
             if canonical:
                 rest, cparams, needs_key, client_years = _translate_canonical(kind, rest, canonical)

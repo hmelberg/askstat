@@ -406,6 +406,41 @@ det skal avdekke.
 - **TIMEOUT** — se §2.4: ingen svar-kort etter 5 minutter. Egen kategori,
   tell IKKE som noen av de fire over.
 
+### 3b. Genererte spørsmål (anti-overtilpasning — lagt til etter runde 2)
+
+Fasitsettet alene gjør at forbedringer måles på nøyaktig spørsmålene de
+ble laget av (Goodhart). Hver runde bør derfor blande inn 3–5 GENERERTE
+spørsmål ved siden av de faste:
+
+- **Generering (gratis):** kontrolleren skriver dem ferske per runde —
+  ALDRI gjenbruk fra forrige runde (da er de blitt et fasitsett). Miks:
+  (a) ~halvparten KATALOG-FORANKREDE: trekk tilfeldige datasett-titler
+  fra katalogene i repoet (data/apd-catalog.json, eurostat-catalog.json,
+  owid-catalog.json, nada-catalog.json) og formulér et naturlig
+  brukerspørsmål rundt temaet — da VET vi at data finnes, uten at
+  spørsmålet røper kilden; (b) 1–2 frie/skjeve formuleringer (muntlige,
+  underspesifiserte, flertydige — slik ekte brukere spør); (c) nøyaktig
+  ETT bevisst UBESVARLIG felle-spørsmål per runde (plausibelt-klingende,
+  men uten eksisterende datagrunnlag — enhjørning-klassen fra
+  ask-evalsett Q17).
+- **Scoring uten fasit — kontraktsjekkene** (gjelder ethvert
+  dataspørsmål, ingen fasit nødvendig): `aldri_raa_host` mot ALLE styrte
+  hosts (data.ssb.no, ec.europa.eu, sdmx.oecd.org, data.norges-bank.no),
+  *fabrikasjonssjekken* (answerProse-tall gjenfinnes i output), ærlig
+  merking ved degradering (badge/«ikke verifisert»-tekst), figur-sanitet
+  (legende ≤ ~12 enheter, ingen «could not parse»-plassholder), turer/
+  tid. For FELLE-spørsmålet er suksess = ærlig «data finnes ikke/lar seg
+  ikke belegge» UTEN oppdiktede tall — et tallfestet «svar» på fella er
+  automatisk FEIL (fabrikasjon).
+- **Forfremmelsesregelen (motoren som vokser):** et generert spørsmål
+  som AVDEKKER en bug/svakhet forfremmes til `tools/harness/sporsmal.json`
+  med ordentlig fasit i samme commit som rapporten — det er blitt en
+  varig regresjonstest. Alle andre genererte spørsmål KASTES (de skal
+  ikke akkumulere til et nytt fasitsett). Rapporten merker genererte
+  rader med `(generert)` etter id-en, og felle-raden med `(felle)`.
+- **Budsjett:** genereringen koster ingenting (kontrolleren skriver);
+  hvert KJØRT generert spørsmål er én ordinær budsjett-enhet.
+
 ---
 
 ## 4. Rapport

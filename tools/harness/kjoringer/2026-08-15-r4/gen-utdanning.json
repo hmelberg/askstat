@@ -1,0 +1,26 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Trend in enrollment or completion rates in higher education (university/college level) in Norway over time — number of students enrolled or share of population with higher education, comparing recent years to earlier decades. Source: SSB or similar.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ Søker i ssb: «høyere utdanning studenter» …",
+  "⏳ Søker i ssb: «befolkning utdanningsnivå» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "📝 To gode tabeller peker seg ut:\n- **09218**: Studenter i UH-utdanning som andel av årskull, 1992–2025\n- **09599**: Utdanningsnivå i befolkningen, 1980–2025\n\nLa meg hente metadata for begge.",
+  "⏳ Henter variabler for ssb/09218 …",
+  "⏳ Henter variabler for ssb/09599 …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "📝 Jeg har alle kodene jeg trenger. Nå kjører jeg ett komplett script som henter begge datasett og lager figurer.",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 5) … (10 s)",
+  "⏳ Running the code …",
+  "⏳ 🤔 Arbeider med svaret (tur 6) …"
+ ],
+ "answer": "Ja – det er langt flere som tar høyere utdanning i dag enn for noen tiår siden. Veksten er markant på begge målepunkter: andelen som studerer og andelen av befolkningen som har fullført høyere utdanning.\n\n1990\n2000\n2010\n2020\n10\n20\n30\n40\n1980\n1990\n2000\n2010\n2020\n10\n20\n30\n40\n19–24 år\n25–29 år\nAndel m/ høyere utd.\nAndel av årskull som studerer ved universitet/høgskole (%)\nAndel av befolkning (16+) med høyere utdanning (%)\nNøkkeltall (SSB)\nMål\t~1980/1992\t2025\tEndring\n19–24-åringer som studerer ved UH\t21,8 % (1992)\t37,2 %\t+15 pp\n25–29-åringer som studerer ved UH\t10,6 % (1992)\t18,4 %\t+8 pp\nAndel av bef. (16+) m/ høyere utd.\t11 % (1980)\t38 %\t+27 pp\nHva forteller figuren?\n\nØverste panel viser at andelen av de unge (19–24 år) som er aktive studenter ved universitet eller høgskole mer enn doblet seg fra tidlig 1990-tall til i dag – fra rundt 22 % til 37 %. Veksten er tydeligst fra 1990-tallet og frem til midten av 2000-tallet; deretter flater kurven noe ut, men holder seg høy.\n\nNedre panel er kanskje enda mer slående: andelen av hele befolkningen (16 år og over) som har fullført høyere utdanning er tredoblet siden 1980 – fra 11 % til 38 %. Dette gjenspeiler at ikke bare de unge, men alle generasjoner nå tar mer utdanning enn sine foreldre og besteforeldre.\n\nViktige forbehold\nKjønnsforskjell: Kvinner er i dag klart overrepresentert i høyere utdanning – dette er slått sammen for begge kjønn her. Vil du se kjønnsoppdelt? Spør gjerne.\nDefinisjon: «Høyere utdanning» i befolkningstallene inkluderer både kort (bachelor-nivå, kode 6) og lang (master/PhD, kode 7–8) høyere utdanning – fagskoler er ikke inkludert her.\nStudenter vs. fullført: De to panelene måler ulike ting – aktive studenter og andelen med fullført grad. Kombinert gir de et helhetlig bilde.\n\nKilde: SSB tabell 09218 (studenter som andel av årskull, 1992–2025) og 09599 (utdanningsnivå i befolkningen, 1980–2025).",
+ "output": "\n1990\n2000\n2010\n2020\n10\n20\n30\n40\n1980\n1990\n2000\n2010\n2020\n10\n20\n30\n40\n19–24 år\n25–29 år\nAndel m/ høyere utd.\nAndel av årskull som studerer ved universitet/høgskole (%)\nAndel av befolkning (16+) med høyere utdanning (%)",
+ "sporsmal": "er det flere som tar høyere utdanning nå enn før?",
+ "utfall": "kontrakt-PASS"
+}

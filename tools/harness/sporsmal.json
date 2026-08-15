@@ -2,7 +2,7 @@
   "kommentar": "Kildeharnessens spørsmålssett (spec 2026-08-15-kildeharness §3). Gjenbruker docs/eval/ask-evalsett.md-kjernen + ukens målte eksempler + tre nye mønstre. fasit.sjekker er MEKANISKE der det går: tall_i_intervall sjekkes mot svarets tall, kilde_i_spor mot prosesslinjene, aldri_raa_host mot hele sporet.",
   "budsjett": {
     "ramme_totalt": 30,
-    "brukt": 20,
+    "brukt": 25,
     "maks_per_runde": 8,
     "maks_runder_per_okt": 2
   },

@@ -1080,6 +1080,88 @@ def oppdater_okosystem(kilde_id):
     open(sti, "w").write(s)
 
 
+
+
+# ── Lenkeprobe-modus (Hans' bestilling 2026-08-16): verifiser ALLE URL-er i
+# community-pakkene (85 kildepakker + oversikter — aldri systematisk sjekket)
+# + valgfritt andre md-filer. Trekker http(s)-URL-er, hopper over maler
+# ({...}/<...>), prober hver unike URL ÉN gang globalt (samme URL går igjen
+# på tvers av pakker), og skriver én samlet råte-rapport. GET m/liten
+# lesing (mange API-er avviser HEAD); 0.3 s høflighetspause.
+LENKE_RE = re.compile(r"https?://[^\s)>'\"`\\]+")  # ] tillatt (filter[lei]=…); \ og ) kutter
+
+def _prob_url(url, cache):
+    if url in cache:
+        return cache[url]
+    req = urllib.request.Request(url, headers={"User-Agent": "askstat-lenkeprobe",
+                                               "Range": "bytes=0-2047"})
+    try:
+        with urllib.request.urlopen(req, timeout=12) as r:
+            r.read(2048)
+            res = ("OK", r.status, r.headers.get("content-type", "")[:40])
+    except urllib.error.HTTPError as e:
+        # 416 = Range ikke støttet men ressursen finnes; 405 på GET er rart
+        # men lever; alt annet 4xx/5xx er reell råte.
+        if e.code in (416, 405):
+            res = ("OK", e.code, "range-avvist")
+        elif e.code in (401, 403):
+            # Nøkkel-/tilgangsgatede API-er svarer 401/403 uten nøkkel —
+            # FORVENTET, ikke råte (triage av første kjøring 2026-08-16:
+            # api.data.gov/eia.gov er dokumentert nøkkelkrevende; cdc.gov
+            # bot-blokkerer ikke-nettleser-UA).
+            res = ("GATET", e.code, "krever nøkkel/nettleser — forventet")
+        else:
+            res = ("DØD", e.code, e.reason)
+    except Exception as e:
+        res = ("NETT", None, str(e)[:60])
+    cache[url] = res
+    time.sleep(0.3)
+    return res
+
+def lenkeprobe(dato):
+    import glob
+    filer = sorted(glob.glob(os.path.join(REPO_ROT, "data", "packs", "community", "*.md")))
+    cache, rapport = {}, []
+    tot_urler = tot_dode = tot_nett = 0
+    for fi in filer:
+        navn = os.path.basename(fi)
+        tekst = open(fi, encoding="utf-8").read()
+        urler = []
+        for m in LENKE_RE.finditer(tekst):
+            u = m.group(0).rstrip(".,;:!?*_")
+            if any(t in u for t in ("{", "}", "<", ">", "%3C", "...", "…")):
+                continue
+            if u not in urler:
+                urler.append(u)
+        urler = urler[:12]  # tak per pakke — de første er de viktigste
+        problemer = []
+        for u in urler:
+            status, kode, info = _prob_url(u, cache)
+            tot_urler += 1
+            if status == "DØD":
+                tot_dode += 1
+                merk = " — NB: API-rot uten endepunkt kan 404-e legitimt; sjekk manuelt" if u.rstrip("/").endswith(("v1", "v2", "api")) else ""
+                problemer.append("  - DØD (%s): %s%s" % (kode, u, merk))
+            elif status == "NETT":
+                tot_nett += 1
+                problemer.append("  - NETT (%s): %s" % (info, u))
+        if problemer:
+            rapport.append("- **%s** (%d URL-er probet):\n%s" % (navn, len(urler), "\n".join(problemer)))
+        print("  %s: %d urler, %d problemer" % (navn, len(urler), len(problemer)))
+    unike = len(cache)
+    ut = os.path.join(REPO_ROT, "tools", "harness", "lenkeprobe-%s.md" % dato)
+    with open(ut, "w", encoding="utf-8") as f:
+        f.write("# Lenkeprobe %s — community-pakkene\n\n" % dato)
+        f.write("Probet %d URL-forekomster (%d unike, global dedup) i %d pakker.\n" % (tot_urler, unike, len(filer)))
+        f.write("Problemer: %d døde (4xx/5xx), %d nettfeil/timeout.\n\n" % (tot_dode, tot_nett))
+        f.write("Maler ({...}/<...>) og duplikater hoppes over; maks 12 URL-er per pakke.\n")
+        f.write("«NETT» kan være transient — reprob før pakken endres.\n\n")
+        f.write("## Pakker med problemer\n\n")
+        f.write("\n".join(rapport) if rapport else "(ingen problemer funnet)")
+        f.write("\n")
+    print("skrev %s (%d/%d problemer)" % (ut, tot_dode, tot_nett))
+
+
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
     """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
     BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
@@ -1172,6 +1254,9 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--lenkeprobe":
+        lenkeprobe(datetime.date.today().isoformat())
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "--okosystem":
         mål = sys.argv[2:] or sorted(OKOSYSTEM)
         for kid in mål:

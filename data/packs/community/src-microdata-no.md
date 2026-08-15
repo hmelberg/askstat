@@ -3,8 +3,8 @@ id: src-microdata-no
 name: microdata.no
 kind: remote-execution platform over SSB administrative registers
 provider: Sikt + Statistics Norway, funded by the Research Council of Norway
-landing: https://www.microdata.no/en/
-variable_catalog: https://www.microdata.no/discovery
+landing: https://microdata.no/en/
+variable_catalog: https://microdata.no/discovery
 content: unmanipulated SSB register microdata — population, education, income/tax, social security (FD-Trygd), employment, family/household, criminal justice; some series back to 1964. Health registries (NPR/MFR/Kreftregisteret) are NOT here — that is Helsedata.no's domain.
 access: institutional agreement; no per-project ethics application
 export: "NONE — no bulk export. Only aggregated tables and model output leave the platform (automatic on-the-fly anonymisation: rounding, cell suppression, hexbin scatterplots)."

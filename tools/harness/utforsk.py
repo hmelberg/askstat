@@ -13,6 +13,7 @@ Kjøring:  python3 tools/harness/utforsk.py ssb eurostat norgesbank
 """
 import datetime
 import json
+import os
 import pathlib
 import re
 import sys
@@ -959,6 +960,113 @@ def lesemonstre_url(kilde_id, kilde, budsjett):
     return ut, [notat]
 
 
+
+
+# ── Økosystem-modus (Hans' bestilling 2026-08-16): kuraterte pakker per
+# kilde for PORTABLE skript (utenfor appen — i appen gjelder adapterne).
+# Python-pakker LIVE-VERIFISERES (install i isolert .pakkecache + import,
+# og et minimalt kall der det er gratis/billig); R/JS listes som
+# dokumenterte pekere (ingen R-runtime her). Kjøres som egen modus
+# (--okosystem) som OPPDATERER eksisterende utkast in place — full
+# regenerering ville kastet manuelt tilførte seksjoner (f.eks. ssb-
+# utkastets sammenligningsnotat fra Task 4).
+REPO_ROT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PAKKECACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pakkecache")
+
+def _pyjstat_smoke():
+    import pyjstat.pyjstat as pj
+    sti = os.path.join(REPO_ROT, "tests", "fixtures", "pxweb_dataset.json")
+    df = pj.Dataset.read(open(sti).read()).write("dataframe")
+    return "%d rader fra delt json-stat2-fixture (offline)" % len(df)
+
+def _dbnomics_smoke():
+    import dbnomics
+    # AMECO/ZUTN-serien er pakkedokumentasjonens eget eksempel — WEO:latest-
+    # masken (appens form) løses annerledes av pakken og ga 0 rader (målt).
+    df = dbnomics.fetch_series("AMECO/ZUTN/EA19.1.0.0.0.ZUTN")
+    if not len(df):
+        raise RuntimeError("0 rader")
+    return "fetch_series AMECO/ZUTN → %d rader (live)" % len(df)
+
+OKOSYSTEM = {
+    "ssb":      {"py": [("pyjstat", _pyjstat_smoke)], "r": ["PxWebApiData (SSBs egen)", "pxweb (rOpenGov)"]},
+    "scb":      {"py": [("pyjstat", _pyjstat_smoke)], "r": ["pxweb (rOpenGov)"]},
+    "statfin":  {"py": [("pyjstat", _pyjstat_smoke)], "r": ["pxweb (rOpenGov)"]},
+    "eurostat": {"py": [("eurostat", None)], "r": ["eurostat (rOpenGov)", "restatapi"]},
+    "oecd":     {"py": [("sdmx1", None)], "r": ["rsdmx", "OECD"]},
+    "ecb":      {"py": [("sdmx1", None)], "r": ["rsdmx", "ecb"]},
+    "norgesbank": {"py": [("sdmx1", None)], "r": ["rsdmx"]},
+    "worldbank": {"py": [("wbgapi", None)], "r": ["WDI"]},
+    "dbnomics": {"py": [("dbnomics", _dbnomics_smoke)], "r": ["rdbnomics"]},
+    "fred":     {"py": [("fredapi", None)], "r": ["fredr"]},
+    "owid":     {"py": [("owid-catalog", None)], "r": []},
+    "dst":      {"py": [], "r": ["danstat (CRAN)", "dkstat"]},
+    "fhi":      {"py": [], "r": []},
+    "who":      {"py": [], "r": ["WHO (CRAN, GHO-API)"]},
+    "datanorge": {"py": [], "r": []},
+}
+
+def _importnavn(pakke):
+    return {"owid-catalog": "owid.catalog", "sdmx1": "sdmx"}.get(pakke, pakke.replace("-", "_"))
+
+def verifiser_pakke(pakke, smoke):
+    import importlib, subprocess
+    navn = _importnavn(pakke)
+    try:
+        importlib.import_module(navn)
+    except ImportError:
+        os.makedirs(PAKKECACHE, exist_ok=True)
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet",
+                            "--disable-pip-version-check", "--target", PAKKECACHE, pakke],
+                           capture_output=True, text=True, timeout=180)
+        if r.returncode != 0:
+            return "install FEILET: %s" % (r.stderr or r.stdout)[-160:].strip()
+        if PAKKECACHE not in sys.path:
+            sys.path.insert(0, PAKKECACHE)
+        importlib.invalidate_caches()
+        try:
+            importlib.import_module(navn)
+        except Exception as e:
+            return "import FEILET etter install: %s" % e
+    if smoke is None:
+        return "verifisert: install + import"
+    try:
+        return "verifisert: " + smoke()
+    except Exception as e:
+        return "import OK; kall FEILET: %s" % str(e)[:140]
+
+def okosystem_seksjon(kilde_id):
+    oko = OKOSYSTEM.get(kilde_id, {"py": [], "r": []})
+    linjer = ["## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)", ""]
+    if oko["py"]:
+        for pakke, smoke in oko["py"]:
+            status = verifiser_pakke(pakke, smoke)
+            print("  pakke %s: %s" % (pakke, status))
+            linjer.append("- Python `%s` — %s" % (pakke, status))
+    if oko["r"]:
+        linjer.append("- R (dokumentert, ikke testet her): " + ", ".join("`%s`" % x for x in oko["r"]))
+    if not oko["py"] and not oko["r"]:
+        linjer.append("- Ingen kjente dedikerte klientpakker — bruk API-formene over direkte.")
+    return "\n".join(linjer)
+
+def oppdater_okosystem(kilde_id):
+    sti = os.path.join(os.path.dirname(os.path.abspath(__file__)), "utkast", kilde_id + ".md")
+    if not os.path.exists(sti):
+        print("== %s == (intet utkast — hopper over)" % kilde_id)
+        return
+    print("== %s ==" % kilde_id)
+    s = open(sti).read()
+    ny = okosystem_seksjon(kilde_id)
+    import re as _r
+    if "## Økosystem" in s:
+        s = _r.sub(r"## Økosystem.*?(?=\n## |\Z)", ny + "\n\n", s, flags=_r.S)
+    elif "## Søkenotater" in s:
+        s = s.replace("## Søkenotater", ny + "\n\n## Søkenotater")
+    else:
+        s = s.rstrip() + "\n\n" + ny + "\n"
+    open(sti, "w").write(s)
+
+
 def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
     """Review-funn 1a (fikserunde 1, 2026-08-15): hver fase fanger
     BudsjettStopp for seg — treffer kall-taket midt i en fase, avsluttes
@@ -1051,6 +1159,11 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--okosystem":
+        mål = sys.argv[2:] or sorted(OKOSYSTEM)
+        for kid in mål:
+            oppdater_okosystem(kid)
+        return
     register = last_register()
     sporsmal = last_sporsmal()
     ider = sys.argv[1:]

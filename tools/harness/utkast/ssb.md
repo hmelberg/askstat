@@ -112,6 +112,12 @@ ssb.read("14706", indicators=["KPIJustIndMnd"], filters={"Tid": ["2026M06", "202
 `ssb.read("14706", indicators=["KPIJustIndMnd"], years="2024:2025")`
 → HTTP 400 for https://data.ssb.no/api/pxwebapi/v2/tables/14706/data?lang=no&valueCodes[ContentsCode]=KPIJustIndMnd&valueCodes[Tid]=2024,2025&outputFormat=json-stat2: {"type":"Parameter error","title":"Non-existent value","status":400} — reparasjon: sjekk kodene mot table_metadata (bruk find="…" for lange kodelister); vil du ha TOTALEN: UTELAT eliminerbare dimensjoner fra read-linjen
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `pyjstat` — verifisert: 4 rader fra delt json-stat2-fixture (offline)
+- R (dokumentert, ikke testet her): `PxWebApiData (SSBs egen)`, `pxweb (rOpenGov)`
+
+
 ## Søkenotater
 - «folkemengde»: 20 treff — topp 3: 07521 (07521: Samisk statistikk. Folkemengde per 1. januar og endri); 10516 (10516: Befolkningsendringer, etter innvandringskategori 2011); 07542 (07542: Samisk statistikk. Folkemengde per 1. januar, etter k)
 - «befolkning»: 20 treff — topp 3: 13930 (13930: FoU-personale, befolkningen, sysselsatte og studenter); 14476 (14476: Forskere/faglig personale, befolkningen, sysselsatte ); 07519 (07519: Samisk statistikk. Folkemengde, tettsteder og areal. )

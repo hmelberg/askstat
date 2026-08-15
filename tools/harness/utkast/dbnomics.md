@@ -22,5 +22,11 @@ dbnomics.read("IMF/WEO:latest/NOR+SWE.NGDP_RPCH", years="2022:2026")
 ## Kjente feller (målt i denne utforskningen)
 Sti-/maskebasert kilde: ingen generisk metadata-probe — dimensjonskunnskapen bor i stien/masken (se lesemønstrene over).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `dbnomics` — verifisert: fetch_series AMECO/ZUTN → 68 rader (live)
+- R (dokumentert, ikke testet her): `rdbnomics`
+
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

@@ -36,5 +36,9 @@
 ## Kjente feller (målt i denne utforskningen)
 ALLE dimensjoner må filtreres (400 ellers); kun json-stat2; POST via proxyens body-param i appen.
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Ingen kjente dedikerte klientpakker — bruk API-formene over direkte.
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

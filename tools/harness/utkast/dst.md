@@ -23,5 +23,9 @@ pd.read_csv("https://api.statbank.dk/v1/data/FOLK1A/CSV?Tid=2009K1", sep=";")
 ## Kjente feller (målt i denne utforskningen)
 CSV bruker ; som skilletegn (sep=';' i pandas). /tables?format=JSON er katalogen.
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- R (dokumentert, ikke testet her): `danstat (CRAN)`, `dkstat`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

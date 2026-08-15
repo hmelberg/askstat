@@ -50,6 +50,11 @@ scb.read("TAB4562", indicators=["000000VP"], years="2024", lang="en")
 
 **Aggregat-via-utelatelse (TAB4562):** kjøringen «Enkeltvalg (TAB4562)» over UTELOT Region og Vattenanslutning (elimination:true i metadata) — 1 rad(er) kom likevel tilbake, altså et aggregat over disse dimensjonene, ikke en feil.
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `pyjstat` — verifisert: 4 rader fra delt json-stat2-fixture (offline)
+- R (dokumentert, ikke testet her): `pxweb (rOpenGov)`
+
 ## Søkenotater
 - «befolkning»: 20 treff — topp 3: TAB4552 (Befolkningens anslutning till kommunalt vatten och avlopp. Å); TAB4560 (Befolkningen efter region och typ av avloppsanslutning. År 2); TAB4562 (Befolkningen efter region och typ av vattenanslutning. År 20)
 - «population»: 12 treff — topp 3: TAB3402 (Systematiskt innovationsarbete i offentliga sektorn efter de); TAB3403 (Innovationsaktiviteter i offentliga sektorn efter delsektor.); TAB3404 (Produktinnovation i offentliga sektorn efter delsektor. Anta)

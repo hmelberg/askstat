@@ -16,5 +16,9 @@ pd.read_json(".../api/WHOSIS_000001?$filter=SpatialDim eq 'NOR'") — value-list
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- R (dokumentert, ikke testet her): `WHO (CRAN, GHO-API)`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

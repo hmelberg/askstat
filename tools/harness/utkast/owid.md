@@ -22,5 +22,9 @@ pd.read_csv("https://ourworldindata.org/grapher/life-expectancy.csv?csvType=filt
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `owid-catalog` — verifisert: install + import
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

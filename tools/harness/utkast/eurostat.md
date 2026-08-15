@@ -57,5 +57,10 @@ eurostat.read("prc_hicp_manr", countries=["NO"], years="2024:2026", filters={"co
 `eurostat.read("ei_lmhr_m", years="2024:2025", filters={"s_adj": "NSA", "geo": "NO,SE"})`
 → «ei_lmhr_m»: uttrekket kom TOMT tilbake (0 datarader) — sjekk filtre/dekning (koder, år, land); slakk én dimensjon og prøv igjen. Flere land angis som countries=["NO", "SE"] — kommaliste i én geo=-param gir stille tomt fra Eurostat.
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `eurostat` — verifisert: install + import
+- R (dokumentert, ikke testet her): `eurostat (rOpenGov)`, `restatapi`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

@@ -42,3 +42,4 @@ venv/
 static_data/microdata.duckdb
 static_data/*.csv
 static_data_100k_full/
+tools/harness/.pakkecache/

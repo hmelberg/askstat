@@ -16,6 +16,10 @@ POST search-api m/{'q': 'befolkning', 'filters': {'type': {'value': 'datasets'}}
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Ingen kjente dedikerte klientpakker — bruk API-formene over direkte.
+
 ## Søkenotater
 - «befolkning»: søk feilet: HTTP 405: {"timestamp":"2026-08-15T22:23:28.046Z","status":405,"error":"Method Not Allowed","path":"/search"}
 - «population»: søk feilet: HTTP 405: {"timestamp":"2026-08-15T22:23:28.646Z","status":405,"error":"Method Not Allowed","path":"/search"}

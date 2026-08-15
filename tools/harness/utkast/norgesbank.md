@@ -48,5 +48,10 @@ norgesbank.read("IR", years="2020:2025", filters={"FREQ": "A", "INSTRUMENT_TYPE"
 `norgesbank.read("EXR", years="2024:2025", filters={"FREQ": ["B", "A"], "BASE_CUR": "HUF", "QUOTE_CUR": "NOK", "TENOR": "SP"})`
 → liste-verdi for filters['FREQ'] støttes ikke ennå for sdmx-kilder — angi én kode, eller bruk flere read()-kall
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `sdmx1` — verifisert: install + import
+- R (dokumentert, ikke testet her): `rsdmx`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

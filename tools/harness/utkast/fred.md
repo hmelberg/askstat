@@ -16,5 +16,10 @@ pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE")
 ## Kjente feller (målt i denne utforskningen)
 Fil-/katalogkilde uten strukturert metadata-endepunkt — kunnskapen bor i URL-mønstrene over (alle KJØRT).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `fredapi` — verifisert: install + import
+- R (dokumentert, ikke testet her): `fredr`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

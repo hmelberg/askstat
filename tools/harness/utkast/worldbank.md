@@ -28,5 +28,10 @@ worldbank.read("country/NOR/indicator/SP.POP.TOTL", years="2020:2024")
 ## Kjente feller (målt i denne utforskningen)
 Sti-/maskebasert kilde: ingen generisk metadata-probe — dimensjonskunnskapen bor i stien/masken (se lesemønstrene over).
 
+## Økosystem (pakker — for PORTABLE skript; i appen gjelder adapterne)
+
+- Python `wbgapi` — verifisert: install + import
+- R (dokumentert, ikke testet her): `WDI`
+
 ## Søkenotater
 Kilden mangler `sok_endepunkt` i registeret — søkefasen ble hoppet over.

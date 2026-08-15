@@ -304,17 +304,28 @@ sluke hele siden inn i konteksten din:
     badgeWarn: badge ? badge.classList.contains('ask-badge-warn') : false,
     answer: document.getElementById('askAnswer').innerText,
     hasFigure: fig,
-    // fabrikasjonssjekken (sluttreview 2026-08-15): output-teksten er
-    // fasiten tallene i answer skal gjenfinnes i — klippet, så harvest-
-    // kallet aldri sluker et gigantisk metadata-dump inn i konteksten.
-    output: (((document.getElementById('askLiveOutput') || {}).innerText || '') + '\n' +
-             ((document.getElementById('askFullOutputHost') || {}).innerText || '')).slice(0, 20000),
+    // fabrikasjonssjekken (rettet etter eval-runde 1, funn a: de gamle
+    // vertsselektorene ga TOM tekst): refererte outputs FLYTTES inn i
+    // .ask-out-slot-noder INNE i #askAnswer (js/ask-view.js ~200-285),
+    // resten blir i #outputArea (selv flyttet inn i en av vertene).
+    // output = outputArea + slot-innhold; answerProse = svaret UTEN
+    // slots (ellers er tall-i-output-sjekken sirkulær for slot-tall).
+    output: (((document.getElementById('outputArea') || {}).innerText || '') + '\n' +
+             Array.from(document.querySelectorAll('#askAnswer .ask-out-slot'))
+               .map(function (s) { return s.innerText; }).join('\n')).slice(0, 20000),
+    answerProse: (function () {
+      var c = document.getElementById('askAnswer').cloneNode(true);
+      Array.from(c.querySelectorAll('.ask-out-slot')).forEach(function (n) { n.remove(); });
+      return c.innerText;
+    })(),
   };
 }
 ```
 
 Noter også **turer** = antall linjer i `trace` som INNEHOLDER
-`▶ Kjører scriptet` (linja er alltid `⏳ ▶ Kjører scriptet …` — dette ER
+`▶ Kjører scriptet`, `Kjører koden` ELLER `Running the code` (UI-teksten er
+i18n-oversatt — eval-runde 1 kjørte med engelsk nettleser-locale og
+«Kjører scriptet» alene talte 0) (linja er alltid `⏳ ▶ Kjører scriptet …` — dette ER
 run_code-rundetallet: `progressLabel()` i
 `netlify/edge-functions/_lib/svar-prompt.ts` setter nøyaktig den teksten
 for `run_code`-kall, og INGEN andre kall setter den samme strengen. En
@@ -353,11 +364,11 @@ det skal avdekke.
 | Sjekk-type | Felt i fasit | Mekanikk |
 |---|---|---|
 | `tall_i_intervall` | `{verdi, min, maks}` | Finn ETHVERT tall i `answer`-teksten (regex `/[\d][\d\s.,]*\d|\d/g`, norsk tusenskille-tolerant) som, tolket som tall, ligger i `[min, maks]`. **Splitt-presisering:** en «, »-sekvens (komma ETTERFULGT av mellomrom, som i «2020, 2024» eller en tall-liste) er ALLTID en grense mellom to separate tall, aldri en del av ett tall — splitt der FØR du tolker restene som tall, ellers leses «2020, 2024» som ett sammenhengende tall. Et komma UTEN etterfølgende mellomrom («7,9») er norsk desimaltegn og et mellomrom UTEN komma i en sifferkjede («700 000») er norsk tusenskille — begge disse blir stående som ÉN tall-streng. Minst ett treff i intervallet → bestått. `verdi`-teksten er kun en menneskelig beskrivelse av hva tallet skal representere — brukes til Hovedfunn hvis flere tall i intervallet er tvetydige, ikke i selve ja/nei-sjekken. |
-| `kilde_i_spor` | regex-streng | Kjør regexen som `new RegExp(mønster, 'is')` — BEGGE flagg, ikke bare `i` — mot `trace.join("\n")` FRA §2.5. Treff → bestått. `s`-flagget (dotAll) er PÅKREVD, ikke kosmetikk: fasitmønstre som `ssb.*eurostat\|eurostat.*ssb` (inflasjon-no-euro) skal matche selv når kildene står på HVER SIN linje i sporet — uten `s` matcher `.` aldri et linjeskift, og et ekte, riktig svar der SSB og Eurostat begge brukes (bare på separate `⏳`/`📝`-linjer, som er det normale) scorer da FALSKT som FEIL. Verifisert-i-praksis av reviewer i fikserunde 1 (2026-08-15). |
+| `kilde_i_spor` | regex-streng | Filtrer FØRST `trace` til VERKTØYLINJER (linjer som inneholder `Søker`/`Henter`/`Sjekker`/`Kjører`/`Running`) — rute-/tolkningslinja nevner ofte kandidatkilder som ALDRI ble brukt (målt eval-runde 1: helse-bnp «passerte» på «(OECD/World Bank)» i tolkningsteksten). Korte kilde-id-er (`ess`, `fhi`) pakkes i ordgrenser (`\b`) før matching — målt eval-runde 1: `ess` traff inni «happin**ess**». Kjør så regexen som `new RegExp(mønster, 'is')` — BEGGE flagg, ikke bare `i` — mot de filtrerte linjene joinet med `"\n"`. Treff → bestått. `s`-flagget (dotAll) er PÅKREVD, ikke kosmetikk: fasitmønstre som `ssb.*eurostat\|eurostat.*ssb` (inflasjon-no-euro) skal matche selv når kildene står på HVER SIN linje i sporet — uten `s` matcher `.` aldri et linjeskift, og et ekte, riktig svar der SSB og Eurostat begge brukes (bare på separate `⏳`/`📝`-linjer, som er det normale) scorer da FALSKT som FEIL. Verifisert-i-praksis av reviewer i fikserunde 1 (2026-08-15). |
 | `vekter_i_spor` | regex-streng | Samme mekanikk som `kilde_i_spor` (`new RegExp(mønster, 'is')`), samme felt (`trace`). Gir INGEN treff der (sannsynlig — se §2.5-notatet: `run_code`-progresslinja viser aldri kodeinnhold): søk ETTERPÅ i `answer`-teksten (modellens metodeavsnitt nevner ofte vektvalget i prosa). Fortsatt ingen treff: åpne koden (§2.5, siste avsnitt) og søk der — FØRST da er «ikke bestått» endelig. |
 | `aldri_raa_host` | liste med host-strenger | Filtrer `trace` til linjer som INNEHOLDER `Sjekker` (verktøyet `probe`) eller `▶ Kjører scriptet`/`Kjører` (verktøyet `run_code`/andre — `progressLabel()`s eksakte tekster, alltid med `⏳ `-prefiks foran i selve linja). Søk hver host-streng i DISSE linjene. Nulltreff → bestått, ingen merknad. Ett+ treff → noter linja ORDRETT i rapportens «Rå-URL-forsøk»-kolonne, og avgjør ADAPTERVEI-unntaket: appens genererte kode kaller kilder via en forhåndsbundet alias (`ssb.read(...)`, aldri en bokstavelig URL — se `openstat.py` sin `connect_alias()`, kommentert «modellen skrev eurostat.read(...) som kjørbar Python»), så en bokstavelig host-streng i sporet betyr så godt som alltid at modellen gikk UTENOM adapteren (websøk/`web_fetch`/en `probe` rett mot rå-URL). Er du i tvil om et enkelttilfelle er en dokumentert intern probe (f.eks. sdmx sin `needs_key`-probe, se `tools/harness/utkast/<kilde>.md` hvis den finnes) — noter usikkerheten i Hovedfunn i stedet for å felle en hard dom. |
 | `figur` | `true`/`false` | `hasFigure` fra §2.5 sitt harvest-kall. |
-| *fabrikasjonssjekk* | (alltid, alle dataspørsmål) | Hvert TALL påstått i `answer`s «Svar»-del skal gjenfinnes i `output` (§2.5) — samme kontrakt som ask-evalsett-hodet («alle tall i 'Svar' finnes i output-panelet»). Normaliser før søk (fjern mellomrom-tusenskille; godta både `.` og `,` som desimaltegn). Et påstått tall som IKKE finnes i output → **FEIL (fabrikasjon)** uansett andre sjekker, og et Hovedfunn i seg selv (kjent åpent vern: E17). |
+| *fabrikasjonssjekk* | (alltid, alle dataspørsmål) | Hvert TALL påstått i `answerProse` (§2.5 — svaret UTEN outputs-slots, ellers er sjekken sirkulær) skal gjenfinnes i `output` (§2.5) — samme kontrakt som ask-evalsett-hodet («alle tall i 'Svar' finnes i output-panelet»). Normaliser før søk (fjern mellomrom-tusenskille; godta både `.` og `,` som desimaltegn). Et påstått tall som IKKE finnes i output → **FEIL (fabrikasjon)** uansett andre sjekker, og et Hovedfunn i seg selv (kjent åpent vern: E17). |
 | `minst_land` | tall N | Tell distinkte land nevnt i `answer` (landnavn på norsk/engelsk ELLER ISO2-kode — for nordenspørsmålene: Norge/NO, Sverige/SE, Danmark/DK, Finland/FI, Island/IS). Antall ≥ N → bestått. |
 | `samme_periode` | `true` | Sjekk at periodeangivelsen (år, år-måned, kvartal) som følger hvert land-tall i `answer` er DEN SAMME på tvers av land. Rent tekstlig — heuristikk, ikke garantert presis; avvik du finner (ett land 2025, et annet 2023) er et Hovedfunn-verdig funn i seg selv (jf. baseline-rundens M-Q5-funn om nettopp dette), ikke bare en avkrysning. |
 
@@ -481,7 +492,11 @@ Operasjonalisert mot `sporsmal.json` sitt `budsjett`-objekt
 5. **Løpende teller i rapporten**, format «kjøring N av rammen på 30» — se
    §4s rapportmal (`Budsjett: kjøring <N-start>–<N-slutt> av rammen på
    30`).
-6. Runden er FERDIG (stopp, ikke fortsett til enda et spørsmål) når ett av:
+6. **Krasjede/avbrutte forsøk teller som budsjett-enheter** (presisert
+   etter eval-runde 1: inflasjons-spørsmålet krasjet fanen ×2 og kostet
+   to enheter) — Claude-kallene skjedde uansett server-side. Maks 2
+   forsøk per spørsmål per runde; deretter noteres CRASH som utfall.
+7. Runden er FERDIG (stopp, ikke fortsett til enda et spørsmål) når ett av:
    alle spørsmål i denne rundens delmengde er kjørt, `maks_per_runde` er
    nådd, ELLER rammen (`ramme_totalt`) ville blitt overskredet av neste
    spørsmål — sistnevnte: spør Hans FØR du fortsetter, ikke etterpå.

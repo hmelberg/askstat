@@ -24,7 +24,7 @@
                  "merknad": "e01 mangler anweight → dweight×pweight-fallback (målt 2026-08-06)" } },
     { "id": "nb-styringsrente", "sporsmal": "Hvordan har Norges Banks styringsrente utviklet seg siste fem år?",
       "rute": "data", "kilder": ["norgesbank"], "tema": ["styringsrente", "policy rate", "IR"],
-      "fasit": { "kilde_i_spor": "norgesbank", "aldri_raa_host": ["data.norges-bank.no"], "nytt_monster": "sdmx engeltkilde" } },
+      "fasit": { "kilde_i_spor": "norgesbank", "aldri_raa_host": ["data.norges-bank.no"], "nytt_monster": "sdmx enkeltkilde" } },
     { "id": "imf-weo-norge", "sporsmal": "Hvordan har IMFs vekstanslag for Norge endret seg i de siste WEO-rundene?",
       "rute": "data", "kilder": ["dbnomics"], "tema": ["WEO", "NGDP_RPCH", "forecast"],
       "fasit": { "kilde_i_spor": "dbnomics", "nytt_monster": "dbnomics serie-maske" } },

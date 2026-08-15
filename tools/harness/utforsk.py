@@ -33,14 +33,16 @@ MAKS_KALL = 15
 PAUSE_S = 0.5
 TIMEOUT_S = 10
 
-# Brukes når kilden mangler sok_endepunkt, eller søket ikke gir noe nyttig —
-# de tre verifiseringskildene er navngitt eksplisitt i spec-en, øvrige kan
-# utvides etter behov.
+# Foretrekkes UBETINGET for kilder listet her (kuraterte, verifiserte
+# tabeller slår fritekstsøkets topp-3 — målt: 07459/14706 dukker aldri opp
+# i søketreffene); søketreff brukes kun for kilder UTEN oppføring. Kun
+# tabeller som faktisk er verifisert mot kilden hører hjemme her
+# (sluttreview 2026-08-15: en scb-plassholder med SSBs tabellnummer ville
+# garantert 404 — slettet).
 FALLBACK_TABELLER = {
     "ssb": ["07459", "14706"],
     "eurostat": ["ei_lmhr_m", "prc_hicp_manr"],
     "norgesbank": ["EXR", "IR"],
-    "scb": ["07459"],  # PxWeb-slektning av ssb — samme metadata-form, ukjent tabellnummer uten søk
 }
 
 STORBYER = ["Oslo", "Bergen", "Trondheim", "Stavanger", "Stockholm", "Göteborg", "København"]

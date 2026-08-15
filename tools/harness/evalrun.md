@@ -91,7 +91,7 @@ for hver (porten er rettet fra openstat sin 8888 til askstats faktiske 8899,
 se §1.3 — resten av teksten er uendret):
 
 **a) `netlify dev` cacher edge-TS-moduler → restart + 400-smoke
-(`curl -s -o /dev/null -w "%{http_code}" localhost:8888/api/svar` forventer
+(`curl -s -o /dev/null -w "%{http_code}" localhost:8888[les: 8899 i askstat]/api/svar` forventer
 400/405, aldri 500) før eval.**
 
 Live-verifisert smoke-sekvens (kjør ALLE tre etter hver `netlify dev`-restart,
@@ -304,6 +304,11 @@ sluke hele siden inn i konteksten din:
     badgeWarn: badge ? badge.classList.contains('ask-badge-warn') : false,
     answer: document.getElementById('askAnswer').innerText,
     hasFigure: fig,
+    // fabrikasjonssjekken (sluttreview 2026-08-15): output-teksten er
+    // fasiten tallene i answer skal gjenfinnes i — klippet, så harvest-
+    // kallet aldri sluker et gigantisk metadata-dump inn i konteksten.
+    output: (((document.getElementById('askLiveOutput') || {}).innerText || '') + '\n' +
+             ((document.getElementById('askFullOutputHost') || {}).innerText || '')).slice(0, 20000),
   };
 }
 ```
@@ -352,6 +357,7 @@ det skal avdekke.
 | `vekter_i_spor` | regex-streng | Samme mekanikk som `kilde_i_spor` (`new RegExp(mønster, 'is')`), samme felt (`trace`). Gir INGEN treff der (sannsynlig — se §2.5-notatet: `run_code`-progresslinja viser aldri kodeinnhold): søk ETTERPÅ i `answer`-teksten (modellens metodeavsnitt nevner ofte vektvalget i prosa). Fortsatt ingen treff: åpne koden (§2.5, siste avsnitt) og søk der — FØRST da er «ikke bestått» endelig. |
 | `aldri_raa_host` | liste med host-strenger | Filtrer `trace` til linjer som INNEHOLDER `Sjekker` (verktøyet `probe`) eller `▶ Kjører scriptet`/`Kjører` (verktøyet `run_code`/andre — `progressLabel()`s eksakte tekster, alltid med `⏳ `-prefiks foran i selve linja). Søk hver host-streng i DISSE linjene. Nulltreff → bestått, ingen merknad. Ett+ treff → noter linja ORDRETT i rapportens «Rå-URL-forsøk»-kolonne, og avgjør ADAPTERVEI-unntaket: appens genererte kode kaller kilder via en forhåndsbundet alias (`ssb.read(...)`, aldri en bokstavelig URL — se `openstat.py` sin `connect_alias()`, kommentert «modellen skrev eurostat.read(...) som kjørbar Python»), så en bokstavelig host-streng i sporet betyr så godt som alltid at modellen gikk UTENOM adapteren (websøk/`web_fetch`/en `probe` rett mot rå-URL). Er du i tvil om et enkelttilfelle er en dokumentert intern probe (f.eks. sdmx sin `needs_key`-probe, se `tools/harness/utkast/<kilde>.md` hvis den finnes) — noter usikkerheten i Hovedfunn i stedet for å felle en hard dom. |
 | `figur` | `true`/`false` | `hasFigure` fra §2.5 sitt harvest-kall. |
+| *fabrikasjonssjekk* | (alltid, alle dataspørsmål) | Hvert TALL påstått i `answer`s «Svar»-del skal gjenfinnes i `output` (§2.5) — samme kontrakt som ask-evalsett-hodet («alle tall i 'Svar' finnes i output-panelet»). Normaliser før søk (fjern mellomrom-tusenskille; godta både `.` og `,` som desimaltegn). Et påstått tall som IKKE finnes i output → **FEIL (fabrikasjon)** uansett andre sjekker, og et Hovedfunn i seg selv (kjent åpent vern: E17). |
 | `minst_land` | tall N | Tell distinkte land nevnt i `answer` (landnavn på norsk/engelsk ELLER ISO2-kode — for nordenspørsmålene: Norge/NO, Sverige/SE, Danmark/DK, Finland/FI, Island/IS). Antall ≥ N → bestått. |
 | `samme_periode` | `true` | Sjekk at periodeangivelsen (år, år-måned, kvartal) som følger hvert land-tall i `answer` er DEN SAMME på tvers av land. Rent tekstlig — heuristikk, ikke garantert presis; avvik du finner (ett land 2025, et annet 2023) er et Hovedfunn-verdig funn i seg selv (jf. baseline-rundens M-Q5-funn om nettopp dette), ikke bare en avkrysning. |
 

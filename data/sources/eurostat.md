@@ -29,7 +29,9 @@ Norge er med i de fleste Eurostat-datasett (EFTA-rapportering), ofte også regio
 Eurostat er en styrt kilde uten `kind`-basert `lese_linje` fra
 `table_metadata` (kun pxweb/sdmx-kilder får den) — eksempelet under ER
 derfor den kanoniske lese-linjen for eurostat: kopier og juster kun
-datasettkode/filtre. Den er ferdig verifisert — `eurostat.read` trenger
+datasettkode/filtre. Flere land angis ALLTID som
+`countries=["NO", "SE", "DK"]` — aldri som kommaliste i filters
+(`filters={"geo": "NO,SE"}` svarer Eurostat STILLE TOMT på). Den er ferdig verifisert — `eurostat.read` trenger
 aldri probe (probe avviser uansett alle rå eurostat-URL-er).
 
 ```

@@ -670,7 +670,14 @@ def _translate_canonical(kind, rest, c):
         if y and y["to"]:
             params.append("untilTimePeriod=" + y["to"])
         for k, v in (c.get("filters") or {}).items():
-            params.append(k + "=" + v)
+            # Paritet med js/data-directives.js (fiks 2026-08-05, MÅLT):
+            # Eurostat svarer STILLE TOMT (value:{}) på kommaformen
+            # geo=NO,SE — liste-verdier blir én param PER verdi
+            # (geo=NO&geo=SE gir data). Skalarer uendret.
+            if isinstance(v, (list, tuple)):
+                params += [str(k) + "=" + str(x) for x in v]
+            else:
+                params.append(str(k) + "=" + str(v))
     elif kind == "pxweb":
         if c.get("countries"):
             raise ValueError("countries() gjelder ikke pxweb-kilder (SSB er norske data) — "
@@ -692,7 +699,11 @@ def _translate_canonical(kind, rest, c):
                 raise ValueError("years(:%s) for pxweb: angi startår også — from()-uttrykket har "
                                  "ingen bakover-variant" % y["to"])
         for k, v in (c.get("filters") or {}).items():
-            params.append("valueCodes[" + k + "]=" + v)
+            # valueCodes TAR kommaliste — liste-verdier joines (samme
+            # implisitte oppførsel som JS-sidens array-toString).
+            if isinstance(v, (list, tuple)):
+                v = ",".join(str(x) for x in v)
+            params.append("valueCodes[" + str(k) + "]=" + str(v))
     elif kind == "sdmx":
         if c.get("regions"):
             raise ValueError("regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) "
@@ -854,6 +865,16 @@ class Source:
             ds = _json.loads(_fetch_bytes(du, fra_adapter=True).decode("utf-8"))
             df = apply_typemeta(pd.DataFrame(columns_from_jsonstat(ds)),
                                 typemeta_from_jsonstat(ds))
+            # Speiler assertHarDatarader i js/data-loader.js: 0 datarader
+            # leveres ALDRI stille (husets aldri-stille-feil-data). Målt
+            # felle for eurostat: geo-kommaform → HTTP 200 m/ value:{}.
+            if not len(df):
+                hint = (" Flere land angis som countries=[\"NO\", \"SE\"] — "
+                        "kommaliste i én geo=-param gir stille tomt fra Eurostat."
+                        if kind == "eurostat" else "")
+                raise ValueError("«" + str(table) + "»: uttrekket kom TOMT tilbake "
+                                 "(0 datarader) — sjekk filtre/dekning (koder, år, land); "
+                                 "slakk én dimensjon og prøv igjen." + hint)
             return df[list(columns)] if columns else df
         url = self.url if table is None else self.url.rstrip("/") + "/" + str(table)
         if kind == "parquet":

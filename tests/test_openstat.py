@@ -252,6 +252,41 @@ def test_translate_canonical_worldbank_og_eurostat():
     assert "geo=NO" in ep and "geo=SE" in ep and "sinceTimePeriod=2020" in ep and "na_item=B1GQ" in ep
 
 
+def test_translate_canonical_liste_i_filters():
+    # Paritet med js/data-directives.js (fiks 2026-08-05, MÅLT i
+    # ledighets-verifiseringen med 5 land): Eurostat svarer STILLE TOMT
+    # (value:{}) på kommaformen geo=NO,SE — liste-verdier skal bli én
+    # param PER verdi. Python-armen driftet (TypeError på liste).
+    _, ep, _, _ = ost._translate_canonical(
+        "eurostat", "ei_lmhr_m", {"filters": {"geo": ["NO", "SE", "DK"], "s_adj": "SA"}})
+    assert ep == ["geo=NO", "geo=SE", "geo=DK", "s_adj=SA"]
+    # pxweb: valueCodes TAR kommaliste — liste-verdier joines.
+    _, pp, _, _ = ost._translate_canonical("pxweb", "07459", {"filters": {"Kjonn": ["1", "2"]}})
+    assert pp == ["valueCodes[Kjonn]=1,2"]
+
+
+def test_read_eurostat_tomt_uttrekk_gir_instruktiv_feil(monkeypatch):
+    # Speiler assertHarDatarader i js/data-loader.js: 0 datarader skal
+    # aldri leveres stille (målt: geo-kommaformen gir size [.,0,.] + value:{}).
+    tom = {"version": "2.0", "class": "dataset",
+           "id": ["s_adj", "geo", "time"], "size": [1, 0, 2],
+           "dimension": {"s_adj": {"category": {"index": {"SA": 0}}},
+                         "geo": {"category": {"index": {}}},
+                         "time": {"category": {"index": {"2025-01": 0, "2025-02": 1}}}},
+           "value": {}}
+    monkeypatch.setattr(ost, "_fetch_bytes",
+                        lambda url, headers=None, fra_adapter=False: _json_bytes(tom))
+    e = ost.connect("https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data",
+                    kind="eurostat")
+    with pytest.raises(ValueError, match="TOMT.*countries"):
+        e.read("ei_lmhr_m", filters={"geo": "NO,SE"})
+
+
+def _json_bytes(doc):
+    import json as _j
+    return _j.dumps(doc).encode("utf-8")
+
+
 def test_translate_canonical_pxweb_aar():
     _, p1, _, _ = ost._translate_canonical("pxweb", "05839", {"years": {"from": "2007", "to": "2009"}})
     assert p1 == ["valueCodes[Tid]=2007,2008,2009"]

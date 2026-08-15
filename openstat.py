@@ -667,6 +667,14 @@ def _translate_canonical(kind, rest, c):
         if y:
             params.append("date=" + (y["from"] or "1900") + ":" + (y["to"] or "2100"))
         for k, v in (c.get("filters") or {}).items():
+            # Review-funn 2 (fikserunde 1, 2026-08-15): task-3b-fiksen
+            # bevarer lister for ALLE kinds i _canonical_from_query — uten
+            # denne vakten ville en liste-verdi truffet "k + " = v" med en
+            # TypeError (str + list), ikke en instruktiv feil. WB-
+            # parametrene er skalare (spec §0: hard feil, ikke stille/kryptisk).
+            if isinstance(v, (list, tuple)):
+                raise ValueError("liste-verdi for filters['" + str(k) + "'] støttes ikke for "
+                                 "worldbank — WB-parametrene er skalare (én verdi per parameter)")
             params.append(k + "=" + v)
     elif kind == "eurostat":
         if c.get("indicators"):
@@ -717,6 +725,16 @@ def _translate_canonical(kind, rest, c):
         if c.get("regions"):
             raise ValueError("regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) "
                              "eller filters(<DIM>=…)")
+        # Review-funn 2 (fikserunde 1, 2026-08-15): needs_key sendes videre
+        # til sdmx_key_path(), der put(k, [v], …) gjør "+".join([v]) —
+        # en liste-verdi ville da blitt "+".join([[...]]) = ufanget
+        # TypeError langt unna dette laget. sdmx +-join (SDMX-ELLER) for
+        # filter-lister er en JS-paritetsspørsmål som IKKE er avgjort her —
+        # sier instruktivt fra i stedet for å late som (spec §0).
+        for k, v in (c.get("filters") or {}).items():
+            if isinstance(v, (list, tuple)):
+                raise ValueError("liste-verdi for filters['" + str(k) + "'] støttes ikke ennå for "
+                                 "sdmx-kilder — angi én kode, eller bruk flere read()-kall")
         if y and y["from"]:
             params.append("startPeriod=" + y["from"])
         if y and y["to"]:
@@ -863,7 +881,15 @@ class Source:
             qs = []
             for k, v in query.items():
                 if isinstance(v, dict):
-                    qs += [str(k) + "[" + str(dk) + "]=" + str(dv) for dk, dv in v.items()]
+                    # Review-funn 1 (fikserunde 1, 2026-08-15): samme
+                    # bug-klasse som task-3b — str() på liste-verdi INNI en
+                    # dict-verdi (valueCodes={"Kjonn": ["1","2"]}, formen
+                    # docstringen (linje 11) dokumenterer som offentlig API)
+                    # ga repr-strengen "['1', '2']" i URL-en. valueCodes[…]=
+                    # er alltid PxWeb-formen uansett kind — komma-join.
+                    qs += [str(k) + "[" + str(dk) + "]=" +
+                          (",".join(str(x) for x in dv) if isinstance(dv, (list, tuple)) else str(dv))
+                          for dk, dv in v.items()]
                 elif isinstance(v, (list, tuple)):
                     # Batteriet fant (2026-08-15, task-3b): kwarg-formen
                     # prompten lærer, f.eks. eurostat.read("x", geo=["NO","SE"]),

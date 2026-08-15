@@ -252,6 +252,32 @@ def test_translate_canonical_worldbank_og_eurostat():
     assert "geo=NO" in ep and "geo=SE" in ep and "sinceTimePeriod=2020" in ep and "na_item=B1GQ" in ep
 
 
+def test_translate_canonical_liste_i_filters_worldbank_og_sdmx_gir_instruktiv_feil():
+    # Review-funn 2 (fikserunde 1, 2026-08-15): task-3b-fiksen bevarer
+    # lister for ALLE kinds i _canonical_from_query — men worldbank
+    # ("k + " = v", skalare WB-parametre) og sdmx (needs_key -> senere
+    # sdmx_key_path sin put(k, [v], …) -> "+".join([v]) med v=liste) forutsetter
+    # skalar og ville krasjet med en ufanget TypeError langt unna dette
+    # laget. Begge skal si instruktivt fra HER i stedet (spec §0).
+    with pytest.raises(ValueError, match="worldbank"):
+        ost._translate_canonical("worldbank", "country/NOR/indicator/A",
+                                 {"filters": {"source": ["2", "40"]}})
+    with pytest.raises(ValueError, match="sdmx"):
+        ost._translate_canonical("sdmx", "EXR", {"filters": {"FREQ": ["M", "D"]}})
+
+
+def test_read_worldbank_listefilter_gir_instruktiv_feil_ikke_krasj(monkeypatch):
+    # + gjennom read(): feilen skal komme FØR nettverkskall, ikke som en
+    # ufanget TypeError inni urllib.
+    def fange(url, headers=None, fra_adapter=False):
+        raise AssertionError("skal aldri fetche — feilen kommer i oversettelseslaget")
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fange)
+    wb = ost.connect("https://api.worldbank.org/v2", kind="worldbank")
+    with pytest.raises(ValueError, match="worldbank"):
+        wb.read("country/NOR/indicator/NY.GDP.MKTP.CD", filters={"source": ["2", "40"]})
+
+
 def test_translate_canonical_liste_i_filters():
     # Paritet med js/data-directives.js (fiks 2026-08-05, MÅLT i
     # ledighets-verifiseringen med 5 land): Eurostat svarer STILLE TOMT
@@ -326,6 +352,19 @@ def test_read_pxweb_listefilter_overlever_offentlig_inngang(monkeypatch):
     s = ost.connect("https://data.ssb.no/api/pxwebapi/v2/tables", kind="pxweb")
     s.read("07459", filters={"Kjonn": ["1", "2"]})
     assert "valueCodes[Kjonn]=1,2" in urler[0]
+
+    # Review-funn 3 (fikserunde 1, 2026-08-15, spec-hull fra verdikt A):
+    # kwarg-listeformen (leftover-løkkas pxweb-gren, ikke filters={}).
+    s.read("07459", Kjonn=["1", "2"])
+    assert "Kjonn=1,2" in urler[1]
+
+    # Review-funn 1 (fikserunde 1, 2026-08-15, Critical): dict-verdi-formen
+    # docstringen (openstat.py linje 11) dokumenterer som offentlig API
+    # (valueCodes={"Tid": "*"}) — en liste INNI dict-verdien ga tidligere
+    # repr-strengen "['1', '2']" i URL-en (leftover-løkkas dict-gren).
+    s.read("07459", valueCodes={"Kjonn": ["1", "2"]})
+    assert "valueCodes[Kjonn]=1,2" in urler[2]
+    assert "['1'" not in urler[2]  # aldri repr-strenger i dict-verdien
 
 
 def test_translate_canonical_pxweb_aar():

@@ -394,3 +394,39 @@ Deno.test("sniffFormat: parquet via kodet fileFormat-param og PAR1-magic", () =>
   assertEquals(DL._sniffFormat(mk("application/octet-stream"), "https://x/blob", undefined,
     new Uint8Array([0x61, 0x2c, 0x62])), "csv");
 });
+
+// ── Størrelsesvakta i den ASYNKRONE broveien (strategirunden 2026-08-16):
+// python-fasaden og sync-broen fikk taket først — re-målingen av inflasjon
+// krasjet fanen gjennom NETTOPP dette hullet (direktiv-veien henter via
+// fetchRawUrl/fetchLoadTarget uten tak). Speiler read-bridge/openstat.py.
+Deno.test("fetchRawUrl: annonsert Content-Length over taket nektes m/reparasjonshint", async () => {
+  DL._setMaksUttrekkBytes(100);
+  const fetchImpl = (_u: string) =>
+    Promise.resolve(new Response("x", { status: 200, headers: { "content-length": "5000" } }));
+  try {
+    await assertRejects(
+      () => DL.fetchRawUrl("https://x.example/enorm.csv", { fetchImpl }),
+      Error, "Filtrer");
+  } finally { DL._setMaksUttrekkBytes(null); }
+});
+
+Deno.test("fetchRawUrl: kropp over taket uten Content-Length nektes etter nedlasting", async () => {
+  DL._setMaksUttrekkBytes(100);
+  const fetchImpl = (_u: string) =>
+    Promise.resolve(new Response("a,b\n" + "1,2\n".repeat(80), { status: 200, headers: { "content-type": "text/csv" } }));
+  try {
+    await assertRejects(
+      () => DL.fetchRawUrl("https://x.example/enorm2.csv", { fetchImpl }),
+      Error, "OOM");
+  } finally { DL._setMaksUttrekkBytes(null); }
+});
+
+Deno.test("fetchRawUrl: kropp under taket passerer", async () => {
+  DL._setMaksUttrekkBytes(100);
+  const fetchImpl = (_u: string) =>
+    Promise.resolve(new Response("a,b\n1,2", { status: 200, headers: { "content-type": "text/csv" } }));
+  try {
+    const out = await DL.fetchRawUrl("https://x.example/passe.csv", { fetchImpl });
+    assertEquals(new TextDecoder().decode(out.bytes), "a,b\n1,2");
+  } finally { DL._setMaksUttrekkBytes(null); }
+});

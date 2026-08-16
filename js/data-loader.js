@@ -232,6 +232,26 @@
     return { 'X-Source-Key': val };
   }
 
+  // Størrelsesvakta i den ASYNKRONE broveien (strategirunden 2026-08-16):
+  // python-fasaden (openstat.py) og sync-broen (read-bridge.js) fikk taket
+  // først — re-målingen av inflasjon krasjet fanen gjennom NETTOPP dette
+  // hullet (direktiv-veien henter her, uten tak). Samme grense og melding
+  // som de to andre fasadene — endres én, endres alle tre.
+  var MAKS_UTTREKK_BYTES = 25 * 1024 * 1024;
+  var maksUttrekkOverstyring = null;
+  function maksUttrekk() { return maksUttrekkOverstyring || MAKS_UTTREKK_BYTES; }
+  function forStorUttrekkFeil(url, antall) {
+    return new Error('uttrekket fra ' + url + ' er ~' + Math.round(antall / (1024 * 1024)) +
+      ' MB — så store uttrekk OOM-er kjøremiljøet. Filtrer på de sentrale ' +
+      'dimensjonene FØR henting (geo/tema/unit — se table_metadata; HICP: ' +
+      'coicop="CP00" for totalindeksen) og hent kun det analysen trenger ' +
+      '(EVAL-regel 11).');
+  }
+  function sjekkAnnonsertStorrelse(resp, url) {
+    var cl = Number((resp.headers && resp.headers.get && resp.headers.get('content-length')) || 0);
+    if (cl > maksUttrekk()) throw forStorUttrekkFeil(url, cl);
+  }
+
   async function fetchLoadTarget(item, fetchImpl, authToken, anthropicKey, registry, keysApi) {
     var srcKey = sourceKeyHeader(item.url, registry, keysApi);   // kaster ved manglende nøkkel
     // item.fetchHeaders (api-kinds-spec §1): per-item-headere (sdmx-Accept) —
@@ -305,7 +325,9 @@
       }
     }
     assertNotTruncated(resp, url);
+    sjekkAnnonsertStorrelse(resp, url);
     var buf = await resp.arrayBuffer();
+    if (buf.byteLength > maksUttrekk()) throw forStorUttrekkFeil(url, buf.byteLength);
     // Tomt-vakt for bro-veien (spec fase 3 / sluttreview F4): OWID-hintets
     // vei er ren pd.read_csv(url) — en feilslått slug/filter gir header-only
     // CSV som ellers ville blitt en stille tom ramme. KUN csv (content-type
@@ -365,7 +387,9 @@
       } catch (e) { canDisk = false; }
     }
     var resp = await fetchLoadTarget(item, fetchImpl, deps.authToken || null, deps.anthropicKey || null, registry, deps.keysApi || null);
+    sjekkAnnonsertStorrelse(resp, item.url);
     var ab = await resp.arrayBuffer();
+    if (ab.byteLength > maksUttrekk()) throw forStorUttrekkFeil(item.url, ab.byteLength);
     var buf = new Uint8Array(ab);
     if (canDisk && ttl > 0) {
       try {
@@ -787,6 +811,7 @@
 
   global.DataLoader = { proxyHeaders: proxyHeaders, resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
+    _setMaksUttrekkBytes: function (n) { maksUttrekkOverstyring = n; },
     _parseCacheTtl: parseCacheTtl,
     // styrte kilder (2026-08-14): styrtKildeFor er den delte, testede
     // matcheren (js/read-bridge.js sin forPyodideSync bruker den også, se

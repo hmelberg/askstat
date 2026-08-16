@@ -68,6 +68,7 @@ export function validResumeState(s: AgenticResumeState | undefined): s is Agenti
     if (p.name !== undefined && (typeof p.name !== "string" || p.name.length > 20)) return false;
     if (p.expectedId !== undefined && (typeof p.expectedId !== "string" || p.expectedId.length > 100)) return false;
   }
+  if (s.pdfVern !== undefined && typeof s.pdfVern !== "boolean") return false;
   return typeof s.usage === "object" && s.usage !== null;
 }
 
@@ -90,6 +91,7 @@ export function rebuildResumeState(s: AgenticResumeState): AgenticResumeState {
     getPackCalls: s.getPackCalls,
     pending: s.pending,
     prevResponseId: s.prevResponseId,
+    pdfVern: s.pdfVern,
     usage: {
       inputTokens: Number(u.inputTokens) || 0,
       outputTokens: Number(u.outputTokens) || 0,

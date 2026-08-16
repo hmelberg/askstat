@@ -1,0 +1,19 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Total number of traffic fatalities in the USA in 2022, broken down by state, identifying the states with the highest counts. Unit: number of deaths. Source candidates: NHTSA (FARS), CDC.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ 🔎 Websøk: NHTSA FARS 2022 traffic fatalities by state data CSV",
+  "⏳ Søker kataloger (stats): «traffic fatalities deaths USA 2022 state» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …"
+ ],
+ "badgeText": "Error",
+ "badgeWarn": true,
+ "answer": "Error\n\n✗ Error: Anthropic stream error: messages.1.content.7.pdf.source.base64.data: The PDF specified was not valid.\n\nThis is usually a transient stream error — try asking again.",
+ "hasFigure": false,
+ "output": "\n",
+ "answerProse": "Error✗ Error: Anthropic stream error: messages.1.content.7.pdf.source.base64.data: The PDF specified was not valid.\nThis is usually a transient stream error — try asking again.\n",
+ "sporsmal": "(samme)",
+ "utfall": "CRASH — v2 (adressert+par-fjerning) fant også 0; utfall for spørsmålet: CRASH (maks 2 forsøk)"
+}

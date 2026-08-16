@@ -602,7 +602,7 @@ Deno.test("runAgenticStream(stream): tool-tur akkumulerer input_json_delta, kjø
 // deterministisk i runde 8. Saniteringen konverterer det ugyldige
 // dokumentet til web_fetch-verktøyets dokumenterte feilform og lar
 // løkka prøve én gang til uten vedlegget.
-import { sanitizePdfBlocks } from "./anthropic.ts";
+import { sanitizePdfBlocks, stripServerVerktoy } from "./anthropic.ts";
 
 function pdfResultBlokk(tuId: string) {
   return {
@@ -619,7 +619,7 @@ function pdfResultBlokk(tuId: string) {
   };
 }
 
-Deno.test("sanitizePdfBlocks: indeks-styrt konvertering til feilform", () => {
+Deno.test("sanitizePdfBlocks: web_fetch-bæreren fjernes m/sitt server_tool_use-par", () => {
   const messages = [
     { role: "user", content: "spørsmål" },
     { role: "assistant", content: [
@@ -630,11 +630,8 @@ Deno.test("sanitizePdfBlocks: indeks-styrt konvertering til feilform", () => {
   ] as Record<string, unknown>[];
   const n = sanitizePdfBlocks(messages,
     "Anthropic stream error: messages.1.content.2.pdf.source.base64.data: The PDF specified was not valid.");
-  assertEquals(n, 1);
-  const blokk = (messages[1].content as Record<string, unknown>[])[2];
-  assertEquals((blokk.content as Record<string, unknown>).type, "web_fetch_tool_error");
-  // resten av innholdet urørt
-  assertEquals((messages[1].content as Record<string, unknown>[])[0].type, "text");
+  assertEquals(n, 2);
+  assertEquals((messages[1].content as Record<string, unknown>[]).map((b) => b.type), ["text"]);
 });
 
 Deno.test("sanitizePdfBlocks: fallback-sveip uten indekser tar alle pdf-resultater", () => {
@@ -645,10 +642,8 @@ Deno.test("sanitizePdfBlocks: fallback-sveip uten indekser tar alle pdf-resultat
   ] as Record<string, unknown>[];
   const n = sanitizePdfBlocks(messages, "Anthropic API error 400: The PDF specified was not valid");
   assertEquals(n, 2);
-  for (const mi of [1, 2]) {
-    const blokk = (messages[mi].content as Record<string, unknown>[])[0];
-    assertEquals((blokk.content as Record<string, unknown>).type, "web_fetch_tool_error");
-  }
+  assertEquals((messages[1].content as unknown[]).length, 0);
+  assertEquals((messages[2].content as Record<string, unknown>[]).map((b) => b.type), ["text"]);
 });
 
 Deno.test("sanitizePdfBlocks: ingen pdf-blokker → 0, historikk urørt", () => {
@@ -659,4 +654,89 @@ Deno.test("sanitizePdfBlocks: ingen pdf-blokker → 0, historikk urørt", () => 
   const n = sanitizePdfBlocks(messages, "The PDF specified was not valid");
   assertEquals(n, 0);
   assertEquals((messages[1].content as Record<string, unknown>[])[0].text, "svar");
+});
+
+// Runde 10 (målt): PDF-en kan også sitte i et web_search_tool_result
+// (søkeresultater kan bære dokumenter) — den første saniteringen håndterte
+// kun web_fetch-bæreren og returnerte 0 → retryen slo aldri inn og
+// strømmen døde likevel. Ukjente bærere fjernes som PAR (resultatblokka +
+// dens server_tool_use via tool_use_id) — skjemasikkert begge veier.
+Deno.test("sanitizePdfBlocks: pdf i web_search_tool_result → blokkpar fjernes", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [
+      { type: "text", text: "søker" },
+      { type: "server_tool_use", id: "ws1", name: "web_search", input: { query: "x" } },
+      { type: "web_search_tool_result", tool_use_id: "ws1", content: [
+        { type: "web_search_result", url: "https://a" },
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: "ødelagt" } },
+      ] },
+      { type: "text", text: "leser videre" },
+    ] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages,
+    "Anthropic stream error: messages.1.content.2.pdf.source.base64.data: The PDF specified was not valid.");
+  assertEquals(n, 2);
+  const typer = (messages[1].content as Record<string, unknown>[]).map((b) => b.type);
+  // både resultatet OG dens server_tool_use er borte; tekstene består
+  assertEquals(typer, ["text", "text"]);
+});
+
+Deno.test("sanitizePdfBlocks: fallback-sveip tar også web_search-bæreren", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [
+      { type: "server_tool_use", id: "ws2", name: "web_search", input: {} },
+      { type: "web_search_tool_result", tool_use_id: "ws2", content: [
+        { type: "document", source: { media_type: "application/pdf", data: "x" } },
+      ] },
+    ] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages, "The PDF specified was not valid");
+  assertEquals(n, 2);
+  assertEquals((messages[1].content as unknown[]).length, 0);
+});
+
+// Runde 10-diagnosen (PDF-diag-loggen): feilens indeks (content.8) fantes
+// IKKE i vår lagrede historikk — API-et EKSPANDERER server_tool_use-
+// referanser serverside ved validering, og PDF-en lever i ekspansjonen.
+// Strategi 3: når blokka ikke kan adresseres/finnes lokalt, fjern ALLE
+// server-verktøyblokker (server_tool_use + web_search/web_fetch-resultater,
+// på tvers av meldinger — parene SPENNER meldinger i pause_turn-flyt) så
+// API-et ikke har noe å ekspandere.
+Deno.test("sanitizePdfBlocks: usynlig pdf (serverside-ekspansjon) → server-verktøyblokker strippes", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [
+      { type: "tool_use", id: "t1", name: "search_catalog", input: {} },
+      { type: "server_tool_use", id: "ws1", name: "web_search", input: { query: "x" } },
+    ] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "treff" }] },
+    { role: "assistant", content: [
+      { type: "web_search_tool_result", tool_use_id: "ws1", content: [{ type: "web_search_result", url: "https://a" }] },
+      { type: "text", text: "leser" },
+      { type: "server_tool_use", id: "ws2", name: "web_search", input: {} },
+      { type: "tool_use", id: "t2", name: "run_code", input: {} },
+    ] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "t2", content: "ok" }] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages,
+    "Anthropic API error 400: messages.1.content.8.pdf.source.base64.data: The PDF specified was not valid");
+  assertEquals(n > 0, true);
+  // server-verktøyblokkene er borte; klientverktøy og tekst består
+  assertEquals((messages[1].content as Record<string, unknown>[]).map((b) => b.type), ["tool_use"]);
+  assertEquals((messages[3].content as Record<string, unknown>[]).map((b) => b.type),
+    ["text", "tool_use"]);
+});
+
+Deno.test("stripServerVerktoy: fjerner web_search/web_fetch, beholder klientverktøy", () => {
+  const tools = [
+    { name: "run_code", input_schema: {} },
+    { type: "web_search_20250305", name: "web_search" },
+    { type: "web_fetch_20250910", name: "web_fetch" },
+    { name: "search_catalog", input_schema: {} },
+  ];
+  const igjen = stripServerVerktoy(tools) as Record<string, unknown>[];
+  assertEquals(igjen.map((t) => t.name), ["run_code", "search_catalog"]);
+  assertEquals(stripServerVerktoy(undefined), undefined);
 });

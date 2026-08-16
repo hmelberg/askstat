@@ -369,6 +369,12 @@ export interface AgenticResumeState {
   messages: Record<string, unknown>[];
   turn: number;
   clientCalls: number;
+  // pdfVern (runde 10-diagnosen): API-ets EGET websøk kan hente en PDF det
+  // selv avviser midt i strømmen — historikk-sanitering hindrer aldri neste
+  // søk. Når feilklassen først har truffet, settes flagget og web_search/
+  // web_fetch fjernes fra verktøylisten RESTEN av kjøringen (rundtures via
+  // resume — husk rebuildResumeState/validResumeState i svar.ts).
+  pdfVern?: boolean;
   // openai-responses (spec A6): server-side samtaletilstand — bare id-en
   // rundtures via klienten; meldingsarrayet bærer da kun siste tool-results.
   prevResponseId?: string;
@@ -442,6 +448,17 @@ interface TurnResult {
 // (runde 8, nå med i feilteksten fra streamOneTurn).
 export const PDF_FEIL_RE = /The PDF specified was not valid|\.pdf\.source|document\.source\.base64/i;
 
+// PDF-saniteringen, ENDELIG kontrakt (runde 10-diagnosene): feilens indeks
+// («messages.1.content.8») finnes som regel IKKE i vår lagrede historikk —
+// API-et EKSPANDERER server_tool_use-referanser serverside ved validering,
+// og PDF-en lever i ekspansjonen. Presis blokk-adressering er derfor
+// umulig; to målte mellomversjoner (kun web_fetch-bærer; adressert-først
+// med kortslutning) lot giften stå og strømmen døde likevel. Kuren er
+// betingelsesløs når feilklassen først har truffet: fjern ALLE
+// server-verktøyblokker (use + resultater — parene spenner meldinger i
+// pause_turn-flyt) OG enhver lagret blokk som selv bærer et pdf-dokument.
+// Klientverktøy (tool_use/tool_result) og tekst består — modellen mister
+// søkeresultat-konteksten, men svaret overlever.
 function harPdfDokument(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
@@ -450,34 +467,35 @@ function harPdfDokument(v: unknown): boolean {
     x && typeof x === "object" && harPdfDokument(x));
 }
 
-function tilFeilform(blokk: Record<string, unknown>): boolean {
-  if (blokk.type !== "web_fetch_tool_result" || !harPdfDokument(blokk.content)) return false;
-  blokk.content = { type: "web_fetch_tool_error", error_code: "unavailable" };
-  return true;
+const SERVER_BLOKKTYPER = new Set([
+  "server_tool_use", "web_search_tool_result", "web_fetch_tool_result",
+]);
+
+export function stripServerVerktoy(tools: unknown[] | undefined): unknown[] | undefined {
+  if (!Array.isArray(tools)) return tools;
+  return tools.filter((t) => {
+    const o = t as Record<string, unknown>;
+    const navn = String(o?.name ?? "") + " " + String(o?.type ?? "");
+    return !/web_search|web_fetch/.test(navn);
+  });
 }
 
 export function sanitizePdfBlocks(
   messages: Record<string, unknown>[],
-  feiltekst: string,
+  _feiltekst: string,
 ): number {
   let endret = 0;
-  // Feilens sti («messages.1.content.2.…») peker på den skyldige blokka —
-  // prøv den kirurgisk først, så fallback-sveip (stien kan mangle, f.eks.
-  // når bare «The PDF specified was not valid» overlevde til kalleren).
-  const m = /messages\.(\d+)\.content\.(\d+)/.exec(feiltekst);
-  if (m) {
-    const innhold = messages[Number(m[1])]?.content;
-    const blokk = Array.isArray(innhold) ? innhold[Number(m[2])] : undefined;
-    if (blokk && tilFeilform(blokk as Record<string, unknown>)) endret++;
-  }
-  if (!endret) {
-    for (const msg of messages) {
-      if (!Array.isArray(msg.content)) continue;
-      for (const blokk of msg.content) {
-        if (blokk && typeof blokk === "object" &&
-            tilFeilform(blokk as Record<string, unknown>)) endret++;
-      }
-    }
+  for (const msg of messages) {
+    if (!Array.isArray(msg.content)) continue;
+    const behold = msg.content.filter((b) => {
+      const o = b as Record<string, unknown>;
+      if (SERVER_BLOKKTYPER.has(String(o?.type))) return false;
+      if (o && typeof o === "object" && harPdfDokument(o)) return false;
+      return true;
+    });
+    endret += msg.content.length - behold.length;
+    msg.content.length = 0;
+    (msg.content as unknown[]).push(...behold);
   }
   return endret;
 }
@@ -687,11 +705,11 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
           }, HEARTBEAT_MS);
           let turn: TurnResult;
           try {
-            const kjorTur = () => streamOneTurn(target, headers, {
+            const kjorTur = (verktoy: unknown[] | undefined) => streamOneTurn(target, headers, {
               model: opts.model,
               max_tokens: opts.maxTokens ?? 8192,
               system,
-              tools: opts.tools,
+              tools: verktoy,
               messages: state.messages,
             }, deps, opts.apiKey, (text) => {
               sawDelta = true;
@@ -699,16 +717,20 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
               emit({ type: "delta", text });
             });
             try {
-              turn = await kjorTur();
+              turn = await kjorTur(state.pdfVern ? stripServerVerktoy(opts.tools) : opts.tools);
             } catch (e) {
-              // Issue #4: et web_fetch-hentet PDF-dokument i historikken
-              // avvises på rundturen og dreper ellers HELE svaret. Sanitér
-              // og prøv ÉN gang til uten vedlegget — degradering, ikke død.
+              // Issue #4/runde 10: API-ets eget websøk kan hente en PDF det
+              // selv avviser — også midt i strømmen, uavhengig av historikken.
+              // Kuren er VARIG: sanitér historikken OG slå av web_search/
+              // web_fetch resten av kjøringen (pdfVern rundtures i resume).
               const msg = String(e);
-              if (!PDF_FEIL_RE.test(msg) || sanitizePdfBlocks(state.messages, msg) === 0) throw e;
+              if (!PDF_FEIL_RE.test(msg)) throw e;
+              const antall = sanitizePdfBlocks(state.messages, msg);
+              state.pdfVern = true;
+              console.error(`PDF-vern PÅ (sanerte ${antall} blokk(er)) etter: ${msg.slice(0, 120)}`);
               emit({ type: "progress",
-                text: "⚠️ Et hentet PDF-dokument ble avvist av API-et — fjerner vedlegget og prøver igjen" });
-              turn = await kjorTur();
+                text: "⚠️ Et hentet PDF-dokument ble avvist av API-et — websøk slås av og svaret fortsetter uten" });
+              turn = await kjorTur(stripServerVerktoy(opts.tools));
             }
           } finally {
             clearInterval(beat);

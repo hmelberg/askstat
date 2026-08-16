@@ -1,0 +1,19 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Total number of traffic fatalities in the United States in 2022, plus a ranking of US states by number of fatalities in the same year. Unit: number of deaths. Source: NHTSA (National Highway Traffic Safety Administration) or similar official statistics.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ 🧠 Tolker spørsmålet og planlegger …",
+  "⏳ 🔎 Websøk: NHTSA traffic fatalities 2022 state data CSV",
+  "⏳ Søker kataloger (stats): «traffic fatalities deaths USA 2022 state» …",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …"
+ ],
+ "badgeText": "Error",
+ "badgeWarn": true,
+ "answer": "Error\n\n✗ Error: Anthropic stream error: messages.1.content.5.pdf.source.base64.data: The PDF specified was not valid.\n\nThis is usually a transient stream error — try asking again.",
+ "hasFigure": false,
+ "output": "=== IMF WEO – BNP-vekstanslag for Norge (NGDP_RPCH, % faste priser) ===\nvintage  Okt 2023  Apr 2024  Okt 2024  Apr 2025\nyear                                           \n2022         3.28      3.01      3.01      3.25\n2023         2.28      0.51      0.48      0.07\n2024         1.50      1.52      1.55      2.10\n2025         1.23      1.92      1.83      2.14\n2026         1.48      1.70      1.69      1.72\n2027         1.35      1.58      1.60      1.55\n\n=== Revisjon av anslaget for hvert år ===\n\n  Anslag for 2024:\n    Okt 2023: 1.5 %\n    Apr 2024: 1.52 %\n    Okt 2024: 1.55 %\n    Apr 2025: 2.1 %\n\n  Anslag for 2025:\n    Okt 2023: 1.23 %\n    Apr 2024: 1.92 %\n    Okt 2024: 1.83 %\n    Apr 2025: 2.14 %\n\n  Anslag for 2026:\n    Okt 2023: 1.48 %\n    Apr 2024: 1.7 %\n    Okt 2024: 1.69 %\n    Apr 2025: 1.72 %\n\n=== Netto-revisjon Apr 2025 vs Okt 2023 ===\n  2024: 0.6 pp (fra 1.5% til 2.1%)\n  2025: 0.91 pp (fra 1.23% til 2.14%)\n\n⧉\n2022\n2023\n2024\n2025\n2026\n2027\n0\n0.5\n1\n1.5\n2\n2.5\n3\n3.5\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\n⇩\n[Plotly figure – could not parse JSON]\n⧉\n2022\n2023\n2024\n2025\n2026\n2027\n−2\n−1\n0\n1\n2\n3\n4\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\n⇩\n[Plotly figure – could not parse JSON]\n⧉\n2022\n2023\n2024\n2025\n2026\n2027\n−2\n−1\n0\n1\n2\n3\n4\n5\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\nIMF WEO: BNP-vekstanslag for Norge – siste fire runder\nÅr\nBNP-vekst, % (faste priser)\nPrognose\n⇩\n[Plotly figure – could not parse JSON]\n⧉\n2022\n2023\n2024\n2025\n2026\n2027\n−2\n−1\n0\n1\n2\n3\n4\n5\nOkt 2023\nApr 2024\nOkt 2024\nApr 2025\nIMF WEO: BNP-vekstanslag for Norge – siste fire runder\nÅr\nBNP-vekst, % (faste priser)\nPrognose\n⇩\n[Plotly figure – could not parse JSON]\n⧉\n\nOUTPUTS: fig:1 (plotly)\n\n⧉\n",
+ "answerProse": "Error✗ Error: Anthropic stream error: messages.1.content.5.pdf.source.base64.data: The PDF specified was not valid.\nThis is usually a transient stream error — try asking again.\n",
+ "sporsmal": "Hvor mange dødsulykker i trafikken var det i USA i 2022, og hvilke delstater hadde flest?",
+ "utfall": "CRASH — stream-PDF-feil; v1-saniteringen (kun web_fetch-bærer) fant 0 og retry uteble"
+}

@@ -1,0 +1,16 @@
+[
+  {"identifier": "DataChallenges/TunedIT", "url_probet": "http://tunedit.org/challenges/", "kode": "404", "klasse": "DOD"},
+  {"identifier": "GIS/UN-Environmental-Data", "url_probet": "http://geodata.grid.unep.ch/", "kode": "000", "klasse": "NETT"},
+  {"identifier": "Government/Fredericton-NB-Canada", "url_probet": "http://www.fredericton.ca/en/citygovernment/Catalogue.asp", "kode": "404", "klasse": "DOD"},
+  {"identifier": "Government/OECD", "url_probet": "https://data.oecd.org/", "kode": "403", "klasse": "GATET"},
+  {"identifier": "Government/Quebec-Province-of-Canada", "url_probet": "https://www.donneesquebec.ca/en/", "kode": "404", "klasse": "DOD"},
+  {"identifier": "Healthcare/EHDP-Large-Health-Data-Sets", "url_probet": "http://www.ehdp.com/vitalnet/datasets.htm", "kode": "404", "klasse": "DOD"},
+  {"identifier": "ImageProcessing/YouTube-Faces-Database", "url_probet": "http://www.cs.tau.ac.il/~wolf/ytfaces/", "kode": "000", "klasse": "NETT"},
+  {"identifier": "MachineLearning/RDataMining", "url_probet": "http://www.rdatamining.com/data", "kode": "404", "klasse": "DOD"},
+  {"identifier": "NaturalLanguage/Blogger-Corpus", "url_probet": "http://u.cs.biu.ac.il/~koppel/BlogCorpus.htm", "kode": "000", "klasse": "NETT"},
+  {"identifier": "Neuroscience/Brainomics", "url_probet": "http://brainomics.cea.fr/localizer", "kode": "000", "klasse": "NETT"},
+  {"identifier": "ProstateCancer/TCGA-PRAD-US", "url_probet": "http://www.cbioportal.org/study?id=prad_tcga", "kode": "404", "klasse": "DOD"},
+  {"identifier": "PublicDomains/RevolutionAnalytics-Collection", "url_probet": "https://packages.revolutionanalytics.com/datasets/", "kode": "000", "klasse": "NETT"},
+  {"identifier": "SocialNetworks/Reddit-Comments", "url_probet": "http://files.pushshift.io/reddit/comments/", "kode": "000", "klasse": "NETT"},
+  {"oppsummering": {"probet": 40, "ok": 27, "gatet": 1, "dod": 6, "nett": 6}}
+]

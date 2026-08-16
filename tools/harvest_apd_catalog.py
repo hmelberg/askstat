@@ -45,12 +45,19 @@ def normalize_entry(category, slug, raw):
     if len(description) > DESCRIPTION_MAX:
         description = description[:DESCRIPTION_MAX - 3] + '...'
 
+    # URL-felt fra oppstrøms YAML er ikke alltid URL-er: proben 2026-08-16
+    # fant prosatekst («RESTful JSON API. Three endpoints: …»), filnavn og
+    # bool (YAML-fella «yes») i specification/homepage — alt ikke-http
+    # nulles så katalogen kan probes og brukes maskinelt.
+    def _url(v):
+        return v if isinstance(v, str) and v.startswith(('http://', 'https://')) else None
+
     return {
         'identifier': f"{category}/{slug}",
         'name': raw.get('title') or slug,
         'description': description,
-        'url': raw.get('homepage') or '',
-        'distributionUrl': raw.get('specification') or raw.get('data_dictionary') or None,
+        'url': _url(raw.get('homepage')) or '',
+        'distributionUrl': _url(raw.get('specification')) or _url(raw.get('data_dictionary')),
         'keywords': keywords,
         'license': raw.get('license'),
         'inLanguage': raw.get('language'),

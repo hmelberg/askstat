@@ -34,3 +34,32 @@ nettleser-UA, maks 3 URL-er/fil, 0.3 s pause. Rå funn i funn-*.json.
 - **Egenverifisert i samme runde:** datacommons v2/observation (200,
   4 fasetter for Count_Person/NOR — multi-fasett-fella reell; anker
   lagt i guiden).
+
+## Tillegg samme dag: katalog-liveness
+
+- **apd-katalogen (868 poster):** stikkprøve på 40 (hver 21. indeks,
+  subagent — rå funn i funn-apd.json) ga 27 OK / 6 DØD / 6 DNS-død /
+  1 gatet ≈ 30 % unåelig → full probe av alle 868 kjørt med nytt
+  gjenkjørbart verktøy `tools/probe_apd_catalog.py` (fjerner KUN
+  bekreftet døde: 404/410 ×2 eller NXDOMAIN ×2; gatede/transiente
+  beholdes; kjøres etter hver harvest). Resultat i commit-meldingen.
+  Sidefunn: `Economics/prop-metrics-real-estate-data` har prosatekst i
+  distributionUrl-feltet (strukturfeil; skriptet faller tilbake til url).
+- **nada-katalogen (40 portaler):** egen-probet — 39/40 svarer 200 på
+  search_url; eneste avvik er African Development Bank (403 = WAF/gating,
+  ikke råte). Ingen endring.
+
+### Fullprobe-resultatet (apd, alle 868)
+
+Tre kjøringer var nødvendige — hver feil var et EKTE datafunn:
+(1) bool i url-feltet (YAML-fella «yes») krasjet probingen; (2) 98
+«døde» viste seg å inneholde en falsk-død-klasse — gamle http://-URL-er
+som 404-er mens https-siden lever (målt: ucdp.uu.se) → https-
+oppgraderingsforsøk lagt i skriptet. Endelig: **74 av 868 bekreftet døde
+og fjernet** (42×404 + 1×410 + 31×NXDOMAIN, alle dømt på to uavhengige
+forsøk; full liste i apd-dodsliste.txt) → 794 poster igjen. 33×403 og
+transiente 5xx/NETT BEHOLDT. I tillegg ble 11 strukturfeil rettet
+(prosatekst/bool i URL-felt) og samme vask lagt inn i
+tools/harvest_apd_catalog.py sin normalize_entry så neste høsting ikke
+gjeninnfører dem. Merk: github.com/JeffSackmann/tennis_atp/-wta 404-er
+reelt (curl-bekreftet) — repoene ser ut til å være fjernet oppstrøms.

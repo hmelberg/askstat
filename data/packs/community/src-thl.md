@@ -17,6 +17,10 @@ Birth and Infectious Diseases — and publishes open data via two APIs.
 The Sotkanet indicator bank (2000+ welfare/health indicators since 1990)
 has a keyless REST API: `https://sotkanet.fi/rest/1.1/indicators` for
 metadata, data in CSV/JSON (R package `sotkanet` on ropengov wraps it).
+CORS-open and reachable directly from the browser runtime (verified
+2026-08-16: both urllib and requests fetch it fine in-app — a network
+error here means a wrong URL, not a runtime limitation; CSV data:
+`/rest/1.1/csv?indicator=<id>&years=<y>&genders=total`).
 Register-derived cube data is served by the sampo pivot API
 (`https://sampo.thl.fi/pivot/prod/api/<subject>/<cube>.json`). Both
 verified live 2026-08-16. Note: thl.fi restructured in 2026 — old

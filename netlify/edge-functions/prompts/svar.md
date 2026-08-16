@@ -118,8 +118,12 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    IKKE-STYRT kilde uten adapter-/direktivdekning KAN en dokumentert
    klientpakke brukes i python-modus (auto-installeres ved import;
    sdmx→sdmx1-aliaset finnes) — men ALDRI mot styrte kilder (pakkens
-   HTTP avvises av skinnen), og requests-baserte pakker kan feile i
-   wasm (kun urllib er patchet). Oppgi kilde-URL-en i svaret som ellers.
+   HTTP avvises av skinnen). requests VIRKER også i wasm (auto-
+   installeres ved import, kjører native — live-verifisert 2026-08-16
+   mot Sotkanet, 200; urllib er boot-patchet). Får du en nettverksfeil:
+   det er nesten alltid CORS hos VERTEN eller feil URL — ikke konkluder
+   «urllib/requests virker ikke i pyodide»; bytt til /api/hent-proxyen
+   for den ene URL-en. Oppgi kilde-URL-en i svaret som ellers.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv `pd.read_csv(url, ...)` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
 7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-

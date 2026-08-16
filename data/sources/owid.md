@@ -37,6 +37,15 @@ OWID-landkoder adskilt med `~`, `time=` et `fra..til`-intervall —
 begge kreves sammen med `csvType=filtered` (uten den: stille ignorert,
 se Kort).
 
+## Kjent felle: IHME/GBD-slugs gir 403
+
+Grapher-sider bygget på IHME Global Burden of Disease svarer **403 på
+CSV-endepunktet** (lisensbegrensning — målt 2026-08-16: homicides-ihme,
+deaths-from-obesity-by-age, death-rate-from-alzheimers-other-dementias-gbd
+m.fl., 5/5 konsistent, ikke rate-limit). For dødsårsaks-/sykdomsbyrde-
+spørsmål: velg en ikke-GBD-kilde (WHO GHO) eller en OWID-slug med annen
+kildeoppføring — en 403 her er ikke transient og skal ikke retryes.
+
 ## Om kilden
 
 Our World in Data — curated long-run global datasets (health, economy, environment, and more) as downloadable CSV files compiled from many primary sources.

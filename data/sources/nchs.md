@@ -94,6 +94,28 @@ Verifisert: `https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/{år}/
 i samme katalog. 29 MB er innenfor, men tungt — les kolonneutvalg med
 `usecols` når spørsmålet tillater det.
 
+## Typiske spørsmål
+
+- «Hvordan har levealderen i USA utviklet seg over tid?»
+- «Hva var gjennomsnittlig blodtrykk/BMI i siste NHANES-syklus?» (se NHANES over)
+- «Hvor mange har diabetes ifølge NHIS?» (se NHIS over)
+
+## Oppskrift: levealder ved fødsel, NCHS-serien (verifisert 2026-08-16)
+
+```
+# le = ost.read("https://data.cdc.gov/resource/w9j2-ggv5.json?$where=race='All%20Races'%20AND%20sex='Both%20Sexes'&$order=year%20DESC&$limit=5")
+```
+
+Verifisert 2026-08-16 (5 rader; siste år i serien = 2018, forventet
+levealder ved fødsel 78,7 år, grov dødsrate 723,6 per 100 000).
+Dette er NCHS' offisielle levealder-/dødelighetsserie (`w9j2-ggv5`,
+data.cdc.gov/Socrata — samme SODA-mønster som `cdc`-kilden) —
+AGGREGERT statistikk, ikke mikrodata (bruk NHANES/NHIS over for
+individdata). FELLE: serien i DETTE datasettet stopper i 2018
+(`$select=max(year)` verifisert) — nyere NCHS-levealderstall må søkes
+opp som egen ressurs i katalogen (samme discovery-API som i
+`cdc`-kilden), ikke forutsett at den fortsetter.
+
 ## Hva som IKKE bor her
 
 - **BRFSS-mikrodata**: åpne, men ~93 MB zip / ~1 GB XPT — for stort for

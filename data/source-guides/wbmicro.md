@@ -45,6 +45,25 @@ CORS-åpent (`Access-Control-Allow-Origin: *` verifisert) — direkte
 # treff = ost.read("https://microdata.worldbank.org/index.php/api/catalog/search?sk=health%20expenditure&ps=10&format=json")
 ```
 
+## Typiske spørsmål
+
+- «Finnes det levekårsundersøkelser fra Tanzania?»
+- «Hvilke husholdningssurveys finnes for Ghana/Malawi?»
+- «Er det gjort en LSMS-undersøkelse i et gitt land?»
+
+## Oppskrift: finn levekårsundersøkelser i et utviklingsland (verifisert 2026-08-16)
+
+```
+# treff = ost.read("https://microdata.worldbank.org/index.php/api/catalog/search?sk=LSMS&ps=250&format=json")
+# tanzania = [r for r in treff["result"]["rows"] if r["nation"] == "Tanzania"]
+```
+
+Verifisert 2026-08-16: `sk=LSMS` gir 229 treff totalt, hvorav 16 for
+Tanzania (`TZA_2020_NPS-R5_v02_M`, «National Panel Survey 2020-21, Wave
+5»). `sk` OR-er alltid ordene (E17-fellen over) — filtrer landet
+CLIENT-SIDE på `nation` etter henting, ikke i URL-en. Bytt `LSMS` med et
+annet emneord (f.eks. `health`) for andre temaer.
+
 ## Tilgangsklasser (form_model)
 
 Av 100 samplede studier: `remote` 78 (data hos annen katalog, se

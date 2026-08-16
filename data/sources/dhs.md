@@ -54,6 +54,25 @@ Eksempel (total fertilitetsrate, Egypt):
 Finn indikator-ID-en i `indicators`-katalogen FØRST (ID-ene er koder som
 `FE_FRTR_W_TFR`, `CM_ECMR_C_U5M`) — gjett aldri.
 
+## Typiske spørsmål
+
+- «Hvilke helse-/levekårsundersøkelser finnes for Ghana?»
+- «Er det gjort en DHS-survey i et gitt utviklingsland, og når?»
+- «Hvor mange DHS-runder finnes for et land over tid?»
+
+## Oppskrift: finn levekårsundersøkelser (DHS-surveyer) i et land (verifisert 2026-08-16)
+
+```
+# surveyer = ost.read("https://api.dhsprogram.com/rest/dhs/surveys?countryIds=GH&f=json")
+```
+
+Verifisert 2026-08-16: 200 OK, `RecordsReturned = 9` DHS-surveyer for
+Ghana (1988–2022), bl.a. `GH2014DHS`. `countryIds` tar DHS' 2-bokstavs
+landkode (IKKE alltid ISO2 — slå opp i `countries?f=json` ved tvil);
+dette finner DATASETTENE (survey-metadata), ikke selve tallene — bruk
+`data?indicatorIds=...&countryIds=...` (se Endepunkter over) for
+aggregerte indikatorer fra en valgt survey.
+
 ## Feller
 
 - Verdier gjelder SURVEYÅRET (SurveyYear) — ikke kalenderår-serier;

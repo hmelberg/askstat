@@ -66,6 +66,27 @@ Registeret har ingen søkbar cdc-katalog — bruk Socratas discovery-API
 → treff med `resource.id` (4x4), navn, beskrivelse, kolonneliste. Probe
 deretter selve resource-URL-en (✅-kravet gjelder som alltid).
 
+## Typiske spørsmål
+
+- «Hvor mange har dødd av covid-19 i USA totalt, og hvor stor andel av alle dødsfall er det?»
+- «Hva er de ledende dødsårsakene i en delstat?» (`bi63-dtpu`, se over)
+- «Hvor stor andel av voksne har diabetes eller høyt blodtrykk?» (BRFSS/PLACES-prevalens)
+
+## Oppskrift: covid-dødsfall, kumulativt og oppdatert ukentlig (verifisert 2026-08-16)
+
+```
+# covid = ost.read("https://data.cdc.gov/resource/mpx5-t7tu.json?$where=jurisdiction_residence='United%20States'%20AND%20`group`='total'&$order=data_period_end%20DESC&$limit=5")
+```
+
+Verifisert 2026-08-16 (5 rader; uken som endte 2026-07-25: 1 243 345
+kumulative covid-dødsfall i USA, 5,9 % av alle dødsfall siden
+2020-01-01). Datasettet (`mpx5-t7tu`, oppdateres ukentlig) er
+KUMULATIVT — for nye dødsfall i ÉN uke: ta differansen mellom to
+`data_period_end`-rader. FELLE: `group` er et reservert SoQL-ord i
+Socrata — skriv kolonnenavnet i graveaksent (`` `group` ``) i
+`$where`; uten det svarer tjenesten `400 Bad Request` («Expected an
+expression, but got GROUP»).
+
 ## Feller
 
 - Mange datasett finnes i «provisorisk» OG endelig utgave — si hvilken

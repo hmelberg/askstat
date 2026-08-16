@@ -45,6 +45,23 @@ til og med `studyXmlSourceUrl` (rå DDI-XML).
 - INGEN variabelnivå-metadata i aggregatoren — følg `studyUrl`/DDI-XML
   til arkivet for kodebøker.
 
+## Typiske spørsmål
+
+- «Finnes det helseundersøkelser fra Norge?»
+- «Hvilke norske studier finnes om levekår/valg?»
+- «Er det gjort en survey om X i et gitt europeisk land?»
+
+## Oppskrift: finn helseundersøkelser fra Norge (verifisert 2026-08-16)
+
+```
+# treff = ost.read("https://datacatalogue.cessda.eu/api/DataSets/v2/search?q=health&limit=20&metadataLanguage=en&studyAreaCountries=Norway")
+```
+
+Verifisert 2026-08-16 (fersk kjøring): 200 OK, `ResultsCount.available =
+77` studier. Eksempel blant treffene: «International Social Survey
+Programme: Health and Health Care I-II Cumulation» (GESIS, ZA8794).
+Bytt `studyAreaCountries=` for andre land og `q=` for andre tema.
+
 ## Bruksmønster
 
 1. Søk (engelsk, smalt) → filtrer på land/år/`dataAccess`.

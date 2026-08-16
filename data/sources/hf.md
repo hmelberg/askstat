@@ -82,6 +82,32 @@ https://datasets-server.huggingface.co/filter?dataset=...&config=default&split=t
 Henter en skive uten å laste alt (`where` må url-enkodes). FELLE: første
 kall mot et «kaldt» datasett kan time ut — prøv én gang til før du gir opp.
 
+## Typiske spørsmål
+
+- «Finnes det et tabellarisk datasett om census/inntekt jeg kan bruke?»
+- «Hent hele et bestemt Hugging Face-datasett som en dataframe»
+- «Er dette HF-datasettet en pålitelig kilde, eller en uoffisiell kopi?»
+
+## Oppskrift: søk + hent parquet direkte (verifisert 2026-08-16)
+
+```
+# treff = ost.read("https://huggingface.co/api/datasets?search=census&filter=modality:tabular&limit=20", kind="json")
+# df = ost.read("https://huggingface.co/datasets/scikit-learn/adult-census-income/resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet", kind="parquet")
+```
+
+Verifisert 2026-08-16: søket ga 20 treff med lesbare kolonner (`id`,
+`downloads`, `likes`, `tags`); `scikit-learn/adult-census-income` var
+treff nr. 2. Parquet-lesingen ga 32 561 rader × 15 kolonner (`age`,
+`workclass`, … `income`). FELLE (STILLE FEIL): søke-URL-en har INGEN
+`.json`-endelse, så `ost.read` UTEN `kind="json"` gjetter CSV og gir
+en søppel-dataframe UTEN feilmelding (verifisert: 0 rader, 563
+hulter-til-bulter-kolonner) — alltid `kind="json"` på
+`/api/datasets`-søket. Parquet-mønsteret over
+(`.../resolve/refs%2Fconvert%2Fparquet/{config}/{split}/0000.parquet`)
+virker for datasett med ÉTT parquet-shard (de fleste små/middels); for
+større, delte datasett: bruk `/parquet`-endepunktet (avsnitt 4 over)
+og hent riktig `url` derfra i stedet for å gjette filnavnet.
+
 ## Feller
 
 - datasets-server-feil kommer ofte som **200 med `{"error": ...}`-kropp**

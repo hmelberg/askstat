@@ -25,6 +25,27 @@ Verifisert live 2026-08-06 (ekte bruker-ID): runde 11-csv ga **32,4
 MB**, kolonner `name, essround, edition, proddate, idno, cntry,
 dweight, pweight, nwspol, …`.
 
+## Typiske spørsmål
+
+- «Er nordmenn lykkeligere enn tyskere?» / «Sammenlign livstilfredshet i Norge og Tyskland»
+- «Hvor lykkelige er skandinaver sammenlignet med resten av Europa?»
+- «Har mellommenneskelig tillit endret seg over tid i Norge?» (trend — flere runder)
+
+## Oppskrift: lykke/livstilfredshet Norge vs Tyskland (verifisert 2026-08-16)
+
+```
+# ess = ost.connect("ess")
+# ess11 = ess.read("v1/data/dataFile/10.21338/ess11e01_0?fileFormat=csv&recodeMissingValues=true")
+# sub = ess11[ess11.cntry.isin(["NO","DE"])].assign(w=lambda d: d.dweight*d.pweight)
+```
+
+Verifisert 2026-08-16: 22 190 rader × 558 kolonner (13 land i e01).
+Kolonnene MANGLER `anweight` (sjekket — ikke i lista) — derfor
+dweight×pweight-fallbacken over. Vektet snitt `happy` (0–10): NO =
+**7,95**, DE = **7,76** (`stflife`, 0–10: NO = 7,78, DE = 7,67). Si
+ALLTID i svaret at vekten er dweight×pweight (ikke ekte anweight) fordi
+e01 er en tidlig utgave — en senere utgave med anweight brukes direkte.
+
 ## Sti og parametre (DOI, format)
 
 Stien til `.read(...)` er

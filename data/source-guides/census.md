@@ -56,6 +56,28 @@ personrader. NB: filtervariablene (`SCHL`, `state`) echoes som EGNE
 kolonner i svaret — header var `AGEP,SEX,PWGTP,SCHL,state`. Datakallet
 sender også `Access-Control-Allow-Origin: *`.
 
+## Typiske spørsmål
+
+- «Hva er medianinntekten i ulike delstater i USA?»
+- «Hvilken delstat har høyest/lavest medianinntekt?»
+- «Gi meg et enkelt ACS-uttrekk for alle delstater»
+
+## Oppskrift: medianinntekt per delstat, ACS 1-år (verifisert 2026-08-16)
+
+```
+# inntekt = ost.read("/api/hent?url=https%3A%2F%2Fapi.census.gov%2Fdata%2F2023%2Facs%2Facs1%3Fget%3DNAME%2CB19013_001E%26for%3Dstate%3A%2A")
+```
+
+Dette er den aggregerte ACS-tabellen (data profile), ikke PUMS —
+raskere når spørsmålet er «medianinntekt per delstat» og ikke krever
+egen mikrodata-vekting. Verifisert 2026-08-16: 200, JSON-matrise med 53
+rader (50 delstater + DC + Puerto Rico), header `NAME, B19013_001E,
+state`; California = **95 521 USD**. `B19013_001E` er median
+husholdningsinntekt siste 12 mnd (nominell, ACS-årgangens dollar) —
+slå opp koden i `variables.json` for riktig årgang før du siterer den.
+Uten nøkkel: re-verifisert 2026-08-16, fortsatt 302 →
+`missing_key.html` med header `X-DataWebAPI-KeyError: 1`.
+
 ## Kodebok og vekter (maskinlesbart!)
 
 `variables.json` per datasett-årgang (verifisert: 525 variabler for 2023

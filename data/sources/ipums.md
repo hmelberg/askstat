@@ -21,6 +21,26 @@ order: 20
 
 asynkron extract-flyt — se guiden; datasett kan ikke videredistribueres
 
+## Oppskrift: sjekke nylige extracts (verifisert 2026-08-04)
+
+```
+# nylige = ost.read("/api/hent?url=https%3A%2F%2Fapi.ipums.org%2Fextracts%3Fcollection%3Dnhis%26version%3D2")
+```
+
+Bytt `collection`-verdien (`nhis`/`meps`/`ipumsi`) for de tre andre
+samlingene. Svarer 200 med en JSON-liste over egne extracts (nyeste
+først), hver med `status`/`extractDefinition`/`downloadLinks` — men KUN
+med en gyldig registrert IPUMS-nøkkel (`Authorization`-header, injisert
+automatisk av `/api/hent` mot `api.ipums.org`); uten nøkkel 401, med
+ugyldig nøkkel 403. Ingen nøkkel er satt opp i drift nå — se full
+fireserie-flyten under før du sender inn en NY extract.
+
+## Typiske spørsmål
+
+- Finnes det en ferdig IPUMS-extract som dekker [variabler] for [land/år]?
+- Hvor mange land/samples har IPUMS International folketellingsdata for [tiår]?
+- Send inn en IPUMS NHIS-extract med variablene [YEAR, AGE, ...].
+
 ## Guide
 
 # IPUMS (NHIS/MEPS/International) — kildeguide (survey-mikrodata, asynkron extract-API)

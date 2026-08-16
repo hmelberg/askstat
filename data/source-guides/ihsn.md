@@ -32,6 +32,27 @@ ordene — søk smalt), studie `catalog/{IDNO}?format=json`, variabelordbok
 (spørsmålstekst + verdietiketter). Svaret er `result.rows[]` med `idno`,
 `title`, `nation`, `year_start/end`, `url` (landingsside).
 
+## Typiske spørsmål
+
+- «Finnes det levekårsundersøkelser fra Ghana?»
+- «Hvilke husholdningssurveys finnes i et utviklingsland?»
+- «Er det gjort en LSMS/GLSS-undersøkelse i et gitt land?»
+
+## Oppskrift: finn levekårsundersøkelser i et utviklingsland (verifisert 2026-08-16)
+
+```
+# treff = ost.read("https://catalog.ihsn.org/index.php/api/catalog/search?sk=LSMS&ps=200&format=json")
+# ghana = [r for r in treff["result"]["rows"] if r["nation"] == "Ghana"]
+```
+
+Verifisert 2026-08-16 fra terminal (curl, samme oppførsel som en
+nettleser): `sk=LSMS` gir 383 treff totalt, hvorav 7 for Ghana i første
+side — bl.a. `GHA_1998_GLSS_v02_M`, «Living Standards Survey IV
+1998-1999». TLS-sjekk bekreftet på nytt: curl fikk TLSv1.2 med
+ECDHE-ECDSA-sertifikat mot `catalog.ihsn.org` uten problem — kun
+server-side Deno-motoren (`search_catalog`/`/api/hent`) feiler mot denne
+verten, bruk derfor ALLTID `ost.read`-formen over.
+
 ## Når ihsn framfor wbmicro?
 
 wbmicro er WBs egen samling (LSMS, Findex m.m.) og er søkbar via

@@ -326,3 +326,24 @@ test('DD.parse: direktivlinje med etterfølgende kommentar parses som om halen i
   assert.equal(p3.loads.length, 0);
   assert.equal(p3.errors.length, 1);
 });
+
+// Kodesak B (målt r10 fhi-raden): «# df = fhi.read(f"…")» ga den
+// uinstruktive «forventet «,» eller «)»» — modellen gjettet «prikk i
+// f-streng»-teorier og brant en kjøring. Direktiver ER literal-only
+// (EVAL-regel 7); feilen skal SI det.
+test('f-streng i direktiv-arg gir instruktiv literal-only-feil', () => {
+  const r = DP.parseScript('# df = fhi.read(f"https://x.no/api/{tabell}/data")');
+  assert.equal(r.items.length, 0);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /f-streng/);
+  assert.match(r.errors[0], /literal/i);
+  assert.match(r.errors[0], /vanlig kode/);
+});
+
+test('rf"/b"-prefikser får samme instruktive feil; vanlige kall uendret', () => {
+  const r = DP.parseScript('# x = ssb.read(rb"noe")');
+  assert.match((r.errors[0] || ''), /f-streng|prefiks/);
+  const ok = DP.parseScript('# body = fhi.read("vanlig")');
+  assert.equal(ok.errors.length, 0);
+  assert.equal(ok.items.length, 1);
+});

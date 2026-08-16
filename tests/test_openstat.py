@@ -413,20 +413,27 @@ def test_translate_canonical_pxweb_aar():
 
 
 def test_read_sdmx_kanonisk_med_introspeksjon(monkeypatch):
+    # Kodesak C endret probens transport: dims hentes nå av
+    # _sdmx_forste_linje (strømmet header, egen seam) — datakallet går
+    # fortsatt via _fetch_bytes.
     calls = []
+    probeUrls = []
 
     def fake(url, headers=None, fra_adapter=False):
         calls.append(url)
-        if "lastNObservations=1" in url:
-            return (HDR_FIX["oecd"] + "\nOECD.X:Y(1.1),COL,A,LFEXP,Y,Y0,M,_Z,_Z,_Z,_Z,_Z,_Z,_Z,2023,73.8,1,,,,0\n").encode()
         return ("DATAFLOW,REF_AREA,TIME_PERIOD,OBS_VALUE\nX:Y(1.1),NOR,2023,84.2\n").encode()
 
+    def fakeHode(url):
+        probeUrls.append(url)
+        return HDR_FIX["oecd"]
+
     monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    monkeypatch.setattr(ost, "_sdmx_forste_linje", fakeHode)
     o = ost.connect("https://sdmx.oecd.org/public/rest/data", kind="oecd")
     df = o.read("OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE", countries=["NOR", "SWE"], years="2020:2023")
-    assert "/all?lastNObservations=1" in calls[0]
-    assert "/NOR+SWE" + "." * 12 + "?" in calls[1]
-    assert "startPeriod=2020" in calls[1] and "endPeriod=2023" in calls[1]
+    assert "/all?lastNObservations=1" in probeUrls[0]
+    assert "/NOR+SWE" + "." * 12 + "?" in calls[0]
+    assert "startPeriod=2020" in calls[0] and "endPeriod=2023" in calls[0]
     assert df.shape == (1, 4)
 
 
@@ -1183,3 +1190,61 @@ def test_read_pxweb_sprak_default_overstyrer_lang_no(monkeypatch):
     # Eksplisitt lang= fra brukeren vinner over sprak-defaulten:
     s.read("TAB4552", indicators=["000000YE"], years="2020", lang="sv")
     assert "lang=sv" in urler[1] and "lang=en" not in urler[1]
+
+
+def test_generisk_read_sniffer_json_uten_kind(monkeypatch):
+    # Kodesak A (målt 4× 2026-08-16: hf-fella + census/ihsn/wbmicro-
+    # oppskriftene): endelsesløs URL uten kind= ble CSV-gjettet og ga
+    # LYDLØST en søppelramme — brudd på aldri-stille-kontrakten. Kuren:
+    # første ikke-blanke byte { eller [ → parse som JSON.
+    ost._MEMO.clear()
+    kropp = b'  {"result": {"rows": [{"a": 1}, {"a": 2}], "found": 2}}'
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: kropp)
+    df = ost.connect("https://x/api/sok").read()
+    assert "result" in df.columns
+    liste = b'[["NAME","B19013_001E"],["California","95521"]]'
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: liste)
+    ost._MEMO.clear()
+    df2 = ost.connect("https://x/api/matrise").read()
+    assert df2.shape == (2, 2)
+
+
+def test_generisk_read_csv_uendret(monkeypatch):
+    ost._MEMO.clear()
+    monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: b"a,b\n1,2\n")
+    df = ost.connect("https://x/fil").read()
+    assert list(df.columns) == ["a", "b"]
+
+
+def test_sdmx_dims_probe_strommer_kun_forste_linje(monkeypatch):
+    # Kodesak C (målt: OECD-SHA-proben traff ~26 MB fordi hele kroppen ble
+    # hentet når bare CSV-HEADEREN trengs til dims-bygging): CPython-veien
+    # skal strømme til første linjeskift og aldri lese resten.
+    lest = {"bytes": 0}
+
+    class _StrommeRespons:
+        def __init__(self):
+            hode = b"STRUCTURE,STRUCTURE_ID,ACTION,REF_AREA,MEASURE,TIME_PERIOD,OBS_VALUE\n"
+            self._data = hode + b"x" * (50 * 1024 * 1024)  # 50 MB kropp
+            self._pos = 0
+            self.headers = {}
+
+        def read(self, n=-1):
+            if n is None or n < 0:
+                n = len(self._data) - self._pos
+            bit = self._data[self._pos:self._pos + n]
+            self._pos += len(bit)
+            lest["bytes"] += len(bit)
+            return bit
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _StrommeRespons())
+    linje = ost._sdmx_forste_linje("https://x/data/OECD.X,DSD_Y/all?lastNObservations=1")
+    assert linje.startswith("STRUCTURE,")
+    assert lest["bytes"] < 512 * 1024, "leste %d bytes — strømmingen virker ikke" % lest["bytes"]

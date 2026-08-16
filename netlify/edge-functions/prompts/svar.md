@@ -123,7 +123,7 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    mot Sotkanet, 200; urllib er boot-patchet). Får du en nettverksfeil:
    det er nesten alltid CORS hos VERTEN eller feil URL — ikke konkluder
    «urllib/requests virker ikke i pyodide»; bytt til /api/hent-proxyen
-   for den ene URL-en. Oppgi kilde-URL-en i svaret som ellers.
+   for den ene URL-en. NB (målt r10): requests/urllib krever ABSOLUTT URL — den relative proxy-formen «/api/hent?…» virker KUN via ost.read/pd.read_csv (broen); ikke prøv den med requests. Oppgi kilde-URL-en i svaret som ellers.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
 6. PORTABILITET (ØNSKE, ikke absolutt krav — Hans 2026-08-16; opprinnelig målt 2026-07-28): ved cors:true for en GET-tabell er naken `pd.read_csv(url, ...)` å foretrekke — da kjører scriptet også utenfor appen. Men riktig og robust henting går foran portabilitet: proxy/innpakning ved målt CORS-feil, nøkkelkilde eller når det ellers er tryggest.
 7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-

@@ -74,3 +74,19 @@ def test_source_read_stille_ved_fersk(monkeypatch, capsys):
     monkeypatch.setattr(ost.Source, "_read_impl", lambda self, *a, **k: fersk)
     ost.connect("https://x", kind="csv").read()
     assert "Ferskhetsvakta" not in capsys.readouterr().out
+
+
+def test_eksplisitt_historisk_sluttaar_varsles_ikke(monkeypatch, capsys):
+    # Kodesak E: bevisst historiske uttrekk (years="2015:2022") skal ikke
+    # støye — vakta gjelder «nå»-antakelsen, ikke villede historikkspørringer
+    stale = pd.DataFrame({"country": ["NO"], "date": ["2022"], "value": [9.4]})
+    monkeypatch.setattr(ost.Source, "_read_impl", lambda self, *a, **k: stale)
+    ost.connect("https://x", kind="csv").read(years="2015:2022")
+    assert "Ferskhetsvakta" not in capsys.readouterr().out
+
+
+def test_aapent_tidsintervall_varsler_fortsatt(monkeypatch, capsys):
+    stale = pd.DataFrame({"time": ["2021-12"], "value": [1.0]})
+    monkeypatch.setattr(ost.Source, "_read_impl", lambda self, *a, **k: stale)
+    ost.connect("https://x", kind="csv").read(years="2015:")
+    assert "Ferskhetsvakta" in capsys.readouterr().out

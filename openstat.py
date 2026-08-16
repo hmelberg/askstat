@@ -599,6 +599,30 @@ def dbnomics_data_url(url):
     return base + "?" + "&".join(parts)
 
 
+def _sdmx_forste_linje(url):
+    """Kun CSV-HEADEREN fra en sdmx-URL — strømmet, aldri hele kroppen.
+
+    Kodesak C (målt 2026-08-16): dims-proben /all?lastNObservations=1 gir
+    én rad PER SERIE — OECD-SHA ga ~26 MB der bare første linje trengs.
+    CPython strømmer i 8 KB-biter til første linjeskift; i emscripten
+    (sync XHR/bro kan ikke strømme) faller vi tilbake til _fetch_bytes,
+    som størrelsesvakta der uansett vokter med instruktivt hint."""
+    if sys.platform == "emscripten":
+        rå = _fetch_bytes(url, headers={"Accept": SDMX_ACCEPT}, fra_adapter=True)
+        return rå.decode("utf-8").split("\n")[0]
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "openstat",
+                                               "Accept": SDMX_ACCEPT})
+    biter = b""
+    with urllib.request.urlopen(req, timeout=25) as r:
+        while b"\n" not in biter and len(biter) < 256 * 1024:
+            bit = r.read(8192)
+            if not bit:
+                break
+            biter += bit
+    return biter.decode("utf-8", "replace").split("\n")[0]
+
+
 def sdmx_key_dims(header_line):
     """Nøkkeldimensjonene fra SDMX-CSV-headeren (paritet med js/api-kinds.js
     sdmxKeyDims): kolonnene mellom prefikset (DATAFLOW | STRUCTURE,
@@ -892,8 +916,12 @@ def _nyeste_periode(serie):
     return (beste[0], beste[1], aarsdata) if beste else None
 
 
-def ferskhetsvakt(df, idag=None):
+def ferskhetsvakt(df, idag=None, eksplisitt_slutt=None):
     try:
+        if eksplisitt_slutt is not None:
+            idag_tmp = idag or __import__("datetime").date.today()
+            if eksplisitt_slutt < idag_tmp.year:
+                return None
         if not isinstance(df, pd.DataFrame) or not len(df):
             return None
         idag = idag or __import__("datetime").date.today()
@@ -938,7 +966,16 @@ class Source:
 
     def read(self, table=None, columns=None, **query):
         df = self._read_impl(table, columns, **query)
-        adv = ferskhetsvakt(df)
+        # Kodesak E: bevisst historiske uttrekk (years="2015:2022") skal
+        # ikke støye — vakta gjelder «nå»-antakelsen. Kun eksplisitt
+        # SLUTTÅR i fortiden demper; åpne intervaller varsler som før.
+        slutt = None
+        y = query.get("years")
+        if isinstance(y, str) and ":" in y:
+            del2 = y.split(":", 1)[1].strip()
+            if del2[:4].isdigit():
+                slutt = int(del2[:4])
+        adv = ferskhetsvakt(df, eksplisitt_slutt=slutt)
         if adv:
             print(adv)
         return df
@@ -986,8 +1023,11 @@ class Source:
                     # bygges fra CSV-headeren til en lastNObservations=1-probe
                     # (query-params ville blitt STILLE ignorert, spec §0).
                     base = self.url.rstrip("/") + "/" + rest
-                    probe = _sdmx_csv(base + "/all?lastNObservations=1")
-                    dims = sdmx_key_dims(probe.decode("utf-8").split("\n")[0])
+                    try:
+                        hode = _sdmx_forste_linje(base + "/all?lastNObservations=1")
+                    except Exception:
+                        hode = _sdmx_csv(base + "/all?lastNObservations=1").decode("utf-8").split("\n")[0]
+                    dims = sdmx_key_dims(hode)
                     if not dims:
                         raise ValueError("fant ikke dimensjonene i kildens CSV-header — angi nøkkelstien selv")
                     target = base + "/" + sdmx_key_path(dims, needs_key) + (("?" + "&".join(qs)) if qs else "")
@@ -1123,7 +1163,16 @@ class Source:
         elif kind == "json":
             df = pd.DataFrame(_json.loads(_fetch_bytes(url, fra_adapter=True).decode("utf-8")))
         else:
-            df = pd.read_csv(io.BytesIO(_fetch_bytes(url, fra_adapter=True)), sep=None, engine="python")
+            kropp = _fetch_bytes(url, fra_adapter=True)
+            # Kodesak A (målt 4× 2026-08-16: hf-fella + tre oppskriftsbugs av
+            # samme klasse): JSON-kropper uten kind= ble CSV-gjettet og ga
+            # LYDLØST en søppelramme. Første ikke-blanke byte { eller [ →
+            # parse som JSON — read_csv på JSON er aldri riktig.
+            forste = kropp.lstrip()[:1]
+            if forste in (b"{", b"["):
+                df = pd.DataFrame(_json.loads(kropp.decode("utf-8")))
+            else:
+                df = pd.read_csv(io.BytesIO(kropp), sep=None, engine="python")
         return df[list(columns)] if columns else df
 
 

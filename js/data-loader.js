@@ -587,6 +587,28 @@
         if (!AK || !PXc) throw new Error('ApiKinds/PxWeb-modulen mangler (js/api-kinds.js må lastes før data-loader.js)');
         // Accept-vei m/format=csvdata-fallback — delt av datahenting og
         // nøkkel-introspeksjonsproben (samme to-forsøks-logikk begge steder).
+        // Kodesak C (målt: OECD-SHA-dims-proben traff ~26 MB der bare
+        // CSV-headeren trengs): strøm til første linjeskift og avbryt.
+        // Faller tilbake til full henting (størrelsesvakta vokter den).
+        async function sdmxForsteLinje(url) {
+          try {
+            var resp = await fetchImpl(url, { headers: { 'Accept': AK.SDMX_ACCEPT } });
+            if (!resp.ok || !resp.body) throw new Error('probe ' + resp.status);
+            var reader = resp.body.getReader();
+            var dek = new TextDecoder();
+            var tekst = '';
+            while (tekst.indexOf('\n') < 0 && tekst.length < 262144) {
+              var del = await reader.read();
+              if (del.done) break;
+              tekst += dek.decode(del.value, { stream: true });
+            }
+            try { reader.cancel(); } catch (eC) {}
+            if (tekst.indexOf('\n') < 0 && !tekst) throw new Error('tom probe');
+            return tekst.split('\n')[0];
+          } catch (eS) {
+            return (await sdmxFetchCsv(url)).split('\n')[0];
+          }
+        }
         async function sdmxFetchCsv(url) {
           var f1 = null;
           try {
@@ -611,8 +633,8 @@
             // probe mot /all — query-params ville blitt STILLE ignorert.
             var uq = item.url.indexOf('?');
             var uBase = uq >= 0 ? item.url.slice(0, uq) : item.url;
-            var probeCsv = await sdmxFetchCsv(uBase.replace(/\/+$/, '') + '/all?lastNObservations=1');
-            var dims = AK.sdmxKeyDims(probeCsv.split('\n')[0]);
+            var probeHode = await sdmxForsteLinje(uBase.replace(/\/+$/, '') + '/all?lastNObservations=1');
+            var dims = AK.sdmxKeyDims(probeHode);
             if (!dims.length) throw new Error('«' + item.alias + '»: fant ikke dimensjonene i kildens CSV-header — angi nøkkelstien selv (…/' + '<nøkkel>)');
             var keyPath;
             try { keyPath = AK.sdmxKeyPath(dims, item.needsSdmxKey); }

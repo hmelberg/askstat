@@ -28,6 +28,16 @@
     var m = IDENT_RE.exec(s.slice(i));
     if (m) {
       var word = m[0];
+      // Kodesak B (målt r10): «f"…"»-prefiks i et direktiv-arg ga den
+      // uinstruktive «forventet «,» eller «)»» og kostet en kjøring på
+      // gjettede teorier. Direktiver er LITERAL-only (EVAL-regel 7) —
+      // si det rett ut når et strengprefiks (f/r/b-kombinasjoner) står
+      // rett foran et anførselstegn.
+      var etter = s.charAt(i + word.length);
+      if ((etter === '"' || etter === "'") && /^[frbuFRBU]{1,3}$/.test(word)) {
+        fail('f-streng/strengprefiks («' + word + etter + '…») støttes ikke i direktiver — ' +
+             'direktiver er literal-only: skriv URL-en/verdien ferdig, eller bygg den i vanlig kode');
+      }
       if (word === 'True') return { value: true, pos: i + 4 };
       if (word === 'False') return { value: false, pos: i + 5 };
       if (word === 'None') return { value: null, pos: i + 4 };

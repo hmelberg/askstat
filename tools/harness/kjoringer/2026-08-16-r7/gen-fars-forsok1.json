@@ -1,0 +1,24 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Total number of traffic fatalities in the USA in 2022, broken down by state, identifying the states with the highest counts. Unit: number of deaths. Source candidates: NHTSA (FARS), CDC.",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ Pack applied: Crime, transport, energy and political behaviour",
+  "⏳ Pack applied: UN World Population Prospects",
+  "⏳ Pack applied: Enhetsregisteret (Norway)",
+  "⏳ Pack applied: Short-Term Mortality Fluctuations",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ 🔎 Websøk: FARS 2022 NHTSA traffic fatalities by state CSV download",
+  "⏳ Sjekker https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813627 …",
+  "⏳ Sjekker https://crashviewer.nhtsa.dot.gov/CrashAPI/crashes/GetCaseList?states=1,51&fromY …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …"
+ ],
+ "badgeText": "Error",
+ "badgeWarn": true,
+ "answer": "Error\n\n✗ Error: Anthropic stream error: messages.1.content.2.pdf.source.base64.data: The PDF specified was not valid.\n\nThis is usually a transient stream error — try asking again.",
+ "hasFigure": false,
+ "output": "ERROR:\nTraceback (most recent call last):\n  File \"/lib/python314.zip/_pyodide/_base.py\", line 597, in eval_code_async\n    await CodeRunner(\n    ...<9 lines>...\n    .run_async(globals, locals)\n  File \"/lib/python314.zip/_pyodide/_base.py\", line 413, in run_async\n    await coroutine\n  File \"<exec>\", line 1, in <module>\n  File \"<exec>\", line 549, in _m2py_run_segment\n  File \"<exec>\", line 396, in _exec_pyodide_block\n  File \"<pyodide>\", line 40, in <module>\n  File \"<exec>\", line 57, in _w\n  File \"/lib/python3.14/site-packages/pandas/io/parsers/readers.py\", line 873, in read_csv\n    return _read(filepath_or_buffer, kwds)\n  File \"/lib/python3.14/site-packages/pandas/io/parsers/readers.py\", line 306, in _read\n    return parser.read(nrows)\n           ~~~~~~~~~~~^^^^^^^\n  File \"/lib/python3.14/site-packages/pandas/io/parsers/readers.py\", line 1947, in read\n    ) = self._engine.read(  # type: ignore[attr-defined]\n        ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        nrows\n        ^^^^^\n    )\n    ^\n  File \"/lib/python3.14/site-packages/pandas/io/parsers/c_parser_wrapper.py\", line 215, in read\n    chunks = self._reader.read_low_memory(nrows)\n  File \"pandas/_libs/parsers.pyx\", line 832, in pandas._libs.parsers.TextReader.read_low_memory\n  File \"pandas/_libs/parsers.pyx\", line 897, in pandas._libs.parsers.TextReader._read_rows\n  File \"pandas/_libs/parsers.pyx\", line 868, in pandas._libs.parsers.TextReader._tokenize_rows\n  File \"pandas/_libs/parsers.pyx\", line 885, in pandas._libs.parsers.TextReader._check_tokenize_status\n  File \"pandas/_libs/parsers.pyx\", line 2084, in pandas._libs.parsers.raise_parser_error\npandas.errors.ParserError: Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n\n\n⧉\n",
+ "answerProse": "Error✗ Error: Anthropic stream error: messages.1.content.2.pdf.source.base64.data: The PDF specified was not valid.\nThis is usually a transient stream error — try asking again.\n",
+ "sporsmal": "Hvor mange dødsulykker i trafikken var det i USA i 2022, og hvilke delstater hadde flest?",
+ "utfall": "CRASH — probet NHTSA-PDF; vedleggs-pipelinen sendte ugyldig PDF til Anthropic-API-et og hele strømmen døde (Error-badge). Kodesak-kandidat."
+}

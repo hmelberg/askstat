@@ -971,7 +971,11 @@ def lesemonstre_url(kilde_id, kilde, budsjett):
 # regenerering ville kastet manuelt tilførte seksjoner (f.eks. ssb-
 # utkastets sammenligningsnotat fra Task 4).
 REPO_ROT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PAKKECACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pakkecache")
+# UTENFOR repoet (målt felle 2026-08-16): en repo-lokal cache ga 23k filer
+# som netlify dev sin fil-vokter åpnet én fd per fil for — deno-spawnen
+# døde da med EBADF og edge-funksjonene lastet aldri. gitignore hjelper
+# ikke; vokteren leser den ikke.
+PAKKECACHE = os.path.join(os.path.expanduser("~"), ".cache", "askstat-harness", "pakkecache")
 
 def _pyjstat_smoke():
     import pyjstat.pyjstat as pj

@@ -2,7 +2,7 @@
   "kommentar": "Kildeharnessens spørsmålssett (spec 2026-08-15-kildeharness §3). Gjenbruker docs/eval/ask-evalsett.md-kjernen + ukens målte eksempler + tre nye mønstre. fasit.sjekker er MEKANISKE der det går: tall_i_intervall sjekkes mot svarets tall, kilde_i_spor mot prosesslinjene, aldri_raa_host mot hele sporet.",
   "budsjett": {
     "ramme_totalt": 30,
-    "brukt": 13,
+    "brukt": 20,
     "maks_per_runde": 8,
     "maks_runder_per_okt": 2,
     "nullstilt": "2026-08-15 (Hans; forrige ramme brukte 25/30 over 4 runder + re-måling)"
@@ -154,6 +154,25 @@
       "fasit": {
         "kilde_i_spor": "dbnomics",
         "nytt_monster": "dbnomics serie-maske"
+      }
+    },
+    {
+      "id": "usa-trafikkdrepte",
+      "sporsmal": "Hvor mange dødsulykker i trafikken var det i USA i 2022, og hvilke delstater hadde flest?",
+      "rute": "data",
+      "kilder": [],
+      "tema": [
+        "FARS",
+        "NHTSA",
+        "traffic fatalities"
+      ],
+      "fasit": {
+        "tall_i_intervall": {
+          "verdi": "USA trafikkdrepte 2022 (NHTSA: 42 514 opprinnelig / 42 721 revidert)",
+          "min": 42000,
+          "maks": 43500
+        },
+        "merknad": "Forfremmet fra eval-runde 7 (2026-08-16, pakkerunden): forsøk 1 KRASJET hele strømmen da en probet NHTSA-PDF ble sendt som ugyldig vedlegg til Anthropic-API-et («The PDF specified was not valid») — regresjonstest for PDF-vedleggs-kodesaken. Forsøk 2 transkriberte hovedtallene fra websøk uten å printe dem i output (transkripsjons-kontraktgapet)."
       }
     },
     {

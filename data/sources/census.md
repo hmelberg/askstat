@@ -89,7 +89,8 @@ sender også `Access-Control-Allow-Origin: *`.
 ## Oppskrift: medianinntekt per delstat, ACS 1-år (verifisert 2026-08-16)
 
 ```
-# inntekt = ost.read("/api/hent?url=https%3A%2F%2Fapi.census.gov%2Fdata%2F2023%2Facs%2Facs1%3Fget%3DNAME%2CB19013_001E%26for%3Dstate%3A%2A")
+# inntekt = ost.read("/api/hent?url=https%3A%2F%2Fapi.census.gov%2Fdata%2F2023%2Facs%2Facs1%3Fget%3DNAME%2CB19013_001E%26for%3Dstate%3A%2A", kind="json")
+# df = pd.DataFrame(inntekt.values[1:], columns=inntekt.values[0]) if inntekt.shape[1] > 2 else inntekt
 ```
 
 Dette er den aggregerte ACS-tabellen (data profile), ikke PUMS —

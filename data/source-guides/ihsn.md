@@ -41,7 +41,7 @@ ordene — søk smalt), studie `catalog/{IDNO}?format=json`, variabelordbok
 ## Oppskrift: finn levekårsundersøkelser i et utviklingsland (verifisert 2026-08-16)
 
 ```
-# treff = ost.read("https://catalog.ihsn.org/index.php/api/catalog/search?sk=LSMS&ps=200&format=json")
+# treff = ost.read("https://catalog.ihsn.org/index.php/api/catalog/search?sk=LSMS&ps=200&format=json", kind="json")
 # ghana = [r for r in treff["result"]["rows"] if r["nation"] == "Ghana"]
 ```
 

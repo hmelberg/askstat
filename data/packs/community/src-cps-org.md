@@ -2,7 +2,7 @@
 id: src-cps-org
 name: CPS Outgoing Rotation Group
 unit: individual worker-month
-access: open — CEPR uniform extracts, updated monthly, 1979-present
+access: open — CEPR uniform extracts, covers 1979-2019 (Uniform Extracts v2.5, released 2020 — check ceprdata.org for a newer release before assuming current coverage; verified 2026-08-16)
 gotcha: earnings top-coded; occupation/industry coding changed 2002/03 and again 2020
 ---
 

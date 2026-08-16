@@ -63,3 +63,22 @@ transiente 5xx/NETT BEHOLDT. I tillegg ble 11 strukturfeil rettet
 tools/harvest_apd_catalog.py sin normalize_entry så neste høsting ikke
 gjeninnfører dem. Merk: github.com/JeffSackmann/tennis_atp/-wta 404-er
 reelt (curl-bekreftet) — repoene ser ut til å være fjernet oppstrøms.
+
+## Kilderunde 3 (samme dag): prosa-pakkene + oppskrifts-drift-testeren
+
+- **Prosa-pakkene innholdsverifisert (57 filer, 2 subagenter — tjeneste-
+  nivå, ikke lenkeliv):** 53 OK, 4 RÅTE fikset: src-bts-airline
+  (DB1B→DB1C BEKREFTET fullført: DB1C månedlig 40 %-utvalg), src-cps-org
+  (CEPR-ekstraktene stanser ved 2019/v2.5 — «updated monthly» var råtnet),
+  src-ecb-safe (kvartalsvis fra 2024 Q1), src-us-decennial-post-dp
+  (PPMF er ÅPEN nedlasting — pakken UNDERDREV tilgangen; motsatt
+  råteretning av vanlig). Rå funn i funn-prosa-a/b.json.
+- **NY: oppskrifts-drift-testeren** (`utforsk.py --oppskrifter`, gratis):
+  re-kjører ALLE guide-oppskrifter maskinelt (alias-forhåndsbinding,
+  /api/hent-oversettelse, nøkkel-shim for appens injeksjonskilder,
+  mal-/app-verktøy-hopp). Første fulle kjøring: **21 OK, 0 FEIL,
+  5 HOPPET** — og på veien fanget den tre EKTE oppskriftsbugs av
+  hf-fellens klasse (census/ihsn/wbmicro manglet kind="json" →
+  CSV-gjetting; fikset). Kjøres som ferskhetsport før eval-runder.
+- owid-katalog-stikkprøven (40): 0 døde; IHME/GBD-slugs 403 på CSV
+  (lisens) → dokumentert som felle i owid-guiden.

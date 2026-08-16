@@ -54,7 +54,7 @@ CORS-åpent (`Access-Control-Allow-Origin: *` verifisert) — direkte
 ## Oppskrift: finn levekårsundersøkelser i et utviklingsland (verifisert 2026-08-16)
 
 ```
-# treff = ost.read("https://microdata.worldbank.org/index.php/api/catalog/search?sk=LSMS&ps=250&format=json")
+# treff = ost.read("https://microdata.worldbank.org/index.php/api/catalog/search?sk=LSMS&ps=250&format=json", kind="json")
 # tanzania = [r for r in treff["result"]["rows"] if r["nation"] == "Tanzania"]
 ```
 

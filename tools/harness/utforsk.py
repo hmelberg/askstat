@@ -1258,6 +1258,8 @@ def utforsk_en_kilde(kilde_id, register, sporsmal, dato):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--oppskrifter":
+        sys.exit(oppskrifter_modus())
     if len(sys.argv) > 1 and sys.argv[1] == "--lenkeprobe":
         lenkeprobe(datetime.date.today().isoformat())
         return
@@ -1293,6 +1295,166 @@ def main():
             print("  FEIL: %s stoppet med en uventet feil (%s) — %s" % (kilde_id, type(e).__name__, e))
     if noen_feilet:
         sys.exit(1)
+
+
+
+
+# ── Oppskrifts-drift-testeren (--oppskrifter, Hans' kilderunde 3 2026-08-16) ─
+# Oppskriftene i data/sources/*.md er live-verifiserte lese-linjer — og de
+# RÅTNER (målt: SSB sluttet å svare på tables-løs form og brakk alle
+# ssb.read). Denne modusen re-kjører hver oppskrift maskinelt og rapporterer
+# OK/FEIL/HOPPET, som ferskhetsport før eval-runder. Gratis (ingen
+# Claude-kall). Kjøring: python3 tools/harness/utforsk.py --oppskrifter
+import base64 as _b64
+import urllib.parse as _up
+
+
+def _last_env_stille(sti):
+    """KEY=VAL fra .env inn i os.environ — verdier printes ALDRI."""
+    try:
+        for linje in open(sti):
+            linje = linje.strip()
+            if linje and not linje.startswith("#") and "=" in linje:
+                k, _, v = linje.partition("=")
+                os.environ.setdefault(k.strip(), v.strip())
+    except OSError:
+        pass
+
+
+def oppskrifts_blokker():
+    """[(kilde, overskrift, kodeblokk)] fra alle guidene."""
+    ut = []
+    mappe = os.path.join(REPO_ROT, "data", "sources")
+    for fil in sorted(os.listdir(mappe)):
+        if not fil.endswith(".md"):
+            continue
+        tekst = open(os.path.join(mappe, fil)).read()
+        for m in re.finditer(
+                r"^## Oppskrift[^\n]*?:?\s*([^\n]*)\n+```[a-z]*\n(.*?)```",
+                tekst, re.M | re.S):
+            ut.append((fil[:-3], m.group(1).strip() or fil[:-3], m.group(2)))
+    return ut
+
+
+def _alias_oversett(kode, register):
+    """ost.connect("<registry-id>") → connect(base_url, kind=…, sprak=…)."""
+    def bytt(m):
+        rid = m.group(1)
+        r = register.get(rid)
+        if not r:
+            return m.group(0)
+        deler = ["%r" % r.get("base_url", "")]
+        if r.get("kind"):
+            deler.append("kind=%r" % r["kind"])
+        if r.get("sprak"):
+            deler.append("sprak=%r" % r["sprak"])
+        return "ost.connect(" + ", ".join(deler) + ")"
+    return re.sub(r"ost\.connect\(\"([a-z0-9_-]+)\"\)", bytt, kode)
+
+
+def _hent_direktiv_oversett(kode):
+    """`load /api/hent?url=<enkodet URL>&body=<enkodet JSON> as df` og
+    ost.read("/api/hent?url=…") → direkte HTTP i CPython. Guidene skriver
+    enkodings-plassholderne som `<enkodet …>` — pakk ut innholdet."""
+    m = re.search(r"/api/hent\?url=<enkodet ([^>]+)>(?:&body=<enkodet (.+?)>)?", kode, re.S)
+    if not m:
+        return None
+    url, body = m.group(1).strip(), m.group(2)
+    navn = "df"
+    nm = re.search(r"\bas\s+(\w+)", kode)
+    if nm:
+        navn = nm.group(1)
+    if body:
+        return (navn, "import urllib.request as _u, json as _j, io as _io\n"
+                "_req = _u.Request(%r, data=%r.encode(), headers={'Content-Type': 'application/json'})\n"
+                "_svar = _u.urlopen(_req, timeout=20).read().decode('utf-8')\n"
+                "%s = pd.read_csv(_io.StringIO(_svar), sep=None, engine='python')\n"
+                % (url, body.strip(), navn))
+    return (navn, "%s = ost.read(%r)\n" % (navn, url))
+
+
+def kjor_oppskrift(kilde, kode, register):
+    """(status, notat): OK m/form, HOPPET m/grunn, FEIL m/melding."""
+    linjer = [l[2:] if l.startswith("# ") else l for l in kode.strip().split("\n")]
+    ren = "\n".join(l for l in linjer if l.strip())
+    if "search_catalog(" in ren or "table_metadata(" in ren:
+        return "HOPPET", "app-verktøy (search_catalog/table_metadata)"
+    if re.search(r"<[a-zæøå][^>]*>", ren):
+        return "HOPPET", "mal-plassholder i blokken (instansieres av modellen)"
+    for envm in re.finditer(r"\$\{?([A-Z][A-Z0-9_]+)\}?", ren):
+        navn = envm.group(1)
+        if navn.endswith("_KEY") and not os.environ.get(navn):
+            return "HOPPET", "nøkkel %s ikke i miljøet" % navn
+    direkte = _hent_direktiv_oversett(ren)
+    if direkte:
+        navn, ren = direkte
+    else:
+        # prosent-enkodet /api/hent?url=… (census/ipums-formen): pakk ut og
+        # les direkte — appens proxy finnes ikke i CPython
+        ren = re.sub(r"[\"']/api/hent\?url=([A-Za-z0-9%._~-]+)[\"']",
+                     lambda m: repr(_up.unquote(m.group(1))), ren)
+        # nøkkel-shim: appen injiserer disse via proxy-porten — utenfor
+        # appen må testeren legge dem på selv (verdier fra miljøet, aldri
+        # printet; mangler nøkkelen håndteres kallet som HOPPET av
+        # auth-klassifiseringen under)
+        for vert, param, env in (("api.census.gov", "key", "CENSUS_API_KEY"),
+                                 ("api.ess.sikt.no", "userId", "ESS_API_KEY")):
+            if vert in ren and os.environ.get(env):
+                ren = re.sub(r"(https://%s[^\"']*)" % re.escape(vert),
+                             lambda m: m.group(1) + ("&" if "?" in m.group(1) else "?")
+                             + param + "=" + os.environ[env], ren)
+        ren = _alias_oversett(ren, register)
+        ren = re.sub(r"\$\{?([A-Z][A-Z0-9_]+)\}?",
+                     lambda m: os.environ.get(m.group(1), m.group(0)), ren)
+    ns = {}
+    # appens forhåndsbundne aliaser (ssb.read(...) uten connect-linje —
+    # guidene skriver appens form): bind alle registerkilder med adapterkind
+    import openstat as _ost
+    for rid, r in register.items():
+        if r.get("kind") and r.get("base_url"):
+            try:
+                ns[rid.replace("-", "_")] = _ost.connect(
+                    r["base_url"], kind=r["kind"], sprak=r.get("sprak"))
+            except Exception:
+                pass
+    try:
+        exec("import openstat as ost\nimport pandas as pd\nimport io, json\n" + ren, ns)
+    except Exception as e:
+        melding = str(e)
+        # nøkkelinjeksjon skjer i APPEN for disse kildene (ess-adapterens
+        # userId, ipums-Authorization) — utenfor appen er 401/«missing»
+        # forventet, ikke råte
+        if re.search(r"userId missing|Authorization field missing|missing_key", melding):
+            return "HOPPET", "nøkkelinjeksjon skjer i appen (forventet utenfor)"
+        return "FEIL", "%s: %s" % (type(e).__name__, melding[:180])
+    # finn en dataframe-aktig verdi å rapportere formen på
+    for v in reversed(list(ns.values())):
+        if hasattr(v, "shape"):
+            return "OK", "form %s" % (v.shape,)
+        if isinstance(v, (list, dict)) and v:
+            return "OK", "%d elementer" % len(v)
+    return "OK", "kjørte uten feil (ingen ramme å måle)"
+
+
+def oppskrifter_modus():
+    _last_env_stille(os.path.join(REPO_ROT, ".env"))
+    register = {}
+    try:
+        for r in json.load(open(os.path.join(REPO_ROT, "data", "data-sources.json"))):
+            register[r.get("id")] = r
+    except Exception:
+        pass
+    resultater = []
+    for kilde, tittel, kode in oppskrifts_blokker():
+        status, notat = kjor_oppskrift(kilde, kode, register)
+        resultater.append((status, kilde, tittel, notat))
+        print("%-7s %-12s %s — %s" % (status, kilde, tittel[:52], notat))
+        time.sleep(0.3)
+    feil = [r for r in resultater if r[0] == "FEIL"]
+    print("\nSum: %d OK, %d FEIL, %d HOPPET av %d oppskrifter" % (
+        sum(1 for r in resultater if r[0] == "OK"), len(feil),
+        sum(1 for r in resultater if r[0] == "HOPPET"), len(resultater)))
+    return 1 if feil else 0
 
 
 if __name__ == "__main__":

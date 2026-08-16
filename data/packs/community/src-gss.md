@@ -1,3 +1,11 @@
+---
+id: src-gss
+name: GSS — General Social Survey
+kind: US attitudes/demographics survey, 1972-2024 (~72k cumulative respondents)
+access: open direct downloads, no registration
+url_pattern: https://gss.norc.org/content/dam/gss/get-the-data/documents/stata/{YEAR}_stata.zip
+---
+
 # GSS — General Social Survey
 
 General Social Survey: US attitudes, demographics and social behavior,

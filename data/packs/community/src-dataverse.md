@@ -1,3 +1,11 @@
+---
+id: src-dataverse
+name: Dataverse
+kind: research-data repository (~300k datasets, Harvard + ~100 installations)
+access: open search; many files access-restricted
+gotcha: needs a CORS proxy; strong on social-science replication data
+---
+
 # Dataverse
 
 Harvard Dataverse (plus ~100 other installations) is the biggest and

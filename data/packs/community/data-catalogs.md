@@ -22,7 +22,7 @@ the source portal and resolve the actual file there.
 ## NADA — the microdata catalog standard (use the built-in sources first)
 
 ```yaml
-id: nada_family
+id: data-catalogs
 name: NADA (IHSN cataloguing software) — the shared API behind dozens of catalogs
 maintainer: International Household Survey Network + World Bank
 api_shape: "GET /index.php/api/catalog?sk=<keywords>&ps=<page size>&from=&to=&country_iso3="

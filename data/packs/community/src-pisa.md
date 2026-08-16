@@ -1,3 +1,11 @@
+---
+id: src-pisa
+name: PISA — OECD student performance study
+kind: student performance microdata (15-year-olds)
+access: open direct URLs, but VERY heavy (2022 STU_QQQ 682 MB)
+gotcha: far beyond the app's size ceiling; 2018+ cognitive files use DEFLATE64 that standard unzip fails on — be honest about size before promising a download
+---
+
 # PISA — OECD student performance study
 
 Student performance (15-year-olds) — open but heavy: be honest about the

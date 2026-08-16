@@ -1,3 +1,11 @@
+---
+id: src-figshare
+name: Figshare
+kind: article-supplement repository (figures, PDFs, .sav)
+access: open, but search API is POST-only without CORS; signed download URLs expire in ~10 s
+gotcha: prefer Zenodo/Dataverse — reach for Figshare only when a specific DOI points there
+---
+
 # Figshare
 
 Figshare hosts article supplements (figures, PDFs, .sav files) —

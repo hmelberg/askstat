@@ -1,3 +1,12 @@
+---
+id: src-piaac
+name: PIAAC — OECD adult skills survey
+kind: adult skills microdata (literacy/numeracy, ages 16-65)
+access: open, registration-free
+url_pattern: https://webfs.oecd.org/piaac/cy1-puf-data/CSV/prg{ccc}p1.csv
+gotcha: no CORS on webfs.oecd.org — fetch via /api/hent
+---
+
 # PIAAC — OECD adult skills survey
 
 Adult skills (literacy/numeracy/problem-solving, ages 16–65) — the sweet

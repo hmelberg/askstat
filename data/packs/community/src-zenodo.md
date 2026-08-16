@@ -1,3 +1,11 @@
+---
+id: src-zenodo
+name: Zenodo
+kind: research-data repository (CERN-run, DOI-first, ~670k dataset records)
+access: open, CORS-open, no auth — direct ost.read works
+api_base: https://zenodo.org/api/records
+---
+
 # Zenodo
 
 Zenodo (CERN-run, DOI-first) is the cheapest of the research-data

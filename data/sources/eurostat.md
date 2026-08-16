@@ -48,6 +48,14 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
   i stramme miljøer dør fanen): velg ALLTID geo + de sentrale
   dimensjonene eksplisitt (HICP: `coicop="CP00"` for totalindeksen,
   `unit="RCH_A"` for årsrate).
+- **Oppskrift inflasjon (verifisert 2026-08-16, 48 rader — NO des 2025
+  = 3,0):** `eurostat.read("prc_hicp_manr", filters={"coicop": "CP00",
+  "geo": ["NO", "EA20"]}, years="2024:2026")` — filtrert er uttrekket
+  bittelite; ufiltrert OOM-er det (fella over). EA20 = eurosonen.
+- **Oppskrift norden-ledighet (verifisert 2026-08-16, 95 rader):**
+  `eurostat.read("une_rt_m", filters={"geo": ["NO","SE","DK","FI","IS"],
+  "s_adj": "SA", "unit": "PC_ACT", "age": "TOTAL", "sex": "T"},
+  years="2025:2026")` — husk glissen-siste-måned-fella under.
 - **unit-fella (målt eval-rundene 2–3, une_rt_m):** tabeller med en
   unit-dimensjon leverer FØRSTE unit-kategori STILLE når `unit=` utelates
   — for ledighets-/rate-tabeller får du da absoluttall (THS_PER) som ser

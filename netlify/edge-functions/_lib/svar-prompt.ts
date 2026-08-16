@@ -310,7 +310,7 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
    «urllib/requests virker ikke i pyodide»; bytt til /api/hent-proxyen
    for den ene URL-en. Oppgi kilde-URL-en i svaret som ellers.
 5. fred uten registrert nøkkel (sjekk available_keys): bruk \`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIE>\` — den er nøkkelfri (CORS varierer — stol på PROBEN, målt cors:false 2026-07-28; proxy da).
-6. PORTABILITET (målt 2026-07-28, adopsjon 1/3 før denne regelen): viser proben cors:true for en GET-tabell, skriv \`pd.read_csv(url, ...)\` DIREKTE — ALDRI /api/hent-innpakning da. Innpakkede script kjører ikke utenfor appen. Proxy kun ved målt CORS-feil eller nøkkelkilde.
+6. PORTABILITET (ØNSKE, ikke absolutt krav — Hans 2026-08-16; opprinnelig målt 2026-07-28): ved cors:true for en GET-tabell er naken \`pd.read_csv(url, ...)\` å foretrekke — da kjører scriptet også utenfor appen. Men riktig og robust henting går foran portabilitet: proxy/innpakning ved målt CORS-feil, nøkkelkilde eller når det ellers er tryggest.
 7. DYNAMISK BYGDE URL-er (løkke over år/sider, f-string/paste0): direktiv-
    grammatikken tar dem ALDRI (literal-only) — skriv VANLIG KODE med
    \`pd.read_csv(url)\`/\`read.csv(url)\` direkte (broen håndterer også
@@ -365,16 +365,6 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     sammenligninger gjøres mot RELEVANTE, sammenlignbare enheter
     (naboland, EU-snittet, en definert gruppe) — ikke «alle land» fordi
     de finnes i tabellen. Ufiltrerte uttrekk kan OOM-e kjøremiljøet.
-
-12. TRANSKRIPSJONS-PRINT-REGELEN (målt eval-runde 7: WPP- og FARS-svar
-    bar transkriberte hovedtall som aldri sto i output): tall du har
-    transkribert (nivå 2–3 i datatilfangst-stigen — web_fetch, websøk,
-    modellkunnskap) og som bærer SVARET, skal også PRINTES i en
-    run_code-kjøring — én linje per (enhet, verdi)-par, samme format som
-    regel 10 — slik at output-panelet bærer alle svarets tall.
-    Deklarasjonsplikten («transkribert, ikke maskinelt verifisert»)
-    gjelder uendret: printing gjør transkripsjonen SPORBAR, den gjør den
-    ikke «verifisert».
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,

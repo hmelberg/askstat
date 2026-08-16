@@ -33,6 +33,9 @@ __all__ = ["connect", "read", "create", "datasets",
 _MEMO = {}
 
 
+MAKS_UTTREKK_BYTES = 25 * 1024 * 1024  # størrelsesvakta — se _for_stor i _fetch_bytes
+
+
 def _fetch_bytes(url, headers=None, fra_adapter=False):
     """Rå bytes fra URL, memoisert per (URL, headere) i økten. I appen ruter
     emscripten-grenen via ReadBridge («samme bro, to fasader»: delt bytecache
@@ -62,6 +65,19 @@ def _fetch_bytes(url, headers=None, fra_adapter=False):
     memo_key = (url, tuple(sorted((headers or {}).items())), bool(fra_adapter))
     if memo_key in _MEMO:
         return _MEMO[memo_key]
+
+    def _for_stor(antall_bytes):
+        # Størrelsesvakta (strategirunden 2026-08-16): inflasjons-klassen —
+        # ufiltrert prc_hicp_manr OOM-et pyodide, og alle mottiltak var
+        # TEKST (guide/regel 11 = probabilistisk). Dette er miljøkuren:
+        # deterministisk nekt m/reparasjonshint. Proxyen har egen 50 MB-
+        # avkortingsvakt; denne dekker direkte-hentingene.
+        raise ValueError(
+            "uttrekket fra %s er ~%.0f MB — så store uttrekk OOM-er "
+            "kjøremiljøet. Filtrer på de sentrale dimensjonene FØR henting "
+            "(geo/tema/unit — se table_metadata; HICP: coicop=\"CP00\" for "
+            "totalindeksen) og hent kun det analysen trenger (EVAL-regel 11)."
+            % (url, antall_bytes / (1024 * 1024)))
     if sys.platform == "emscripten":
         rb = None
         try:
@@ -85,6 +101,8 @@ def _fetch_bytes(url, headers=None, fra_adapter=False):
             req.send(None)
             if req.status >= 400:
                 raise RuntimeError("HTTP " + str(req.status) + " for " + url)
+            if len(req.responseText) > MAKS_UTTREKK_BYTES:
+                _for_stor(len(req.responseText))
             data = bytes(ord(c) & 0xFF for c in req.responseText)
     else:
         import urllib.request
@@ -93,7 +111,22 @@ def _fetch_bytes(url, headers=None, fra_adapter=False):
         hdrs.update(headers or {})
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs)) as r:
-                data = r.read()
+                try:
+                    annonsert = int(r.headers.get("Content-Length") or 0)
+                except (TypeError, ValueError):
+                    annonsert = 0
+                if annonsert > MAKS_UTTREKK_BYTES:
+                    _for_stor(annonsert)
+                biter, lest = [], 0
+                while True:
+                    bit = r.read(1024 * 1024)
+                    if not bit:
+                        break
+                    lest += len(bit)
+                    if lest > MAKS_UTTREKK_BYTES:
+                        _for_stor(lest)
+                    biter.append(bit)
+                data = b"".join(biter)
         except HTTPError as e:
             # Feilkroppen er grunnsannheten (målt inflasjons-runden
             # 2026-08-15): «HTTP 400» uten kildens «Non-existent value

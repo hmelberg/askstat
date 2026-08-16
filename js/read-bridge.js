@@ -121,7 +121,12 @@
       return { status: xhr.status, bytes: null,
                body: String(xhr.responseText || '').slice(0, 300) };
     }
-    var t = xhr.responseText, u8 = new Uint8Array(t.length);
+    var t = xhr.responseText;
+    if (t.length > maksUttrekk()) {
+      // hopp over byte-byggingen — forPyodideSync oversetter markøren
+      return { status: xhr.status, bytes: null, oversize: t.length };
+    }
+    var u8 = new Uint8Array(t.length);
     for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;
     return { status: xhr.status, bytes: u8,
              truncated: xhr.getResponseHeader('x-hent-truncated') === '1' };
@@ -131,6 +136,23 @@
   // den mest risikable koden i modulen og skal ikke være usett av CI.
   var xhrImpl = null;
   function xhr(url, headers) { return (xhrImpl || syncXhr)(url, headers); }
+
+  // Størrelsesvakta (strategirunden 2026-08-16): inflasjons-klassen —
+  // ufiltrerte uttrekk (prc_hicp_manr: millioner av celler) OOM-et pyodide,
+  // og alle mottiltak var TEKST (guide/EVAL-regel 11 = probabilistisk).
+  // Deterministisk nekt m/reparasjonshint her; proxyens 50MB-avkorting
+  // (x-hent-truncated) dekker kun proxy-legget. Speiler openstat.py sin
+  // MAKS_UTTREKK_BYTES — endres den ene, endres den andre.
+  var MAKS_UTTREKK_BYTES = 25 * 1024 * 1024;
+  var maksOverstyring = null;
+  function maksUttrekk() { return maksOverstyring || MAKS_UTTREKK_BYTES; }
+  function forStorMelding(url, antall) {
+    return 'uttrekket fra ' + url + ' er ~' + Math.round(antall / (1024 * 1024)) +
+      ' MB — så store uttrekk OOM-er kjøremiljøet. Filtrer på de sentrale ' +
+      'dimensjonene FØR henting (geo/tema/unit — se table_metadata; HICP: ' +
+      'coicop="CP00" for totalindeksen) og hent kun det analysen trenger ' +
+      '(EVAL-regel 11).';
+  }
 
   function forPyodideSync(url, headersJson, fraAdapter) {
     // Styrt-avvisning (spec 2026-08-14-styrte-kilder, hook b): pd.read_csv(url)
@@ -216,6 +238,9 @@
     // (direkte OG proxy-retry) — en avkortet CSV er feil data og skal
     // feile høylytt, ALDRI caches (samme aldri-stille-kontrakt som
     // fetchRawUrl/fetchLoadTarget i data-loader.js).
+    if (r.oversize || (r.bytes !== null && r.bytes.length > maksUttrekk())) {
+      return { bytes: null, error: forStorMelding(url, r.oversize || r.bytes.length) };
+    }
     if (r.bytes !== null && r.truncated) {
       return { bytes: null, error: 'avkortet ved proxyens 50MB-grense (x-hent-truncated) for ' + url };
     }
@@ -545,6 +570,7 @@
     _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },
+    _setMaksUttrekkBytes: function (n) { maksOverstyring = n; },
   };
   // Publisert side: les bakte tags med én gang modulen laster (DOM-en med
   // tags ligger FØR denne script-taggen i dokumentet, så den finnes nå).

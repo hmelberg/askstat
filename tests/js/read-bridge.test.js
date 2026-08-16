@@ -694,3 +694,36 @@ test('forPyodideSync: HTTP-feil uten kropp gir samme melding som før', () => {
   RB._setXhr(null);
   assert.equal(r.error, 'HTTP 500 for https://x.example/f.csv');
 });
+
+// ── Størrelsesvakta (strategirunden 2026-08-16): inflasjons-klassen —
+// ufiltrerte uttrekk OOM-et pyodide og alle mottiltak var tekst. Broen
+// nekter nå deterministisk kropper over taket, med reparasjonshint.
+// Proxyens 50MB-avkorting (x-hent-truncated) dekket kun proxy-legget;
+// denne dekker direkte-hentingene. Test-hook for taket så vi slipper å
+// allokere 25 MB i CI.
+test('størrelsesvakta: for stor direkte-kropp gir instruktiv feil, aldri cache', () => {
+  RB._setMaksUttrekkBytes(100);
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array(250) }));
+  const r = RB.forPyodideSync('https://x/enorm.csv', null, true);
+  assert.equal(r.bytes, null);
+  assert.match(r.error, /OOM/i);
+  assert.match(r.error, /[Ff]iltrer/);
+  assert.match(r.error, /enorm\.csv/);
+  // ikke cachet: et senere (filtrert) kall mot samme URL går til nettet
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([65]) }));
+  const r2 = RB.forPyodideSync('https://x/enorm.csv', null, true);
+  assert.equal(r2.error, null);
+  assert.equal(r2.bytes.length, 1);
+  RB._setMaksUttrekkBytes(null);
+  RB._setXhr(null);
+});
+
+test('størrelsesvakta: kropp under taket passerer urørt', () => {
+  RB._setMaksUttrekkBytes(100);
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array(50) }));
+  const r = RB.forPyodideSync('https://x/passe.csv', null, true);
+  assert.equal(r.error, null);
+  assert.equal(r.bytes.length, 50);
+  RB._setMaksUttrekkBytes(null);
+  RB._setXhr(null);
+});

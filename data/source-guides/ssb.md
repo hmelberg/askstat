@@ -17,6 +17,18 @@ valgt tabell: kopier og juster kun parameterverdiene. Lese-linjen er
 ferdig verifisert — `ssb.read` trenger aldri probe (probe avviser
 uansett alle rå SSB-URL-er).
 
+## Oppskrift: inflasjon (KPI tolvmånedersvekst, tabell 14706)
+
+```
+# ssb = ost.connect("ssb")
+# kpi = ssb.read("14706", indicators=["Tolvmanedersendring"], filters={"KPIavledetSerie": "KPI", "Tid": "top(24)"})
+```
+
+Verifisert 2026-08-16 (24 rader; 2026M07 = 3,0 %). Dette er DEN riktige
+inflasjonslinja: 14706 (tolvmånedersendring), aldri 14710 (indeksnivå).
+`KPIavledetSerie="KPI"` er totalindeksen (KPI-JAE osv. er avledede);
+`Tid: "top(24)"` gir de siste 24 månedene uten å gjette årstall.
+
 ## Mandatory-regelen
 
 En FILTRERT spørring MÅ oppgi verdier for ALLE dimensjoner som har

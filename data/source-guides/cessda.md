@@ -54,7 +54,9 @@ til og med `studyXmlSourceUrl` (rå DDI-XML).
 ## Oppskrift: finn helseundersøkelser fra Norge (verifisert 2026-08-16)
 
 ```
-# treff = ost.read("https://datacatalogue.cessda.eu/api/DataSets/v2/search?q=health&limit=20&metadataLanguage=en&studyAreaCountries=Norway")
+# import json, urllib.request
+# svar = json.loads(urllib.request.urlopen("https://datacatalogue.cessda.eu/api/DataSets/v2/search?q=health&limit=20&metadataLanguage=en&studyAreaCountries=Norway").read())
+# treff = pd.json_normalize(svar["Results"]); antall = svar["ResultsCount"]["available"]
 ```
 
 Verifisert 2026-08-16 (fersk kjøring): 200 OK, `ResultsCount.available =

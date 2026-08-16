@@ -934,13 +934,19 @@
       // Fail-open: vernet skal aldri knekke svar-visningen.
       try {
         if (window.Rangeringsvern) {
-          var rvKlone = answerBox.cloneNode(true);
-          Array.prototype.forEach.call(rvKlone.querySelectorAll('.ask-out-slot'),
-            function (n) { n.remove(); });
+          // MÅLT BLINDHET (runde 11, 2026-08-17): innerText på en DETACHED
+          // klon oppfører seg som textContent — tabellrader mister \t/\n-
+          // strukturen og parFraSvar fant ALDRI par i live drift (WARN 0
+          // i alle rundene 7-10 tross stokkinger). Les derfor det LEVENDE
+          // elementets innerText (har layout-struktur) og trekk fra
+          // slot-tekstene som strenger.
+          var rvProse = answerBox.innerText || '';
+          Array.prototype.forEach.call(document.querySelectorAll('#askAnswer .ask-out-slot'),
+            function (sl) { var t = sl.innerText; if (t) rvProse = rvProse.split(t).join('\n'); });
           var rvOut = ((document.getElementById('outputArea') || {}).innerText || '') + '\n' +
             Array.prototype.map.call(document.querySelectorAll('#askAnswer .ask-out-slot'),
               function (sl) { return sl.innerText; }).join('\n');
-          var rv = window.Rangeringsvern.sjekk(rvKlone.innerText, rvOut);
+          var rv = window.Rangeringsvern.sjekk(rvProse, rvOut);
           if (rv.verdikt === 'avvik' || rv.verdikt === 'uverifisert') {
             var rvd = document.createElement('div');
             rvd.textContent = rv.verdikt === 'avvik'

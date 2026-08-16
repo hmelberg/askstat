@@ -954,7 +954,15 @@ class Source:
                     and not any(str(q).lower().startswith("lang=") for q in qs)):
                 # Uten denne setter _build_url lang=no — målt 400 hos SCB.
                 qs.append("lang=" + str(self.sprak))
-            target = self.url.rstrip("/") + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
+            base_px = self.url.rstrip("/")
+            # /tables-paritetsgapet (målt live eval-runde 8, 2026-08-16):
+            # registerets base_url er «…/v2/» uten /tables, og SSB svarer
+            # ikke lenger på den tables-løse formen — PxWebApi 2.0-stien er
+            # /tables/{id}/data (SSB og SCB). JS-siden bruker malen med
+            # /tables; her normaliseres python-veien til samme form.
+            if kind == "pxweb" and not base_px.endswith("/tables"):
+                base_px += "/tables"
+            target = base_px + "/" + str(table) + (("?" + "&".join(qs)) if qs else "")
             du = eurostat_data_url(target) if kind == "eurostat" else data_url(target)
             # Reparasjonshint på 400/404 (målt inflasjons-runden 2026-08-15:
             # modellen gjettet mandatory/bindestrek/Tid-teorier i 5+ runder

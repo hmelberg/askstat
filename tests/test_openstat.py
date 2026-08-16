@@ -94,6 +94,25 @@ def test_pxweb_krever_tabell(monkeypatch):
         ost.connect("https://x/tables", kind="pxweb").read()
 
 
+def test_pxweb_base_uten_tables_far_tables_segmentet(monkeypatch):
+    # /tables-paritetsgapet, MÅLT LIVE eval-runde 8 (2026-08-16): registerets
+    # base_url er «…/pxwebapi/v2/» uten /tables, og SSB sluttet å svare på
+    # den tables-løse formen — alle ssb.read-kall 404-et i produksjonslik
+    # kjøring mens /tables/<id>/data svarte. PxWebApi 2.0-stien ER
+    # /tables/{id}/data (både SSB og SCB); python-veien skal normalisere.
+    calls = []
+
+    def fake(url, headers=None, fra_adapter=False):
+        calls.append(url)
+        return json.dumps(FIX).encode()
+
+    monkeypatch.setattr(ost, "_fetch_bytes", fake)
+    ssb = ost.connect("https://data.ssb.no/api/pxwebapi/v2/", kind="pxweb")
+    ssb.read("07459", valueCodes={"Tid": "*"})
+    assert calls == ["https://data.ssb.no/api/pxwebapi/v2/tables/07459/data"
+                     "?lang=no&valueCodes[Tid]=*&outputFormat=json-stat2"]
+
+
 def test_read_csv_med_columns_subset(monkeypatch):
     monkeypatch.setattr(ost, "_fetch_bytes", lambda url, headers=None, fra_adapter=False: b"a,b,c\n1,2,3\n4,5,6\n")
     df = ost.read("https://x/f.csv", columns=["a", "c"])

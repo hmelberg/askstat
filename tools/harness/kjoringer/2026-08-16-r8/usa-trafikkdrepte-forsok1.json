@@ -1,0 +1,26 @@
+{
+ "trace": [
+  "⏳ Interpreting the question …",
+  "⏳ Route: data. Interpretation: Total number of traffic fatalities in the United States in 2022, broken down by state, identifying the states with the highest counts (absolute numbers and/or rates per capita or per vehicle miles traveled).",
+  "⏳ Pack applied: Norway (auto)",
+  "⏳ Pack applied: Crime, transport, energy and political behaviour",
+  "⏳ Pack applied: UN World Population Prospects",
+  "⏳ Pack applied: THL — Finnish Institute for Health and Welfare",
+  "⏳ 🤔 Arbeider med svaret (tur 2) …",
+  "⏳ 🔎 Websøk: FARS 2022 traffic fatalities by state CSV download NHTSA",
+  "⏳ Søker kataloger (stats): «FARS traffic fatalities 2022 state USA» …",
+  "⏳ 🤔 Arbeider med svaret (tur 3) …",
+  "⏳ 🌐 Leser https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813627",
+  "📝 Jeg hentet NHTSA-rapporten for 2022 og fant at data finnes i en PDF. La meg nå hente FARS-dataene direkte fra NHTSA sin åpne CSV-fil.",
+  "⏳ Sjekker https://static.nhtsa.gov/nhtsa/downloads/FARS/2022/National/FARS2022NationalCSV. …",
+  "⏳ 🤔 Arbeider med svaret (tur 4) …"
+ ],
+ "badgeText": "Error",
+ "badgeWarn": true,
+ "answer": "Error\n\n✗ Error: Anthropic API error 400\n\nThis is usually a transient stream error — try asking again.",
+ "hasFigure": false,
+ "output": "\n",
+ "answerProse": "Error✗ Error: Anthropic API error 400\nThis is usually a transient stream error — try asking again.\n",
+ "sporsmal": "Hvor mange dødsulykker i trafikken var det i USA i 2022, og hvilke delstater hadde flest?",
+ "utfall": "CRASH — regresjonen reproduserer issue #4: web_fetch av NHTSA-PDF (ViewPublication/813627) → Anthropic 400, Error-badge, 0 turer"
+}

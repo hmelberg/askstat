@@ -595,3 +595,68 @@ Deno.test("runAgenticStream(stream): tool-tur akkumulerer input_json_delta, kjø
   assertEquals(deltas, "Jeg sjekker kilden.Ferdig");
   assertEquals(events.at(-1)?.type, "done");
 });
+
+// ── sanitizePdfBlocks (issue #4, målt eval-rundene 7-8): web_fetch av en
+// PDF legger et dokument i historikken som API-et avviser på rundturen
+// («The PDF specified was not valid») — HELE svaret døde, 2/2
+// deterministisk i runde 8. Saniteringen konverterer det ugyldige
+// dokumentet til web_fetch-verktøyets dokumenterte feilform og lar
+// løkka prøve én gang til uten vedlegget.
+import { sanitizePdfBlocks } from "./anthropic.ts";
+
+function pdfResultBlokk(tuId: string) {
+  return {
+    type: "web_fetch_tool_result",
+    tool_use_id: tuId,
+    content: {
+      type: "web_fetch_result",
+      url: "https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813627",
+      content: {
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: "ikkeEnPdf" },
+      },
+    },
+  };
+}
+
+Deno.test("sanitizePdfBlocks: indeks-styrt konvertering til feilform", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [
+      { type: "text", text: "leser rapporten" },
+      { type: "server_tool_use", id: "st1", name: "web_fetch", input: { url: "x" } },
+      pdfResultBlokk("st1"),
+    ] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages,
+    "Anthropic stream error: messages.1.content.2.pdf.source.base64.data: The PDF specified was not valid.");
+  assertEquals(n, 1);
+  const blokk = (messages[1].content as Record<string, unknown>[])[2];
+  assertEquals((blokk.content as Record<string, unknown>).type, "web_fetch_tool_error");
+  // resten av innholdet urørt
+  assertEquals((messages[1].content as Record<string, unknown>[])[0].type, "text");
+});
+
+Deno.test("sanitizePdfBlocks: fallback-sveip uten indekser tar alle pdf-resultater", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [pdfResultBlokk("a")] },
+    { role: "assistant", content: [pdfResultBlokk("b"), { type: "text", text: "x" }] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages, "Anthropic API error 400: The PDF specified was not valid");
+  assertEquals(n, 2);
+  for (const mi of [1, 2]) {
+    const blokk = (messages[mi].content as Record<string, unknown>[])[0];
+    assertEquals((blokk.content as Record<string, unknown>).type, "web_fetch_tool_error");
+  }
+});
+
+Deno.test("sanitizePdfBlocks: ingen pdf-blokker → 0, historikk urørt", () => {
+  const messages = [
+    { role: "user", content: "spørsmål" },
+    { role: "assistant", content: [{ type: "text", text: "svar" }] },
+  ] as Record<string, unknown>[];
+  const n = sanitizePdfBlocks(messages, "The PDF specified was not valid");
+  assertEquals(n, 0);
+  assertEquals((messages[1].content as Record<string, unknown>[])[0].text, "svar");
+});

@@ -429,6 +429,59 @@ interface TurnResult {
 // rekonstrueres for state.messages etter SDK-mønsteret: blokken fra
 // content_block_start + kjente deltatyper akkumulert (text_delta,
 // input_json_delta — parses ved content_block_stop, citations_delta).
+// ── PDF-vedleggs-saniteringen (issue #4, målt eval-rundene 7-8) ──────────────
+// web_fetch av en PDF legger et dokument i assistant-historikken; på neste
+// API-kall validerer Anthropic dokumentet på nytt og avviser hele kallet
+// («The PDF specified was not valid» — 2/2 deterministisk i runde 8, hele
+// svaret tapt). Kuren: konverter det ugyldige dokument-resultatet til
+// web_fetch-verktøyets DOKUMENTERTE feilform ({type: web_fetch_tool_error})
+// — skjemagyldig på rundtur, og modellen ser et ærlig «unavailable» i
+// stedet for at strømmen dør.
+
+// Matcher både stream-feilens fulle sti (runde 7) og HTTP 400-detaljen
+// (runde 8, nå med i feilteksten fra streamOneTurn).
+export const PDF_FEIL_RE = /The PDF specified was not valid|\.pdf\.source|document\.source\.base64/i;
+
+function harPdfDokument(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  if (o.media_type === "application/pdf") return true;
+  return Object.values(o).some((x) =>
+    x && typeof x === "object" && harPdfDokument(x));
+}
+
+function tilFeilform(blokk: Record<string, unknown>): boolean {
+  if (blokk.type !== "web_fetch_tool_result" || !harPdfDokument(blokk.content)) return false;
+  blokk.content = { type: "web_fetch_tool_error", error_code: "unavailable" };
+  return true;
+}
+
+export function sanitizePdfBlocks(
+  messages: Record<string, unknown>[],
+  feiltekst: string,
+): number {
+  let endret = 0;
+  // Feilens sti («messages.1.content.2.…») peker på den skyldige blokka —
+  // prøv den kirurgisk først, så fallback-sveip (stien kan mangle, f.eks.
+  // når bare «The PDF specified was not valid» overlevde til kalleren).
+  const m = /messages\.(\d+)\.content\.(\d+)/.exec(feiltekst);
+  if (m) {
+    const innhold = messages[Number(m[1])]?.content;
+    const blokk = Array.isArray(innhold) ? innhold[Number(m[2])] : undefined;
+    if (blokk && tilFeilform(blokk as Record<string, unknown>)) endret++;
+  }
+  if (!endret) {
+    for (const msg of messages) {
+      if (!Array.isArray(msg.content)) continue;
+      for (const blokk of msg.content) {
+        if (blokk && typeof blokk === "object" &&
+            tilFeilform(blokk as Record<string, unknown>)) endret++;
+      }
+    }
+  }
+  return endret;
+}
+
 async function streamOneTurn(
   target: { url: string; init: Pick<RequestInit, "redirect"> },
   headers: Record<string, string>,
@@ -446,7 +499,11 @@ async function streamOneTurn(
   if (!resp.ok || !resp.body) {
     const detail = await resp.text().catch(() => "");
     console.error(`Anthropic API error ${resp.status}: ${scrubDetail(detail, apiKey)}`);
-    throw new Error(`Anthropic API error ${resp.status}`);
+    // Detaljen MÅ med i selve feilen (skrubbet): PDF-vedleggs-retryen i
+    // agentloopen klassifiserer på teksten («The PDF specified was not
+    // valid») — runde 8 målte at bare statuskoden nådde kalleren, så
+    // 400-klassen var usynlig for retry-logikk (issue #4).
+    throw new Error(`Anthropic API error ${resp.status}: ${scrubDetail(detail, apiKey).slice(0, 300)}`);
   }
 
   const blocks: Record<string, unknown>[] = [];
@@ -630,7 +687,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
           }, HEARTBEAT_MS);
           let turn: TurnResult;
           try {
-            turn = await streamOneTurn(target, headers, {
+            const kjorTur = () => streamOneTurn(target, headers, {
               model: opts.model,
               max_tokens: opts.maxTokens ?? 8192,
               system,
@@ -641,6 +698,18 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
               turnHadText = true;
               emit({ type: "delta", text });
             });
+            try {
+              turn = await kjorTur();
+            } catch (e) {
+              // Issue #4: et web_fetch-hentet PDF-dokument i historikken
+              // avvises på rundturen og dreper ellers HELE svaret. Sanitér
+              // og prøv ÉN gang til uten vedlegget — degradering, ikke død.
+              const msg = String(e);
+              if (!PDF_FEIL_RE.test(msg) || sanitizePdfBlocks(state.messages, msg) === 0) throw e;
+              emit({ type: "progress",
+                text: "⚠️ Et hentet PDF-dokument ble avvist av API-et — fjerner vedlegget og prøver igjen" });
+              turn = await kjorTur();
+            }
           } finally {
             clearInterval(beat);
           }

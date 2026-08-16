@@ -23,6 +23,17 @@ SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen 
 "BASE_CUR": "USD", "QUOTE_CUR": "NOK", "TENOR": "SP"})` — liste-verdier
 i filters avvises med instruktiv feil (én kode per dimensjon).
 
+## Oppskrift: styringsrenta (verifisert 2026-08-16)
+
+```
+# nb = ost.connect("norgesbank")
+# rente = nb.read("IR", years="2021:2026", filters={"FREQ": "M", "INSTRUMENT_TYPE": "KPRA", "TENOR": "SD"})
+```
+
+67 rader (månedssnitt; 2026-07 = 4,25). `INSTRUMENT_TYPE="KPRA"` ER
+styringsrenta (foliorenten); `FREQ="B"` gir dagsobservasjoner i stedet.
+NB: filters tar ÉN kode per dimensjon for sdmx-kilder — aldri liste.
+
 ## Om kilden
 
 Norges Bank — Norway's central bank statistics: exchange rates, interest rates, and other Norwegian monetary/financial series via SDMX.

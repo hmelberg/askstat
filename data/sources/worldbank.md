@@ -30,6 +30,16 @@ JSON er [meta, rader]; per_page-default er 50 — adapteren setter 20000 og føl
 - Lasteren paginerer selv og feiler med råd hvis uttrekket er >10 sider — snevre da inn (years=, færre land).
 - Ekstra parametre (mrv, gapfill) kan gis i filters={"mrv": "5"}.
 
+## Oppskrift: helseutgifter %BNP, Norden (verifisert 2026-08-16)
+
+```
+# wb = ost.connect("worldbank")
+# helse = wb.read("country/NOR;SWE;DNK;FIN;ISL/indicator/SH.XPD.CHEX.GD.ZS", years="2015:2022")
+```
+
+40 rader (5 land × 8 år; DK 2022 = 9,47 %). Landlisten skilles med `;`
+i stien — aldri komma.
+
 ## Om kilden
 
 World Bank Open Data — country-level development indicators (economy, health, education, environment) for most countries, mostly annual.

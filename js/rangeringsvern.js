@@ -22,9 +22,33 @@
   // (etikett, verdi)-kandidater fra svarets innerText: tabellrader gir
   // celler adskilt med \t; første celle tekst (≥3 bokstaver), en senere
   // celle numerisk. Flagg/emoji i etiketten strippes.
+  // Kolon-formen («Finland: 21,7 %», evt. med -/**-prefiks) — målt
+  // rundene 7–9: svarene bar parene i kolon-lister og vernet ga WARN 0
+  // fordi kun tab-rader ble lest. KONSERVATIV med vilje: etiketten kan
+  // ikke inneholde sifre/kolon (utelukker «Kl. 12:30»), verdidelen må
+  // være BARE tall + valgfri enhet (utelukker «Merk: dataene er fra
+  // 2025», «Kilde: https://…», «Oppsummert: det gikk bra»). Fri prosa
+  // («India legger til +241 mill. innbyggere») forblir bevisst uparset —
+  // lav falsk-positiv-rate er vernets levevilkår.
+  var KOLON_RE = /^[\s\-*•]*([^:0-9\t]{3,40}?)\s*:\s*([~≈+−-]?\d[\d\s.,]*)\s*(?:%|pp|p\.p\.|prosentpoeng|mrd\.?|mill\.?)?\s*$/;
+
+  function parFraKolonlinje(linje) {
+    var m = KOLON_RE.exec(String(linje).replace(/\*\*/g, ''));
+    if (!m) return null;
+    var etikett = m[1].replace(/[^\wæøåÆØÅéüö \-]/g, '').trim();
+    if (!/[a-zA-ZæøåÆØÅ]{3}/.test(etikett)) return null;
+    var v = forsteTall(m[2]);
+    return v === null ? null : { etikett: etikett, verdi: v };
+  }
+
   function parFraSvar(answerText) {
     var ut = [];
     String(answerText || '').split('\n').forEach(function (linje) {
+      if (linje.indexOf('\t') < 0) {
+        var kp = parFraKolonlinje(linje);
+        if (kp) ut.push(kp);
+        return;
+      }
       var celler = linje.split('\t').map(function (c) { return c.trim(); });
       if (celler.length < 2 || celler.length > 6) return;
       // Etiketten er første TEKST-celle — rang-først-tabeller («1 | Island |

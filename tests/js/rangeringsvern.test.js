@@ -57,3 +57,44 @@ test('parITekst: desimalkomma i output matcher punktum-verdi', () => {
   assert.equal(RV.parITekst('Finland  10,3', 'Finland', 10.3), true);
   assert.equal(RV.parITekst('Finland  10,3', 'Finland', 8.9), false);
 });
+
+// ── Kolon-/prosa-par (småsak fra rundene 6–9, Hans' bestilling 2026-08-16):
+// vernet ga WARN 0 i alle rundene 7–9 fordi svarene bar parene i
+// kolon-lister («Finland: 21,7 %») og prosa — parFraSvar leste kun
+// tab-tabellrader. Kolon-formen er traktabel og konservativ; fri prosa
+// («India alene legger til +241 mill.») forblir bevisst uparset
+// (falsk-positiv-risikoen er vernets levevilkår).
+test('parFraSvar: kolon-liste gir par', () => {
+  const svar = 'Ledighet i Norden nå:\nFinland: 21,7 %\nSverige: 8,4 %\nNorge: 4,1 %';
+  const par = RV.parFraSvar(svar);
+  assert.equal(par.length, 3);
+  assert.equal(par[0].etikett, 'Finland');
+  assert.equal(par[0].verdi, 21.7);
+  assert.equal(par[2].verdi, 4.1);
+});
+
+test('parFraSvar: kolon-linjer med markdown-fet og bindestreksprefiks', () => {
+  const svar = '- **Island**: 6,2 %\n- **Danmark**: 5,1 %';
+  const par = RV.parFraSvar(svar);
+  assert.equal(par.length, 2);
+  assert.equal(par[0].etikett, 'Island');
+  assert.equal(par[1].verdi, 5.1);
+});
+
+test('parFraSvar: kolon-linjer som IKKE er par ignoreres', () => {
+  // URL-er, klokkeslett, setninger med kolon midt i og årstall-etiketter
+  // skal ikke bli kandidater
+  const svar = ['Kilde: https://ec.europa.eu/eurostat',
+    'Merk: dataene er fra 2025',
+    'Kl. 12:30 ble tallene publisert',
+    'Oppsummert: det gikk bra'].join('\n');
+  assert.equal(RV.parFraSvar(svar).length, 0);
+});
+
+test('sjekk: kolon-par verifiseres mot output som før', () => {
+  const svar = 'Finland: 10,3 %\nSverige: 8,4 %';
+  const output = 'geo  value\nFinland  10.3\nSverige  8.4';
+  assert.equal(RV.sjekk(svar, output).verdikt, 'ok');
+  const galt = 'geo  value\nFinland  10.3\nSverige  9.9';
+  assert.equal(RV.sjekk(svar, galt).verdikt, 'avvik');
+});

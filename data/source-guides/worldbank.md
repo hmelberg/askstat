@@ -6,3 +6,13 @@
 - ÉN indikator per read-linje er normen; flere variabler = flere read-linjer + merge på countryiso3code+date (join-nøklene i rammen).
 - Lasteren paginerer selv og feiler med råd hvis uttrekket er >10 sider — snevre da inn (years=, færre land).
 - Ekstra parametre (mrv, gapfill) kan gis i filters={"mrv": "5"}.
+
+## Oppskrift: helseutgifter %BNP, Norden (verifisert 2026-08-16)
+
+```
+# wb = ost.connect("worldbank")
+# helse = wb.read("country/NOR;SWE;DNK;FIN;ISL/indicator/SH.XPD.CHEX.GD.ZS", years="2015:2022")
+```
+
+40 rader (5 land × 8 år; DK 2022 = 9,47 %). Landlisten skilles med `;`
+i stien — aldri komma.

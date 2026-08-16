@@ -44,6 +44,12 @@ valgt tabell: kopier og juster kun parameterverdiene. Lese-linjen er
 ferdig verifisert — `ssb.read` trenger aldri probe (probe avviser
 uansett alle rå SSB-URL-er).
 
+## Typiske spørsmål
+
+- «Hvordan har folketallet i Oslo utviklet seg?»
+- «Hva er inflasjonen i Norge nå?» (14706)
+- «Hvor mange dør i Norge per uke?» (12954, ukestabell)
+
 ## Oppskrift: inflasjon (KPI tolvmånedersvekst, tabell 14706)
 
 ```

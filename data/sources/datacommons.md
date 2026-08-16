@@ -35,6 +35,11 @@ søketreff ≠ dekning — table_metadata(find=<land>) FØR read; multi-fasett: 
 - Krever API-nøkkel (site-nøkkel — injiseres server-side av /api/hent; nøkkelen når aldri klienten).
 - Verifisert 2026-08-16: v2/observation live (HTTP 200) for Count_Person/country/NOR — 4 fasetter (multi-fasett-fella reell), siste obs 2025 = 5 594 340.
 
+## Typiske spørsmål
+
+- «Grov landsammenligning av en global indikator» (befolkning, utslipp)
+- IKKE for norske detaljer (kommune/fylke) — bruk ssb/fhi
+
 ## Om kilden
 
 Google Data Commons — a knowledge graph of statistical variables aggregating many public sources, with broad global and US statistical coverage; requires an API key.

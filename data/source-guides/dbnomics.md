@@ -9,6 +9,12 @@
 - IMF/BIS/ILO/FRED med flere nås HER uten egne nøkler — foretrekk dbnomics framfor kildens eget API når begge finnes.
 - Flere serier i ÉN spørring: legg `align_periods=1` rett i sti-argumentet (ikke i filters=, som bare tar dimensions=) — DBnomics joiner seriene server-side på felles perioder (spec §3a).
 
+## Typiske spørsmål
+
+- «Hvordan har IMFs anslag endret seg mellom WEO-runder?» (vintage-sammenligning — dette kan INGEN annen kilde)
+- «Hent en kjent serie fra AMECO/BIS/ILO uten egen adapter»
+- IKKE for «nå»-spørsmål der speilet er frosset — se fella under
+
 ## Oppskrift: IMF WEO-anslag for Norge (verifisert 2026-08-16)
 
 ```

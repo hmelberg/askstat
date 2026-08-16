@@ -23,6 +23,11 @@ SDMX 2.1; ressurssti = <flow>/<nøkkel> (f.eks. EXR/B.USD.NOK.SP); komma-formen 
 "BASE_CUR": "USD", "QUOTE_CUR": "NOK", "TENOR": "SP"})` — liste-verdier
 i filters avvises med instruktiv feil (én kode per dimensjon).
 
+## Typiske spørsmål
+
+- «Hvordan har styringsrenta utviklet seg?» (IR/KPRA)
+- «Hva er kronekursen mot dollar/euro over tid?» (EXR)
+
 ## Oppskrift: styringsrenta (verifisert 2026-08-16)
 
 ```

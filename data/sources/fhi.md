@@ -25,6 +25,11 @@ Verifisert 2026-07-23: Common/source lister registre (daar, nokkel, npr, msis, s
   aldri label-teksten som kode. Verifisert også nokkel/394
   (barnevaksinasjon) i tillegg til daar/754.
 
+## Typiske spørsmål
+
+- «Hvor høy er barnevaksinasjonsdekningen i Norge?» (nokkel/394 — NASJONAL)
+- «Hvordan har dødeligheten av hjerte-/karsykdom utviklet seg?» (daar)
+
 ## Oppskrift: barnevaksinasjon (nokkel/394, verifisert 2026-08-16)
 
 Meslingdekning ved 2-årsalder, hele landet, siste år (96,2/95,8/95,9 %

@@ -7,6 +7,11 @@
 - Lasteren paginerer selv og feiler med råd hvis uttrekket er >10 sider — snevre da inn (years=, færre land).
 - Ekstra parametre (mrv, gapfill) kan gis i filters={"mrv": "5"}.
 
+## Typiske spørsmål
+
+- «Hvor stor andel av BNP bruker land X på helse?» (SH.XPD.CHEX.GD.ZS)
+- «Sammenlign BNP/befolkning globalt over tid» — bredeste landdekningen, årsdata m/~1-2 års lag
+
 ## Oppskrift: helseutgifter %BNP, Norden (verifisert 2026-08-16)
 
 ```

@@ -9,3 +9,8 @@
 - ALDRI kilde for nordiske detaljer (kommune/fylke, norske registerdata) — bruk ssb/fhi/eurostat der. Data Commons er sterkest for global/US-dekning og grove landsammenligninger.
 - Krever API-nøkkel (site-nøkkel — injiseres server-side av /api/hent; nøkkelen når aldri klienten).
 - Verifisert 2026-08-16: v2/observation live (HTTP 200) for Count_Person/country/NOR — 4 fasetter (multi-fasett-fella reell), siste obs 2025 = 5 594 340.
+
+## Typiske spørsmål
+
+- «Grov landsammenligning av en global indikator» (befolkning, utslipp)
+- IKKE for norske detaljer (kommune/fylke) — bruk ssb/fhi

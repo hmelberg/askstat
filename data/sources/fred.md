@@ -28,6 +28,24 @@ krever api_key (injiseres av /api/hent); file_type=json
 proxy ved målt cors:false). API-et under base_url krever api_key
 (injiseres av /api/hent).
 
+## Typiske spørsmål
+
+- Hvordan har amerikansk inflasjon utviklet seg de siste årene?
+- Hva er ledigheten i USA nå/historisk?
+- Sammenlign amerikansk KPI og arbeidsledighet over tid.
+
+## Oppskrift: amerikansk inflasjon og ledighet (verifisert 2026-08-16)
+
+```
+# usa = ost.read("https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL,UNRATE")
+```
+
+955 rader, kolonner `observation_date, CPIAUCSL, UNRATE` (to serier i
+ett nøkkelfritt kall — komma i `id=` holder). Siste måned 2026-07:
+UNRATE = 4,1 %. CPIAUCSL er KPI-NIVÅET, ikke inflasjonsraten — regn
+tolvmånedersvekst selv: `usa["CPIAUCSL"].pct_change(12) * 100` gir
+3,3 % for 2026-07. Kolonnenavnet er alltid seriekoden.
+
 ## Om kilden
 
 FRED (Federal Reserve Bank of St. Louis) — US and international macroeconomic and financial time series.

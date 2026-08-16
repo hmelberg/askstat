@@ -31,6 +31,26 @@ Verifisert 2026-07-23: søk (GET .../tables?query={q}&lang=sv|en) gir {"tables":
   utover ContentsCode/Tid (her TypAnsl) MÅ velges (400 «Missing selection
   for mandantory variable» — skrivefeilen er SCBs egen).
 
+## Typiske spørsmål
+
+- Hvor mange innbyggere har Sverige (i dag / siste år)?
+- Hvordan har Sveriges folkemengde utviklet seg de siste ti årene?
+- Hvor stor er Sveriges befolkningsvekst fra ett år til et annet?
+
+## Oppskrift: Sveriges folkmängd over tid (verifisert 2026-08-16)
+
+```
+# scb = ost.connect("scb")
+# pop = scb.read("TAB4365", indicators=["000000LV"], filters={"Tid": "top(10)"})
+```
+
+10 rader (2016–2025; 2025 = 10 605 529). `TAB4365`
+(«Befolkningsutvecklingen i riket efter kön») er DEN riktige tabellen for
+nasjonal folkemengde over tid — ren nasjonal serie (ingen Region-dimensjon),
+rekker 1749–2025; `000000LV` er ContentsCode for «Population» (ikke
+Births/Deaths/Immigrations/…). `Kon` er eliminerbar og UTELATES her — det
+gir totalen (menn+kvinner), ikke en feil.
+
 ## Om kilden
 
 Statistics Sweden — official Swedish statistics: population, economy, labour, and other topics by region.

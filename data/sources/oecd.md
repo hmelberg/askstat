@@ -48,6 +48,35 @@ OECD-URL-er).
 - For kuber med mange dimensjoner (f.eks. SHA/helseutgifter DSD_SHA@DF_SHA): spesifiser BARE de strengt nødvendige filtrene i filters={} (typisk UNIT_MEASURE, FINANCING_SCHEME, PROVIDER, FUNCTION, MODE_PROVISION) — for mange simultane dimensjonskombinasjoner gir NoRecordsFound selv om kombinasjonen logisk finnes. La resterende dimensjoner komme gjennom og filtrer dem etterpå i pandas.
 - UNIT_MEASURE-koder for prosentandeler: bruk `PA` (percent per annum) for år-over-år prosentvis endring — `PC` (percent) gir NoRecordsFound i prisdata. Eksempel HICP år-over-år: `filters={"FREQ": "M", "MEASURE": "CPI", "UNIT_MEASURE": "PA", "TRANSFORMATION": "GY"}`.
 
+## Typiske spørsmål
+
+- «Hva er arbeidsledigheten i Norge/Norden nå?» (harmonisert, sesongjustert)
+- «Hvordan har ledigheten utviklet seg måned for måned i de nordiske landene?»
+- «Sammenlign arbeidsledigheten i Norge, Sverige, Danmark, Finland og Island»
+
+## Oppskrift: arbeidsledighet, nordiske land, månedlig sesongjustert (verifisert 2026-08-16)
+
+```
+# o = oecd.read("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M", years="2023:2026",
+#     countries=["NOR","SWE","DNK","FIN","ISL"],
+#     filters={"MEASURE": "UNE_LF_M", "UNIT_MEASURE": "PT_LF_SUB", "TRANSFORMATION": "_Z",
+#              "ADJUSTMENT": "Y", "SEX": "_T", "AGE": "Y_GE15", "ACTIVITY": "_Z", "FREQ": "M"})
+```
+
+210 rader (5 land, alle måneder i vinduet); siste periode 2026-06 (NOR = 4,5 %).
+`ADJUSTMENT="Y"` = sesongjustert (`"N"` = ujustert), `SEX="_T"` og
+`AGE="Y_GE15"` = totalt, 15 år+, `FREQ="M"` = månedlig. Dette er de FERSKE
+OECD-tallene (siste periode = inneværende år) — foretrekk denne fremfor et
+frosset dbnomics-speil. `countries=[...]` tar liste (SDMX-ELLER, «+»-joint);
+`filters={}` gjør IKKE det uansett dimensjon — bekreftet 2026-08-16 også for
+ECB sin CURRENCY-dimensjon (liste der gir samme ValueError).
+
+Forkastet i denne runden: en helse-BNP-oppskrift fra SHA-familien
+(`OECD.ELS.HD,DSD_SHA@DF_SHA`) — selv med kun 5 filtre spesifisert OOM-er
+probe-steget (~26 MB, «Filtrer på de sentrale dimensjonene FØR henting»)
+fordi probe alltid henter `/all?lastNObservations=1` FØR filtrene
+anvendes. Ikke løsbart fra brukersiden — utelatt.
+
 ## Om kilden
 
 OECD — comparative statistics for OECD member and partner countries: economy, labour, health, and social policy via SDMX.

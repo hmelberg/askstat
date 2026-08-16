@@ -76,6 +76,12 @@ Verifisert live 2026-08-14 (Norges BNP i løpende priser, mill. euro, 2015–202
   standardtabellen (une_rt_m er OK — «rt» der er del av navnet, ikke
   revisjonsdimensjon).
 
+## Typiske spørsmål
+
+- «Hvilke europeiske land har høyest arbeidsledighet nå?» (une_rt_m — fersk, månedlig)
+- «Hvordan er inflasjonen i Norge vs eurosonen?» (prc_hicp_manr)
+- «Sammenlign BNP/levealder på tvers av EU-land»
+
 ## Om kilden
 
 Eurostat — official EU/EFTA statistics (incl. Norway): economy, population, health, environment, and other harmonized European indicators.

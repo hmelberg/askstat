@@ -851,6 +851,80 @@ _EDITOR_ONLY = {
 }
 
 
+# ── Ferskhetsvakta (runde 10-funn R10-C, Hans' ok 2026-08-16) ────────────────
+# «Nå»-spørsmål ble besvart med et frosset speils des 2023-tall — guidens
+# speiladvarsel ble LEST og rasjonalisert bort. Tekst er probabilistisk;
+# dette er miljøvernet: adapterlaget måler siste periode i uttrekket mot
+# dagens dato og PRINTER en varsellinje ved henting. Varsler, blokkerer
+# aldri. Årsdata får slakkere terskel (WHO/GHED-klassen har legitimt ~2 års
+# lag — helse-BNP 2023 i 2026 skal ikke støye).
+FERSKHET_MND_TAK = 12
+FERSKHET_AAR_TAK = 3
+_TIDSKOLONNER = ("tid", "time", "time_period", "period", "date", "aar", "år", "dato")
+
+
+def _nyeste_periode(serie):
+    """(år, måned, aarsdata?) for nyeste verdi i en tidskolonne — eller None."""
+    s = serie.dropna()
+    if not len(s):
+        return None
+    if str(s.dtype).startswith("datetime"):
+        d = s.max()
+        return int(d.year), int(d.month), False
+    tekster = s.astype(str).str.strip()
+    aarsdata = bool(tekster.str.fullmatch(r"\d{4}").all())
+    beste = None
+    for t in tekster:
+        m = _re.fullmatch(r"(\d{4})(?:-?M(\d{2})|-?[KQ](\d)|-(\d{2})(?:-\d{2})?)?", t)
+        if not m:
+            return None  # ukjent tidsform — vakta tier heller enn å gjette
+        aar = int(m.group(1))
+        if m.group(2):
+            mnd = int(m.group(2))
+        elif m.group(3):
+            mnd = int(m.group(3)) * 3
+        elif m.group(4):
+            mnd = int(m.group(4))
+        else:
+            mnd = 12
+        if beste is None or (aar, mnd) > beste[:2]:
+            beste = (aar, mnd, t)
+    return (beste[0], beste[1], aarsdata) if beste else None
+
+
+def ferskhetsvakt(df, idag=None):
+    try:
+        if not isinstance(df, pd.DataFrame) or not len(df):
+            return None
+        idag = idag or __import__("datetime").date.today()
+        kol = None
+        for c in df.columns:
+            if str(c).lower() in _TIDSKOLONNER or str(df[c].dtype).startswith("datetime"):
+                kol = c
+                break
+        if kol is None:
+            return None
+        p = _nyeste_periode(df[kol])
+        if p is None:
+            return None
+        aar, mnd, aarsdata = p
+        if aarsdata:
+            if idag.year - aar <= FERSKHET_AAR_TAK:
+                return None
+            return ("⚠️ Ferskhetsvakta: siste år i uttrekket er %d (%d år gammelt). "
+                    "For spørsmål om «nå»: vurder en ferskere kilde/tabell."
+                    % (aar, idag.year - aar))
+        mnd_gammel = (idag.year - aar) * 12 + (idag.month - mnd)
+        if mnd_gammel <= FERSKHET_MND_TAK:
+            return None
+        vist = "%d-%02d" % (aar, mnd)
+        return ("⚠️ Ferskhetsvakta: siste periode i uttrekket er %s (~%d måneder "
+                "gammel). For spørsmål om «nå»: vurder en ferskere kilde/tabell."
+                % (vist, mnd_gammel))
+    except Exception:
+        return None
+
+
 class Source:
     """Én datakilde: en fil-URL eller en API-base (kind='pxweb')."""
 
@@ -863,6 +937,13 @@ class Source:
         self.sprak = sprak
 
     def read(self, table=None, columns=None, **query):
+        df = self._read_impl(table, columns, **query)
+        adv = ferskhetsvakt(df)
+        if adv:
+            print(adv)
+        return df
+
+    def _read_impl(self, table=None, columns=None, **query):
         for _bad in _EDITOR_ONLY:
             if _bad in query:
                 raise ValueError(

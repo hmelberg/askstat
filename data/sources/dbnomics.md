@@ -24,6 +24,7 @@ Ressurssti = <provider>/<dataset> (f.eks. IMF/WEO:latest) med filters={"<dimensj
 
 - Sti er `<PROVIDER>/<DATASET>`: `# d = dbnomics.read("IMF/WEO:latest", filters={"weo-country": ["NOR"], "weo-subject": ["NGDP_RPCH"]}, years="2015:2029")`.
 - Versjonerte datasett: bruk ALLTID `:latest` — aldri hardkod en release («WEO:2024-10» råtner).
+- **Frosne speil er UEGNET for «nå»-spørsmål** (målt r10: OECD-speilet, frosset 2024-10, ga des 2023-tall som svar på «nå» — substansielt galt): er «sist indeksert» eldre enn spørsmålets horisont, hent fra en ferskere kilde i registeret i stedet — ikke datér deg ut av det.
 - countries=/indicators= finnes IKKE her: dimensjonsnavnene varierer per datasett (weo-country, geo, REF_AREA …). ALT utvalg går i filters={} med koder fra table_metadata (bruk find="Norway" for landkoder).
 - filters-verdier kan være lister; years= filtreres klient-side etter henting.
 - Treffer spørringen >1000 serier feiler lasteren med råd — snevre inn med flere filters-dimensjoner.

@@ -899,7 +899,7 @@
     window.t = window.t || function (s) { return s; };
     window.i18nField = window.i18nField || function (obj, field) { return obj && obj[field]; };
 
-    window.M2PY_VERSION = '2026-08-16d';
+    window.M2PY_VERSION = '2026-08-17a';
 
     // One-time migration: remove obsolete localStorage keys from previous milestones
     // Safe to delete this snippet after a few months when most users have re-loaded
@@ -7975,13 +7975,77 @@ def _m2py_patch_plotly_show():
     if getattr(getattr(go.Figure, "show", None), "_m2py_patched", False):
         return
     def _m2py_fig_show(self, *args, **kwargs):
+        _fd = _m2py_figurdata_utskrift(self)
+        if _fd:
+            print(_fd)
         print(_EMBED_S + "figure__" + chr(10) + pio.to_json(self) + chr(10) + _EMBED_E)
     _m2py_fig_show._m2py_patched = True
     go.Figure.show = _m2py_fig_show
     def _m2py_pio_show(fig_or_data, *args, **kwargs):
+        _fd = _m2py_figurdata_utskrift(fig_or_data)
+        if _fd:
+            print(_fd)
         print(_EMBED_S + "figure__" + chr(10) + pio.to_json(fig_or_data) + chr(10) + _EMBED_E)
     pio.show = _m2py_pio_show
 _m2py_patch_plotly_show()
+def _m2py_figurdata_utskrift(fig):
+    # Figurdata-utskriften (R11-C, Hans' alternativ 1): print-gap var målt
+    # dominerende klasse (5/8 i runde 11) — modellen behandler figuren som
+    # utskriften, men aksene bærer ikke tallene, og kontrakten «alle
+    # svar-tall finnes i output» sto tom for figur-svar. Motoren printer
+    # derfor SELV figurens datapunkter kompakt før embedden — én
+    # vern-vennlig «etikett verdi»-linje per punkt (rangeringsvernets
+    # parITekst krever ord+tall på SAMME linje), hode/hale-kutt per trace
+    # og 40-linjers tak per figur. Tekst-regelen består som belte;
+    # fail-open: aldri knekk figurvisningen.
+    try:
+        traces = list(getattr(fig, "data", None) or [])
+        if not traces:
+            return None
+
+        def _tall(v):
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                return None
+            if fv != fv:
+                return None
+            s = ("%.4f" % fv).rstrip("0").rstrip(".")
+            return s if s else "0"
+
+        linjer = []
+        TAK = 40
+        for tr in traces:
+            if len(linjer) >= TAK:
+                break
+            xs = list(getattr(tr, "x", None) or [])
+            ys = list(getattr(tr, "y", None) or [])
+            navn = str(getattr(tr, "name", "") or "").strip()
+            punkter = []
+            for x, y in zip(xs, ys):
+                yv = _tall(y)
+                if yv is None:
+                    continue
+                etikett = str(x).strip()
+                punkter.append((navn + "  " + etikett + "  " + yv).strip())
+            if not punkter:
+                continue
+            plass = TAK - len(linjer)
+            if len(punkter) > min(16, plass):
+                n_side = max(1, min(8, plass // 2))
+                utelatt = len(punkter) - 2 * n_side
+                punkter = (punkter[:n_side] +
+                           ["… (%d punkter utelatt)" % utelatt] +
+                           punkter[-n_side:])
+            linjer.extend(punkter[:plass + 1])
+        if not linjer:
+            return None
+        return ("Figurdata (auto-utskrift av figurens datapunkter):\n" +
+                "\n".join(linjer))
+    except Exception:
+        return None
+
+
 def _m2py_ts_vakt(obj):
     # Datetime-i-value-vakta (kodesak R6-B, målt eval-runde 6): pivot/merge
     # i generert kode kan lekke datetime64→int64-NANOSEKUNDER inn i
@@ -8094,6 +8158,9 @@ def _show_one(obj):
             _adv = _m2py_ts_vakt(obj)
             if _adv:
                 print(_adv)
+            _fd = _m2py_figurdata_utskrift(obj)
+            if _fd:
+                print(_fd)
             print(_EMBED_S + "figure__" + chr(10) + pio.to_json(obj) + chr(10) + _EMBED_E)
             return
     except Exception:

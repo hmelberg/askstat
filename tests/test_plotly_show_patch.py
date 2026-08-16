@@ -36,7 +36,12 @@ def _load_patch_src():
 
 
 def make_patch_fn():
-    ns = {"_EMBED_S": _EMBED_S, "_EMBED_E": _EMBED_E}
+    # _m2py_figurdata_utskrift er definert UTENFOR utpakkingsvinduet
+    # (figurdata-runden 2026-08-17) — stubbes som taus (egne tester i
+    # tests/test_figurdata.py), samme mønster som _show_one-stubben i
+    # test_display_policy.py.
+    ns = {"_EMBED_S": _EMBED_S, "_EMBED_E": _EMBED_E,
+          "_m2py_figurdata_utskrift": lambda fig: None}
     exec(compile(_load_patch_src(), "<index.html:_m2py_patch_plotly_show>", "exec"), ns)
     return ns["_m2py_patch_plotly_show"]
 

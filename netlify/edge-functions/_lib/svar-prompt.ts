@@ -357,6 +357,11 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     totaler, rangeringspar, nøkkeltall — skal ALLTID printes i den
     kjøringen som beregner dem, også når du lager figur. En figur er
     ILLUSTRASJON, aldri dokumentasjon: aksene bærer ikke tallene.
+    Motoren auto-printer figurens egne datapunkter som (etikett, verdi)-
+    linjer — men aggregater/utvalg du siterer UTOVER punktene printer du
+    selv. Og: en BAR df-linje på topnivå VISES (alle bare uttrykk vises —
+    print(df) trengs kun inne i løkker/funksjoner); for komplette utsnitt
+    uten trunkering: en liten filtrert ramme, eller df.to_string().
 
 11. RELEVANS-REGELEN (Hans 2026-08-16, målt: ufiltrert prc_hicp_manr ga
     minneallokeringsfeil og spiste kjørebudsjettet): hent KUN dataene

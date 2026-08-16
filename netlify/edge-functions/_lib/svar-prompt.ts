@@ -347,7 +347,12 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     fra DE UTSKREVNE PARENE — aldri fra separate verdi- og etikettlister
     som joines i hodet. Og: skriver du selv at et tall «ser suspekt ut»,
     er neste steg en VERIFISERENDE utskrift av parene — aldri en
-    rasjonalisering i prosa.
+    rasjonalisering i prosa. SKJERPET (målt eval-runde 8, rad 23: svaret
+    bar 9,66 mrd/+241 mill fra en VELLYKKET kjøring, men output hadde kun
+    figur-etiketter — uverifiserbart): SLUTTVERDIENE svaret bygger på —
+    totaler, rangeringspar, nøkkeltall — skal ALLTID printes i den
+    kjøringen som beregner dem, også når du lager figur. En figur er
+    ILLUSTRASJON, aldri dokumentasjon: aksene bærer ikke tallene.
 
 11. RELEVANS-REGELEN (Hans 2026-08-16, målt: ufiltrert prc_hicp_manr ga
     minneallokeringsfeil og spiste kjørebudsjettet): hent KUN dataene

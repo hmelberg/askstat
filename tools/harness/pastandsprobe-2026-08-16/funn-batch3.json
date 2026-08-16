@@ -1,0 +1,122 @@
+[
+  {
+    "fil": "src-mignex.md",
+    "felt": "access",
+    "paastand": "OPEN — open-access variant på Zenodo (https://zenodo.org/records/13991767)",
+    "malt": "200 text/html — Zenodo-postsiden laster normalt, ingen innloggingsmur",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-nibrs.md",
+    "felt": "-",
+    "paastand": "ingen URL i frontmatter eller brødtekst å probe (kun beskrivende access-tekst uten lenke)",
+    "malt": "0 av 0 URL-er testet — ingenting å måle",
+    "klasse": "OK",
+    "forslag": "vurder å legge til en konkret bulk-download-URL i fila slik at påstanden blir proberbar senere"
+  },
+  {
+    "fil": "src-nvss.md",
+    "felt": "mirror",
+    "paastand": "NBER-mirror for natality public-use files: https://www.nber.org/research/data/vital-statistics-natality-birth-data",
+    "malt": "200 text/html — siden laster normalt",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-oews.md",
+    "felt": "access",
+    "paastand": "open — https://www.bls.gov/oes/special-requests/oesm{YY}all.zip (mal-URL)",
+    "malt": "malprøve {YY}->23: 403 'Access Denied'. MEN bls.gov-domenet er blokkert i sin helhet fra dette probemiljøet (www.bls.gov/ root gir også 403) — ser ut som en generell WAF/bot-blokk mot datasenter-IP, ikke en ekte tilgangssperre på selve fila. Kan ikke konkludere RÅTE ut fra dette alene.",
+    "klasse": "NETT",
+    "forslag": "reverifiser manuelt fra vanlig nettleser/IP før man stoler på 403; ingen tekstendring foreslått per nå"
+  },
+  {
+    "fil": "src-openml.md",
+    "felt": "lookup_api",
+    "paastand": "https://www.openml.org/api/v1/json/data/list/data_name/{name}/limit/5 — CORS-open, keyless, eksakt navn kun",
+    "malt": "instansiert {name}->iris: 206 application/json med gyldig datasettmetadata (did 61, name iris) — format og tilgang stemmer",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-qwi.md",
+    "felt": "api_endpoints.sex_age / auth",
+    "paastand": "https://api.census.gov/data/timeseries/qwi/sa som API-rot; auth: Census API key (free) kreves",
+    "malt": "rot uten parametre: 200 JSON (katalogmetadata, forventet). Ekte spørring (get=Emp&for=state:24&time=2013-Q1) gir 302-redirect til /data/missing_key.html — bekrefter at nøkkel kreves for faktiske dataspørringer, akkurat som påstanden sier",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-piaac.md",
+    "felt": "brødtekst (cy1/cy2 CSV-URL for Norge)",
+    "paastand": "https://webfs.oecd.org/piaac/cy1-puf-data/CSV/prgnorp1.csv og .../cy2-puf-data/CSV/prgnorp2.csv — direkte åpne CSV-URL-er, live-verifisert 2026-08-06",
+    "malt": "begge: 206 partial content, ekte CSV-innhold (cy1 komma-separert, cy2 semikolon-separert) med forventede PIAAC-variabelnavn (CNTRYID, AGE_R, SEQID...). content-type application/octet-stream (statisk fil, ikke text/csv) men innholdet er reell CSV",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-recs.md",
+    "felt": "csv",
+    "paastand": "https://www.eia.gov/consumption/residential/data/2020/csv/recs2020_public_v7.csv — åpen",
+    "malt": "200, CSV-innhold med forventede RECS-kolonner (DOEID, REGIONC, TYPEHUQ...)",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-sikt.md",
+    "felt": "landing",
+    "paastand": "https://sikt.no/en/find-data — fritt nedlastbart, ofte uten søknad",
+    "malt": "206 text/html — siden laster normalt, ingen innloggingsmur synlig",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-uci.md",
+    "felt": "landing",
+    "paastand": "https://archive.ics.uci.edu/ — åpen landingsside",
+    "malt": "200 text/html — laster normalt",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-socrata.md",
+    "felt": "discovery_api / built_in_example",
+    "paastand": "GET https://api.us.socrata.com/api/catalog/v1?q=<terms>&limit=10 — åpen, no key required; cdc er en Socrata-domene",
+    "malt": "q=crime: 200 JSON med treff, ingen auth. domains=data.cdc.gov&limit=5: 200 JSON med reelle CDC-datasett (bekrefter cdc-domenepåstanden). data.cdc.gov/ root: 200",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-zenodo.md",
+    "felt": "brødtekst (search API)",
+    "paastand": "https://zenodo.org/api/records?q=<terms>&type=dataset&size=10&access_status=open — CORS-open, no auth",
+    "malt": "q=test: 200 JSON med hits[], ingen auth nødvendig",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-urban-education-data.md",
+    "felt": "base",
+    "paastand": "https://educationdata.urban.org/api/v1/{topic}/{source}/{endpoint}/{year}/ — åpen REST API",
+    "malt": "instansiert college-university/ipeds/directory/2015/: første forsøk nettverksfeil (000, transient), andre forsøk 200 JSON med ekte IPEDS-data (count 7647, reelle institusjonsposter)",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "us-health-surveys.md",
+    "felt": "brødtekst (NHIS documentation URL)",
+    "paastand": "https://www.cdc.gov/nchs/nhis/documentation/index.html",
+    "malt": "403 'Access Denied' på to forsøk. MEN www.cdc.gov/ (root) gir også 403 fra dette probemiljøet, mens data.cdc.gov (annen infrastruktur, Socrata) gir 200 — mønsteret peker på en generell WAF/bot-blokk mot hele www.cdc.gov fra denne IP-en, ikke en ekte sperre på NHIS-dokumentasjonssiden spesifikt",
+    "klasse": "NETT",
+    "forslag": "reverifiser manuelt før man stoler på 403; ingen tekstendring foreslått per nå"
+  },
+  {
+    "fil": "us-health-surveys.md",
+    "felt": "brødtekst (MEPS-lenker)",
+    "paastand": "https://meps.ahrq.gov/mepsweb/data_stats/download_data_files.jsp og https://meps.ahrq.gov/mepsweb/",
+    "malt": "begge 200 text/html — laster normalt",
+    "klasse": "OK",
+    "forslag": "-"
+  }
+]

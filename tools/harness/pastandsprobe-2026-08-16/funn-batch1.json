@@ -1,0 +1,114 @@
+[
+  {
+    "fil": "crime-transport-energy-politics.md",
+    "felt": "brødtekst (yaml: still_available.wikimedia_dumps/gdelt/pullpush)",
+    "paastand": "wikimedia_dumps 'OPEN, no key'; gdelt doc_api 'OPEN, no key for most endpoints'; pullpush 'auth: none', caveat 'unclear long-term stability'",
+    "malt": "dumps.wikimedia.org: 206 text/html, reachable no-auth (confirms). api.gdeltproject.org/api/v2/doc/doc: 429 begge forsøk, kroppstekst 'Please limit requests to one every 5 seconds' - endepunktet lever og krever ingen nøkkel, bare rate-limitet. api.pullpush.io: 429 begge forsøk, kroppstekst 'This website does not provide free scraping resources for agents' - lever, ingen nøkkel, men eksplisitt fiendtlig mot agent/automatisert trafikk.",
+    "klasse": "OK",
+    "forslag": "pullpush-caveaten kunne nevne at serveren nå eksplisitt avviser agent/scraping-trafikk (429 + tekstmelding om 'no free scraping resources for agents'), ikke bare generisk 'unclear long-term stability'"
+  },
+  {
+    "fil": "data-catalogs.md",
+    "felt": "brødtekst (src-data-europa, src-openml, hf-adapter-omtale)",
+    "paastand": "data.europa.eu 'open, no key'; OpenML 'CORS-open, keyless'; hf datasets-server adapter 'CORS-open, no key'",
+    "malt": "alle 3 påstander OK: data.europa.eu search-API 200 JSON (25 094 treff); openml.org API 206 JSON (ekte datasett-liste); datasets-server.huggingface.co svarer 200/404 JSON uten nøkkel (endepunktet lever og krever ingen auth).",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "demography-migration-housing.md",
+    "felt": "brødtekst (Federal Reserve SCF-omtale)",
+    "paastand": "federalreserve.gov/econres/scfindex.htm nevnt som kilde-URL for Survey of Consumer Finances",
+    "malt": "206 text/html, siden lever og er nåbar uten nøkkel/login.",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "labour-firms.md",
+    "felt": "brødtekst (LBD/researchdatagov.org)",
+    "paastand": "LBD-tilgang via 'researchdatagov.org' (FSRDC-søknadsportal)",
+    "malt": "200 text/html, siden lever.",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "global-surveys.md",
+    "felt": "brødtekst (generelt)",
+    "paastand": "ingen konkrete, prøvbare URL-er i fila selv - kun host-navn uten sti (afrobarometer.org) eller pakke-IDer som viser til andre filer",
+    "malt": "ingen probe kjørt - ingen isolert URL-påstand å teste innenfor budsjettet; wbmicro/dhs-påstandene overlapper med andre pakker/filer utenfor denne batchen.",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "nordic-microdata.md",
+    "felt": "brødtekst (generelt)",
+    "paastand": "ingen konkrete URL-er i fila selv - kun beskrivelser av tilgangsregimer (microdata.no, Helsedata.no, MONA, Forskermaskinen, FIONA) uten literal URL i teksten",
+    "malt": "ingen probe kjørt - ingen isolert URL i denne fila å teste; de nevnte kildene har egne src-*-filer utenfor denne batchen.",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-bls-api.md",
+    "felt": "auth",
+    "paastand": "'registrationkey in the POST body (free)' - antyder nøkkel er påkrevd for å bruke API-et",
+    "malt": "anonym GET (uten registrationkey) mot .../timeseries/data/CES0000000001 ga 200 med status REQUEST_SUCCEEDED og ekte tidsserie-data - nøkkel er altså IKKE strengt påkrevd for en enkel spørring, kun for å låse opp full kvote (20 års historikk, 50 serier/spørring, 500 spørringer/dag vs. lavere anonym grense).",
+    "klasse": "OK",
+    "forslag": "presiser at registrationkey er valgfri for enkle spørringer og bare nødvendig for å få full kvote/historikk, ikke strengt 'auth required'"
+  },
+  {
+    "fil": "src-brfss.md",
+    "felt": "access / data_url_pattern",
+    "paastand": "access: open, no key; data_url_pattern med {YEAR} instansiert til 2023 (malprøve)",
+    "malt": "BÅDE filstien (LLCP2023XPT.zip) OG www.cdc.gov/ (domenets forside) ga 403 'Access Denied' fra en Akamai-liknende WAF for curl - dette rammer HELE cdc.gov, ikke spesifikt BRFSS-filen, og ser ut som bot/User-Agent-blokkering snarere enn at filen faktisk er nede eller gated.",
+    "klasse": "NETT",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-cdc-wonder.md",
+    "felt": "gotcha (wonder.cdc.gov/ucd-icd10.html)",
+    "paastand": "doc-siden brukes for å bekrefte gjeldende mortality-database-id før spørring",
+    "malt": "samme type 403 'Access Denied' (Akamai-referanse) som for cdc.gov - kan ikke bekrefte eller avkrefte at siden faktisk finnes; ser ut som generell bot-blokkering av curl på hele *.cdc.gov-familien.",
+    "klasse": "NETT",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-ce-pumd.md",
+    "felt": "url_pattern",
+    "paastand": "access: open; url_pattern med {intrvw|diary}{YY} instansiert til diary23.zip (malprøve)",
+    "malt": "BÅDE filstien OG www.bls.gov/ (domenets forside) ga 403 'Access Denied' fra samme type WAF som cdc.gov-testene - rammer hele bls.gov for curl, ikke spesifikt PUMD-filen; sannsynlig bot-blokkering, ikke bekreftet råte.",
+    "klasse": "NETT",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-ckan.md",
+    "felt": "deployments",
+    "paastand": "deployments: [catalog.data.gov, data.gov.uk, hundreds of national/city portals] - alle skal svare på GET .../api/3/action/package_search",
+    "malt": "data.gov.uk FUNGERER: redirecter til ckan.publishing.service.gov.uk/api/3/action/package_search, 200 JSON, 1350 treff. catalog.data.gov derimot: /api/3/action/package_search, /api/3/action/status_show OG /api/action/package_search (uten /3) gir ALLE 404 '{\"message\":\"Not Found\"}' i JSON; /dataset redirecter (301); forsiden (200 HTML) ser ut som en omdesignet frontend uten det klassiske CKAN action-API-et bak stien lenger.",
+    "klasse": "RÅTE",
+    "forslag": "fjern eller merk catalog.data.gov som ikke-fungerende eksempel i deployments-lista (klassisk CKAN-API 404-er der); behold data.gov.uk, evt. noter at den redirecter til ckan.publishing.service.gov.uk"
+  },
+  {
+    "fil": "src-college-scorecard.md",
+    "felt": "access / api",
+    "paastand": "access: open, free key",
+    "malt": "anonym GET uten nøkkel ga 403 med strukturert JSON-feil 'API_KEY_MISSING' og lenke til api.data.gov/signup - stemmer nøyaktig med dokumentasjonen (nøkkel kreves, API-et lever og svarer korrekt).",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-cros-cimes.md",
+    "felt": "url_pattern",
+    "paastand": "url_pattern https://cros.ec.europa.eu/cimes-<country>, instansiert med germany (malprøve)",
+    "malt": "206 text/html, siden lever og følger det oppgitte mønsteret uten innlogging.",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-companies-house.md",
+    "felt": "bulk",
+    "paastand": "bulk-URL-mønster med 'scheme UNVERIFIED, try https first', dato-mønster YYYY-MM-01, instansiert til 2026-08-01 (malprøve)",
+    "malt": "BÅDE http:// og https:// ga 206 application/zip med gyldig PK-zip-signatur i de første bytene - https fungerer utmerket, altså ikke lenger et åpent spørsmål.",
+    "klasse": "OK",
+    "forslag": "fjern 'scheme UNVERIFIED, try https first' - https er bekreftet å fungere (206, gyldig zip-signatur)"
+  }
+]

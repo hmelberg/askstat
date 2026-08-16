@@ -1,0 +1,114 @@
+[
+  {
+    "fil": "src-data-europa.md",
+    "felt": "samlet",
+    "paastand": "auth:none; search_api (…/api/hub/search/search?q=<terms>); sparql (data.europa.eu/sparql)",
+    "malt": "alle 3 påstander OK — search_api: 200 application/json (count=25094, gyldig JSON); sparql: 206 text/html (interaktivt spørre-skjema, normalt uten query-param); ingen nøkkel krevd noe sted",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-dataportals-registry.md",
+    "felt": "samlet",
+    "paastand": "repo: github.com/commondataio/dataportals-registry; bulk_files navngitt (catalogs.jsonl/full.parquet/datasets.duckdb); public_api: ikke shippet",
+    "malt": "repo-URL OK (206/200, GitHub-side laster); bulk_files har ingen URL i fila å probe direkte (kun filnavn) — ikke testbart innenfor probe-etikketten; 'public_api ikke shippet' er en negativ påstand som ikke kan feilbevises med probe",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-dataverse.md",
+    "felt": "brødtekst — Search-URL / 'No CORS on the API'-påstand",
+    "paastand": "https://dataverse.harvard.edu/api/search?q=<terms>&type=dataset&per_page=10 gir søkeresultater; teksten hevder 'No CORS on the API → always via /api/hent'",
+    "malt": "2 forsøk (med og uten Range-header): begge 202, tom body (0 bytes), header x-amzn-waf-action: challenge — AWS WAF blokkerer automatisert curl før appen svarer (bot-utfordring, ikke et ekte API-svar). WAF-svaret selv bar access-control-allow-origin:* men dette er trolig WAF-injisert og sier ikke noe pålitelig om appens reelle CORS-policy.",
+    "klasse": "NETT",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-dateno.md",
+    "felt": "samlet",
+    "paastand": "api_base: https://api.dateno.io/; fila sier selv at docs-siden er JS-rendret og ikke uavhengig bekreftet",
+    "malt": "alle 2 påstander OK — api_base ga 200 text/html (ReDoc-dokside med tittel 'Dateno API - ReDoc'), nøyaktig som fila selv forutsier. Ingen nøkkeltest gjort (ingen nøkkel tilgjengelig, per instruks)",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-eu-efige.md",
+    "felt": "access",
+    "paastand": "access: open — https://www.bruegel.org/dataset/efige",
+    "malt": "OK — 200 text/html, datasettsiden laster åpent uten pålogging",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-eia-api.md",
+    "felt": "samlet",
+    "paastand": "access: open, free key; base: https://api.eia.gov/v2/",
+    "malt": "OK — base ga 403 med JSON-feil 'API_KEY_MISSING' og lenke til registreringssiden, som er FORVENTET oppførsel for en kilde som selv sier den krever (gratis) nøkkel, ikke råte",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-gleif.md",
+    "felt": "api",
+    "paastand": "access: open, no key; api: https://api.gleif.org/api/v1/lei-records?filter[lei]=<LEI>",
+    "malt": "malprøve med plausibel LEI (5299000WT4BFZ8CVKR12): 200 application/vnd.api+json, gyldig JSON-respons uten nøkkel (total:0 for denne spesifikke test-LEI-en, men selve endepunktet svarer åpent som påstått)",
+    "klasse": "malprøve",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-hcup.md",
+    "felt": "free_aggregate_tool",
+    "paastand": "https://datatools.ahrq.gov/hcupnet/ — gratis forhåndstabellert verktøy, ingen kjøp nødvendig",
+    "malt": "OK — 200 text/html, siden laster åpent",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-gss.md",
+    "felt": "brødtekst — per-år zip-URL",
+    "paastand": "https://gss.norc.org/content/dam/gss/get-the-data/documents/stata/{YEAR}_stata.zip; 'Live-verified 2026-08-06'",
+    "malt": "malprøve YEAR=2022: 206 application/zip, PK-magic-bytes bekreftet i responsen (ekte zip-fil) — fortsatt levende ~10 dager etter forrige verifisering",
+    "klasse": "malprøve",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-helsedata-no.md",
+    "felt": "samlet",
+    "paastand": "landing: https://helsedata.no/; registry_catalog: https://helsedata.no/no/datakilder/",
+    "malt": "alle 2 påstander OK — begge 200 text/html med korrekte titler ('Helsedata.no - for forskning…' og 'Datakilder')",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-icpsr.md",
+    "felt": "current_api",
+    "paastand": "https://icpsr.github.io/metadata/icpsr_metadata_api/ — gjeldende metadata-API-dokumentasjon",
+    "malt": "OK — 206 text/html, dokumentasjonssiden laster fint",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-land-registry-ppd.md",
+    "felt": "downloads",
+    "paastand": "https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads — OPEN, Open Government Licence v3.0",
+    "malt": "OK — 206 text/html, GOV.UK-siden 'Price Paid Data - GOV.UK' laster åpent",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "src-lodes.md",
+    "felt": "url_pattern / years",
+    "paastand": "url_pattern bruker LODES7-mappen; years: 2002-2023",
+    "malt": "malprøve state=ca, od, year=2021 mot LODES7: 404. Mappelisting bekrefter: LODES7/ca/od/ har kun filer t.o.m. 2019 (2002-2019). LODES8/ca/od/ derimot har filer 2002-2023, altså dekker hele det påståtte årsspennet. LODES7-varianten av url_pattern leverer dermed 404 for 2020-2023 som fila lover dekning for.",
+    "klasse": "RÅTE",
+    "forslag": "Endre url_pattern til å bruke LODES8 (eller presiser at LODES7 kun dekker t.o.m. 2019 og at 2020-2023 krever LODES8-mappen)."
+  },
+  {
+    "fil": "src-manifesto-project.md",
+    "felt": "samlet",
+    "paastand": "api_base: https://manifesto-project.wzb.eu/api/v1/; keyless_endpoints: [list_core_versions, ...]",
+    "malt": "alle 2 påstander OK — api_base uten endepunkt ga 404 (forventet API-rot-oppførsel per instruks); list_core_versions (kjent underendepunkt) ga 200 application/json med gyldig datasettliste, uten nøkkel som påstått",
+    "klasse": "OK",
+    "forslag": "-"
+  }
+]

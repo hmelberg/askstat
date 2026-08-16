@@ -8,3 +8,4 @@
 - Samme variabel/land har ofte FLERE fasetter (kilder) med ulike tall (f.eks. Verdensbanken vs. OECD). Lasteren velger ALDRI stille: `facet_kilde`-kolonnen navngir alltid kilden som ble brukt. Sjekk kolonnen — dekningssjekken over lister antall fasetter og bør konsulteres først hvis tallet virker feil.
 - ALDRI kilde for nordiske detaljer (kommune/fylke, norske registerdata) — bruk ssb/fhi/eurostat der. Data Commons er sterkest for global/US-dekning og grove landsammenligninger.
 - Krever API-nøkkel (site-nøkkel — injiseres server-side av /api/hent; nøkkelen når aldri klienten).
+- Verifisert 2026-08-16: v2/observation live (HTTP 200) for Count_Person/country/NOR — 4 fasetter (multi-fasett-fella reell), siste obs 2025 = 5 594 340.

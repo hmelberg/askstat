@@ -1,0 +1,82 @@
+[
+  {
+    "fil": "ess.md",
+    "felt": "base_url + brødtekst (v1/data/dataFile/<doi>/<suffix>?fileFormat=...&userId=)",
+    "paastand": "STYRT kilde; uten userId avvist, med ESS_API_KEY (query:userId) gir 200 CSV med kolonner name,essround,edition,proddate,idno,cntry,dweight,pweight,nwspol,...",
+    "malt": "alle 2 prober OK: uten nøkkel → 400 {\"code\":101,\"message\":\"Query parameter userId missing\"} (auth-krav bekreftet, ikke råte); med ESS_API_KEY → 200 application/octet-stream, CSV-header matcher dokumentasjonen ord for ord",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "census.md",
+    "felt": "base_url + brødtekst (variables.json nøkkelfri; /data/{år}/... krever key)",
+    "paastand": "variables.json er nøkkelfri+CORS-åpen; datakall uten nøkkel gir 302→missing_key.html m/X-DataWebAPI-KeyError:1; med CENSUS_API_KEY gir 200 JSON-matrise m/filtervariabler echoet som kolonner",
+    "malt": "alle 3 prober OK: variables.json → 200 + ACAO:*; datakall uten key → 302, Location: https://api.census.gov/data/missing_key.html, header X-DataWebAPI-KeyError:1 (eksakt match); datakall med key → 200, header [\"AGEP\",\"SEX\",\"PWGTP\",\"SCHL\",\"state\"] eksakt som dokumentert",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "nchs.md",
+    "felt": "brødtekst (NHANES riktig sti vs. gammel soft-404-sti; NHIS ftp-zip)",
+    "paastand": "wwwn.cdc.gov/.../Public/{år}/DataFiles/DEMO_L.xpt gir ekte fil; gammel sti wwwn.cdc.gov/Nchs/Nhanes/... gir 200-med-HTML soft-404; NHIS-zip på ftp.cdc.gov leses direkte med pandas",
+    "malt": "alle 3 prober OK: ny sti → binærdata (200/206, content-type text/plain, 'file'-verktøy sier 'data'); gammel sti → HTML 'Page Not Found | CDC' levert med 200-klasse status akkurat som soft-404-fellen beskriver; NHIS-zip → ekte Zip-arkiv (deflate)",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "cdc.md",
+    "felt": "base_url + sporrings_url_mal + brødtekst (SODA-datasett, catalog-discovery, views-metadata)",
+    "paastand": "data.cdc.gov/resource/{id}.json nøkkelfri+CORS-åpen SODA; api.us.socrata.com katalogsøk finner ID-er; api/views/{id}.json gir metadata",
+    "malt": "alle 3 prober OK: resource/bi63-dtpu.json → 200 + ACAO:*, ekte rader (Kidney disease/Vermont/...); catalog-søk → 200, treff inkl. resource.id=bi63-dtpu; views/bi63-dtpu.json → 200 metadata",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "dhs.md",
+    "felt": "base_url + brødtekst (data?indicatorIds=...&countryIds=...; indicators-katalog)",
+    "paastand": "api.dhsprogram.com/rest/dhs/ nøkkelfri, CORS-åpen; data-endepunkt gir {TotalPages,Data:[...]}; indicators-katalog lister indikator-ID-er",
+    "malt": "begge prober OK: data?indicatorIds=FE_FRTR_W_TFR&countryIds=EG → 200 + ACAO:*, Data[0] har Indicator/Value/CountryName/SurveyYear som dokumentert; indicators?f=json → 200, TotalPages:931 med IndicatorId/Label/Definition-felt",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "hf.md",
+    "felt": "base_url + brødtekst (Hub-søk, /size, /rows)",
+    "paastand": "huggingface.co/api/datasets (søk) og datasets-server.huggingface.co (/size, /rows) er nøkkelfrie og CORS-åpne for offentlige datasett",
+    "malt": "alle 3 prober OK: søk (modality:tabular) → 200, treffliste med id/downloads/tags; /size?dataset=scikit-learn/adult-census-income → 200, num_rows:32561; /rows (length=5) → 200, features+rows m/typet skjema. CORS: ACAO reflekterer sendt Origin-header dynamisk (testet m/vilkårlig Origin) — funksjonelt åpent, ikke statisk feilfunn",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "wbmicro.md",
+    "felt": "base_url + brødtekst (catalog/search, catalog/{IDNO}/variables)",
+    "paastand": "microdata.worldbank.org NADA-API nøkkelfritt+CORS-åpent for søk og full variabelordbok",
+    "malt": "begge prober OK: catalog/search?sk=health%20expenditure → 200 + ACAO:*, rows[] med idno/title/nation/form_model som dokumentert; catalog/AFG_2023_PRMS_v01_M/variables (reell IDNO fra søket) → 200, variables[] med vid/name/labl",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "cessda.md",
+    "felt": "base_url + brødtekst (search-endepunkt, studyAreaCountries-filter)",
+    "paastand": "datacatalogue.cessda.eu/api/DataSets/v2/search nøkkelfritt+CORS-åpent; verifisert-tall: studyAreaCountries=Norway&q=health → 77 studier",
+    "malt": "begge prober OK: q=health%20survey → 200 + ACAO:*, ResultsCount.available:4861; studyAreaCountries=Norway&q=health → 200, ResultsCount.available:77 (eksakt match med dokumentert tall)",
+    "klasse": "OK",
+    "forslag": "-"
+  },
+  {
+    "fil": "ihsn.md",
+    "felt": "base_url + brødtekst (catalog/search, TLS-felle-påstand for server-side/Deno)",
+    "paastand": "catalog.ihsn.org nøkkelfritt+CORS-åpent, men server-side (Deno/rustls) feiler pga TLS-kjede (ECDSA-SHA512) — kun direkte nettleser/klient-TLS når verten",
+    "malt": "søk → 200 + ACAO:* fra denne (ikke-Deno) klienten, bekrefter at verten er nåbar direkte og CORS-åpen som dokumentert. Sertifikat-sjekk (openssl s_client) viser Signature Algorithm: ecdsa-with-SHA384, ikke SHA512 som teksten sier — liten faktadetalj-avvik i beskrivelsen av TLS-fellen, endrer ikke konklusjonen (verten er fortsatt nåbar herfra, som forventet siden felle-påstanden gjelder Deno spesifikt, ikke generell TLS)",
+    "klasse": "OK",
+    "forslag": "brødtekst: 'ECDSA-SHA512-signatur' → sertifikatet observert 2026-08-16 bruker faktisk ecdsa-with-SHA384; vurder å rette eller fjerne hash-detaljen siden den ikke er avgjørende for konklusjonen"
+  },
+  {
+    "fil": "ipums.md",
+    "felt": "base_url + brødtekst (GET /extracts?collection=...&version=2, auth header)",
+    "paastand": "api.ipums.org/extracts uten nøkkel → 401 'Authorization field missing'; med ugyldig nøkkel → 403 'Invalid API key'; nøkkel injiseres i Authorization-header (brukernøkkel, ikke miljøvariabel)",
+    "malt": "begge prober OK: uten Authorization-header → 401 {\"error\":\"Authorization field missing\"} eksakt match; med fabrikert ugyldig Authorization-verdi (ingen ekte hemmelighet brukt) → 403 {\"error\":\"Invalid API key\"} eksakt match. Ingen IPUMS-nøkkel finnes i .env (forventet — doc sier brukernøkkel, ikke miljøvariabel), så 200-med-ekte-nøkkel-stien ble ikke re-testet (allerede 'Verifisert 2026-08-04' i fila)",
+    "klasse": "OK",
+    "forslag": "-"
+  }
+]

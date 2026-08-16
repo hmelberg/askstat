@@ -35,8 +35,9 @@ FINNES — bygg aldri tallsvar herfra uten probe-✅ på en faktisk fil-URL.
 
 ## KUN nettleser-direkte — aldri server-side (TLS-felle)
 
-Målt 2026-08-06: catalog.ihsn.org serverer en TLS-kjede (ECDSA-SHA512-
-signatur) som Deno/rustls IKKE støtter — `search_catalog('ihsn', …)`,
+Målt 2026-08-06: catalog.ihsn.org serverer en TLS-kjede (ECDSA-signert;
+openssl-sjekk 2026-08-16 viser ecdsa-with-SHA384) som Deno/rustls IKKE
+støtter — `search_catalog('ihsn', …)`,
 `table_metadata('ihsn', …)` og `/api/hent`-proxyen FEILER alle mot denne
 verten. Nettlesere når den fint, og API-et er CORS-åpent — bruk derfor
 ALLTID direkte `ost.read` med full URL:

@@ -172,6 +172,16 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     (naboland, EU-snittet, en definert gruppe) — ikke «alle land» fordi
     de finnes i tabellen. Ufiltrerte uttrekk kan OOM-e kjøremiljøet.
 
+12. TRANSKRIPSJONS-PRINT-REGELEN (målt eval-runde 7: WPP- og FARS-svar
+    bar transkriberte hovedtall som aldri sto i output): tall du har
+    transkribert (nivå 2–3 i datatilfangst-stigen — web_fetch, websøk,
+    modellkunnskap) og som bærer SVARET, skal også PRINTES i en
+    run_code-kjøring — én linje per (enhet, verdi)-par, samme format som
+    regel 10 — slik at output-panelet bærer alle svarets tall.
+    Deklarasjonsplikten («transkribert, ikke maskinelt verifisert»)
+    gjelder uendret: printing gjør transkripsjonen SPORBAR, den gjør den
+    ikke «verifisert».
+
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,
 //). Formen er pythonsk — `ost.` på inngangspunktene, bart metodekall på
@@ -780,7 +790,10 @@ blokkene under med to linjeskift (`\n\n`), i denne rekkefølgen:
   ordren er heading, tag-suffiks, så evt. nivåfotnote. Ingress-avsnittet
   forklarer forskjellen («Et TEMA (samling) er en meny over kilder …» / «En
   ENKELTKILDE er en direkte instruks om én kilde»), og `GET_PACK_TOOL`
-  sin beskrivelse er omskrevet til samme vokabular.
+  sin beskrivelse er omskrevet til samme vokabular. Pakkerunden
+  (eval-runde 7, 2026-08-16) la til get_pack-dyttet i tema-setningen:
+  relevant (id: …)-enkeltkilde hentes med get_pack FØR websøk (målt:
+  temamenyen ble hoppet over til fordel for websøk).
 - **Egne nøkler v1** (innstillinger-runden Task 11, 2026-08-08): siste blokk
   i data-ruten (`## Brukerens egne API-nøkler`, `renderUserKeysBlock`, RETT
   ETTER kildepakkeblokka) — også dynamisk generert fra klientdata

@@ -24,9 +24,11 @@ Maler ({...}/<...>) og duplikater hoppes over; maks 12 URL-er per pakke.
 - **src-microdata-no.md: FIKSET** — `www.microdata.no/discovery` 404-er,
   `microdata.no/discovery` (uten www) gir 200 (curl-verifisert); pakken
   oppdatert til naken form.
-- **src-thl.md: REELL RÅTE, uavklart erstatning** — thl.fi har
-  restrukturert (kandidatstier 404-er også); trenger manuelt oppslag før
-  pakken endres.
+- **src-thl.md: FIKSET (manuelt oppslag 2026-08-16)** — thl.fi har
+  restrukturert; ny åpen-data-side er `thl.fi/en/research/open-data`
+  (200), API-ene er Sotkanet REST (`sotkanet.fi/rest/1.1/indicators`) og
+  sampo-pivot-kubene (`sampo.thl.fi/pivot/prod/api/...`) — begge
+  curl-verifisert 200; pakken omskrevet.
 - manifesto/un-wpp: API-røtter uten endepunkt — 404 kan være legitimt;
   sjekk ved neste bruk, ikke endret.
 - gdelt 429: rate-limit, ikke råte.

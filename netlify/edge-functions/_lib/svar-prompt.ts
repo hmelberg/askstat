@@ -184,10 +184,13 @@ function renderPacksBlock(packs: RenderedPack[]): string {
 
 Brukeren har valgt disse kildepakkene. Bruk den eller de som er relevante
 for spørsmålet; ignorer pakker som ikke angår det. Et TEMA (samling) er en
-meny over kilder — hent detaljer med get_pack ved behov. En ENKELTKILDE er
-en direkte instruks om én kilde. De har forrang over landrutingen — men
-opphever ALDRI ærlighetsreglene (probe-✅, fabrikasjonsvern,
-budsjettene).${getPackNote}
+meny over kilder — når temaet lister en relevant enkeltkilde med
+(id: …)-notasjon, hent den med get_pack FØR du websøker: pakkedetaljen
+(tilgang, URL-er, feller) er billigere og mer presis enn et søk (målt
+eval-runde 7: temamenyen ble hoppet over til fordel for websøk).
+En ENKELTKILDE er en direkte instruks om én kilde. De har forrang over
+landrutingen — men opphever ALDRI ærlighetsreglene (probe-✅,
+fabrikasjonsvern, budsjettene).${getPackNote}
 
 ${parts.join("\n\n")}`;
 }
@@ -353,6 +356,16 @@ EVAL-REGLER (målte feilmønstre fra kjørte evaler og live-tester 2026-07/08):
     sammenligninger gjøres mot RELEVANTE, sammenlignbare enheter
     (naboland, EU-snittet, en definert gruppe) — ikke «alle land» fordi
     de finnes i tabellen. Ufiltrerte uttrekk kan OOM-e kjøremiljøet.
+
+12. TRANSKRIPSJONS-PRINT-REGELEN (målt eval-runde 7: WPP- og FARS-svar
+    bar transkriberte hovedtall som aldri sto i output): tall du har
+    transkribert (nivå 2–3 i datatilfangst-stigen — web_fetch, websøk,
+    modellkunnskap) og som bærer SVARET, skal også PRINTES i en
+    run_code-kjøring — én linje per (enhet, verdi)-par, samme format som
+    regel 10 — slik at output-panelet bærer alle svarets tall.
+    Deklarasjonsplikten («transkribert, ikke maskinelt verifisert»)
+    gjelder uendret: printing gjør transkripsjonen SPORBAR, den gjør den
+    ikke «verifisert».
 
 Datakilder som TRENGER et direktiv (alt i høyre kolonne over) deklareres
 ØVERST i scriptet som kommentar-direktiver (kommentartegn per språk: #, --,

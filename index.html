@@ -7982,6 +7982,59 @@ def _m2py_patch_plotly_show():
         print(_EMBED_S + "figure__" + chr(10) + pio.to_json(fig_or_data) + chr(10) + _EMBED_E)
     pio.show = _m2py_pio_show
 _m2py_patch_plotly_show()
+def _m2py_ts_vakt(obj):
+    # Datetime-i-value-vakta (kodesak R6-B, målt eval-runde 6): pivot/merge
+    # i generert kode kan lekke datetime64→int64-NANOSEKUNDER inn i
+    # verdikolonnen (Sverige 4.5e17 i une_rt_m-svaret) — datalaget er målt
+    # rent, så vakta bor her ved visningsgrensen. Vinduet [1e16, 5e18) er
+    # ns-epoker etter ~april 1970; reelle statistikkverdier når ~1e14
+    # (verdens-BNP), så grensen 1e16 holder falsk-positiv-raten nær null —
+    # vaktas levevilkår (samme prinsipp som rangeringsvernet). Returnerer
+    # en advarselstekst eller None; kalleren PRINTER, blokkerer aldri.
+    try:
+        import pandas as pd
+        kols = []
+        if isinstance(obj, pd.Series):
+            par = [(obj.name if obj.name is not None else "verdier", obj)]
+        elif isinstance(obj, pd.DataFrame):
+            par = [(k, obj[k]) for k in obj.columns]
+        else:
+            try:
+                import plotly.graph_objects as _go
+                if isinstance(obj, _go.Figure):
+                    for _tr in obj.data:
+                        for _akse in ("x", "y"):
+                            _arr = getattr(_tr, _akse, None)
+                            if _arr is None:
+                                continue
+                            for _v in _arr:
+                                if isinstance(_v, (int, float)) and 1e16 <= abs(_v) < 5e18:
+                                    return ("⚠️ Figuren har verdier i nanosekund-"
+                                            "timestamp-størrelsesorden (~1e18) på "
+                                            + _akse + "-aksen — en tidskolonne kan ha "
+                                            "lekket inn som tall (datetime64→int64). "
+                                            "Sjekk pivot/merge-koden før du bruker tallene.")
+                    return None
+            except Exception:
+                pass
+            return None
+        for navn, serie in par:
+            try:
+                if str(serie.dtype).startswith(("int", "float")):
+                    mx = serie.abs().max()
+                    if mx == mx and 1e16 <= mx < 5e18:
+                        kols.append(str(navn))
+            except Exception:
+                continue
+        if kols:
+            return ("⚠️ Kolonnen '" + "', '".join(kols) + "' har verdier i "
+                    "nanosekund-timestamp-størrelsesorden (~1e18) — en tidskolonne "
+                    "kan ha lekket inn i verdiene (datetime64→int64). Sjekk "
+                    "pivot/merge-koden før du bruker tallene.")
+    except Exception:
+        return None
+    return None
+
 def _show_one(obj):
     import base64
     import io
@@ -8038,6 +8091,9 @@ def _show_one(obj):
         import plotly.graph_objects as go
         if isinstance(obj, go.Figure):
             import plotly.io as pio
+            _adv = _m2py_ts_vakt(obj)
+            if _adv:
+                print(_adv)
             print(_EMBED_S + "figure__" + chr(10) + pio.to_json(obj) + chr(10) + _EMBED_E)
             return
     except Exception:
@@ -8060,6 +8116,9 @@ def _show_one(obj):
     try:
         if isinstance(obj, (pd.DataFrame, pd.Series)):
             print(obj)
+            _adv = _m2py_ts_vakt(obj)
+            if _adv:
+                print(_adv)
             return
     except Exception:
         pass

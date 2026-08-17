@@ -8040,8 +8040,8 @@ def _m2py_figurdata_utskrift(fig):
             linjer.extend(punkter[:plass + 1])
         if not linjer:
             return None
-        return ("Figurdata (auto-utskrift av figurens datapunkter):\n" +
-                "\n".join(linjer))
+        return ("Figurdata (auto-utskrift av figurens datapunkter):" +
+                chr(10) + chr(10).join(linjer))
     except Exception:
         return None
 

@@ -310,7 +310,16 @@ sluke hele siden inn i konteksten din:
     // resten blir i #outputArea (selv flyttet inn i en av vertene).
     // output = outputArea + slot-innhold; answerProse = svaret UTEN
     // slots (ellers er tall-i-output-sjekken sirkulær for slot-tall).
-    output: (((document.getElementById('outputArea') || {}).innerText || '') + '\n' +
+    // Kodesak A (r12-funn §5): innerText er synlighetsavhengig —
+    // checkVisibility()=false på #outputArea i svarvisningen ga TOM tekst
+    // (figurdata-blindheten). Motor-fangsten (mdSisteKjoringStdout, rå
+    // stdout for SISTE kjøring) foretrekkes; innerText+slots beholdes som
+    // fallback og for slot-innhold (flyttede outputs).
+    // Embed-payloads (r12 målte 636 KB figur-JSON) strippes så de ikke
+    // spiser 20000-taket og skjuler print-tekst bak seg.
+    output: ((((window.mdSisteKjoringStdout ? window.mdSisteKjoringStdout().raw : '')
+                .replace(/__micro_transform_start_[\s\S]*?__micro_transform_end__/g, '[embed]')) ||
+              ((document.getElementById('outputArea') || {}).innerText || '')) + '\n' +
              Array.from(document.querySelectorAll('#askAnswer .ask-out-slot'))
                .map(function (s) { return s.innerText; }).join('\n')).slice(0, 20000),
     answerProse: (function () {

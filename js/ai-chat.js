@@ -1793,11 +1793,24 @@
               }
             }
           } catch (eStyrt) { /* fail-open */ }
+          // Kodesak A (eval-r12): seq leses FØR kjøringen — bare en bump
+          // mellom før/etter beviser at DENNE kjøringen skrev motor-stdouten
+          // (en stående lastOutput fra en tidligere kjøring gir uendret seq).
+          var seqFoer = window.mdSisteKjoringStdout ? window.mdSisteKjoringStdout().seq : -1;
           insertScriptIntoEditor(script);
           var err = await runScriptAndCaptureError(signal);
           var out = document.getElementById('outputArea');
+          // Kodesak A (eval-r12, docs/eval/2026-08-18-harness.md §5): foretrekk
+          // motorens stdout — DOM-innerText er synlighetsavhengig (målt: tom
+          // ved checkVisibility()=false i svarvisningen, selv print()
+          // forsvant, og figurdata-blokken nådde aldri modellen). Fallback til
+          // innerText når seq ikke rykket (R/andre kjøreveier uten bump) eller
+          // accessoren mangler — da er adferden byte-lik den gamle.
+          var fangst = window.mdSisteKjoringStdout ? window.mdSisteKjoringStdout() : null;
+          var motorTekst = (fangst && fangst.seq !== seqFoer)
+            ? motorOutputTilModelltekst(fangst.raw) : '';
           // Maskert FØR noe annet leser den — se maskKnownKeyValues over.
-          var outText = maskKnownKeyValues(((out && out.innerText) || '').trim());
+          var outText = maskKnownKeyValues((motorTekst || ((out && out.innerText) || '')).trim());
           // OUTPUTS-manifest (spec 2026-07-31-ask-svar-referanser §2):
           // forteller modellen HVA den kan referere med {{fig:1}} osv. —
           // samme klassifiseringsfunksjon som resolveren bruker, så
@@ -1823,6 +1836,34 @@
         window.mdSvarRun = runSvarLoop;
       }
 
+      // Kodesak A (eval-r12, docs/eval/2026-08-18-harness.md §5): motorens rå
+      // stdout inneholder embed-payloads på flere hundre KB (r12 målte 636 KB
+      // figur-JSON) — modellen skal ha tekstdelene ordrett og aldri payloaden.
+      // Samme markørkonvensjon som parseOutput i index.html; markdown-embeds
+      // ER lesbar tekst og beholdes, alt annet blir en kompakt markør
+      // (OUTPUTS-manifestet navngir allerede figurene for modellen).
+      var EMBED_START_MRK = '__micro_transform_start_';
+      var EMBED_END_MRK = '__micro_transform_end__';
+      function motorOutputTilModelltekst(raw) {
+        var s = String(raw == null ? '' : raw);
+        var ut = '';
+        while (s.length) {
+          var i = s.indexOf(EMBED_START_MRK);
+          if (i === -1) { ut += s; break; }
+          ut += s.slice(0, i);
+          var typeEnd = s.indexOf('__', i + EMBED_START_MRK.length);
+          var type = typeEnd > i ? s.slice(i + EMBED_START_MRK.length, typeEnd) : 'ukjent';
+          var payloadStart = s.indexOf('\n', typeEnd) + 1;
+          var slutt = s.indexOf(EMBED_END_MRK, payloadStart);
+          if (slutt === -1) { ut += '[' + type + '-embed avkuttet]'; break; }
+          ut += type === 'markdown'
+            ? s.slice(payloadStart, slutt).trim()
+            : '[' + type + '-embed vist i output]';
+          s = s.slice(slutt + EMBED_END_MRK.length);
+        }
+        return ut;
+      }
+
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
       } else {
@@ -1845,6 +1886,7 @@
           validateRSyntax: validateRSyntax,
           _v2Validators: _v2Validators,
           computeParamFormsWrap: computeParamFormsWrap,
+          motorOutputTilModelltekst: motorOutputTilModelltekst,
         };
       }
     })();

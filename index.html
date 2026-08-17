@@ -4100,6 +4100,13 @@
     let microdataCatalog = null;
     let lastOutput = '';
     let lastOutputMode = 'translate';
+    // Kodesak A (eval-r12, docs/eval/2026-08-18-harness.md §5): teller for
+    // fullførte kjøringer som skrev lastOutput — leseren (mdAskExecuteScript
+    // i js/ai-chat.js) sammenligner seq før/etter sin kjøring og kan dermed
+    // skille «denne kjøringens stdout» fra en stående verdi fra en tidligere
+    // kjøring. Kjøreveier som IKKE bumper (f.eks. R runSelf) gir uendret seq
+    // og leseren faller tilbake til DOM-innerText som før.
+    let mdKjoringSeq = 0;
     window.lastDatasetInfo = {};
 
     function setStatus(el, msg, isError = false) {
@@ -9101,6 +9108,7 @@ if _asm.get('spec'):
       // Speil legacy-veiens tilstand så outputMode-radioene re-rendrer
       // ferske SQL-resultater, ikke forrige kjørings innhold.
       lastOutput = _out.join('\n\n');
+      mdKjoringSeq++;
       lastOutputMode = 'run';
       renderOutput(lastOutput, false, false);
       refreshDatasetSidebarFromDuck();
@@ -11090,6 +11098,15 @@ options(width = 200)
     // repair loop clicks the button and polls this getter to know when the
     // run has settled before inspecting #outputArea for a `pre.error` node.
     window.mdIsScriptRunning = function () { return scriptRunInProgress; };
+    // Kodesak A (eval-r12): motor-side stdout-fangst for run_code.
+    // DOM-innerText er synlighetsavhengig (checkVisibility()=false i
+    // svarvisningen → tom tekst; målt: selv print() forsvant fra
+    // run_code-resultatet) — motorens eget stdout er det ikke. Rå verdi
+    // (med embed-payloads); leseren strippe-transformerer selv
+    // (motorOutputTilModelltekst i js/ai-chat.js).
+    window.mdSisteKjoringStdout = function () {
+      return { seq: mdKjoringSeq, raw: lastOutput || '' };
+    };
 
     // Fase 3 (spec 2026-07-16-plain-script-widgets): hele-skriptet-rerun
     // for ui-kontroller med rerun="all". Klikker Kjør-knappen (Kjør alle i
@@ -12421,6 +12438,7 @@ async def _m2py_run_segment(_seg_json):
         if (py && typeof py.setStdout === 'function') py.setStdout();
         if (py && typeof py.setStderr === 'function') py.setStderr();
         lastOutput = (stdout || '').trim();
+        mdKjoringSeq++;
         console.debug('[kjør] ferdig: segmenter=' + segments.length + ' total stdout=' + stdout.length + ' tegn');
         await refreshDatasetSidebarFromPy(py);
         if (stderr) console.warn('[stderr]', stderr.trim());
@@ -12429,6 +12447,7 @@ async def _m2py_run_segment(_seg_json):
       } catch (e) {
         const errMsg = (e && e.message) ? e.message : String(e);
         lastOutput = 'ERROR:\n' + errMsg;
+        mdKjoringSeq++;
         // Segmentvis kjøring: allerede rendret output beholdes, feilen legges
         // til under (speiler remote-adferden: delresultater + feil).
         // Konvergert dokument (Task 3b): samme doc-bevisste tømming som

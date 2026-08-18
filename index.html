@@ -6497,6 +6497,18 @@ json.dumps(out)
           layout[k] = mergeLayoutSection(baseLayout[k], spec_layout[k]);
         }
       });
+      // plotly-2.32-felle (kodesak B, eval-r12 §5): title.automargin med
+      // title.text FRAVÆRENDE (nøkkelen finnes ikke i det hele tatt) →
+      // drawMainTitle→bBox måler en tittelnode som aldri ble tegnet →
+      // TypeError (getAttribute på null) SYNKRONT ut av newPlot — hele
+      // figuren ble plassholder for alle modellfigurer uten eksplisitt
+      // tittel (målt: hver r12-figur i outputArea siden automargin-
+      // endringen 2026-08-09). Med text tilstede (selv '') er automargin
+      // trygg — målt 2026-08-18 mot cdn-plotly 2.32.0.
+      if (layout.title && typeof layout.title === 'object'
+          && layout.title.automargin && layout.title.text === undefined) {
+        delete layout.title.automargin;
+      }
       // norge-geometri i px.choropleth (spec-tillegget 2026-07-24):
       // markørstrengene løses her med samme memoiserte fetch som
       // folium-shimet (__norgeGeoFetch, delt cache). Uten markører:
@@ -6507,7 +6519,30 @@ json.dumps(out)
             && norgeKinds.indexOf(tr.geojson) === -1) norgeKinds.push(tr.geojson);
       });
       function doPlot() {
-        Plotly.newPlot(div, data, layout, { responsive: true, autosizable: true, staticPlot: staticPlot }).catch(function(){});
+        // Kodesak B (eval-r12 §5): buildOutputNodes bygger i et DETACHED
+        // fragment, og plotly-2.32 kaster synkront (drawMainTitle→bBox→
+        // getAttribute på null) når title.automargin skal måles på en
+        // frakoblet node — HVER titulert figur i outputArea døde slik
+        // siden automargin-endringen 2026-08-09 (js/ui.js sin figurvei
+        // utsetter allerede og var derfor frisk). Samme utsettelses-idiom
+        // som tabulator-embedden i buildOutputNodes: rendrer først ETTER
+        // at fragmentet er montert. En div som fortsatt er frakoblet når
+        // timeouten fyrer er forkastet (verten tømt før rendring) — da
+        // hopper vi over i stedet for å lekke resize-lyttere på window.
+        setTimeout(function () {
+          if (!div.isConnected) return;
+          try {
+            Plotly.newPlot(div, data, layout, { responsive: true, autosizable: true, staticPlot: staticPlot }).catch(function(){});
+          } catch (e) {
+            // Utsatt rendring ligger utenfor embed-grenens try/catch i
+            // buildOutputNodes — plassholder-plikten flytter med hit.
+            try { console.error('[plotly-embed] rendring feilet (utsatt):', e && e.message); } catch (_) {}
+            var pre = document.createElement('pre');
+            pre.className = 'embed-placeholder';
+            pre.textContent = '[Plotly-figur – rendring feilet]';
+            div.replaceWith(pre);
+          }
+        }, 0);
       }
       if (norgeKinds.length) {
         Promise.all(norgeKinds.map(__norgeGeoFetch)).then(function (geos) {
@@ -6919,11 +6954,13 @@ json.dumps(out)
                 frag.appendChild(pre);
               }
             } else if (p.embedType === 'figure' && p.payload && typeof Plotly !== 'undefined') {
+              // Parse og rendring feiler av HELT ulike grunner og må skilles
+              // (kodesak B, eval-r12: en render-TypeError bar parse-merkelappen
+              // «could not parse JSON» og sendte diagnosen til avkuttet-payload-
+              // sporet i stedet for til rendreren).
+              let figSpec = null;
               try {
-                const spec = JSON.parse(p.payload);
-                const div = document.createElement('div');
-                frag.appendChild(div);
-                mdRenderPlotlyFigure(div, spec);
+                figSpec = JSON.parse(p.payload);
               } catch (e) {
                 // Diagnose (funn 2026-08-13): payloaden er trolig AVKUTTET
                 // (kjøring avbrutt midt i figur-print → tom/halv payload),
@@ -6939,6 +6976,25 @@ json.dumps(out)
                 pre.className = 'embed-placeholder';
                 pre.textContent = '[Plotly figure – could not parse JSON]';
                 frag.appendChild(pre);
+              }
+              if (figSpec) {
+                const div = document.createElement('div');
+                frag.appendChild(div);
+                try {
+                  mdRenderPlotlyFigure(div, figSpec);
+                } catch (e) {
+                  try {
+                    console.error('[plotly-embed] rendring feilet:', e && e.message,
+                      '|', e && e.stack ? String(e.stack).split('\n')[1] : '');
+                  } catch (_) {}
+                  // halvtegnet SVG skal ikke bli stående ved siden av
+                  // plassholderen
+                  div.remove();
+                  const pre = document.createElement('pre');
+                  pre.className = 'embed-placeholder';
+                  pre.textContent = '[Plotly-figur – rendring feilet]';
+                  frag.appendChild(pre);
+                }
               }
             } else if (p.embedType === 'png' && p.payload) {
               const img = document.createElement('img');

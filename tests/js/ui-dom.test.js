@@ -1333,7 +1333,11 @@ test('Ui.renderPayload figur: automargin i xaxis/yaxis overlever når spec.layou
 // Begge formene modellen faktisk sender må overleve: objektformen (plotly.py
 // sin `{text: …}`) merges med automargin, mens streng-kortformen må vinne HELT
 // — Object.assign med en streng som kilde ville gitt {0:'T',1:'i',…}.
-test('Ui.renderPayload figur: title.automargin settes, og både objekt- og strengform av spec.layout.title overlever', async () => {
+// KONTRAKTENDRING (kodesak B, eval-r12 §5, målt 2026-08-18): title.automargin
+// med title.text FRAVÆRENDE kaster TypeError synkront i plotly-2.32
+// (drawMainTitle→bBox→getAttribute på null) — automargin skal derfor KUN
+// overleve når modellen faktisk sendte en titteltekst å måle.
+test('Ui.renderPayload figur: title.automargin følger titteltekst, og både objekt- og strengform av spec.layout.title overlever', async () => {
   const { Ui, bodyEl } = freshEnv({ cellIdx: 0 });
   const calls = [];
   global.Plotly = { newPlot: (...args) => calls.push(args) };
@@ -1350,7 +1354,8 @@ test('Ui.renderPayload figur: title.automargin settes, og både objekt- og stren
 
   await wait(10);
   assert.strictEqual(calls.length, 3);
-  assert.strictEqual(calls[0][2].title.automargin, true, 'automargin som default uten tittel fra modellen');
+  assert.strictEqual(calls[0][2].title.automargin, undefined,
+    'uten titteltekst fra modellen STRIPPES automargin (plotly-2.32-fella)');
   assert.strictEqual(calls[1][2].title.automargin, true, 'automargin overlever objektformen');
   assert.strictEqual(calls[1][2].title.text, 'Tittel', 'modellens tittel-tekst vinner');
   assert.strictEqual(calls[2][2].title, 'Kortform', 'strengform ødelegges ikke av mergen');

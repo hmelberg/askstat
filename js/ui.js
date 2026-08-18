@@ -1910,6 +1910,15 @@
             else layout[k] = Object.assign({}, baseLayout[k], over);
           }
         });
+        // plotly-2.32-felle (kodesak B, eval-r12 §5 — samme vakt som
+        // mdRenderPlotlyFigure i index.html): title.automargin med
+        // title.text FRAVÆRENDE → drawMainTitle→bBox → TypeError
+        // (getAttribute på null) synkront ut av newPlot. Med text
+        // tilstede (selv '') er automargin trygg — målt 2026-08-18.
+        if (layout.title && typeof layout.title === 'object'
+            && layout.title.automargin && layout.title.text === undefined) {
+          delete layout.title.automargin;
+        }
         // 5a review Minor (dash-absorpsjon 5b-oppfølging): luk ut frakoblede
         // oppføringer VED PUSH også, ikke bare inni temabytte-observerens
         // callback (installThemeObserver over) — uten dette vokser _figures

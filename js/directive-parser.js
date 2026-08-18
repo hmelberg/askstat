@@ -251,14 +251,46 @@
     return oldSyntaxError(body);
   }
 
+  // Kodesak C (eval-r11/r12, 3 målinger): feilklassene som betyr «linja
+  // sluttet midt i en ubalansert struktur» — kandidater for python-stil
+  // linjefortsettelse. Bevisst UTEN «uavsluttet streng»: strenger er
+  // én-linjes (som i python), en sammenføyning ville stille slukt
+  // markør+innrykk inn i strengverdien.
+  // «forventet «,» eller «X»» er med: den fyrer også når input tar slutt
+  // rett etter en komplett verdi (målt: {"Region": "0301"<linjeslutt>) —
+  // på en ekte feil-CHAR midt i linja vil sammenføyningen bare feile med
+  // samme melding og originalfeilen består (kappet på 8 linjer).
+  var UNBALANCED_RE = /^(mangler «[)}\]]»|mangler verdi|forventet «,» eller «[)}\]]»)$/;
+
   function parseScript(text) {
     var lines = String(text == null ? '' : text).split(/\r?\n/);
     var items = [], errors = [];
     for (var i = 0; i < lines.length; i++) {
       var r = parseLine(lines[i]);
       if (!r) continue;
-      if (r.error) { errors.push('linje ' + (i + 1) + ': ' + r.error); continue; }
-      r.lineNo = i + 1;
+      var startLine = i + 1;
+      // Linjefortsettelse (kodesak C): kildeguidenes oppskrifter er
+      // linjebrutt (~72 tegn) og modellene limer dem ordrett — én-linjes-
+      // grammatikken ga «mangler «}»», og modellene «reparerte» ved å
+      // STRYKE filters (målt: hele tabellen lastet, r11-norden/r12-norden/
+      // r12-inflasjon). En ubalansert direktivlinje absorberer derfor
+      // påfølgende markørlinjer til kallet balanserer. En linje som selv
+      // parser som gyldig direktiv er ALDRI en fortsettelse, og feiler
+      // sammenføyningen forblir originalfeilen på originallinja.
+      if (r.error && UNBALANCED_RE.test(r.error)) {
+        var acc = lines[i];
+        for (var j = i + 1; j < lines.length && j - i <= 8; j++) {
+          if (!MARKER_RE.test(lines[j])) break;
+          var alene = parseLine(lines[j]);
+          if (alene && !alene.error) break;
+          acc += ' ' + String(lines[j]).replace(MARKER_RE, '');
+          var r2 = parseLine(acc);
+          if (r2 && !r2.error) { r = r2; i = j; break; }
+          if (r2 && r2.error && !UNBALANCED_RE.test(r2.error)) break;
+        }
+      }
+      if (r.error) { errors.push('linje ' + startLine + ': ' + r.error); continue; }
+      r.lineNo = startLine;
       items.push(r);
     }
     return { items: items, errors: errors };

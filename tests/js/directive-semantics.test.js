@@ -45,8 +45,15 @@ test('parse: years med åpen ende, countries som liste, all og filters', () => {
     '# b = eu.read("nama_10_gdp", years="2020:", countries=["NO","SE"], all=True,',
     '#              filters={"na_item": "B1GQ"})',
   ].join('\n'));
-  // flerlinjede kall støttes IKKE — linje 3 skal gi feil, ikke stille dropp
-  assert.ok(p.errors.length >= 1);
+  // KONTRAKTENDRING (kodesak C, eval-r11/r12): flerlinjede kall støttes nå
+  // via linjefortsettelse i parseren — guidens linjebrutte oppskrifter fikk
+  // «mangler «}»» og modellene «reparerte» ved å stryke filters (målt 3×:
+  // hele tabellen lastet ufiltrert). Linje 2+3 skal nå bli ETT kall.
+  assert.deepEqual(p.errors, []);
+  const c = p.loads[0].options.canonical;
+  assert.deepEqual(c.countries, ['NO', 'SE']);
+  assert.deepEqual(c.filters, { na_item: 'B1GQ' });
+  assert.equal(c.all, true);
 });
 
 test('parse: enlinjet variant av samme', () => {

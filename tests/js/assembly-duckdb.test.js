@@ -192,3 +192,37 @@ test('compile: attaches er strukturerte {alias, sql} (én per unik fil-URL)', ()
   ]);
   assert.equal(out.attachStatements, undefined);
 });
+
+// Kodesak C (eval-r11/r12, 3 målinger «lastet hele tabellen uten filters»):
+// parseAssembly gjorde ENHVER «x = alias.read("tabell")» til monteringskilde
+// (LOADAS-arven) — og synthSourceLoads bærer kun alias+tabell, så kilden ble
+// re-hentet UFILTRERT og monteringspreamblet (som ligger ETTER load-
+// preamblet) overskrev den riktig filtrerte rammen. Fordelingen i målingene
+// forklares av identifikator-vakten: ssbs siffer-tabeller («14706») slapp
+// unna, eurostats bokstavnavn («une_rt_m», «prc_hicp_manr») ble kapret.
+// Kuren: en read MED kwargs (years/filters/countries/…) er en FILTRERT
+// lesing og aldri en monteringskilde; kwarg-løse reads beholder LOADAS-rollen.
+test('parseAssembly: read med kwargs er ALDRI monteringskilde (kodesak C)', () => {
+  const r = DD.parseAssembly(
+    '# arb = eurostat.read("une_rt_m", filters={"geo": ["NO","SE"], "s_adj": "SA"}, years="2025:2026")');
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.deepEqual(r.spec.sources, [], 'kwarg-bærende read skal ikke bli monteringskilde');
+  assert.deepEqual(r.spec.datasets, []);
+});
+
+test('parseAssembly: kwarg-løs read beholder LOADAS-rollen som monteringskilde', () => {
+  const r = DD.parseAssembly('# x = kilde.read("tabell")');
+  assert.equal(r.errors.length, 0);
+  assert.deepEqual(r.spec.sources, ['kilde__tabell']);
+  assert.equal(r.spec.datasets.length, 1);
+  assert.equal(r.spec.datasets[0].name, 'x');
+});
+
+test('parseAssembly: flerlinje-read med kwargs (guide-oppskriftens form) er heller ikke monteringskilde', () => {
+  const r = DD.parseAssembly(
+    '# arb = eurostat.read("une_rt_m", filters={"geo": ["NO","SE","DK","FI","IS"],\n' +
+    '#   "s_adj": "SA", "unit": "PC_ACT", "age": "TOTAL", "sex": "T"},\n' +
+    '#   years="2025:2026")');
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.deepEqual(r.spec.sources, []);
+});

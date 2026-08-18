@@ -884,6 +884,16 @@
       // `x = <alias>.read("tabell")` er også en monteringskilde (gammel LOADAS).
       // URL-lesing (`ost.read`) er IKKE en monteringskilde — som før.
       if (it.verb === 'read' && it.recv !== 'ost' && it.target) {
+        // Kodesak C (eval-r11/r12, 3 målinger): en read MED kwargs
+        // (years/filters/countries/…) er en FILTRERT lesing — aldri en
+        // monteringskilde. synthSourceLoads bærer kun alias+tabell, så en
+        // kwarg-bærende read ville re-hentes UFILTRERT her og montering-
+        // preamblet (ETTER load-preamblet) overskrev den riktig filtrerte
+        // rammen. Målt: eurostat une_rt_m (1,07 mill. rader) og
+        // prc_hicp_manr (52 MB → størrelsesvakta) — mens ssb var immun
+        // fordi siffer-tabellnavn («14706») aldri passerer identifikator-
+        // vakten under. Gammel LOADAS var kwarg-løs; den rollen består.
+        if (Object.keys(it.kwargs || {}).length) return;
         if (byName[it.target]) { errors.push('datasettet «' + it.target + '» er allerede opprettet'); return; }
         var table = it.args.length ? String(it.args[0]) : null;
         // Bare enkle tabellnavn deltar i montering (som LOADAS_RE før).

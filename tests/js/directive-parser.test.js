@@ -347,3 +347,95 @@ test('rf"/b"-prefikser får samme instruktive feil; vanlige kall uendret', () =>
   assert.equal(ok.errors.length, 0);
   assert.equal(ok.items.length, 1);
 });
+
+// Kodesak C (eval-r11/r12, 3 målinger «lastet hele tabellen uten filters»):
+// kildeguidenes oppskrifter ER linjebrutt (~72 tegn), og modellene limer dem
+// ordrett. Én-linjes-grammatikken ga «mangler «}»» — modellene «reparerte»
+// ved å STRYKE filters og lastet hele tabellen. Miljøkuren: python-stil
+// linjefortsettelse — en direktivlinje som slutter midt i en ubalansert
+// struktur (mangler «)»/«}»/«]»/verdi) absorberer påfølgende #-linjer til
+// kallet balanserer. Eurostat-adapteren var aldri feil (verifisert e2e:
+// enlinjeform og ren python ga korrekt filtrert URL hele veien).
+test('flerlinje-direktiv: guide-oppskriftens eksakte linjebryting parses til ETT kall med alle kwargs', () => {
+  const r = DP.parseScript(
+    '# arb = eurostat.read("une_rt_m", filters={"geo": ["NO","SE","DK","FI","IS"],\n' +
+    '#   "s_adj": "SA", "unit": "PC_ACT", "age": "TOTAL", "sex": "T"},\n' +
+    '#   years="2025:2026")');
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.equal(r.items.length, 1);
+  const it = r.items[0];
+  assert.equal(it.form, 'call');
+  assert.equal(it.recv, 'eurostat');
+  assert.equal(it.target, 'arb');
+  assert.deepEqual(it.kwargs.filters.geo, ['NO', 'SE', 'DK', 'FI', 'IS']);
+  assert.equal(it.kwargs.filters.s_adj, 'SA');
+  assert.equal(it.kwargs.years, '2025:2026');
+  assert.equal(it.lineNo, 1);
+});
+
+test('flerlinje-direktiv: brudd midt i liste og etter «=» (mangler verdi-klassen)', () => {
+  const r = DP.parseScript(
+    '# x = ssb.read("14706", filters={"Region": ["0301",\n' +
+    '#   "1103"]}, years=\n' +
+    '#   "2020:2024")');
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.equal(r.items.length, 1);
+  assert.deepEqual(r.items[0].kwargs.filters.Region, ['0301', '1103']);
+  assert.equal(r.items[0].kwargs.years, '2020:2024');
+});
+
+test('flerlinje-direktiv: en SELVSTENDIG gyldig direktivlinje etter en ubalansert konsumeres IKKE', () => {
+  const r = DP.parseScript(
+    '# a = ssb.read("x", filters={"k":\n' +
+    '# b = ssb.read("y")');
+  // linje 1 forblir feil, linje 2 forblir eget direktiv
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /linje 1/);
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0].target, 'b');
+});
+
+test('flerlinje-direktiv: prose-kommentar etter ubalansert linje gir original feil, ikke sammenføyningsstøy', () => {
+  const r = DP.parseScript(
+    '# x = ssb.read("14706", filters={"Region":\n' +
+    '# dette er en vanlig kommentar uten direktivinnhold\n' +
+    'print("hei")');
+  assert.equal(r.items.length, 0);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /linje 1: mangler verdi/);
+});
+
+test('flerlinje-direktiv: ubalansert siste linje uten fortsettelse feiler som før', () => {
+  const r = DP.parseScript('# x = ssb.read("14706", filters={"Region": "0301"');
+  assert.equal(r.items.length, 0);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /forventet «,» eller «\}»/);
+});
+
+test('flerlinje-direktiv: brudd rett etter komplett verdi (forventet-klassen) fortsetter også', () => {
+  const r = DP.parseScript(
+    '# x = ssb.read("14706", filters={"Region": "0301"\n' +
+    '#   }, years="2020:2024")');
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0].kwargs.filters.Region, '0301');
+});
+
+test('flerlinje-direktiv: uavsluttet streng fortsetter IKKE over linjer (strenger er én-linjes)', () => {
+  const r = DP.parseScript(
+    '# x = ssb.read("14706\n' +
+    '# ", years="2020")');
+  assert.equal(r.items.length, 0);
+  assert.ok(r.errors.length >= 1);
+  assert.match(r.errors[0], /uavsluttet streng/);
+});
+
+test('flerlinje-direktiv: to komplette enlinje-direktiver etter hverandre er uberørt', () => {
+  const r = DP.parseScript(
+    '# a = ssb.read("x")\n' +
+    '# b = ssb.read("y")');
+  assert.equal(r.errors.length, 0);
+  assert.equal(r.items.length, 2);
+  assert.equal(r.items[0].target, 'a');
+  assert.equal(r.items[1].target, 'b');
+});

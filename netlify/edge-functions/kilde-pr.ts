@@ -3,7 +3,7 @@
 // ville ellers sluppet enhver nøkkelbruker forbi admin-kravet. Klienten
 // sender Authorization: Bearer <login-token>; Anvil-brukerens is_admin
 // (eller delt service-token) er den reelle sperren.
-import { adminGate } from "./_lib/auth.ts";
+import { adminGate, type IpContext } from "./_lib/auth.ts";
 import { byggBranchNavn, opprettIssue, opprettPr, velgMaal } from "./_lib/kilde-pr-core.ts";
 
 const MAX_BODY_BYTES = 300_000;
@@ -15,8 +15,8 @@ interface RequestBody {
   issue?: { tittel?: unknown; kropp?: unknown };
 }
 
-export default async (request: Request): Promise<Response> => {
-  const gateResp = await adminGate(request, { endpoint: "kilde-pr", maxBodyBytes: MAX_BODY_BYTES });
+export default async (request: Request, context: IpContext): Promise<Response> => {
+  const gateResp = await adminGate(request, { endpoint: "kilde-pr", maxBodyBytes: MAX_BODY_BYTES }, context);
   if (gateResp) return gateResp;
 
   let body: RequestBody;

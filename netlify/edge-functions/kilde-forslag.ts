@@ -2,7 +2,7 @@
 // kildebeskrivelser (spec 2026-08-13-kildeforbedring §3). Single-shot,
 // ingen verktøy; klienten eier flerrunde-historikken (payload.history).
 import { streamAnthropic } from "./_lib/anthropic.ts";
-import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse } from "./_lib/auth.ts";
+import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse, type IpContext } from "./_lib/auth.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
@@ -99,11 +99,11 @@ fenced json-blokk, sist i svaret:
 {"forslag": [{"id": "<kilde-id fra forespørselen>", "deler": [{"del": "kort" | "guide" | "hode" | "prefix", "ny_tekst": "<HELE den nye delen, inkl. overskrift>"}], "begrunnelse": "<1-3 setninger>"}], "melding": "<kort oppsummering, eller hvorfor ingen endring>", "kode_sak": {"tittel": "...", "kropp": "..."}}
 \`\`\``;
 
-export default async (request: Request): Promise<Response> => {
+export default async (request: Request, context: IpContext): Promise<Response> => {
   const gateResp = await gate(request, {
     endpoint: "kilde-forslag", maxBodyBytes: MAX_BODY_BYTES,
     allowByok: true, allowLlmKey: true,
-  });
+  }, context);
   if (gateResp) return gateResp;
 
   let body: KildeForslagBody;

@@ -1,5 +1,6 @@
 // search_datasets: meta-søk med scope — parallell utvifting til kuraterte
 // kataloger, kilde-diversifisert fletting. Spec 2026-07-30-oppdagelseslaget.
+import { guardedFetchImpl } from "../ssrf.ts";
 import { searchCatalog } from "./search-catalog.ts";
 import type { DataSource } from "../registry.ts";
 import type { DatasetHit } from "./catalogs/static-catalog.ts";
@@ -73,7 +74,10 @@ function viaSearchCatalog(
 }
 
 function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<string, () => Promise<DatasetHit[]>> {
-  const f = deps.fetchImpl ?? fetch;
+  // Timeout + byte-tak + SSRF-sjekk per hop (se guardedFetchImpl i ssrf.ts).
+  // Statiske kataloger på eget origin går via loadStaticCatalog, som selv
+  // pakker om med trustedOrigin.
+  const f = guardedFetchImpl(deps.fetchImpl ?? fetch);
   // off: registry-ider brukeren har skrudd av (sources_off). Kun ARM-NAVN
   // som faktisk ER registry-ider skal sjekkes mot denne — datacite/
   // dataeuropa/zenodo er IKKE registry-ider (ingen tilsvarende kilde i

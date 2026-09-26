@@ -7,6 +7,7 @@ import { dbnomicsMetadata } from "./catalogs/dbnomics.ts";
 import { dcCoverage } from "./catalogs/datacommons.ts";
 import { nadaMetadata } from "./catalogs/nada.ts";
 import { isValidTableId } from "../meta-info-map.ts";
+import { guardedFetchImpl } from "../ssrf.ts";
 
 export interface TableVariable {
   code: string;
@@ -155,7 +156,8 @@ export async function tableMetadata(
   // protokoll-relativ id ville overstyrt vertsnavnet. Før datacommons-
   // grenen, så den dekkes også.
   if (!isValidTableId(tableId)) throw new Error(`ugyldig table_id '${tableId.slice(0, 80)}'`);
-  const f = deps.fetchImpl ?? fetch;
+  // Timeout + byte-tak + SSRF-sjekk per hop (se guardedFetchImpl i ssrf.ts).
+  const f = guardedFetchImpl(deps.fetchImpl ?? fetch);
   // Data Commons HAR en oppføring i data-sources.json (Task 8) — denne
   // grenen dispatcher likevel FORTSATT på sourceId FØR registeroppslaget,
   // bevisst, ikke et hull: dcCoverage() returnerer en EGEN returform

@@ -1,5 +1,5 @@
 import { streamAnthropic } from "./_lib/anthropic.ts";
-import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse, type IpContext } from "./_lib/auth.ts";
+import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse, type IpContext, readJsonCapped } from "./_lib/auth.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
@@ -61,10 +61,18 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     allowLlmKey: true,
   }, context);
   if (gateResp) return gateResp;
+  // Kroppstaket håndheves på selve strømmen: gate-sjekken ser bare
+  // content-length-headeren, og en chunked kropp uten den ble lest ubegrenset.
+  const parsed = await readJsonCapped(request, 20_000);
+  if (!parsed.ok) {
+    return parsed.tooLarge
+      ? new Response("Payload too large", { status: 413 })
+      : new Response("Invalid JSON", { status: 400 });
+  }
 
   let body: RequestBody;
   try {
-    body = await request.json();
+    body = (parsed.value ?? {}) as RequestBody;
   } catch (_) {
     return new Response("Invalid JSON", { status: 400 });
   }

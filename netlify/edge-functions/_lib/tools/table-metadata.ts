@@ -6,6 +6,7 @@ import { worldbankMetadata } from "./catalogs/worldbank.ts";
 import { dbnomicsMetadata } from "./catalogs/dbnomics.ts";
 import { dcCoverage } from "./catalogs/datacommons.ts";
 import { nadaMetadata } from "./catalogs/nada.ts";
+import { isValidTableId } from "../meta-info-map.ts";
 
 export interface TableVariable {
   code: string;
@@ -149,6 +150,11 @@ export async function tableMetadata(
   tableId: string,
   deps: { registry: DataSource[]; fetchImpl?: typeof fetch; find?: string },
 ): Promise<TableMeta> {
+  // SSRF-vakt for ALLE kallere (svar sin table_metadata-tool gir modellens
+  // table_id rett hit): adapterne bygger URL-er av id-en, og en absolutt/
+  // protokoll-relativ id ville overstyrt vertsnavnet. Før datacommons-
+  // grenen, så den dekkes også.
+  if (!isValidTableId(tableId)) throw new Error(`ugyldig table_id '${tableId.slice(0, 80)}'`);
   const f = deps.fetchImpl ?? fetch;
   // Data Commons HAR en oppføring i data-sources.json (Task 8) — denne
   // grenen dispatcher likevel FORTSATT på sourceId FØR registeroppslaget,

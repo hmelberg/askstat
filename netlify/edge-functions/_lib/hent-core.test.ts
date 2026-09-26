@@ -212,3 +212,11 @@ Deno.test("handleHent: SSB v0-API avvises med instruktiv feil", async () => {
   assertEquals(tekst.includes("v0"), true);
   assertEquals(tekst.includes("v2"), true);
 });
+
+Deno.test("handleHent: envKeysAllowed=false injiserer aldri site-nøkkel (BYOK)", async () => {
+  const log: string[] = [];
+  const d = { registry: REG, getEnv: (k: string) => ({ FRED_API_KEY: "SECRET" } as Record<string, string>)[k], fetchImpl: fakeFetch(log), envKeysAllowed: false };
+  const r = await handleHent(req("url=" + encodeURIComponent("https://api.stlouisfed.org/fred/series?series_id=UNRATE")), d);
+  assertEquals(r.status, 403);
+  assertEquals(log.length, 0);
+});

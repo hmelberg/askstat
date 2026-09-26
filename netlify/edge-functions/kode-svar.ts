@@ -1,5 +1,5 @@
 import { streamAnthropic } from "./_lib/anthropic.ts";
-import { extractByokKey, gate, upstreamErrorResponse, type IpContext } from "./_lib/auth.ts";
+import { extractByokKey, gate, upstreamErrorResponse, type IpContext, readJsonCapped } from "./_lib/auth.ts";
 import { abbrevType, cleanDescription, extractValidPeriod, renderLabels } from "./_lib/catalog-format.ts";
 
 // ====================================================================
@@ -1319,10 +1319,18 @@ export async function buildCachedPrefix(origin: string, mode: GenMode = "microda
 export default async (request: Request, context: IpContext): Promise<Response> => {
   const gateResp = await gate(request, { endpoint: "kode-svar", maxBodyBytes: 50_000, allowByok: true }, context);
   if (gateResp) return gateResp;
+  // Kroppstaket håndheves på selve strømmen: gate-sjekken ser bare
+  // content-length-headeren, og en chunked kropp uten den ble lest ubegrenset.
+  const parsed = await readJsonCapped(request, 50_000);
+  if (!parsed.ok) {
+    return parsed.tooLarge
+      ? new Response("Payload too large", { status: 413 })
+      : new Response("Invalid JSON", { status: 400 });
+  }
 
   let body: RequestBody;
   try {
-    body = await request.json();
+    body = (parsed.value ?? {}) as RequestBody;
   } catch (_) {
     return new Response("Invalid JSON", { status: 400 });
   }

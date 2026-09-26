@@ -72,6 +72,17 @@ Deno.test("non-pxweb source throws with probe guidance", async () => {
   if (!threw.includes("probe")) throw new Error("ventet probe-henvisning: " + threw);
 });
 
+Deno.test("table_id som ville overstyrt vertsnavnet avvises før fetch", async () => {
+  for (const [src, id] of [["statfin", "http://10.0.0.5/admin"], ["statfin", "//evil.example/x"], ["fhi", "http:evil/1"]]) {
+    let fetched = false;
+    const fetchImpl = (() => { fetched = true; return Promise.resolve(new Response("{}")); }) as typeof fetch;
+    let threw = "";
+    try { await tableMetadata(src, id, { registry: REG, fetchImpl }); } catch (e) { threw = String(e); }
+    if (!threw.includes("ugyldig table_id")) throw new Error(`${src}/${id}: ventet avvisning, fikk '${threw}'`);
+    if (fetched) throw new Error(`${src}/${id}: fetch ble kalt`);
+  }
+});
+
 Deno.test("fhi metadata: kode fra categories[].value, ingen tids-flagg", async () => {
   const fetchImpl = ((input: string | URL | Request) => {
     if (String(input).includes("daar/table/754/dimension")) {
@@ -819,16 +830,16 @@ Deno.test("eurostat metadata: descendants-kallet timer ut → ærlig norsk feil 
 
 Deno.test("eurostat metadata: tableId URL-enkodes i BEGGE kall (dataflow og contentconstraint)", async () => {
   const calls: string[] = [];
-  // Ingen ekte Eurostat-kode inneholder mellomrom — brukes her KUN for å bevise
-  // at encodeURIComponent faktisk kjører (worldbankMetadata-mønsteret), ikke
-  // fordi det er en realistisk table_id.
-  const weird = "ei lmhr_m";
+  // «@» er lov i en table_id (isValidTableId, sdmx-dataflow-former), men må
+  // URL-enkodes — brukes her KUN for å bevise at encodeURIComponent faktisk
+  // kjører (worldbankMetadata-mønsteret). Mellomrom avvises nå av SSRF-vakten.
+  const weird = "ei@lmhr_m";
   await tableMetadata("eurostat", weird, {
     registry: REG,
     fetchImpl: fakeEurostatFetch(EUROSTAT_DSD_XML, EUROSTAT_CC_XML, calls),
   });
-  assertEquals(calls.some((u) => u.includes("dataflow/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
-  assertEquals(calls.some((u) => u.includes("contentconstraint/ESTAT/ei%20lmhr_m")), true, calls.join(" | "));
+  assertEquals(calls.some((u) => u.includes("dataflow/ESTAT/ei%40lmhr_m")), true, calls.join(" | "));
+  assertEquals(calls.some((u) => u.includes("contentconstraint/ESTAT/ei%40lmhr_m")), true, calls.join(" | "));
 });
 
 // --- byggLeseLinje (styrte kilder-runden, Task 4) ---------------------------

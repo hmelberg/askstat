@@ -2,7 +2,7 @@
 // kildebeskrivelser (spec 2026-08-13-kildeforbedring §3). Single-shot,
 // ingen verktøy; klienten eier flerrunde-historikken (payload.history).
 import { streamAnthropic } from "./_lib/anthropic.ts";
-import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse, type IpContext } from "./_lib/auth.ts";
+import { extractByokKey, extractLlmKey, gate, upstreamErrorResponse, type IpContext, readJsonCapped } from "./_lib/auth.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
 import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
@@ -105,9 +105,17 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     allowByok: true, allowLlmKey: true,
   }, context);
   if (gateResp) return gateResp;
+  // Kroppstaket håndheves på selve strømmen: gate-sjekken ser bare
+  // content-length-headeren, og en chunked kropp uten den ble lest ubegrenset.
+  const parsed = await readJsonCapped(request, MAX_BODY_BYTES);
+  if (!parsed.ok) {
+    return parsed.tooLarge
+      ? new Response("Payload too large", { status: 413 })
+      : new Response("Invalid JSON", { status: 400 });
+  }
 
   let body: KildeForslagBody;
-  try { body = await request.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
+  try { body = (parsed.value ?? {}) as KildeForslagBody; } catch { return new Response("Invalid JSON", { status: 400 }); }
   if (!Array.isArray(body.docs) || !body.docs.length ||
       !body.docs.every((d) => d && typeof d.id === "string" && typeof d.text === "string")) {
     return new Response("docs mangler", { status: 400 });

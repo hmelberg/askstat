@@ -3,7 +3,7 @@
 // ville ellers sluppet enhver nøkkelbruker forbi admin-kravet. Klienten
 // sender Authorization: Bearer <login-token>; Anvil-brukerens is_admin
 // (eller delt service-token) er den reelle sperren.
-import { adminGate, type IpContext } from "./_lib/auth.ts";
+import { adminGate, type IpContext, readJsonCapped } from "./_lib/auth.ts";
 import { byggBranchNavn, opprettIssue, opprettPr, velgMaal } from "./_lib/kilde-pr-core.ts";
 
 const MAX_BODY_BYTES = 300_000;
@@ -18,9 +18,17 @@ interface RequestBody {
 export default async (request: Request, context: IpContext): Promise<Response> => {
   const gateResp = await adminGate(request, { endpoint: "kilde-pr", maxBodyBytes: MAX_BODY_BYTES }, context);
   if (gateResp) return gateResp;
+  // Kroppstaket håndheves på selve strømmen: gate-sjekken ser bare
+  // content-length-headeren, og en chunked kropp uten den ble lest ubegrenset.
+  const parsed = await readJsonCapped(request, MAX_BODY_BYTES);
+  if (!parsed.ok) {
+    return parsed.tooLarge
+      ? new Response("Payload too large", { status: 413 })
+      : new Response("Invalid JSON", { status: 400 });
+  }
 
   let body: RequestBody;
-  try { body = await request.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
+  try { body = (parsed.value ?? {}) as RequestBody; } catch { return new Response("Invalid JSON", { status: 400 }); }
 
   const token = Deno.env.get("GITHUB_PR_TOKEN");
   const repo = Deno.env.get("GITHUB_PR_REPO") ?? "hmelberg/askstat";

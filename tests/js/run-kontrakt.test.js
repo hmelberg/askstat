@@ -192,7 +192,8 @@ test('index.html: utkast-autosave (lagring OG gjenoppretting-ved-boot) skrubber 
   // unngå å treffe en av de andre.
   const saveIdx = html.indexOf("scriptInput.addEventListener('input'", restoreIdx);
   assert.ok(saveIdx > -1, 'fant ikke utkast-autosavens input-lytter');
-  const saveChunk = html.slice(saveIdx, saveIdx + 500);
+  // 900: lytteren fanger også utrygt-flagget for utkastet (review-port 2026-09-26).
+  const saveChunk = html.slice(saveIdx, saveIdx + 900);
   assert.ok(/scrubDraftKeysLine\(_v\)/.test(saveChunk),
     'autosave-lagringen (debounced input-lytter) skrubber ikke lenger FØR localStorage.setItem');
 });

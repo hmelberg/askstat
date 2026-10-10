@@ -179,10 +179,10 @@ export interface AnthropicMessageResult {
 }
 
 /**
- * Single, non-streaming completion. Used by the v2 variable-picker pass, which
- * needs the full result (a JSON array of variable names) before generation can
- * start. Reuses fetchWithRetry for timeout + 429/529 backoff. `deps` is
- * injectable for tests.
+ * Single, non-streaming completion (no live caller since the v2
+ * variable-picker was removed 2026-10-10; kept as the Anthropic counterpart of
+ * messageOpenAiCompat for a future shared single-shot helper). Reuses
+ * fetchWithRetry for timeout + 429/529 backoff. `deps` is injectable for tests.
  */
 export async function messageAnthropic(
   opts: AnthropicStreamOptions,

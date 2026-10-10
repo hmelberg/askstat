@@ -15,7 +15,7 @@ const MAX_TOKENS = 6_000;         // en DEL er sjelden >3k tegn — hele poenget
                                    // ikke plass i edge-vinduet (målt 2026-08-14)
 
 // Inlined from ./prompts/kilde-forslag.md (source of truth er .md-fila;
-// hold byte-lik — samme konvensjon som dm-vurder.ts).
+// hold byte-lik — samme konvensjon som tolk-resultat.ts).
 const KILDE_FORSLAG_SYSTEM = `\
 Du forbedrer BRUKERENS EGNE kildebeskrivelser i askstat. En kildebeskrivelse
 er et markdown-dokument (eventuelt med front matter øverst) som forteller en

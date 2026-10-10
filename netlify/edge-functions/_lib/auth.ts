@@ -1,5 +1,5 @@
-// Shared request gate for the AI edge functions (kode-svar, dm-vurder,
-// tolk-resultat). Consolidates what was ~40 lines of copy-pasted auth /
+// Shared request gate for the AI edge functions (ask-ruter, tolk-resultat,
+// kilde-forslag; adminGate: svar, hent, kilde-pr). Consolidates what was ~40 lines of copy-pasted auth /
 // rate-limit / body-guard logic in each handler, and fixes several issues the
 // duplicated version had:
 //   - rate-limit runs BEFORE the (network) Anvil validation, so an attacker

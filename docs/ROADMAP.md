@@ -4,6 +4,73 @@
 prioritert idéliste. Kilder: designdok/reviews fra jamovi 2.0 fase 1–3
 (docs/PLAN_jamovi_*.md, docs/jamovi-validation.md) + løpende samtaler og Hans' testing.*
 
+## Klare forslag fra review-runden 2026-10-10 (venter på Hans' ja)
+
+Fra helgjennomgangen av askstat (branch `review-fixes-2026-10`). Små og
+mellomstore funn er fikset der; disse er store/risikable og er derfor bare
+forslag. Ikke flytt Pyodide til en worker (Hans' beslutning).
+
+- [ ] **Håndhev CSP** — allowlisten i `netlify.toml` er komplett og verifisert
+      håndhevet i browser (Python/plotly, DuckDB, R, JS-modus, KaTeX, giscus:
+      0 brudd). Gi nytt navn `Content-Security-Policy-Report-Only` →
+      `Content-Security-Policy`. Kostnad: JS-modus-kode som importerer fra en
+      CDN utenfor listen blokkeres.
+- [ ] **Server-nøkkel-fallback kun for admin** — `gate()` i
+      `_lib/auth.ts` godtar enhver bruker av den delte Anvil-appen
+      (`mdataapi.anvil.app`, delt med microdata), og ask-ruter/tolk-resultat/
+      kilde-forslag faller da tilbake til `ANTHROPIC_API_KEY`. Ufarlig i dag
+      (nøkkelen er ikke satt i prod). Forslag: uten BYOK kreves `isAdmin` før
+      env-nøkkelen brukes; opt-in `SERVER_KEY_FOR_USERS=1` gir dagens adferd.
+      Gjør før `ANTHROPIC_API_KEY` eventuelt settes.
+- [ ] **kekId uten offline-brute-force** — `js/keys-crypto.js` lagrer
+      `kekId` = 8 hex av usaltet SHA-256 av innloggingskoden, så en DB-lekkasje
+      lar tre-ords-koden knekkes uten PBKDF2. Forslag: `kekIdV2` =
+      HMAC-SHA256(KEK, "kek-id") avkortet til 8 hex (etter PBKDF2-600k);
+      godta legacy ved pull, re-krypter og push med v2 etter vellykket
+      dekryptering, dropp legacy-feltet. Berører lagret format.
+- [ ] **Top-level `await` i Python-celler** — `_exec_pyodide_block` blir
+      `async def`, kompilerer med `ast.PyCF_ALLOW_TOP_LEVEL_AWAIT` og awaiter
+      korutiner; `await` i `_m2py_run_segment` og i de to JS-streng-kallerne
+      (~index.html 12796/13032) via `runPythonAsync`. ~15 linjer, men gjør
+      runneren asynkron.
+- [ ] **Port pretty-output fra openstat** — rekkefølge: 19ada00 (prelude-
+      display-hook + `tablehtml__`-rendrer + tester) → 7fad858 (innstillings-
+      bryter) → c85bd82/6f4b901 → 5b9fae4, 8a03b03, 69c7806 → docs.
+      ~150 linjer index.html + ~140 i runnerne. Risiko: HTML-tabeller som
+      standard kan bryte tekst-output-kontrakten AI-siden leser.
+- [ ] **Slett ubrukte `static_data`-filer (~15 MB)** — `person.parquet`,
+      `kommune_year`, `jobb`, `person_year`, `kjoretoy`, `kurs`, `malepunkt`,
+      `npr`, `value_labels`, `variables`, `valid_dates`, `kommune_crosswalk`,
+      `trafikkulykke`, `person_i_trafikkulykke`, `kommune`, `fylke`,
+      `icd10_kapittel`, `manifest.json` + `data/person_year_sample.csv`.
+      Ingenting lokalt leser dem; behold de to geojson-filene. Merk: eksemplene
+      `smoke02_montering`/`py31_assembly` henter openstats fjernkopier.
+- [ ] **Fjern microdata-seksjonene i `hjelp*.html`** — «Microdata-kommandoer»
+      + dataminimering (~185 linjer; dm-vurder er fjernet), microdata-delene av
+      AI-assistent-seksjonen, `//`-kommentarradene i trinnvis/widgets,
+      microdata-radene i Tab-referansen, `badge-micro`-stilen.
+- [ ] **Fjern `OLD_PATTERNS`-migreringshintene** i `js/directive-parser.js` —
+      ingenting i `data/` trenger dem lenger (drift-testen
+      `source-docs-directives` vokter), `tools/migrate_directives.py` har egne
+      regexer. Krever oppdatering av hint-asserts i `directive-parser`-,
+      `directive-semantics`- og `data-directives-use`-testene.
+- [ ] **Fjern død microdata-variabelkatalog** — `ensureMicrodataCatalog()`
+      kalles aldri og `variable_metadata.json` finnes ikke; katalog +
+      tab-komplettering er alltid tom. ~30 steder inkl. `js/ai-chat.js`.
+- [ ] **Edge-refaktorer** — (a) `_lib/single.ts`
+      `runSingleShot({system, prompt, maxTokens, provider, byokKey, envKey,
+      model})` som eier provider-parse, X-Llm-Key-sjekk, nøkkel-fallback,
+      compat/responses/anthropic-grenen og stopp→feil-mappingen (fjerner ~40
+      dupliserte linjer fra hver av ask-ruter, tolk-resultat, kilde-forslag);
+      (b) felles `dispatchClientTools(turnToolUses, state, budgets)` for
+      `runAgenticStream` og `providers/agentic.ts` (har allerede driftet).
+- [ ] **Relativ `/api/hent` for `requests`** — trenger en Pyodide-boot-patch
+      (~index.html 10871); i dag håndteres det av en prompt-regel.
+
+Utenfor koden (Hans): sett `SVAR_RESUME_SECRET` i Netlify (ellers er
+resume-signeringen av i prod); giscus melder «not installed» på
+`hmelberg/openstat-metadata` (kommentarer trolig brutt i prod).
+
 ## Prioritering av det gjenstående (vurdert 2026-07-23)
 
 **Viktigst — anbefalt neste økt:**

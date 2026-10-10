@@ -891,7 +891,7 @@
   <script src="widgets/forklar-widgets.js?v=2026-09-26"></script>
   <script src="js/names.js"></script>
   <script src="command_help.js"></script>
-  <script>window.M2PY_APP = 'openstat';</script>
+  <script>window.M2PY_APP = 'askstat';</script>
   <script src="js/notebook-links.js"></script>
   <script src="js/examples-menu.js"></script>
   <script>
@@ -1721,7 +1721,7 @@
         var req = window.mdNotebookAutorun;
         if (!req) return;
         window.mdNotebookAutorun = null;                 // consume once
-        var app = window.M2PY_APP || 'openstat';
+        var app = window.M2PY_APP || 'askstat';
         var needGate = window.NotebookLinks.autorunNeedsGate(app, window.mdHasStoredSecret());
         if (needGate) {
           var ok = await window.mdConfirmRun(req.url);
@@ -2052,20 +2052,20 @@
       if (!overlay || !contentEl) return;
       headerEl.style.display = '';
       kickerEl.textContent = t('Hjelp');
-      titleEl.textContent = 'OpenStat';
+      titleEl.textContent = 'AskStat';
       contentEl.innerHTML = [
-        t('<p class="var-detail-prose" style="margin-bottom:10px">Skriv og kjør microdata.no-kode, Python og R direkte i nettleseren.</p>'),
-        t('<p class="var-detail-prose" style="margin-bottom:10px;font-size:12px;color:var(--text-muted)">NB: Dette er et hobbyprosjekt &mdash; ikke laget av microdata.no. Tallene er ikke ekte, og det gis ingen garantier for korrekthet.</p>'),
+        t('<p class="var-detail-prose" style="margin-bottom:10px">Still et spørsmål på vanlig språk i <strong>Ask</strong>: AI-en finner en åpen statistikkilde (SSB, Eurostat, OWID, Verdensbanken m.fl.), skriver og kjører koden i nettleseren og forklarer svaret. Koden kan du se, endre og kjøre videre i editoren &mdash; med Python, R, DuckDB og flere.</p>'),
+        t('<p class="var-detail-prose" style="margin-bottom:10px;font-size:12px;color:var(--text-muted)">NB: Dette er et hobbyprosjekt, og AI-svar kan være feil &mdash; sjekk koden og kilden før du bruker tallene. AI-funksjonene bruker din egen API-nøkkel (Innstillinger), og det gis ingen garantier for korrekthet.</p>'),
         t('<div class="var-detail-section-title">Kjøre</div>'),
         t('<p class="var-detail-prose">Trykk <strong>Kjør</strong> eller <kbd style="font-size:11px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 5px">Ctrl+Enter</kbd>.</p>'),
         t('<div class="var-detail-section-title">Moduser</div>'),
-        t('<p class="var-detail-prose">Microdata · Python (Pyodide) · R (WebR). Bytt modus med dropdown-menyen i bunnbaren, eller bruk <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#r</code> / <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#py</code> / <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#micro</code> på egen linje i scriptet for hybridkode.</p>'),
+        t('<p class="var-detail-prose">Python (Pyodide) · R (WebR) · DuckDB (SQL) · Brython · MicroPython · JavaScript · jamovi. Bytt modus med dropdown-menyen i bunnbaren, eller bruk <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#py</code> / <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#r</code> / <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#duckdb</code> på egen linje i scriptet for hybridkode. Data flyttes mellom moduser med <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px"># use navn from python</code>.</p>'),
         t('<div class="var-detail-section-title">Tab-autocomplete</div>'),
-        t('<p class="var-detail-prose">Tab etter <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">/</code> → microdata-variabler · tab på tom linje → kommandoer/funksjoner · <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">df.</code> → DataFrame-metoder · <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">df$</code> → R-kolonner.</p>'),
+        t('<p class="var-detail-prose"><code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">df.</code> + Tab → DataFrame-metoder · <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">df$</code> + Tab → R-kolonner.</p>'),
         t('<div class="var-detail-section-title">Kjør skrittvis</div>'),
-        t('<p class="var-detail-prose">Kjør scriptet ett blokk om gangen med tale. Blank linje skiller blokker. Kommentarer på egen linje (<code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">//</code> for microdata, <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#</code> for Python/R) leses opp: kommentar over en blokk leses FØR koden, kommentar etter leses ETTER resultatet.</p>'),
+        t('<p class="var-detail-prose">Kjør scriptet én blokk om gangen med tale. Blank linje skiller blokker. Kommentarer på egen linje (<code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">#</code> for Python/R, <code style="font-size:12px;background:var(--bg-code);border:1px solid var(--border);border-radius:3px;padding:1px 4px">--</code> for SQL) leses opp: kommentar over en blokk leses FØR koden, kommentar etter leses ETTER resultatet.</p>'),
         t('<div class="var-detail-section-title">Datasett-panel</div>'),
-        t('<p class="var-detail-prose" style="margin-bottom:0">Sidemenyen til høyre viser datasett, variabler og typer. Klikk på en variabel for detaljer og lenke til dokumentasjon.</p>'),
+        t('<p class="var-detail-prose" style="margin-bottom:0">Sidemenyen til høyre viser datasett, variabler og typer. Klikk på en variabel for detaljer.</p>'),
       ].join('');
       btnMore.textContent = t('Full dokumentasjon');
       btnMore.style.display = '';
@@ -3766,6 +3766,25 @@
     // uteblir naturlig (innholdet matcher ikke lenger eksempelteksten).
     const DRAFT_PREFIX = 'md_draft_' + (window.M2PY_APP || 'app') + '_';
     function draftKey(mode) { return DRAFT_PREFIX + mode; }
+    // M2PY_APP het 'openstat' (arv fra forken) til 2026-10 — kopier gamle
+    // utkast (inkl. __untrusted-flagg) til den nye nøkkelen når den mangler,
+    // så ingen mister utkast. Kun kopi: de gamle nøklene kan tilhøre en
+    // openstat-instans på samme origin, så de slettes ikke.
+    (function migrateLegacyDrafts() {
+      var LEGACY = 'md_draft_openstat_';
+      if (DRAFT_PREFIX === LEGACY) return;
+      try {
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf(LEGACY) === 0) keys.push(k);
+        }
+        keys.forEach(function (k) {
+          var nk = DRAFT_PREFIX + k.slice(LEGACY.length);
+          if (localStorage.getItem(nk) == null) localStorage.setItem(nk, localStorage.getItem(k));
+        });
+      } catch (e) { /* localStorage utilgjengelig — ingenting å migrere */ }
+    })();
     // Utkast av et utrygt dokument (delt lenke/GitHub) bærer et flagg, så
     // html-cellene ikke blir live-rendret bare fordi siden lastes på nytt.
     function draftUntrustedKey(mode) { return draftKey(mode) + '__untrusted'; }

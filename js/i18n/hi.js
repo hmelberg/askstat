@@ -189,8 +189,11 @@ window.M2PY_I18N.hi = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "अनाम त्रुटि रिपोर्ट भेजें (स्रोतों को बेहतर बनाने में मदद करता है)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "केवल त्रुटियाँ ही कभी भेजी जाती हैं — आपके प्रश्न, डेटा या कुंजियाँ कभी नहीं। अधिक जानकारी के लिए गोपनीयता पेज देखें।",
+  "Send error reports to the developer (off unless you turn it on)": "डेवलपर को त्रुटि रिपोर्ट भेजें (जब तक आप चालू न करें, बंद)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "जब कोई उत्तर विफल होता है, तो रिपोर्ट में आपका प्रश्न, AI की व्याख्या, विफल स्क्रिप्ट (सहेजी गई कुंजियाँ छिपाई गईं), त्रुटि संदेश, ऐप संस्करण, भाषा और AI प्रदाता का प्रकार होता है। इसे डेवलपर के सर्वर mdataapi.anvil.app पर भेजा जाता है और डेटा स्रोतों को ठीक करने के लिए उपयोग किया जाता है।",
+  "Show what would be sent": "दिखाएँ कि क्या भेजा जाएगा",
+  "Privacy statement": "गोपनीयता नीति",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "इस टैब में अभी तक कोई विफल उत्तर नहीं है। रिपोर्ट केवल तब बनती है जब कोई उत्तर विफल होता है; इसमें ऊपर बताए गए फ़ील्ड होंगे।",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "लागू किया गया — यह आपके अगले प्रश्न से प्रभावी होगा",
   "Apply": "लागू करें",

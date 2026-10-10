@@ -189,8 +189,11 @@ window.M2PY_I18N.es = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Enviar informes de errores anónimos (ayuda a mejorar las fuentes)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Solo se envían los errores — nunca tus preguntas, datos o claves. Consulta la página de privacidad para más información.",
+  "Send error reports to the developer (off unless you turn it on)": "Enviar informes de errores al desarrollador (desactivado salvo que lo actives)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Cuando una respuesta falla, el informe contiene tu pregunta, la interpretación de la IA, los scripts fallidos (claves guardadas enmascaradas), los mensajes de error, la versión de la aplicación, el idioma y el tipo de proveedor de IA. Se envía al servidor del desarrollador en mdataapi.anvil.app y se usa para corregir fuentes de datos.",
+  "Show what would be sent": "Mostrar lo que se enviaría",
+  "Privacy statement": "Política de privacidad",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Todavía no hay respuestas fallidas en esta pestaña. Solo se crea un informe cuando una respuesta falla; contendría los campos descritos arriba.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Aplicado — entra en vigor en tu próxima pregunta",
   "Apply": "Aplicar",

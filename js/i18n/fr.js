@@ -189,8 +189,11 @@ window.M2PY_I18N.fr = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Envoyer des rapports d'erreur anonymes (aide à améliorer les sources)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Seules les erreurs sont envoyées — jamais vos questions, données ou clés. Consultez la page de confidentialité pour plus de détails.",
+  "Send error reports to the developer (off unless you turn it on)": "Envoyer des rapports d'erreur au développeur (désactivé sauf si vous l'activez)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Lorsqu'une réponse échoue, le rapport contient votre question, l'interprétation de l'IA, les scripts en échec (clés enregistrées masquées), les messages d'erreur, la version de l'application, la langue et le type de fournisseur d'IA. Il est envoyé au serveur du développeur sur mdataapi.anvil.app et sert à corriger les sources de données.",
+  "Show what would be sent": "Afficher ce qui serait envoyé",
+  "Privacy statement": "Politique de confidentialité",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Aucune réponse en échec dans cet onglet pour l'instant. Un rapport n'est créé que lorsqu'une réponse échoue ; il contiendrait les champs décrits ci-dessus.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Appliqué — prend effet à votre prochaine question",
   "Apply": "Appliquer",

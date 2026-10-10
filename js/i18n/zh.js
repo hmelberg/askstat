@@ -189,8 +189,11 @@ window.M2PY_I18N.zh = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "发送匿名错误报告（有助于改进数据源）",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "只会发送错误信息——绝不会发送你的问题、数据或密钥。详情请见隐私页面。",
+  "Send error reports to the developer (off unless you turn it on)": "向开发者发送错误报告（默认关闭，除非你开启）",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "当回答失败时，报告包含你的问题、AI 的理解、失败的脚本（已保存的密钥会被遮盖）、错误信息、应用版本、语言和 AI 提供商类型。报告发送到开发者位于 mdataapi.anvil.app 的服务器，用于修复数据源。",
+  "Show what would be sent": "显示将要发送的内容",
+  "Privacy statement": "隐私声明",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "此标签页中还没有失败的回答。只有在回答失败时才会生成报告；报告将包含上述字段。",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "已应用——将在你下次提问时生效",
   "Apply": "应用",

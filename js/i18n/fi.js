@@ -189,8 +189,11 @@ window.M2PY_I18N.fi = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Lähetä anonyymejä virheraportteja (auttaa parantamaan lähteitä)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Vain virheet lähetetään koskaan — ei koskaan kysymyksiäsi, tietojasi tai avaimiasi. Katso lisätietoja tietosuojasivulta.",
+  "Send error reports to the developer (off unless you turn it on)": "Lähetä virheraportit kehittäjälle (pois päältä, ellet ota sitä käyttöön)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Kun vastaus epäonnistuu, raportti sisältää kysymyksesi, tekoälyn tulkinnan, epäonnistuneet skriptit (tallennetut avaimet peitettyinä), virheilmoitukset, sovelluksen version, kielen ja tekoälypalvelun tyypin. Se lähetetään kehittäjän palvelimelle osoitteeseen mdataapi.anvil.app ja sitä käytetään tietolähteiden korjaamiseen.",
+  "Show what would be sent": "Näytä, mitä lähetettäisiin",
+  "Privacy statement": "Tietosuojaseloste",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Tässä välilehdessä ei ole vielä epäonnistuneita vastauksia. Raportti muodostetaan vain, kun vastaus epäonnistuu; se sisältäisi yllä kuvatut kentät.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Käytössä — voimassa seuraavasta kysymyksestäsi",
   "Apply": "Käytä",

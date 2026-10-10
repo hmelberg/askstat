@@ -189,8 +189,11 @@ window.M2PY_I18N.is = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Senda nafnlausar villutilkynningar (hjálpar til við að bæta heimildirnar)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Aðeins villur eru sendar — aldrei spurningarnar þínar, gögn eða lyklar. Sjá persónuverndarsíðuna til að fá nánari upplýsingar.",
+  "Send error reports to the developer (off unless you turn it on)": "Senda villuskýrslur til þróunaraðilans (slökkt nema þú kveikir á því)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Þegar svar mistekst inniheldur skýrslan spurninguna þína, túlkun gervigreindarinnar, misheppnuðu skriftirnar (vistaðir lyklar faldir), villuboðin, útgáfu forritsins, tungumál og tegund gervigreindarþjónustu. Hún er send á netþjón þróunaraðilans á mdataapi.anvil.app og notuð til að lagfæra gagnalindir.",
+  "Show what would be sent": "Sýna hvað yrði sent",
+  "Privacy statement": "Persónuverndarstefna",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Engin misheppnuð svör í þessum flipa enn. Skýrsla er aðeins búin til þegar svar mistekst; hún myndi innihalda reitina sem lýst er hér að ofan.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Beitt — gildir frá næstu spurningu þinni",
   "Apply": "Beita",

@@ -77,33 +77,39 @@ function medStubbetGlobals(localStorageStub, fn) {
   }
 }
 
-test('telemetriAv(): md_telemetri_av=1 → sendFeilrapport kaller ALDRI fetch', () => {
-  medStubbetGlobals({
-    getItem: function (k) { return k === 'md_telemetri_av' ? '1' : null; },
-  }, (calls) => {
+// Review 2026-10-10 (S1): telemetri er OPT-IN. Kun md_telemetri_pa='1'
+// sender; fravær (også for eksisterende brukere), gammelt md_telemetri_av
+// og en kastende localStorage betyr AV (feiler lukket).
+test('opt-in: uten flagg → sendFeilrapport kaller ALDRI fetch', () => {
+  medStubbetGlobals({ getItem: function () { return null; } }, (calls) => {
+    assert.equal(FT.telemetriPa(), false);
     assert.equal(FT.telemetriAv(), true);
     FT.sendFeilrapport({ question: 'q', route: 'data' });
     assert.equal(calls.length, 0);
   });
 });
 
-test('telemetriAv(): uten flagget → sendFeilrapport kaller fetch som før', () => {
+test('opt-in: md_telemetri_pa=1 → fetch til Anvil', () => {
   medStubbetGlobals({
-    getItem: function () { return null; },
+    getItem: function (k) { return k === 'md_telemetri_pa' ? '1' : null; },
   }, (calls) => {
-    assert.equal(FT.telemetriAv(), false);
+    assert.equal(FT.telemetriPa(), true);
     FT.sendFeilrapport({ question: 'q', route: 'data' });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, 'https://mdataapi.anvil.app/_/api/feil');
   });
 });
 
-test('telemetriAv(): localStorage som kaster → false, OG sendFeilrapport sender likevel (fetch kalles)', () => {
-  // Object.defineProperty (ikke medStubbetGlobals) fordi vi trenger at selve
-  // TILGANGEN til global.localStorage kaster (f.eks. Safari privat modus) —
-  // medStubbetGlobals's rene tilordning kan ikke uttrykke det, og ville
-  // uansett feile stille mot en accessor-only property uten setter. Samme
-  // fetch-stub-mønster (calls-array + {catch} thenable) som helperen bruker.
+test('opt-in: gammelt md_telemetri_av-flagg gir ikke sending', () => {
+  medStubbetGlobals({
+    getItem: function (k) { return k === 'md_telemetri_av' ? '0' : null; },
+  }, (calls) => {
+    FT.sendFeilrapport({ question: 'q' });
+    assert.equal(calls.length, 0);
+  });
+});
+
+test('opt-in: localStorage som kaster → AV (feiler lukket)', () => {
   var hadLs = Object.prototype.hasOwnProperty.call(global, 'localStorage');
   var oldLs = global.localStorage;
   var hadFetch = Object.prototype.hasOwnProperty.call(global, 'fetch');
@@ -118,19 +124,25 @@ test('telemetriAv(): localStorage som kaster → false, OG sendFeilrapport sende
     return { catch: function () { return this; } };
   };
   try {
-    assert.equal(FT.telemetriAv(), false);
-    // Regresjonsvern: guarden må feile ÅPEN (telemetriAv()===false) uten å
-    // stille svelge selve sendingen — en feil som gjorde throw-stien også
-    // svelge sendFeilrapport ville sluppet gjennom om testen kun sjekket
-    // telemetriAv() og aldri kalte sendFeilrapport()/sjekket fetch.
+    assert.equal(FT.telemetriPa(), false);
     FT.sendFeilrapport({ question: 'q', route: 'data' });
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://mdataapi.anvil.app/_/api/feil');
+    assert.equal(calls.length, 0);
   } finally {
     delete global.localStorage;
     if (hadLs) global.localStorage = oldLs;
     if (hadFetch) global.fetch = oldFetch; else delete global.fetch;
   }
+});
+
+test('forhåndsvisning: siste rapport huskes i minnet også når telemetri er av', () => {
+  medStubbetGlobals({ getItem: function () { return null; } }, (calls) => {
+    FT.sendFeilrapport({ question: 'hva er bnp', runs: [{ script: 's', error: 'e' }] });
+    assert.equal(calls.length, 0);
+    var r = FT.sisteRapport();
+    assert.ok(r);
+    assert.equal(r.question, 'hva er bnp');
+    assert.equal(r.runs.length, 1);
+  });
 });
 
 test('maskerNokler er eksportert og maskerer nøkkel-parametre', () => {

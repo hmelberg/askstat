@@ -1583,13 +1583,16 @@
         if (dom.aiCfgProviderModel) dom.aiCfgProviderModel.value = (provRaw && provRaw.model) || '';
         if (dom.aiCfgLlmKey) dom.aiCfgLlmKey.value = '';
         syncProviderFields();
-        // Telemetri-opt-out (spec §10): md_telemetri_av='1' = avslått; alt
-        // annet (fravær inkludert) = tillatt, så boksen er i utgangspunktet
-        // avkrysset. try/catch som naboene (localStorage kan kaste).
+        // Telemetri er OPT-IN (review 2026-10-10, S1): kun md_telemetri_pa='1'
+        // = på; fravær (også eksisterende brukere) = av. Leses via
+        // FeilTelemetri så vakten og boksen aldri kan drifte fra hverandre.
         if (dom.aiCfgTelemetry) {
-          try { dom.aiCfgTelemetry.checked = localStorage.getItem('md_telemetri_av') !== '1'; }
-          catch (e) { dom.aiCfgTelemetry.checked = true; }
+          dom.aiCfgTelemetry.checked = !!(window.FeilTelemetri && window.FeilTelemetri.telemetriPa());
         }
+        var tPrev = $('aiCfgTelemetryPreviewOut');
+        if (tPrev) { tPrev.hidden = true; tPrev.textContent = ''; }
+        var pLink = $('aiCfgPrivacyLink');
+        if (pLink) pLink.href = (window.M2PY_LANG === 'no') ? 'personvern.html' : 'personvern.en.html';
         dom.aiSettingsBackdrop.classList.add('open');
       }
       function closeSettings() { dom.aiSettingsBackdrop.classList.remove('open'); }
@@ -1619,14 +1622,14 @@
             if (lk && window.Keys) window.Keys.set('llm', lk);
           }
         }
-        // Telemetri-opt-out: kun feilmeldinger sendes, aldri spørsmål/data/
-        // nøkler (js/feil-telemetri.js sin vakt leser dette flagget FØRST i
-        // sendFeilrapport). Avkrysset (tillatt) → fjern flagget i stedet for
-        // å skrive '0' — fravær ER "tillatt"-tilstanden.
+        // Telemetri (opt-in): avkrysset → md_telemetri_pa='1'; ellers fjernes
+        // flagget (fravær ER av-tilstanden). Det gamle opt-out-flagget
+        // md_telemetri_av ryddes bort.
         if (dom.aiCfgTelemetry) {
           try {
-            if (dom.aiCfgTelemetry.checked) localStorage.removeItem('md_telemetri_av');
-            else localStorage.setItem('md_telemetri_av', '1');
+            if (dom.aiCfgTelemetry.checked) localStorage.setItem('md_telemetri_pa', '1');
+            else localStorage.removeItem('md_telemetri_pa');
+            localStorage.removeItem('md_telemetri_av');
           } catch (e) {}
         }
         closeSettings();
@@ -1665,6 +1668,19 @@
         // Egne nøkler v1 (Task 11): «Add your own key» åpner skjemaet;
         // «Save key» lagrer umiddelbart (samme mønster som Datakilde-nøklenes
         // Fjern-knapp over — ingen ekstra «Lagre innstillinger»-steg).
+        // «Vis hva som ville blitt sendt»: siste feilrapport fra denne fanen
+        // (bygget også når telemetri er av), ellers en forklaring.
+        if ($('aiCfgTelemetryPreview')) {
+          $('aiCfgTelemetryPreview').addEventListener('click', () => {
+            var out = $('aiCfgTelemetryPreviewOut');
+            if (!out) return;
+            var r = window.FeilTelemetri && window.FeilTelemetri.sisteRapport();
+            out.textContent = r
+              ? JSON.stringify(r, null, 2)
+              : T('No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.');
+            out.hidden = false;
+          });
+        }
         if (dom.aiCfgUserKeyAdd) {
           dom.aiCfgUserKeyAdd.addEventListener('click', () => {
             if (dom.userKeyName) dom.userKeyName.value = '';

@@ -577,9 +577,14 @@
       </div>
 
       <div id="aiCfgPrivacy" style="margin-bottom:12px;">
-        <label class="sources-discover"><input type="checkbox" id="aiCfgTelemetry" checked>
-          <span data-i18n>Send anonymous error reports (helps improve the sources)</span></label>
-        <div class="ai-modal-help" data-i18n>Only errors are ever sent — never your questions, data or keys. See the privacy page for details.</div>
+        <label class="sources-discover"><input type="checkbox" id="aiCfgTelemetry">
+          <span data-i18n>Send error reports to the developer (off unless you turn it on)</span></label>
+        <div class="ai-modal-help" data-i18n>When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.</div>
+        <div style="margin-top:4px;">
+          <button type="button" class="ai-modal-btn" id="aiCfgTelemetryPreview" data-i18n>Show what would be sent</button>
+          <a id="aiCfgPrivacyLink" href="personvern.en.html" target="_blank" rel="noopener noreferrer" style="margin-left:8px;" data-i18n>Privacy statement</a>
+        </div>
+        <pre id="aiCfgTelemetryPreviewOut" hidden style="max-height:220px;overflow:auto;white-space:pre-wrap;font-size:11px;margin-top:4px;"></pre>
       </div>
 
       <div class="ai-modal-actions" style="margin-top:14px;">

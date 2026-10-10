@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Personvernerklæring – Microdata Script Runner</title>
+<title>Personvernerklæring – AskStat</title>
 <style>
   :root {
     --accent: #2563eb;
@@ -58,46 +58,68 @@
 </head>
 <body>
 <main>
-  <a class="back-link" href="index.html">← Tilbake til Script Runner</a>
+  <a class="back-link" href="index.html">← Tilbake til AskStat</a>
   <a class="back-link" href="personvern.en.html">In English</a>
   <h1>Personvernerklæring</h1>
-  <p class="lead">Microdata Script Runner er en gratis, offentlig versjon uten innlogging og uten kontoer.</p>
-  <p class="meta">Sist oppdatert: 2026-07-06.</p>
+  <p class="lead">AskStat er et gratis hobbyprosjekt. Du kan bruke det uten konto; innlogging er valgfritt og gir bare synkronisering mellom enheter.</p>
+  <p class="meta">Sist oppdatert: 2026-10-10.</p>
 
   <h2>1. Hva er dette?</h2>
-  <p>Microdata Script Runner er et hobbyprosjekt drevet av Hans Olav Melberg som hjelper brukere å skrive og kjøre kode mot microdata.no-syntaks, Python og R direkte i nettleseren. Denne versjonen krever <strong>ingen innlogging og ingen konto</strong>. Skriptet ditt, datasettene du laster inn og kjøreresultatene forblir i nettleseren din — de sendes aldri til noen server, med mindre du selv bruker AI-assistenten.</p>
+  <p>AskStat drives av Hans Olav Melberg. Appen svarer på spørsmål med data og kode, og lar deg skrive og kjøre Python, R, DuckDB/SQL og JavaScript direkte i nettleseren. Scriptene dine, datasettene du laster og kjøreresultatene blir i utgangspunktet i nettleseren din. De forlater den bare i tilfellene beskrevet under: når du bruker AI-funksjonene (punkt 2), når du logger inn (punkt 3), når du slår på feilrapporter (punkt 4), og når appen henter biblioteker eller data fra nettet, eller du bruker GitHub, kommentarer eller deling (punkt 6).</p>
 
-  <h2>2. Hva skjer når du bruker AI-assistenten?</h2>
-  <p>AI-funksjonene (kodeforslag, tolkning av resultater, dataminimeringsvurdering, web-søk) krever at du limer inn din egen Anthropic API-nøkkel under AI-innstillinger. Da gjelder:</p>
+  <h2>2. AI-funksjonene (Ask og AI-assistenten)</h2>
+  <p>AI-funksjonene bruker enten din egen API-nøkkel (limt inn under AI-innstillinger) eller, hvis du er innlogget, tjenestens egen nøkkel. Du velger leverandør: Anthropic er standard, men du kan sette opp en Anthropic- eller OpenAI-kompatibel tjeneste på en adresse du selv oppgir.</p>
   <ul>
-    <li><strong>Nøkkelen</strong> lagres kun lokalt i nettleseren din (<code>localStorage</code>) og sendes som header (<code>X-Anthropic-Key</code>) til vår server, som videresender den direkte til Anthropic for den ene forespørselen. Vi lagrer eller logger ikke nøkkelen. Har du valgt en egen AI-leverandør i innstillingene, går forespørslene i stedet til den leverandøren du selv har konfigurert.</li>
-    <li><strong>Spørsmålet og skriptutdraget du sender</strong> videresendes til Anthropic for å generere et svar. Vi lagrer ikke innholdet i disse forespørslene på egen server.</li>
-    <li><strong>IP-adressen din</strong> brukes midlertidig til enkel hastighetsbegrensning (rate limiting) for å hindre misbruk, og slettes fortløpende.</li>
-    <li>Forbruket (tokens/kostnad) belastes din egen Anthropic-konto — vi ser eller lagrer ikke betalingsinformasjon.</li>
-    <li><strong>Feilrapporter.</strong> Når noe feiler i appen, sendes en anonym feilrapport til oss (kun feilen — aldri spørsmålene, dataene eller nøklene dine; nøkkellignende verdier maskeres før sending). Dette hjelper oss å oppdage og rette kilder som har sluttet å virke. Du kan skru det av i AI-innstillingene («Send anonyme feilrapporter»).</li>
+    <li><strong>Nøkkelen din</strong> lagres bare i nettleseren (<code>localStorage</code>) og sendes som en header til serverfunksjonene våre hos Netlify, som videresender den til leverandøren du valgte for akkurat den forespørselen. Serveren lagrer eller logger ikke nøkkelen.</li>
+    <li><strong>Hva som sendes til leverandøren</strong> avhenger av funksjonen, og kan omfatte: spørsmålet ditt og ruterens tolkning av det; tidligere meldinger i samtalen; profilene/preferansene dine og valgte kildepakker; <em>navn og notater</em> for dine egne nøkler (aldri verdiene); scriptet i editoren (når du velger å ta det med); og output fra kode AI-en kjører i nettleseren din (<code>run_code</code>), som sendes tilbake til modellen så den kan skrive svaret. Verdier skrevet som <code>secret_key="…"</code> og den injiserte <code>KEYS = {…}</code>-linja maskeres i nettleseren før noe sendes.</li>
+    <li><strong>Websøk.</strong> Når websøk er på, søker leverandøren på nettet for deg; spørsmålet (eller deler av det) sendes da til leverandørens søketjeneste.</li>
+    <li><strong>En leverandør du selv har valgt</strong> behandler forespørselen — og nøkkelen — etter sine egne vilkår og sin egen personvernerklæring. Vi har ingen avtale med, og ingen kontroll over, en slik leverandør.</li>
+    <li><strong>Ingen lagring av innhold på serveren vår.</strong> Svarene strømmes rett tilbake til nettleseren. Serverfunksjonene våre lagrer ikke spørsmål, script eller svar (Netlify kan føre korte tekniske logger over forespørsler, som tidspunkt, sti og statuskode).</li>
+    <li><strong>IP-adresse og ratebegrensning.</strong> For å hindre misbruk teller serveren kall til <code>/api/</code>-endepunktene per IP-adresse (for IPv6: per /64-nett) og endepunkt. Tellerne lagres i Netlify Blobs: adressen inngår i nøkkelen, sammen med tidspunktene for kallene den siste timen. Eldre tidspunkter fjernes neste gang samme adresse gjør et kall, men <strong>selve oppføringen med IP-adressen slettes ikke automatisk</strong>.</li>
+    <li>Bruk på din egen nøkkel faktureres din konto hos leverandøren — vi ser aldri betalingsinformasjon.</li>
+  </ul>
+  <p><strong>Kode som kjører i nettleseren din.</strong> Kode skrevet av AI-en, og script fra lenker andre har delt, kjører i appens egen side. Slik kode kan teknisk sett lese det appen har lagret i nettleseren, også API-nøklene og innloggingen din. Appen spør derfor før den kjører et script fra en delt lenke, og før den kjører AI-skrevet kode som ser ut til å berøre nettleserlagringen. Sjekken er et sikkerhetsnett, ikke en sandkasse: bevisst forkledd kode blir ikke nødvendigvis oppdaget. Kjør bare lenker og kode du stoler på.</p>
+
+  <h2>3. Konto og synkronisering (valgfritt, via Anvil)</h2>
+  <p>Innlogging er valgfritt og gir bare synkronisering — alt annet virker uten konto. Innlogging og synk leveres av vår egen backend hos <strong>Anvil</strong> (mdataapi.anvil.app, Anvil Works Ltd, Storbritannia). Når du logger inn:</p>
+  <ul>
+    <li>Sendes <strong>e-postadressen</strong> din til Anvil, som sender deg en innloggingskode på e-post og lagrer kontoen din (e-post og kontoopplysninger).</li>
+    <li>Nettleseren beholder et innloggingstoken og, så den kan vise den til deg igjen, innloggingskoden din i <code>localStorage</code>. Serverfunksjonene våre hos Netlify sjekker innloggingstokenet mot Anvil når du bruker AI-funksjonene som innlogget.</li>
+    <li>Anvil lagrer, per konto: <strong>profilene</strong> dine; <strong>spørsmålshistorikken</strong> (spørsmål, generert kode og metadata — ikke de skrevne svarene); og <strong>API-nøklene</strong> dine, kryptert i nettleseren med en nøkkel avledet av innloggingskoden før opplasting, slik at Anvil bare lagrer chiffertekst.</li>
+    <li>For å være åpen: innloggingskoden passerer serveren når du logger inn, så en ondsinnet driftsoperatør kunne teknisk sett fanget den. Krypteringen beskytter mot databaselekkasjer og tilfeldig innsyn, ikke mot tjenesten selv.</li>
+  </ul>
+  <p>«Logg ut» beholder lokale data på enheten og stopper synken. «Logg ut og tøm denne enheten» fjerner også nøkler, historikk og profiler fra nettleseren — bruk det på delte maskiner. For å slette kontoen og alt som er lagret på serveren, ta kontakt (punkt 9).</p>
+
+  <h2>4. Feilrapporter (av med mindre du slår dem på)</h2>
+  <p>Feilrapporter er <strong>av som standard</strong>. Slår du dem på i AI-innstillingene, sendes det en rapport til Anvil-backenden vår (mdataapi.anvil.app) hver gang et Ask-svar feiler. Rapporten inneholder: <strong>spørsmålet ditt</strong>, AI-ens tolkning, de <strong>feilede scriptene</strong> (lagrede nøkler maskert), feilmeldingene, hvilke kilder som ble prøvd, appversjon, språk, modus og type AI-leverandør. Vi bruker rapportene til å finne og rette datakilder som har sluttet å virke. Innstillingene har en «Vis hva som ville blitt sendt»-knapp som viser siste rapport bygget i fanen din. Slår du det av igjen, stopper all sending.</p>
+
+  <h2>5. Informasjonskapsler og lokal lagring</h2>
+  <p>Appen setter ingen egne informasjonskapsler (cookies). Den bruker <code>localStorage</code> i nettleseren til å huske innstillinger og arbeid: API-nøkler, AI-leverandør og modell, innloggingstoken og innloggingskode (hvis du logger inn), krypteringsnøkkelen for synk, GitHub-token og -profiler (hvis du kobler til GitHub), spørsmålshistorikk, profiler, utkast og nylige script, modus, tema og språk. En service worker lagrer faste versjoner av programbiblioteker (som Pyodide, Plotly og webR) i nettleserens Cache Storage for raskere oppstart; datasett og annet brukerinnhold lagres ikke der.</p>
+
+  <h2>6. Tredjeparter og annen utgående trafikk</h2>
+  <p>Vi selger eller leier ikke ut data. Avhengig av hva du bruker, deles data med:</p>
+  <ul>
+    <li><strong>AI-leverandøren du valgte</strong> (som standard Anthropic, USA) — innholdet beskrevet i punkt 2.</li>
+    <li><strong>Netlify</strong> (USA) — drift av appen og serverfunksjonene, og ratebegrensningsoppføringene i Netlify Blobs.</li>
+    <li><strong>Anvil</strong> (Storbritannia) — konto, synk (punkt 3) og, hvis du slår dem på, feilrapporter (punkt 4).</li>
+  </ul>
+  <p>I tillegg kobler nettleseren seg direkte til disse tjenestene. De ser IP-adressen din og hvilken adresse som hentes, som ved ethvert nettsted:</p>
+  <ul>
+    <li><strong>Biblioteker fra CDN-er:</strong> cdn.jsdelivr.net (Pyodide, DuckDB-WASM, markdown-it, KaTeX, Tabulator, Leaflet, Brython og JavaScript-biblioteker), cdn.plot.ly (Plotly), cdnjs.cloudflare.com (require.js for interaktive widgets), www.lactame.com (ml.js i JavaScript-modus), webr.r-wasm.org og repo.r-wasm.org (R-modus), og pypi.org / files.pythonhosted.org (Python-pakker som installeres ved behov). Kart henter kartfliser fra tile.openstreetmap.org.</li>
+    <li><strong>Data du laster:</strong> Når et script eller AI-en laster data fra en URL (f.eks. et statistikkbyrås API), henter nettleseren dem direkte fra den adressen. Blokkerer kilden slike hentinger (CORS), går forespørselen i stedet via proxyen vår <code>/api/hent</code> hos Netlify: serveren henter adressen for deg og returnerer innholdet uten å lagre det. For å få bruke proxyen sender nettleseren AI-nøkkelen eller innloggingstokenet ditt til serveren vår; proxyen sender ikke det videre til datakilden. For datakilder som krever din egen nøkkel (registrert under AI-innstillinger), sendes nøkkelen til proxyen i en egen header, og proxyen legger den på forespørselen <em>bare til den kildens vert</em>. Ingen av nøklene lagres. Kallene teller med i ratebegrensningen i punkt 2.</li>
+    <li><strong>Kortnavn og GitHub-lenker:</strong> Åpner du en lenke med et kortnavn, slås navnet opp i et register på raw.githubusercontent.com. Lenker til script eller data på GitHub hentes fra GitHub.</li>
+    <li><strong>GitHub (api.github.com):</strong> Kobler du til GitHub med ditt eget tilgangstoken, snakker nettleseren direkte med GitHubs API for å liste, hente og lagre filer i repoene du velger. Tokenet lagres bare i nettleseren og sendes bare til GitHub. Nøkler i script du lagrer eller deler, maskeres.</li>
+    <li><strong>Kommentarer (giscus / GitHub Discussions):</strong> Åpner du en kommentartråd, laster appen giscus-widgeten fra giscus.app. Kommentarer lagres offentlig i GitHub Discussions; for å skrive en logger du inn med GitHub, etter GitHubs og giscus' vilkår. Ingenting lastes fra giscus før du åpner en tråd.</li>
+    <li><strong>Delelenker</strong> (<code>#s=…</code>) inneholder selve scriptet, komprimert i lenken. Alle du gir lenken til, kan lese det; nøkler maskeres før lenken lages.</li>
   </ul>
 
-  <h2>3. Informasjonskapsler og lokal lagring</h2>
-  <p>Appen bruker kun <code>localStorage</code> i din egen nettleser til å huske dine innstillinger (f.eks. Anthropic-nøkkel, valgt modus, tema), spørrehistorikken og profilene dine. Ingenting av dette sendes til oss med mindre du aktivt bruker AI-funksjonene eller logger inn (se neste avsnitt).</p>
+  <h2>7. Dine rettigheter</h2>
+  <p>Uten konto lagrer vi ikke innhold om deg over tid; det som blir liggende hos oss er ratebegrensningsoppføringene med IP-adresse og tidspunkter (punkt 2) og, hvis du har slått dem på, feilrapporter (punkt 4). Med konto lagrer Anvil det som står i punkt 3. Du kan be om innsyn i eller sletting av disse dataene — ta kontakt (punkt 9). Du kan også klage til Datatilsynet (<a href="https://www.datatilsynet.no" target="_blank" rel="noopener">datatilsynet.no</a>).</p>
 
-  <h2>3b. Konto og synkronisering (valgfritt)</h2>
-  <p>Innlogging er valgfritt og gir kun synkronisering — alt virker uten konto, og ingenting lastes opp før du logger inn. Logger du inn, lagrer vi på serveren: spørsmålene dine og den genererte koden (aldri de skrevne svarene), profilene dine og API-nøklene dine. Nøklene krypteres i nettleseren med login-koden din før opplasting, så serveren lagrer bare chiffertekst den ikke kan lese. For ordens skyld: login-koden passerer serveren når du logger inn, så en ondsinnet operatør kunne teknisk sett fange den — krypteringen beskytter mot databaselekkasjer og innsyn, ikke mot tjenesten selv.</p>
-  <p>«Log out» beholder lokale data på maskinen og stopper bare synkroniseringen. «Log out and clear this device» fjerner i tillegg nøkler, historikk og profiler fra nettleseren — bruk den på delte maskiner. Vil du slette kontoen og alt som ligger på serveren, kontakt oss (punkt 7).</p>
+  <h2>8. Endringer i erklæringen</h2>
+  <p>Endringer publiseres på denne siden, med ny dato øverst.</p>
 
-  <h2>4. Deling med tredjepart</h2>
-  <p>Vi selger eller leier ikke ut data. Når du bruker AI-funksjonene, deles spørsmålet/skriptet med:</p>
-  <ul>
-    <li>Anthropic (AI-tjeneste, USA) — for å generere svaret</li>
-    <li>Netlify (hosting av appen og serverfunksjonene)</li>
-  </ul>
-
-  <h2>5. Dine rettigheter</h2>
-  <p>Siden ingen personopplysninger lagres av oss (ingen konto, ingen innhold lagret server-side), er det normalt ingenting å be om innsyn i eller sletting av. Har du spørsmål, ta kontakt (se under). Du kan også klage til Datatilsynet (<a href="https://www.datatilsynet.no" target="_blank" rel="noopener">datatilsynet.no</a>).</p>
-
-  <h2>6. Endringer i erklæringen</h2>
-  <p>Endringer publiseres på denne siden.</p>
-
-  <h2>7. Kontakt</h2>
+  <h2>9. Kontakt</h2>
   <p>Behandlingsansvarlig: Hans Olav Melberg.<br>
   E-post: <a href="mailto:hans.melberg@gmail.com">hans.melberg@gmail.com</a>.</p>
 

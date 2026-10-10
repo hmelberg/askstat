@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Statement – Microdata Script Runner</title>
+<title>Privacy Statement – AskStat</title>
 <style>
   :root {
     --accent: #2563eb;
@@ -58,46 +58,68 @@
 </head>
 <body>
 <main>
-  <a class="back-link" href="index.html">← Back to Script Runner</a>
+  <a class="back-link" href="index.html">← Back to AskStat</a>
   <a class="back-link" href="personvern.html">På norsk</a>
   <h1>Privacy Statement</h1>
-  <p class="lead">Microdata Script Runner is a free, public version with no login and no accounts.</p>
-  <p class="meta">Last updated: 2026-07-06.</p>
+  <p class="lead">AskStat is a free hobby project. You can use it without an account; logging in is optional and only adds sync between devices.</p>
+  <p class="meta">Last updated: 2026-10-10.</p>
 
   <h2>1. What is this?</h2>
-  <p>Microdata Script Runner is a hobby project run by Hans Olav Melberg that helps users write and run code against microdata.no syntax, Python, and R directly in the browser. This version requires <strong>no login and no account</strong>. Your script, any datasets you load, and the run results stay in your browser — they are never sent to any server unless you choose to use the AI assistant.</p>
+  <p>AskStat is run by Hans Olav Melberg. It answers questions with data and code, and lets you write and run Python, R, DuckDB/SQL and JavaScript directly in the browser. Your scripts, the datasets you load and the run results stay in your browser by default. They leave it only in the cases described below: when you use the AI features (section 2), when you log in (section 3), when you turn on error reports (section 4), and when the app fetches libraries or data from the web, or you use GitHub, comments or sharing (section 6).</p>
 
-  <h2>2. What happens when you use the AI assistant?</h2>
-  <p>The AI features (code suggestions, interpreting results, data-minimization assessment, web search) require you to paste your own Anthropic API key under AI settings. When you do:</p>
+  <h2>2. The AI features (Ask and the AI assistant)</h2>
+  <p>The AI features use either your own API key (pasted under AI settings) or, if you are logged in, the service's own key. You choose the provider: Anthropic is the default, but you may configure an Anthropic- or OpenAI-compatible service at an address you enter yourself.</p>
   <ul>
-    <li><strong>The key</strong> is stored only locally in your browser (<code>localStorage</code>) and sent as a header (<code>X-Anthropic-Key</code>) to our server, which forwards it directly to Anthropic for that one request. We do not store or log the key. If you have chosen a custom AI provider in the settings, requests go to the provider you configured instead.</li>
-    <li><strong>The question and script excerpt you send</strong> is forwarded to Anthropic to generate a response. We do not store the content of these requests on our own server.</li>
-    <li><strong>Your IP address</strong> is used briefly for simple rate limiting to prevent abuse, and is not retained.</li>
-    <li>Usage (tokens/cost) is billed to your own Anthropic account — we do not see or store payment information.</li>
-    <li><strong>Error reports.</strong> When something fails in the app, an anonymous error report is sent to us (the error only — never your questions, data or keys; key-like values are masked before sending). This helps us detect and fix sources that have stopped working. You can turn it off in the AI settings ("Send anonymous error reports").</li>
+    <li><strong>Your key</strong> is stored only in your browser (<code>localStorage</code>) and sent as a request header to our server functions on Netlify, which forward it to the provider you selected for that one request. The server does not store or log the key.</li>
+    <li><strong>What is sent to the provider</strong> depends on the feature and may include: your question and the router's interpretation of it; earlier messages in the conversation; your profiles/preferences and selected source packs; the <em>names and notes</em> of your own keys (never their values); the script in the editor (when you choose to include it); and the output of code the AI runs in your browser (<code>run_code</code>), which is sent back to the model so it can write the answer. Values written as <code>secret_key="…"</code> and the injected <code>KEYS = {…}</code> line are masked in the browser before anything is sent.</li>
+    <li><strong>Web search.</strong> When web search is on, the provider searches the web on your behalf; your question (or parts of it) is then sent to the provider's search service.</li>
+    <li><strong>A provider you chose yourself</strong> handles the request — and your key — under its own terms and privacy policy. We have no agreement with, and no control over, such a provider.</li>
+    <li><strong>No storage of content on our server.</strong> The answers are streamed straight back to your browser. Our server functions do not store questions, scripts or answers (Netlify may keep short technical logs of requests, such as time, path and status code).</li>
+    <li><strong>IP address and rate limiting.</strong> To prevent abuse, the server counts calls to the <code>/api/</code> endpoints per IP address (for IPv6: per /64 network) and endpoint. The counters are stored in Netlify Blobs: the address is part of the key, together with the times of the calls in the last hour. Older times are removed the next time the same address makes a call, but <strong>the entry with the IP address itself is not deleted automatically</strong>.</li>
+    <li>Usage on your own key is billed to your account with the provider — we never see payment information.</li>
+  </ul>
+  <p><strong>Code that runs in your browser.</strong> Code written by the AI, and scripts from links shared by others, run in the app's own page. Such code can technically read what the app has stored in the browser, including your API keys and login. The app therefore asks before running a script from a shared link, and asks before running AI-written code that appears to touch browser storage. This check is a safeguard, not a sandbox: deliberately disguised code may not be detected. Only run links and code you trust.</p>
+
+  <h2>3. Account and sync (optional, via Anvil)</h2>
+  <p>Logging in is optional and only adds sync — everything else works without an account. Login and sync are provided by our own backend hosted at <strong>Anvil</strong> (mdataapi.anvil.app, Anvil Works Ltd, UK). When you log in:</p>
+  <ul>
+    <li>Your <strong>email address</strong> is sent to Anvil, which emails you a login code and stores your account (email and account details).</li>
+    <li>The browser keeps a login token and, so it can show it to you again, your login code in <code>localStorage</code>. Our Netlify server functions check the login token against Anvil when you use the AI features as a logged-in user.</li>
+    <li>Anvil stores, per account: your <strong>profiles</strong>; your <strong>question history</strong> (questions, generated code and metadata — not the written answers); and your <strong>API keys</strong>, encrypted in your browser with a key derived from your login code before upload, so Anvil stores only ciphertext.</li>
+    <li>To be transparent: the login code passes through the server when you log in, so a malicious operator could technically capture it. The encryption protects against database leaks and casual inspection, not against the service itself.</li>
+  </ul>
+  <p>"Log out" keeps your local data on the device and stops syncing. "Log out and clear this device" also removes keys, history and profiles from the browser — use it on shared computers. To delete your account and everything stored on the server, contact us (section 9).</p>
+
+  <h2>4. Error reports (off unless you turn them on)</h2>
+  <p>Error reports are <strong>off by default</strong>. If you turn them on in the AI settings, then each time an Ask answer fails, a report is sent to our Anvil backend (mdataapi.anvil.app). The report contains: <strong>your question</strong>, the AI's interpretation, the <strong>failed scripts</strong> (with stored keys masked), the error messages, which sources were tried, the app version, language, mode and type of AI provider. We use the reports to find and fix data sources that have stopped working. The settings have a "Show what would be sent" button that displays the last report built in your tab. Turning it off again stops all sending.</p>
+
+  <h2>5. Cookies and local storage</h2>
+  <p>The app sets no cookies of its own. It uses <code>localStorage</code> in your browser to remember settings and work: API keys, AI provider and model, login token and login code (if you log in), the encryption key for sync, GitHub token and profiles (if you connect GitHub), question history, profiles, drafts and recent scripts, mode, theme and language. A service worker stores fixed versions of program libraries (such as Pyodide, Plotly and webR) in the browser's Cache Storage for faster start-up; datasets and other user content are not stored there.</p>
+
+  <h2>6. Third parties and other outbound traffic</h2>
+  <p>We do not sell or rent out data. Depending on what you use, data is shared with:</p>
+  <ul>
+    <li><strong>The AI provider you selected</strong> (Anthropic, USA, by default) — the content described in section 2.</li>
+    <li><strong>Netlify</strong> (USA) — hosting of the app and server functions, and the rate-limit entries in Netlify Blobs.</li>
+    <li><strong>Anvil</strong> (UK) — account, sync (section 3) and, if you turn them on, error reports (section 4).</li>
+  </ul>
+  <p>In addition, the browser connects directly to these services. They see your IP address and which address is fetched, as with any website:</p>
+  <ul>
+    <li><strong>Libraries from CDNs:</strong> cdn.jsdelivr.net (Pyodide, DuckDB-WASM, markdown-it, KaTeX, Tabulator, Leaflet, Brython and JavaScript libraries), cdn.plot.ly (Plotly), cdnjs.cloudflare.com (require.js for interactive widgets), www.lactame.com (ml.js in JavaScript mode), webr.r-wasm.org and repo.r-wasm.org (R mode), and pypi.org / files.pythonhosted.org (Python packages installed on demand). Maps load tiles from tile.openstreetmap.org.</li>
+    <li><strong>Data you load:</strong> When a script or the AI loads data from a URL (e.g. a statistics agency's API), the browser fetches it directly from that address. If the source blocks such fetches (CORS), the request instead goes through our proxy <code>/api/hent</code> on Netlify: the server fetches the address for you and returns the content without storing it. To be allowed to use the proxy, the browser sends your AI key or login token along to our server; the proxy does not pass that on to the data source. For data sources that require your own key (registered under AI settings), the key is sent to the proxy in a separate header, and the proxy adds it to the request to <em>that source's host only</em>. Neither key is stored. These calls count towards the rate limiting in section 2.</li>
+    <li><strong>Short names and GitHub links:</strong> Opening a link with a short name looks the name up in a registry on raw.githubusercontent.com. Links to scripts or data on GitHub are fetched from GitHub.</li>
+    <li><strong>GitHub (api.github.com):</strong> If you connect GitHub with your own access token, the browser talks directly to GitHub's API to list, fetch and save files in the repositories you choose. The token is stored only in the browser and sent only to GitHub. Keys in scripts you save or share are masked.</li>
+    <li><strong>Comments (giscus / GitHub Discussions):</strong> If you open a comment thread, the app loads the giscus widget from giscus.app. Comments are stored publicly in GitHub Discussions; to write one you sign in with GitHub, under GitHub's and giscus' terms. Nothing is loaded from giscus until you open a thread.</li>
+    <li><strong>Share links</strong> (<code>#s=…</code>) contain the script itself, compressed in the link. Anyone you give the link to can read it; keys are masked before the link is created.</li>
   </ul>
 
-  <h2>3. Cookies and local storage</h2>
-  <p>The app only uses <code>localStorage</code> in your own browser to remember your settings (e.g. Anthropic key, chosen mode, theme), your question history and your profiles. None of this is sent to us unless you actively use the AI features or log in (see the next section).</p>
+  <h2>7. Your rights</h2>
+  <p>Without an account, we store no content about you over time; what remains on our side are the rate-limit entries with IP address and times (section 2) and, if you turned them on, error reports (section 4). With an account, Anvil stores what is listed in section 3. You can ask for access to or deletion of this data — get in touch (section 9). You may also file a complaint with the Norwegian Data Protection Authority (<a href="https://www.datatilsynet.no" target="_blank" rel="noopener">datatilsynet.no</a>).</p>
 
-  <h2>3b. Account and sync (optional)</h2>
-  <p>Logging in is optional and only adds sync — everything works without an account, and nothing is uploaded until you log in. If you do log in, we store on our server: your questions and the generated code (never the written answers), your profiles, and your API keys. The keys are encrypted in your browser with your login code before upload, so the server stores only ciphertext it cannot read. To be fully transparent: the login code passes through the server when you log in, so a malicious operator could technically capture it — the encryption protects against database leaks and casual inspection, not against the service itself.</p>
-  <p>«Log out» keeps your local data on the device and just stops syncing. «Log out and clear this device» also removes keys, history and profiles from the browser — use it on shared computers. To delete your account and everything stored on the server, contact us (section 7).</p>
+  <h2>8. Changes to this statement</h2>
+  <p>Changes are published on this page, with a new date at the top.</p>
 
-  <h2>4. Sharing with third parties</h2>
-  <p>We do not sell or rent out data. When you use the AI features, your question/script is shared with:</p>
-  <ul>
-    <li>Anthropic (AI service, USA) — to generate the response</li>
-    <li>Netlify (hosting for the app and server functions)</li>
-  </ul>
-
-  <h2>5. Your rights</h2>
-  <p>Since we do not store any personal data (no account, no server-side content storage), there is normally nothing to request access to or deletion of. If you have questions, please get in touch (see below). You may also file a complaint with the Norwegian Data Protection Authority (<a href="https://www.datatilsynet.no" target="_blank" rel="noopener">datatilsynet.no</a>).</p>
-
-  <h2>6. Changes to this statement</h2>
-  <p>Changes are published on this page.</p>
-
-  <h2>7. Contact</h2>
+  <h2>9. Contact</h2>
   <p>Data controller: Hans Olav Melberg.<br>
   Email: <a href="mailto:hans.melberg@gmail.com">hans.melberg@gmail.com</a>.</p>
 

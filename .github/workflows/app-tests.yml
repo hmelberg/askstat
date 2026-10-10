@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: pip install pytest pandas numpy pyarrow
+        run: pip install pytest pandas numpy pyarrow plotly pyyaml duckdb
       - name: Run app suite
         run: python -m pytest tests/ -q
 

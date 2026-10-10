@@ -602,7 +602,7 @@ async function streamOneTurn(
   let buffer = "";
   try {
     while (true) {
-      let timer: number | undefined;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const r = await Promise.race([
         reader.read(),
         new Promise<never>((_, rej) => {

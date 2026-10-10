@@ -128,7 +128,7 @@ function buildCatalogs(query: string, scope: SearchScope, deps: Deps): Record<st
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: number | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     p,
     new Promise<never>((_, rej) => {

@@ -706,6 +706,22 @@ def _canonical_from_query(query):
     return c or None
 
 
+def _enc_val(v):
+    """B13 (paritet med js/data-directives.js encVal): én filterverdi →
+    URL-trygg form, samme tegnsett som encodeURIComponent — seleksjons-
+    uttrykkene (*, top(5), from(2020)) står urørt."""
+    from urllib.parse import quote
+    return quote(str(v), safe="!*'()")
+
+
+def _px_codes(v):
+    """pxweb-kodeliste (paritet med js pxCodes): komma er PxWebs skilletegn
+    og beholdes; hver kode enkodes for seg. F2: «ALL» (vanlig modellgjetning,
+    400 hos SSB) er PxWebs wildcard «*»."""
+    lst = v if isinstance(v, (list, tuple)) else str(v).split(",")
+    return ",".join("*" if str(x).strip() == "ALL" else _enc_val(str(x).strip()) for x in lst)
+
+
 def _translate_canonical(kind, rest, c):
     """Paritet med js/data-directives.js translateCanonical — samme regler,
     samme feiltekster; -> (rest, params, needs_key, client_years)."""
@@ -761,18 +777,19 @@ def _translate_canonical(kind, rest, c):
             # Eurostat svarer STILLE TOMT (value:{}) på kommaformen
             # geo=NO,SE — liste-verdier blir én param PER verdi
             # (geo=NO&geo=SE gir data). Skalarer uendret.
+            # B13: verdiene URL-enkodes («PC ACT», «&» i en kode brøt spørringen).
             if isinstance(v, (list, tuple)):
-                params += [str(k) + "=" + str(x) for x in v]
+                params += [str(k) + "=" + _enc_val(x) for x in v]
             else:
-                params.append(str(k) + "=" + str(v))
+                params.append(str(k) + "=" + _enc_val(v))
     elif kind == "pxweb":
         if c.get("countries"):
             raise ValueError("countries() gjelder ikke pxweb-kilder (SSB er norske data) — "
                              "bruk regions() eller filters(<variabel>=…)")
         if c.get("regions"):
-            params.append("valueCodes[Region]=" + ",".join(c["regions"]))
+            params.append("valueCodes[Region]=" + _px_codes(c["regions"]))
         if c.get("indicators"):
-            params.append("valueCodes[ContentsCode]=" + ",".join(c["indicators"]))
+            params.append("valueCodes[ContentsCode]=" + _px_codes(c["indicators"]))
         if y:
             if y["from"] and y["to"]:
                 a, b = int(y["from"]), int(y["to"])
@@ -786,11 +803,9 @@ def _translate_canonical(kind, rest, c):
                 raise ValueError("years(:%s) for pxweb: angi startår også — from()-uttrykket har "
                                  "ingen bakover-variant" % y["to"])
         for k, v in (c.get("filters") or {}).items():
-            # valueCodes TAR kommaliste — liste-verdier joines (samme
-            # implisitte oppførsel som JS-sidens array-toString).
-            if isinstance(v, (list, tuple)):
-                v = ",".join(str(x) for x in v)
-            params.append("valueCodes[" + str(k) + "]=" + str(v))
+            # valueCodes TAR kommaliste — liste-verdier joines; hver kode
+            # enkodes for seg (B13) og «ALL» → «*» (F2), som JS pxCodes.
+            params.append("valueCodes[" + str(k) + "]=" + _px_codes(v))
     elif kind == "sdmx":
         if c.get("regions"):
             raise ValueError("regions() støttes ikke for sdmx-kilder — bruk countries() (REF_AREA) "

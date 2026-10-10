@@ -1248,3 +1248,37 @@ def test_sdmx_dims_probe_strommer_kun_forste_linje(monkeypatch):
     linje = ost._sdmx_forste_linje("https://x/data/OECD.X,DSD_Y/all?lastNObservations=1")
     assert linje.startswith("STRUCTURE,")
     assert lest["bytes"] < 512 * 1024, "leste %d bytes — strømmingen virker ikke" % lest["bytes"]
+
+
+# B13/F2-paritet med js/data-directives.js translateCanonical
+# (tests/js/canonical-normalise.test.js): filterverdier URL-enkodes per kode
+# (komma er PxWebs skilletegn; *, top(), from() overlever), pxweb «ALL» → «*».
+def test_translate_canonical_pxweb_enkoder_per_kode():
+    _, p, _, _ = ost._translate_canonical(
+        "pxweb", "05839", {"filters": {"Region": ["0301", "Å&b"], "Kjonn": "1,2"}})
+    assert p == ["valueCodes[Region]=0301,%C3%85%26b", "valueCodes[Kjonn]=1,2"]
+
+
+def test_translate_canonical_pxweb_seleksjonsuttrykk_overlever():
+    _, p, _, _ = ost._translate_canonical(
+        "pxweb", "05839", {"filters": {"Region": "*", "Tid": "top(5)", "X": "from(2020)"}})
+    assert p == ["valueCodes[Region]=*", "valueCodes[Tid]=top(5)", "valueCodes[X]=from(2020)"]
+
+
+def test_translate_canonical_pxweb_mellomrom_i_kode():
+    _, p, _, _ = ost._translate_canonical("pxweb", "05839", {"filters": {"Alder": "15 år"}})
+    assert p == ["valueCodes[Alder]=15%20%C3%A5r"]
+
+
+def test_translate_canonical_eurostat_enkoder_filters():
+    _, p, _, _ = ost._translate_canonical(
+        "eurostat", "x", {"filters": {"unit": "PC ACT", "geo": ["NO", "SE"]}})
+    assert p == ["unit=PC%20ACT", "geo=NO", "geo=SE"]
+
+
+def test_translate_canonical_pxweb_ALL_blir_wildcard():
+    _, p, _, _ = ost._translate_canonical(
+        "pxweb", "05839", {"filters": {"Region": "ALL", "Kjonn": ["ALL"]}})
+    assert p == ["valueCodes[Region]=*", "valueCodes[Kjonn]=*"]
+    _, p2, _, _ = ost._translate_canonical("pxweb", "05839", {"regions": ["ALL"]})
+    assert p2 == ["valueCodes[Region]=*"]

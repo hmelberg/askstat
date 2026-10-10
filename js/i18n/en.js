@@ -632,6 +632,13 @@ window.M2PY_I18N.en = {
   "Kunne ikke lagre: {msg}": "Could not save: {msg}",
   "AI-scriptet erstattet scriptet ditt.": "The AI script replaced your script.",
   "Gjenopprett mitt script": "Restore my script",
+  // ── Ask-løpet: avkortede svar, direktiv-lint, opptatt kjøremiljø (B3/F1/B8) ──
+  "Svaret ble avkortet av serveren": "The answer was cut off by the server",
+  "Svaret ble avkortet — strømmen stoppet før svaret var ferdig.": "The answer was cut off — the stream stopped before the answer was finished.",
+  "Spør gjerne på nytt.": "Feel free to ask again.",
+  "Direktivfeil — scriptet ble ikke kjørt": "Directive error — the script was not run",
+  "Venter på at forrige kjøring blir ferdig …": "Waiting for the previous run to finish …",
+  "En annen kjøring pågår fortsatt etter 2 minutter — stopp den (Avbryt) og spør på nytt.": "Another run is still in progress after 2 minutes — stop it (Cancel) and ask again.",
   "«{path}» finnes allerede på GitHub. Overskrive den?": "“{path}” already exists on GitHub. Overwrite it?",
   "Skriv en filsti.": "Enter a file path.",
   "Ingen gjeldende GitHub-fil å oppdatere. Bruk «Åpne fil…» først.": "No current GitHub file to refresh. Use “Open file…” first.",

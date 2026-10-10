@@ -632,6 +632,14 @@
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        function dispatch(event) {
+          const dataLine = event.split('\n').find(l => l.startsWith('data:'));
+          if (!dataLine) return;
+          let obj;
+          try { obj = JSON.parse(dataLine.slice(5).trim()); }
+          catch (_) { return; }   // ignore non-JSON keep-alive lines
+          onEvent(obj);
+        }
         try {
           while (true) {
             const { value, done } = await reader.read();
@@ -641,14 +649,14 @@
             while ((nl = buffer.indexOf('\n\n')) >= 0) {
               const event = buffer.slice(0, nl);
               buffer = buffer.slice(nl + 2);
-              const dataLine = event.split('\n').find(l => l.startsWith('data:'));
-              if (!dataLine) continue;
-              let obj;
-              try { obj = JSON.parse(dataLine.slice(5).trim()); }
-              catch (_) { continue; }   // ignore non-JSON keep-alive lines
-              onEvent(obj);
+              dispatch(event);
             }
           }
+          // B15: en siste hendelse uten avsluttende blank linje (strømmen
+          // lukket rett etter «data: …») ble stille droppet — ofte nettopp
+          // done-hendelsen.
+          buffer += decoder.decode();
+          if (buffer.trim()) dispatch(buffer);
         } finally {
           // onEvent kan kaste (error-event) — ikke la strømmen bli hengende åpen.
           try { reader.cancel(); } catch (_) { /* allerede lukket */ }
@@ -678,6 +686,8 @@
         var mode = params.mode ||
           ((typeof activeEditorMode !== 'undefined' && activeEditorMode) ? activeEditorMode : 'python');
         var buffer = '', sources = null, resume = null, runResult = null, getPackResult = null;
+        var sawDone = false, truncatedMsg = null, truncatedCode = null;
+        var pollMs = params._pollMs || 500;
         for (var hop = 0; ; hop++) {
           if (hop > 60) throw new Error('Aborted: the answer was not finished after 60 continuation rounds.');
           var headers = providerAuthHeaders();
@@ -756,7 +766,9 @@
           if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status + ' ' + (await resp.text()));
 
           var cont = null, pendingRun = null, pendingGetPack = null;
+          sawDone = false;
           await consumeSse(resp, function (ev) {
+            if (ev.type === 'done') { sawDone = true; return; }
             if (ev.type === 'continue') { cont = { state: ev.state, probed: ev.probed, run_ok_calls: ev.run_ok_calls }; return; }
             if (ev.type === 'run_code') { pendingRun = ev.script || ''; return; }
             if (ev.type === 'get_pack') { pendingGetPack = ev.id || ''; return; }
@@ -774,6 +786,14 @@
             if (ev.type === 'sources') { sources = ev.sources; return; }
             if (ev.type === 'progress') { if (handlers.onProgress) handlers.onProgress(ev); return; }
             if (ev.type === 'error') {
+              // B3: AVKORTET = serveren vet at svaret ble kuttet (max_tokens,
+              // strømbrudd oppstrøms). Det delvise svaret beholdes og merkes —
+              // et kast ville kastet det bort, et stille «ok» ville løyet.
+              if (ev.code === 'AVKORTET') {
+                truncatedCode = 'AVKORTET';
+                truncatedMsg = ev.message || '';
+                return;
+              }
               var msg = ev.message || 'unknown server error';
               if (state.anthropicKey && msg.indexOf('Anthropic API error 401') !== -1) {
                 msg = T('Ugyldig Anthropic-nøkkel. Sjekk nøkkelen i AI-innstillingene.');
@@ -785,6 +805,22 @@
             if (params.signal && params.signal.aborted) {
               throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
             }
+            // F1: direktiv-lint FØR kjøring — en direktivfeil gir modellen en
+            // strukturert «linje N: …»-melding i stedet for et motorkrasj
+            // (Monteringsfeil/«Direktivfeil» midt i kjøringen, eller verre:
+            // en stille kommentar). Ingenting kjøres da.
+            var lintFeil = directiveLintFeil(pendingRun);
+            if (lintFeil) {
+              runResult = lintFeil;
+              if (handlers.onProgress) handlers.onProgress({ text: '⚠️ ' + T('Direktivfeil — scriptet ble ikke kjørt') });
+              resume = cont;
+              continue;
+            }
+            // B8: et opptatt kjøremiljø (typisk forrige, stoppede spørsmåls
+            // kjøring som ennå avvikles) er VENTING, ikke en FEIL modellen
+            // skal reparere på. Vent det ut her; først om det aldri blir
+            // ledig stoppes svaret med en melding til brukeren.
+            await ventPaaLedigKjoremiljo(params.signal, handlers.onProgress, pollMs);
             runResult = await handlers.onRunCode(pendingRun);
             // FEIL-linja i prosessloggen (spec 2026-08-15 §1, målt: tre
             // blinddiagnose-runder fordi run_result-FEIL aldri var synlig
@@ -821,7 +857,52 @@
           if (!cont) break;
           resume = cont;
         }
+        // B3: et fullført svar ender ALLTID med done. Uten done (strømmen
+        // brøt, eller error AVKORTET) er svaret avkortet — merk det synlig i
+        // selve teksten (begge kallere viser markdownen) og flagg det, så
+        // ask-visningen ikke gir grønt merke og lagrer det som ok.
+        if (truncatedCode || !sawDone) {
+          var notis = truncatedCode === 'AVKORTET'
+            ? T('Svaret ble avkortet av serveren') + (truncatedMsg ? ': ' + truncatedMsg : '') + '.'
+            : T('Svaret ble avkortet — strømmen stoppet før svaret var ferdig.');
+          return { markdown: (buffer ? buffer.replace(/\s+$/, '') + '\n\n' : '') + '> ⚠️ ' + notis + ' ' +
+                     T('Spør gjerne på nytt.'),
+                   sources: sources, truncated: true, truncatedCode: truncatedCode || 'UTEN_DONE' };
+        }
         return { markdown: buffer, sources: sources };
+      }
+
+      // F1: direktiv-lint (parseScript + semantikk i DataDirectives.parse/
+      // parseAssembly) av et run_code-script. -> run_result-streng | null.
+      function directiveLintFeil(script) {
+        var DD = window.DataDirectives;
+        if (!DD || !DD.parse) return null;
+        var feil = [];
+        try {
+          DD.parse(script).errors.forEach(function (e) { feil.push(e); });
+          if (DD.parseAssembly) DD.parseAssembly(script).errors.forEach(function (e) {
+            if (feil.indexOf(e) < 0) feil.push(e);
+          });
+        } catch (e) { return null; }   // lint skal aldri knekke run_code-veien
+        if (!feil.length) return null;
+        return 'FEIL:\nDirektivfeil — scriptet ble IKKE kjørt. Rett direktivlinjene ' +
+          '(«# … = ost.…(…)», «# <alias>.read(…)», «# meta.…») og send scriptet på nytt:\n' +
+          feil.map(function (e) { return '- ' + e; }).join('\n');
+      }
+
+      // B8: vent til ingen kjøring pågår (mdIsScriptRunning fra index.html).
+      // Abort respekteres; gir opp med en brukermelding etter ~2 min.
+      async function ventPaaLedigKjoremiljo(signal, onProgress, pollMs) {
+        if (typeof window.mdIsScriptRunning !== 'function' || !window.mdIsScriptRunning()) return;
+        if (onProgress) onProgress({ text: T('Venter på at forrige kjøring blir ferdig …'), replace: true });
+        var start = Date.now();
+        while (window.mdIsScriptRunning()) {
+          if (signal && signal.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+          if (Date.now() - start > 120000) {
+            throw new Error(T('En annen kjøring pågår fortsatt etter 2 minutter — stopp den (Avbryt) og spør på nytt.'));
+          }
+          await sleep(pollMs);
+        }
       }
 
       // Root cause (E2E gap, task-9-report.md): ParamForms.decorate — the
@@ -983,6 +1064,15 @@
       // message instead of reading `.error` — this ends the repair loop as a
       // failure and leaves the script in the editor, rather than reporting a
       // false success or feeding a stale error into the next repair round.
+      // B8: avbryt en kjøring VI startet (Kjør-knappen viser «Avbryt» mens
+      // den pågår) og vent kort til den har landet.
+      async function interruptOwnRun(btn) {
+        if (!window.mdIsScriptRunning()) return;
+        try { btn.click(); } catch (_) { return; }
+        const t0 = Date.now();
+        while (window.mdIsScriptRunning() && Date.now() - t0 < 10000) await sleep(100);
+      }
+
       async function runScriptAndCaptureError(signal) {
         const btn = document.getElementById('btnRun');
         const outputArea = document.getElementById('outputArea');
@@ -1012,11 +1102,22 @@
         await sleep(50);   // let the click handler's async body flip the running flag
         const start = Date.now();
         while (window.mdIsScriptRunning() && Date.now() - start < 180000) {
-          // Abort avslutter bare OVERVÅKINGEN (selve kjøringen stoppes med
-          // Kjør-knappens egen Avbryt); panelSvarAnswer sjekker signalet
-          // rett etterpå og stopper reparasjonsløkka uten å bruke returverdien.
-          if (signal && signal.aborted) return T('Avbrutt.');
+          // B8: Stopp i Ask/panelet skal stoppe KODEN også, ikke bare
+          // overvåkingen — ellers kjørte scriptet videre, og neste spørsmål
+          // ventet 20 s og fikk «en annen kjøring pågår allerede» som FEIL.
+          // Kjøringen er vår (vi klikket Kjør over), og et klikk på Kjør
+          // under en pågående kjøring er index.html sin egen Avbryt-vei
+          // (performRunInterrupt) — ingen ny krok trengs.
+          if (signal && signal.aborted) {
+            await interruptOwnRun(btn);
+            return T('Avbrutt.');
+          }
           await sleep(150);
+        }
+        if (window.mdIsScriptRunning() && !(signal && signal.aborted)) {
+          // 180 s-taket: stopp kjøringen vår før vi gir opp overvåkingen,
+          // så neste run_code ikke møter et opptatt kjøremiljø.
+          await interruptOwnRun(btn);
         }
         if (window.mdIsScriptRunning()) {
           return T('Kjøringen var ikke ferdig etter 180 sekunder — overvåking avbrutt.');
@@ -1941,6 +2042,8 @@
           validateRSyntax: validateRSyntax,
           _v2Validators: _v2Validators,
           computeParamFormsWrap: computeParamFormsWrap,
+          runSvarLoop: runSvarLoop,
+          directiveLintFeil: directiveLintFeil,
           motorOutputTilModelltekst: motorOutputTilModelltekst,
         };
       }

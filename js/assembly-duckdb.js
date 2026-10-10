@@ -95,6 +95,20 @@
     return ordered;
   }
 
+  // B5: how er left|inner|outer (parseAssembly). «OUTER JOIN» alene er en
+  // DuckDB-parsefeil — pandas' how="outer" er FULL OUTER. Og med USING +
+  // acc.* kommer nøkkelen fra VENSTRE side, så rader som bare finnes til
+  // høyre fikk nøkkel = NULL; ved outer COALESCE-es nøklene på plass (REPLACE
+  // beholder kolonnerekkefølgen fra acc).
+  function joinKw(how) { return how === 'outer' ? 'FULL OUTER JOIN' : String(how).toUpperCase() + ' JOIN'; }
+  function accCols(keys, how, right) {
+    if (how !== 'outer') return 'acc.*';
+    return 'acc.* REPLACE (' + keys.map(function (k) {
+      var q = quoteIdent(k);
+      return 'COALESCE(acc.' + q + ', ' + right + '.' + q + ') AS ' + q;
+    }).join(', ') + ')';
+  }
+
   function compile(spec, descriptors) {
     var att = buildAttaches(spec, descriptors);
     var datasetStatements = [];
@@ -120,8 +134,8 @@
           if (sql === null) {
             sql = piece;
           } else {
-            sql = '(SELECT acc.*, piece.* EXCLUDE (' + keyList + ') FROM (' + sql + ') acc ' +
-              step.how.toUpperCase() + ' JOIN ' + piece + ' piece USING (' + keyList + '))';
+            sql = '(SELECT ' + accCols(keys, step.how, 'piece') + ', piece.* EXCLUDE (' + keyList + ') FROM (' + sql + ') acc ' +
+              joinKw(step.how) + ' ' + piece + ' piece USING (' + keyList + '))';
           }
         } else if (step.op === 'join') {
           // Portert til openstat 2026-07-24 m/ guard for review-funnet
@@ -130,8 +144,8 @@
           var otherSql = datasetStatements.find(function (s) { return s.name === step.from; });
           if (!otherSql) throw new Error('ukjent datasett «' + step.from + '» (join into «' + ds.name + '»)');
           var onList = step.on.map(quoteIdent).join(', ');
-          sql = '(SELECT acc.*, other.* EXCLUDE (' + onList + ') FROM (' + sql + ') acc ' +
-            step.how.toUpperCase() + ' JOIN (' + otherSql.sql + ') other USING (' + onList + '))';
+          sql = '(SELECT ' + accCols(step.on, step.how, 'other') + ', other.* EXCLUDE (' + onList + ') FROM (' + sql + ') acc ' +
+            joinKw(step.how) + ' (' + otherSql.sql + ') other USING (' + onList + '))';
         }
       });
       datasetStatements.push({ name: ds.name, sql: 'SELECT * FROM ' + sql });

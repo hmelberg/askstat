@@ -226,3 +226,43 @@ test('parseAssembly: flerlinje-read med kwargs (guide-oppskriftens form) er hell
   assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
   assert.deepEqual(r.spec.sources, []);
 });
+
+// B5: «outer» må bli FULL OUTER JOIN (bare «OUTER JOIN» er en DuckDB-
+// parsefeil), og nøklene COALESCE-es — med USING + acc.* fikk rader som
+// bare fantes i høyre del nøkkel = NULL.
+test('compile: how=outer gir FULL OUTER JOIN med COALESCE av nøklene (import)', () => {
+  const spec = { sources: ['p', 's'], datasets: [
+    { name: 'd', key: ['k', 'j'], steps: [
+      { op: 'import', source: 'p', columns: ['a'], how: 'left' },
+      { op: 'import', source: 's', columns: ['b'], how: 'outer' },
+    ] },
+  ] };
+  const sql = AD.compile(spec, DESC).datasetStatements[0].sql;
+  assert.match(sql, /FULL OUTER JOIN/);
+  assert.match(sql, /acc\.\* REPLACE \(COALESCE\(acc\."k", piece\."k"\) AS "k", COALESCE\(acc\."j", piece\."j"\) AS "j"\)/);
+});
+
+test('compile: how=outer på join-steg gir FULL OUTER JOIN med COALESCE', () => {
+  const spec = { sources: ['p', 's'], datasets: [
+    { name: 'a', load: 's' },
+    { name: 'b', key: ['pid'], steps: [
+      { op: 'import', source: 'p', columns: ['inntekt'], how: 'left' },
+      { op: 'join', from: 'a', on: ['region'], how: 'outer' },
+    ] },
+  ] };
+  const sql = AD.compile(spec, DESC).datasetStatements.find(d => d.name === 'b').sql;
+  assert.match(sql, /FULL OUTER JOIN/);
+  assert.match(sql, /COALESCE\(acc\."region", other\."region"\) AS "region"/);
+});
+
+test('compile: left/inner er uendret (ingen REPLACE)', () => {
+  const spec = { sources: ['p', 's'], datasets: [
+    { name: 'd', key: ['k'], steps: [
+      { op: 'import', source: 'p', columns: ['a'], how: 'left' },
+      { op: 'import', source: 's', columns: ['b'], how: 'inner' },
+    ] },
+  ] };
+  const sql = AD.compile(spec, DESC).datasetStatements[0].sql;
+  assert.match(sql, /INNER JOIN/);
+  assert.doesNotMatch(sql, /REPLACE/);
+});

@@ -248,6 +248,9 @@
     // AI-panelet (js/ai-chat.js) deler /api/svar men har ingen resolver —
     // stripRefs er dets eneste vei bort fra rå {{fig:1}}-tekst.
     window.mdAskStripRefs = stripRefs;
+    // AI-panelets run_code-vei (js/ai-chat.js panelRunDecision) gjenbruker
+    // S3-mønstrene herfra i stedet for å duplisere regexene.
+    window.mdScanSecretAccess = scanSecretAccess;
   }
 
   /* Levende output i svarkortet (spec §Output + 2026-07-31-referanser):

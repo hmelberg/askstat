@@ -1150,16 +1150,40 @@
       function getDiscoverPref() {
         try { return localStorage.getItem('md_ask_discover') === '1'; } catch (e) { return false; }
       }
-      function confirmAutoRun(signal) {
-        if (getAutorunPref()) return Promise.resolve(true);
+      // S3 (samme port som Ask): kode som når nettleserlagring/JS-broen
+      // krever ALLTID eksplisitt ja — også med md_ai_autorun='1' og etter et
+      // tidligere ja i samme løp. Mønstrene bor kun i js/ask-view.js
+      // (window.mdScanSecretAccess); mangler skanneren, fail-closed til prompt.
+      // -> { prompt: bool, hits: string[] }
+      function panelRunDecision(script, opts) {
+        opts = opts || {};
+        const scan = typeof window !== 'undefined' ? window.mdScanSecretAccess : null;
+        if (typeof scan !== 'function') return { prompt: true, hits: [] };
+        const hits = scan(script) || [];
+        if (hits.length) return { prompt: true, hits: hits };
+        return { prompt: !opts.confirmed && !opts.autorun, hits: [] };
+      }
+      // hits/script (valgfritt): advarsel + koden selv vises før valget, og
+      // autorun-preferansen hoppes over.
+      function confirmAutoRun(signal, hits, script) {
+        const secret = !!(hits && hits.length);
+        if (!secret && getAutorunPref()) return Promise.resolve(true);
         return new Promise(function (resolve) {
           const wrap = document.createElement('div');
           wrap.className = 'ai-msg ai-msg-assistant';
           wrap.innerHTML = '<div class="ai-bubble"></div>';
           const bubble = wrap.querySelector('.ai-bubble');
           const question = document.createElement('div');
-          question.textContent = T('Kjør det genererte scriptet?');
+          question.textContent = secret
+            ? T('⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.', { what: hits.join(', ') })
+            : T('Kjør det genererte scriptet?');
           bubble.appendChild(question);
+          if (secret && script) {
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'max-height:240px;overflow:auto;white-space:pre-wrap;font-size:11px;';
+            pre.textContent = script;
+            bubble.appendChild(pre);
+          }
           const bar = document.createElement('div');
           bar.className = 'ai-response-actions';
           const runBtn = document.createElement('button');
@@ -1255,8 +1279,9 @@
             },
             onRunCode: async function (script) {
               insertScriptIntoEditor(script);
-              if (!confirmed) {
-                const ok = await confirmAutoRun(signal);
+              const decision = panelRunDecision(script, { confirmed: confirmed, autorun: getAutorunPref() });
+              if (decision.prompt) {
+                const ok = await confirmAutoRun(signal, decision.hits, script);
                 if (!ok) return 'Brukeren avbrøt kjøringen — skriv sluttsvaret uten kjøring, og si at koden ikke er kjørt.';
                 confirmed = true;
               }
@@ -2072,6 +2097,7 @@
           runSvarLoop: runSvarLoop,
           directiveLintFeil: directiveLintFeil,
           motorOutputTilModelltekst: motorOutputTilModelltekst,
+          panelRunDecision: panelRunDecision,
         };
       }
     })();

@@ -111,9 +111,38 @@
   };
 
   NL.autorunNeedsGate = function (app, hasSecret) {
-    // Gaten styres av lagrede hemmeligheter (PAT/API-nøkler) — safestat-grenen
-    // er fjernet 2026-07-24 (openstat har ingen safestat-modus).
-    return !!hasSecret;
+    // Review 2026-10-10 (S2): et script fra en delt lenke (#output=, prikk-/
+    // navnelenker) er kode fra noen andre som kjører i app-originen og kan
+    // velge javascript-modus selv (#options.mode). Bekreft ALLTID; hasSecret
+    // styrer bare hvor sterk advarselen er (se index.html mdConfirmRun).
+    return true;
+  };
+
+  // Alle localStorage-nøkler som holder en hemmelighet et fremmed script kan
+  // lese ut. Hold i synk med js/keys.js (md_keys), js/login.js (mdapi_token,
+  // md_login_code), js/konto-sync.js (md_kek) og js/github-storage.js
+  // (m2py_github_pat / m2py_github_profiles).
+  NL.SECRET_STORAGE_KEYS = ['md_anthropic_key', 'mdapi_token', 'md_login_code', 'md_kek', 'm2py_github_pat'];
+
+  // storage: alt med getItem (window.localStorage). En lagring som kaster er
+  // like uleselig for et delt script → ingen hemmelighet.
+  NL.hasStoredSecret = function (storage) {
+    if (!storage) return false;
+    try {
+      for (var i = 0; i < NL.SECRET_STORAGE_KEYS.length; i++) {
+        if (storage.getItem(NL.SECRET_STORAGE_KEYS[i])) return true;
+      }
+      var k = storage.getItem('md_keys');
+      if (k) {
+        var obj = null;
+        try { obj = JSON.parse(k); } catch (_) { return true; }   // ukjent format: anta hemmelighet
+        if (obj && typeof obj === 'object' &&
+            Object.keys(obj).some(function (id) { return !!obj[id]; })) return true;
+      }
+      var p = storage.getItem('m2py_github_profiles');
+      if (p && /"pat"\s*:\s*"[^"]/.test(p)) return true;
+    } catch (_) {}
+    return false;
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = NL;

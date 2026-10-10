@@ -121,6 +121,7 @@ window.M2PY_I18N.fr = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ La dernière exécution de finition a échoué — les chiffres proviennent d'une exécution réussie antérieure",
   "⚠ Not verified with code or data — plain model answer": "⚠ Non vérifié par du code ou des données — simple réponse du modèle",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Le code ne s'est pas exécuté correctement — traitez les chiffres avec prudence",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Le code généré accède au stockage du navigateur ou au pont JavaScript ({what}). Il pourrait lire vos clés API enregistrées ou votre connexion. Ne l'exécutez que si vous l'avez vérifié.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Packs sélectionnés partagés par d'autres utilisateurs. Lisez l'aperçu, puis importez votre propre copie — les packs importés apparaissent dans le sélecteur de packs de sources.",
   "Import": "Importer",
@@ -189,8 +190,11 @@ window.M2PY_I18N.fr = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Envoyer des rapports d'erreur anonymes (aide à améliorer les sources)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Seules les erreurs sont envoyées — jamais vos questions, données ou clés. Consultez la page de confidentialité pour plus de détails.",
+  "Send error reports to the developer (off unless you turn it on)": "Envoyer des rapports d'erreur au développeur (désactivé sauf si vous l'activez)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Lorsqu'une réponse échoue, le rapport contient votre question, l'interprétation de l'IA, les scripts en échec (clés enregistrées masquées), les messages d'erreur, la version de l'application, la langue et le type de fournisseur d'IA. Il est envoyé au serveur du développeur sur mdataapi.anvil.app et sert à corriger les sources de données.",
+  "Show what would be sent": "Afficher ce qui serait envoyé",
+  "Privacy statement": "Politique de confidentialité",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Aucune réponse en échec dans cet onglet pour l'instant. Un rapport n'est créé que lorsqu'une réponse échoue ; il contiendrait les champs décrits ci-dessus.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Appliqué — prend effet à votre prochaine question",
   "Apply": "Appliquer",

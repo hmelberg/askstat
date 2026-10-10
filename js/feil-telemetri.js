@@ -1,6 +1,6 @@
 // js/feil-telemetri.js — feilrapportering fra ask-flyten til Anvil
 // (spec docs/superpowers/specs/2026-08-03-datasok-og-nedlasting-v1-design.md
-// §1a). KUN feil sendes; fire-and-forget: egne feil svelges, ask-flyten
+// §1a). Kun ved feil, og KUN når brukeren har slått det på (opt-in); fire-and-forget: egne feil svelges, ask-flyten
 // bremses aldri. Endepunktet er dumt (lagrer rå JSON) — all analyse offline.
 (function (global) {
   'use strict';
@@ -57,19 +57,30 @@
     return rapport;
   }
 
-  // Telemetri-opt-out (spec §10): device-lokalt localStorage-flagg, aldri
-  // synkronisert. '1' = avslått; fravær/annet = tillatt (default).
-  function telemetriAv() {
+  // Telemetri er OPT-IN (review 2026-10-10, S1): rapporten inneholder
+  // spørsmålet, tolkningen og de feilede scriptene, så den sendes KUN når
+  // brukeren selv har slått det på i AI-innstillingene (md_telemetri_pa='1',
+  // device-lokalt, aldri synkronisert). Fravær — også for eksisterende
+  // brukere med det gamle md_telemetri_av-flagget — betyr AV, og en
+  // localStorage som kaster feiler LUKKET.
+  var LS_PA = 'md_telemetri_pa';
+  function telemetriPa() {
     try {
-      return !!(global.localStorage &&
-        global.localStorage.getItem('md_telemetri_av') === '1');
+      return !!(global.localStorage && global.localStorage.getItem(LS_PA) === '1');
     } catch (e) { return false; }
   }
+  function telemetriAv() { return !telemetriPa(); }
+
+  // Siste bygde rapport (kun i minnet, denne fanen) — «Vis hva som ville
+  // blitt sendt» i AI-innstillingene viser denne, også når telemetri er av.
+  var siste = null;
+  function sisteRapport() { return siste; }
 
   function sendFeilrapport(inn) {
-    if (telemetriAv()) return;
     try {
       var rapport = byggFeilrapport(inn);
+      siste = rapport;
+      if (!telemetriPa()) return;
       fetch(FEIL_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -80,7 +91,8 @@
   }
 
   var api = { byggFeilrapport: byggFeilrapport, sendFeilrapport: sendFeilrapport,
-              telemetriAv: telemetriAv, maskerNokler: maskerNokler };
+              telemetriAv: telemetriAv, telemetriPa: telemetriPa, LS_PA: LS_PA,
+              sisteRapport: sisteRapport, FEIL_URL: FEIL_URL, maskerNokler: maskerNokler };
   global.FeilTelemetri = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

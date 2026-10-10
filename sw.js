@@ -3,7 +3,7 @@
 // duplicated across this file (PYODIDE_VERSION below), index.html and
 // export_data*.html — update all together when upgrading Pyodide.
 const PYODIDE_VERSION = 'v314.0.2';
-const CACHE = 'm2py-v35';
+const CACHE = 'm2py-v36';
 const CDN_HOSTS = new Set([
   'cdn.jsdelivr.net',
   'cdn.plot.ly',
@@ -14,18 +14,20 @@ const CDN_HOSTS = new Set([
   'cdnjs.cloudflare.com' // require.min.js (ipywidgets-broen, js/ipywidgets-bridge.js — pinned)
 ]);
 
-// Cache-first KUN for uforanderlige (versjonspinnede) URL-er. Alt annet på
-// CDN_HOSTS er muterbart — f.eks. brukerdata fra en gren
-// (cdn.jsdelivr.net/gh/eier/repo@main/data.csv), micropips
-// pypi.org/pypi/<pkg>/json-oppslag og webR-repoets PACKAGES-indeks — og går
-// network-first (cachet kopi kun som fallback ved nettverksfeil/!ok).
+// Cache Storage holder KUN uforanderlige, versjonspinnede BIBLIOTEK-URL-er
+// (cache-first). Alt annet på CDN_HOSTS går rett til nettet og lagres ALDRI
+// her: brukerdata (cdn.jsdelivr.net/gh/eier/repo@<hva som helst>/data.csv —
+// også commit-pinnet, det er fortsatt brukerens data), muterbare refs (@main,
+// @latest, @1), micropips pypi.org/pypi/<pkg>/json-oppslag og webR-repoets
+// PACKAGES-indeks. Den gamle network-first-grenen la slikt i Cache Storage
+// uten grense (review 2026-10-10, portet fra microdata 2e05f06); m2py-v36-
+// bumpen sletter de gamle oppføringene.
 const EXACT_SEMVER = String.raw`v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`;
 const JSDELIVR_IMMUTABLE = [
   /^\/pyodide\/v\d+(?:\.\d+)+\//,
   // /npm/pkg@1.2.3/… og /npm/@scope/pkg@1.2.3/… (ikke @1, @^1, @latest)
-  new RegExp('^/npm/(?:@[^/@]+/)?[^/@]+@' + EXACT_SEMVER + '(?:/|$)'),
-  // /gh/eier/repo@<commit-sha|semver-tag>/… (ikke @main, @master, …)
-  new RegExp('^/gh/[^/@]+/[^/@]+@(?:[0-9a-f]{7,40}|' + EXACT_SEMVER + ')(?:/|$)', 'i')
+  new RegExp('^/npm/(?:@[^/@]+/)?[^/@]+@' + EXACT_SEMVER + '(?:/|$)')
+  // Bevisst IKKE /gh/…: det er brukerens repo-innhold (data), ikke bibliotek.
 ];
 function isImmutableUrl(url) {
   const p = url.pathname;
@@ -47,7 +49,7 @@ function isImmutableUrl(url) {
 // dermed falt til ren HTTP-cache med heuristisk TTL (observert stale-krasj
 // etter deploy tre ganger 2026-07-20..22). Nå dekkes ALLE lokale .py-filer
 // av én suffiks-regel, så nye filer aldri kan glemmes.
-function isLocalPySwr(pathname) {
+function isLocalPy(pathname) {
   return pathname.endsWith('.py');
 }
 
@@ -94,12 +96,13 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
   if (CDN_HOSTS.has(url.hostname)) {
-    e.respondWith(isImmutableUrl(url) ? cacheFirst(e.request) : networkFirst(e.request));
+    // Muterbart / brukerdata: ingen respondWith → vanlig nettverk/HTTP-cache.
+    if (isImmutableUrl(url)) e.respondWith(cacheFirst(e.request));
     return;
   }
 
-  if (url.origin === self.location.origin && isLocalPySwr(url.pathname)) {
-    e.respondWith(staleWhileRevalidate(e.request));
+  if (url.origin === self.location.origin && isLocalPy(url.pathname)) {
+    e.respondWith(localPyNetworkFirst(e.request));
     return;
   }
 
@@ -136,47 +139,25 @@ async function cacheFirst(req) {
   }
 }
 
-// Muterbart CDN-innhold: nettverk først, cachet kopi (eksakt nøkkel) kun når
-// nettverket feiler eller svarer !ok — gir offline-støtte uten å fryse
-// f.eks. @main-data eller pypi-JSON for alltid.
-async function networkFirst(req) {
+// Lokale .py-filer: NETTVERK FØRST (review 2026-10-10). Stale-while-
+// revalidate serverte forrige deploys Python-kjerne på første last hvis
+// ?v=M2PY_VERSION ikke ble bumpet — versjonsskjev mot ny index.html/js.
+// Nå vinner alltid ferskt svar ('no-cache' = revalider, 304 er billig);
+// cachet kopi (eksakt nøkkel inkl. ?v=) brukes bare offline / ved !ok.
+async function localPyNetworkFirst(req) {
   const cache = await caches.open(CACHE);
+  const key = new Request(req.url);
   try {
-    const res = await fetch(req);
+    const res = await fetch(req.url, { cache: 'no-cache' });
     if (res && res.ok) {
-      cache.put(req, res.clone()).catch(() => {});
+      cache.put(key, res.clone()).catch(() => {});
       return res;
     }
-    const stale = await cache.match(req);
+    const stale = await cache.match(key);
     return stale || res;
   } catch (err) {
-    const fallback = await cache.match(req);
+    const fallback = await cache.match(key);
     if (fallback) return fallback;
     throw err;
   }
-}
-
-async function staleWhileRevalidate(req) {
-  const cache = await caches.open(CACHE);
-  // Cache-skew-fiksen (2026-07-23): nøkkelen inkluderer nå SØKESTRENGEN.
-  // Alle lokale .py-fetcher bærer ?v=M2PY_VERSION (index.html __ensureUi +
-  // begge motorenes fetchText) — med search i nøkkelen gir en versjonsbump
-  // cache-MISS → ferskt nettverkssvar på FØRSTE last etter deploy, i stedet
-  // for SWR-ens serve-stale-først. Gamle versjonsnøkler ryddes ved
-  // CACHE-navnebump (activate-sveipet).
-  const key = new Request(req.url);
-  const hit = await cache.match(key);
-  // 'no-cache': revalider mot server (304 ved uendret). Default cache-modus
-  // kunne hente stale svar fra HTTP-diskcachen (kun Last-Modified-header →
-  // heuristisk freshness) og overskrive Cache Storage med gammelt innhold.
-  const network = fetch(req.url, { cache: 'no-cache' }).then(res => {
-    if (res && res.ok) cache.put(key, res.clone()).catch(() => {});
-    return res;
-  });
-  // Never resolve to undefined (that breaks respondWith). If we have a cached
-  // copy, serve it and let the network revalidate in the background; otherwise
-  // return the network promise — if it rejects, respondWith yields a normal
-  // network error rather than an undefined response.
-  if (hit) { network.catch(() => {}); return hit; }
-  return network;
 }

@@ -122,6 +122,7 @@ window.M2PY_I18N.pt = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ A última execução de acabamento falhou — os números vêm de uma execução anterior bem-sucedida",
   "⚠ Not verified with code or data — plain model answer": "⚠ Não verificado com código ou dados — resposta pura do modelo",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ O código não foi executado com êxito — trate os números com cautela",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ O código gerado acede ao armazenamento do navegador ou à ponte JavaScript ({what}). Pode ler as suas chaves de API guardadas ou o seu início de sessão. Execute-o apenas se o tiver verificado.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Pacotes curados partilhados por outros utilizadores. Leia a pré-visualização e importe a sua própria cópia — os pacotes importados aparecem no seletor de pacotes de fontes.",
   "Import": "Importar",
@@ -190,8 +191,11 @@ window.M2PY_I18N.pt = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Enviar relatórios de erro anónimos (ajuda a melhorar as fontes)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Só os erros são enviados — nunca as suas perguntas, dados ou chaves. Consulte a página de privacidade para mais informações.",
+  "Send error reports to the developer (off unless you turn it on)": "Enviar relatórios de erros ao programador (desligado, a menos que o ative)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Quando uma resposta falha, o relatório contém a sua pergunta, a interpretação da IA, os scripts que falharam (chaves guardadas mascaradas), as mensagens de erro, a versão da aplicação, o idioma e o tipo de fornecedor de IA. É enviado para o servidor do programador em mdataapi.anvil.app e usado para corrigir fontes de dados.",
+  "Show what would be sent": "Mostrar o que seria enviado",
+  "Privacy statement": "Política de privacidade",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Ainda não há respostas falhadas neste separador. Um relatório só é criado quando uma resposta falha; conteria os campos descritos acima.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Aplicado — entra em vigor na sua próxima pergunta",
   "Apply": "Aplicar",

@@ -87,14 +87,41 @@ test('rProsePrep: END marker in content is neutralized', () => {
   assert.doesNotMatch(out.replace(/__micro_transform_end__\\n"\)/,''), /__micro_transform_end__ there/);
 });
 
-test('autorunNeedsGate: styres kun av lagrede hemmeligheter (safestat-grenen fjernet)', () => {
-  assert.equal(NL.autorunNeedsGate('safestat', false), false);
-  assert.equal(NL.autorunNeedsGate('openstat', false), false);
+// Review 2026-10-10 (S2): en delt lenke er kode fra noen andre som kjører i
+// app-originen — bekreftelse kreves ALLTID, ikke bare når hemmeligheter finnes.
+test('autorunNeedsGate: alltid bekreftelse for lenker utenfra', () => {
+  assert.equal(NL.autorunNeedsGate('openstat', false), true);
   assert.equal(NL.autorunNeedsGate('openstat', true), true);
+  assert.equal(NL.autorunNeedsGate('safestat', false), true);
 });
-test('autorunNeedsGate: openstat gates only when a secret is present', () => {
-  assert.equal(NL.autorunNeedsGate('openstat', false), false);
-  assert.equal(NL.autorunNeedsGate('openstat', true), true);
+
+function fakeStorage(obj) {
+  const keys = Object.keys(obj);
+  return {
+    get length() { return keys.length; },
+    key(i) { return keys[i] == null ? null : keys[i]; },
+    getItem(k) { return Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : null; },
+  };
+}
+test('hasStoredSecret: tom / harmløs lagring → false', () => {
+  assert.equal(NL.hasStoredSecret(fakeStorage({})), false);
+  assert.equal(NL.hasStoredSecret(fakeStorage({ md_keys: '{}', md_llm_provider: '{"type":"openai-compat"}' })), false);
+  assert.equal(NL.hasStoredSecret(fakeStorage({ md_keys: '{"anthropic":""}' })), false);
+});
+test('hasStoredSecret: hver hemmelighetsnøkkel gater (inkl. login-nøkler)', () => {
+  for (const k of ['md_anthropic_key', 'mdapi_token', 'md_login_code', 'md_kek', 'm2py_github_pat']) {
+    assert.equal(NL.hasStoredSecret(fakeStorage({ [k]: 'x' })), true, k);
+  }
+  assert.equal(NL.hasStoredSecret(fakeStorage({ md_keys: '{"anthropic":"sk-ant-x"}' })), true);
+});
+test('hasStoredSecret: GitHub-profiler med PAT gater, uten gjør ikke', () => {
+  assert.equal(NL.hasStoredSecret(fakeStorage({ m2py_github_profiles: '[{"name":"a","pat":"ghp_x"}]' })), true);
+  assert.equal(NL.hasStoredSecret(fakeStorage({ m2py_github_profiles: '[{"name":"a","pat":""}]' })), false);
+});
+test('hasStoredSecret: kastende eller manglende lagring → false', () => {
+  const bad = { get length() { throw new Error('denied'); }, key() { throw new Error('denied'); }, getItem() { throw new Error('denied'); } };
+  assert.equal(NL.hasStoredSecret(bad), false);
+  assert.equal(NL.hasStoredSecret(null), false);
 });
 
 // urlHasMicro er fjernet: microdata-UI-et er modus-styrt, ikke URL-styrt.

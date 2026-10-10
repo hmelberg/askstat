@@ -27,6 +27,60 @@
     };
   }
 
+  // S3 (review 2026-10-10): Ask auto-kjører modellskrevet kode i app-
+  // originen, der nøklene (md_keys), innloggingen og GitHub-PAT-en ligger i
+  // localStorage. Med websøk på kan en prompt-injeksjon be modellen lese dem
+  // ut. Pragmatisk vern: koden skannes for mønstre som når nettleserlagring
+  // eller JS-broen fra Python/R, og et treff krever eksplisitt bekreftelse.
+  // RESTRISIKO: dette er en heuristikk, ikke en sandkasse — tilsiktet
+  // obfuskert kode (strengkonkatenering, getattr, base64) slipper gjennom.
+  // Det er dokumentert i personvern-sidene. KEYS['navn'] (brukerens egne
+  // nøkler, injisert med vilje) flagges IKKE.
+  var SECRET_ACCESS_PATTERNS = [
+    ['localStorage', /\blocalStorage\b/],
+    ['sessionStorage', /\bsessionStorage\b/],
+    ['indexedDB', /\bindexedDB\b/i],
+    ['document.cookie', /\bdocument\s*\.\s*cookie\b/],
+    ['caches', /\bcaches\s*\.\s*(?:open|keys|match|has|delete)\b/],
+    ['import js', /^\s*(?:import\s+js\b|from\s+js\s+import\b)/m],
+    ['js.window', /\bjs\s*\.\s*(?:window|document|globalThis|self)\b/],
+    ['pyodide.code', /\bpyodide\s*\.\s*(?:code|ffi)\b|\bfrom\s+pyodide(?:\.\w+)?\s+import\b/],
+    ['run_js', /\brun_js\s*\(/],
+    ['eval_js', /\beval_js\s*\(/],
+    ['eval', /(?:^|[^\w.$])eval\s*\(/],
+    ['new Function', /\bnew\s+Function\s*\(|(?:^|[^\w.$])Function\s*\(/],
+    ['sendBeacon', /\bsendBeacon\s*\(/],
+    ['window.Keys', /\bwindow\s*\.\s*Keys\b|\bKeys\s*\.\s*(?:get|getAll)\s*\(/],
+  ];
+  function scanSecretAccess(script) {
+    var s = String(script == null ? '' : script);
+    if (!s) return [];
+    var out = [];
+    SECRET_ACCESS_PATTERNS.forEach(function (p) {
+      if (p[1].test(s) && out.indexOf(p[0]) < 0) out.push(p[0]);
+    });
+    return out;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  // S4: s.url kommer fra modellen (probe) eller gjenopprettet historikk og kan
+  // være prompt-injisert — esc() stopper ikke javascript:-URL-er, så bare
+  // http(s) blir lenke (samme vakt som js/ai-chat.js sin kildeliste).
+  function sourceLinkHtml(s) {
+    s = s || {};
+    var url = String(s.url == null ? '' : s.url).trim();
+    var label = escHtml(url.replace(/^https?:\/\//i, '').slice(0, 60));
+    return (s.ok ? '✅ ' : '⚠️ ') +
+      (/^https?:\/\//i.test(url)
+        ? '<a href="' + escHtml(url) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>'
+        : label) +
+      (s.viaProxy ? ' (via proxy)' : '');
+  }
+
   // Proveniens-blokk øverst i det genererte scriptet (spec §4): spørsmål,
   // operasjonell tolkning og rute som kommentarer i modusens kommentarsyntaks.
   // For python/r slås kommando-echo av per script (#options.show_commands
@@ -891,12 +945,7 @@
       if (!list || !list.length) return;
       var div = document.createElement('div');
       div.className = 'ai-sources';
-      div.innerHTML = '<b>Sources:</b> ' + list.map(function (s) {
-        return (s.ok ? '✅ ' : '⚠️ ') +
-          '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' +
-          esc(s.url.replace(/^https?:\/\//, '').slice(0, 60)) + '</a>' +
-          (s.viaProxy ? ' (via proxy)' : '');
-      }).join(' · ');
+      div.innerHTML = '<b>Sources:</b> ' + list.map(sourceLinkHtml).join(' · ');
       answerBox.appendChild(div);
     }
     function progressLine(text) {
@@ -962,17 +1011,28 @@
     // S2-porten er PÅ KUN ved eksplisitt opt-in (localStorage.md_ask_confirm='1')
     // — ask auto-kjører som standard (Hans 2026-07-29). Injeksjonsrisikoen fra
     // webs søk-genererte script bæres da av brukerens eget nøkkellager.
-    function askConfirm() {
+    // hits/script (valgfritt, S3): når scanSecretAccess fant mønstre, vises
+    // en advarsel og koden selv før brukeren velger.
+    function askConfirm(hits, script) {
       return new Promise(function (resolve) {
         var wrap = document.createElement('div');
         wrap.className = 'ask-confirm';
         var q = document.createElement('span');
         q.textContent = 'Run the generated code? ';
+        if (hits && hits.length) {
+          q.textContent = t('⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.', { what: hits.join(', ') }) + ' ';
+        }
         var yes = document.createElement('button');
         yes.type = 'button'; yes.className = 'ai-response-insert-btn'; yes.textContent = 'Run';
         var no = document.createElement('button');
         no.type = 'button'; no.className = 'ai-codeblock-btn'; no.textContent = 'Cancel';
         wrap.appendChild(q); wrap.appendChild(yes); wrap.appendChild(no);
+        if (hits && hits.length && script) {
+          var pre = document.createElement('pre');
+          pre.style.cssText = 'max-height:240px;overflow:auto;white-space:pre-wrap;font-size:11px;';
+          pre.textContent = script;
+          wrap.appendChild(pre);
+        }
         statusBox.appendChild(wrap);
         function settle(v) { wrap.remove(); resolve(v); }
         yes.addEventListener('click', function () { settle(true); });
@@ -1164,6 +1224,17 @@
             },
             onRunCode: async function (script) {
               ranAny = true;
+              // S3: kode som når nettleserlagring/JS-broen krever ALLTID
+              // eksplisitt ja — per kjøring, uavhengig av md_ask_confirm.
+              var secretHits = scanSecretAccess(script);
+              if (secretHits.length) {
+                var okSecret = await askConfirm(secretHits, script);
+                if (!okSecret) {
+                  ctrl.abort();
+                  throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+                }
+                confirmed = true;                // ett eksplisitt ja holder
+              }
               if (!confirmed) {
                 var ok = await confirm();
                 if (!ok) {
@@ -1311,6 +1382,8 @@
       maskMathSegments: maskMathSegments,
       restoreMathSegments: restoreMathSegments,
       injectPackSaveButtons: injectPackSaveButtons,
+      scanSecretAccess: scanSecretAccess,
+      sourceLinkHtml: sourceLinkHtml,
     };
   }
 })();

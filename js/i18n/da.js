@@ -121,6 +121,7 @@ window.M2PY_I18N.da = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Sidste poleringskørsel fejlede — tallene kommer fra en tidligere vellykket kørsel",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ikke verificeret med kode eller data — rent modelsvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koden kørte ikke uden fejl — behandl tallene med forsigtighed",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Den genererede kode berører browserlagring eller JavaScript-broen ({what}). Den kan læse dine gemte API-nøgler eller dit login. Kør den kun, hvis du har tjekket den.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuraterede pakker delt af andre brugere. Læs forhåndsvisningen og importér din egen kopi — importerede pakker vises i kildepakke-vælgeren.",
   "Import": "Importér",
@@ -189,8 +190,11 @@ window.M2PY_I18N.da = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Send anonyme fejlrapporter (hjælper med at forbedre kilderne)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Kun fejl bliver nogensinde sendt — aldrig dine spørgsmål, data eller nøgler. Se privatlivssiden for flere detaljer.",
+  "Send error reports to the developer (off unless you turn it on)": "Send fejlrapporter til udvikleren (slået fra, medmindre du slår det til)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Når et svar fejler, indeholder rapporten dit spørgsmål, AI'ens fortolkning, de fejlede scripts (gemte nøgler maskeret), fejlmeddelelserne, appversion, sprog og type AI-udbyder. Den sendes til udviklerens server på mdataapi.anvil.app og bruges til at rette datakilder.",
+  "Show what would be sent": "Vis hvad der ville blive sendt",
+  "Privacy statement": "Privatlivserklæring",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "Ingen fejlede svar i denne fane endnu. En rapport bygges kun, når et svar fejler; den ville indeholde felterne beskrevet ovenfor.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Anvendt — gælder fra dit næste spørgsmål",
   "Apply": "Anvend",

@@ -121,6 +121,7 @@ window.M2PY_I18N.de = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Letzter Feinschliff-Lauf fehlgeschlagen — die Zahlen stammen aus einem früheren erfolgreichen Lauf",
   "⚠ Not verified with code or data — plain model answer": "⚠ Nicht mit Code oder Daten verifiziert — reine Modellantwort",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Der Code lief nicht fehlerfrei — behandle die Zahlen mit Vorsicht",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Der generierte Code greift auf den Browserspeicher oder die JavaScript-Brücke zu ({what}). Er könnte deine gespeicherten API-Schlüssel oder deine Anmeldung lesen. Führe ihn nur aus, wenn du ihn geprüft hast.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuratierte Pakete anderer Nutzer. Lies die Vorschau und importiere deine eigene Kopie — importierte Pakete erscheinen im Quellenpaket-Wähler.",
   "Import": "Importieren",
@@ -189,8 +190,11 @@ window.M2PY_I18N.de = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "Anonyme Fehlerberichte senden (hilft, die Quellen zu verbessern)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "Es werden ausschließlich Fehler gesendet — nie deine Fragen, Daten oder Schlüssel. Weitere Details findest du auf der Datenschutzseite.",
+  "Send error reports to the developer (off unless you turn it on)": "Fehlerberichte an den Entwickler senden (aus, solange du es nicht einschaltest)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "Wenn eine Antwort fehlschlägt, enthält der Bericht deine Frage, die Interpretation der KI, die fehlgeschlagenen Skripte (gespeicherte Schlüssel maskiert), die Fehlermeldungen, App-Version, Sprache und Typ des KI-Anbieters. Er wird an den Server des Entwicklers unter mdataapi.anvil.app gesendet und zur Korrektur von Datenquellen verwendet.",
+  "Show what would be sent": "Anzeigen, was gesendet würde",
+  "Privacy statement": "Datenschutzerklärung",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "In diesem Tab gibt es noch keine fehlgeschlagene Antwort. Ein Bericht wird nur erstellt, wenn eine Antwort fehlschlägt; er würde die oben beschriebenen Felder enthalten.",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "Übernommen — gilt ab deiner nächsten Frage",
   "Apply": "Übernehmen",

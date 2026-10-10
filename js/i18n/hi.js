@@ -121,6 +121,7 @@ window.M2PY_I18N.hi = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ आख़िरी परिष्करण रन विफल रहा — संख्याएँ पहले के सफल रन से हैं",
   "⚠ Not verified with code or data — plain model answer": "⚠ कोड या डेटा से सत्यापित नहीं — केवल मॉडल का उत्तर",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ कोड सफलतापूर्वक नहीं चला — संख्याओं को सावधानी से लें",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ जनरेट किया गया कोड ब्राउज़र स्टोरेज या JavaScript ब्रिज ({what}) को छूता है। यह आपकी सहेजी गई API कुंजियाँ या लॉगिन पढ़ सकता है। इसे तभी चलाएँ जब आपने इसे जाँच लिया हो।",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "अन्य उपयोगकर्ताओं द्वारा साझा किए गए चयनित पैक। पूर्वावलोकन पढ़ें, फिर अपनी प्रति आयात करें — आयातित पैक स्रोत-पैक चयनकर्ता में दिखते हैं।",
   "Import": "आयात करें",
@@ -189,8 +190,11 @@ window.M2PY_I18N.hi = {
   // Telemetri-opt-out (spec §10): #aiCfgPrivacy-blokka i innstillingsmodalen,
   // rett etter #aiCfgUserKeys. Engelsk-kildet som resten av modalens
   // egne-nøkler-seksjon (se brief over).
-  "Send anonymous error reports (helps improve the sources)": "अनाम त्रुटि रिपोर्ट भेजें (स्रोतों को बेहतर बनाने में मदद करता है)",
-  "Only errors are ever sent — never your questions, data or keys. See the privacy page for details.": "केवल त्रुटियाँ ही कभी भेजी जाती हैं — आपके प्रश्न, डेटा या कुंजियाँ कभी नहीं। अधिक जानकारी के लिए गोपनीयता पेज देखें।",
+  "Send error reports to the developer (off unless you turn it on)": "डेवलपर को त्रुटि रिपोर्ट भेजें (जब तक आप चालू न करें, बंद)",
+  "When an answer fails, the report contains your question, the AI's interpretation, the failed scripts (stored keys masked), the error messages, the app version, language and AI provider type. It is sent to the developer's server at mdataapi.anvil.app and used to fix data sources.": "जब कोई उत्तर विफल होता है, तो रिपोर्ट में आपका प्रश्न, AI की व्याख्या, विफल स्क्रिप्ट (सहेजी गई कुंजियाँ छिपाई गईं), त्रुटि संदेश, ऐप संस्करण, भाषा और AI प्रदाता का प्रकार होता है। इसे डेवलपर के सर्वर mdataapi.anvil.app पर भेजा जाता है और डेटा स्रोतों को ठीक करने के लिए उपयोग किया जाता है।",
+  "Show what would be sent": "दिखाएँ कि क्या भेजा जाएगा",
+  "Privacy statement": "गोपनीयता नीति",
+  "No failed answer in this tab yet. A report is only built when an answer fails; it would contain the fields described above.": "इस टैब में अभी तक कोई विफल उत्तर नहीं है। रिपोर्ट केवल तब बनती है जब कोई उत्तर विफल होता है; इसमें ऊपर बताए गए फ़ील्ड होंगे।",
   // Kildeforbedring — forslag til revidert egen kildebeskrivelse (spec 2026-08-13-kildeforbedring-egne-kilder, Task 13).
   "Applied — takes effect on your next question": "लागू किया गया — यह आपके अगले प्रश्न से प्रभावी होगा",
   "Apply": "लागू करें",

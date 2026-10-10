@@ -62,6 +62,12 @@
     var s = (container.ownerDocument || document).createElement('script');
     s.src = CFG.clientJs; s.async = true;
     s.setAttribute('crossorigin', 'anonymous');
+    // Review 2026-10-10 (S9c): giscus publiserer ingen versjonerte client.js-
+    // URL-er (client.js oppdateres på stedet), så SRI/pinning er ikke mulig
+    // uten selvhosting. Restrisiko dokumentert i personvern-sidene; vi
+    // begrenser i stedet det som lekker (ingen referer på script-hentingen)
+    // og CSP-en (netlify.toml) tillater kun giscus.app for script/frame.
+    s.setAttribute('referrerpolicy', 'no-referrer');
     var a = attrs(target, opts);
     for (var k in a) s.setAttribute(k, a[k]);
     container.appendChild(s);   // giscus erstatter script-tagen med iframe-widgeten

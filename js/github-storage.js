@@ -131,7 +131,7 @@
           }
           await navigator.clipboard.writeText(link);
           toast(scrub.changed
-            ? T('Delelenke kopiert til utklippstavlen — nøkler fjernet fra delt script (bruk key(ask))')
+            ? T('Delelenke kopiert til utklippstavlen — nøkler fjernet fra delt script (bruk secret_key="ask")')
             : T('Delelenke kopiert til utklippstavlen'));
         } catch (e) {
           alert(T('Kunne ikke lage delelenke: {msg}', { msg: e.message || e }));
@@ -785,7 +785,7 @@
           setCurrent({ repo: s.repo, branch: s.branch, path: cur.path, sha: res.sha });
           markSaved();
           toast(changed
-            ? T('Lagret til GitHub: {path} — nøkler fjernet fra delt script (bruk key(ask))', { path: cur.path })
+            ? T('Lagret til GitHub: {path} — nøkler fjernet fra delt script (bruk secret_key="ask")', { path: cur.path })
             : T('Lagret til GitHub: {path}', { path: cur.path }));
         } catch (e) { alert(T('Kunne ikke lagre: {msg}', { msg: e.message || e })); }
       }
@@ -841,7 +841,7 @@
           if (nameEl) nameEl.value = (path.split('/').pop() || '').replace(/\.(txt|py|r)$/i, '');
           $('ghSaveAsBackdrop').style.display = 'none';
           toast(changed
-            ? T('Lagret til GitHub: {path} — nøkler fjernet fra delt script (bruk key(ask))', { path: path })
+            ? T('Lagret til GitHub: {path} — nøkler fjernet fra delt script (bruk secret_key="ask")', { path: path })
             : T('Lagret til GitHub: {path}', { path: path }));
         } catch (e) { if (err) err.textContent = T('Kunne ikke lagre: {msg}', { msg: e.message || e }); }
       }

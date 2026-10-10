@@ -38,7 +38,8 @@ _NAN_MSG = ('NaNs were detected in the dataset. Try using pd.isnull to find '
 def _is_missing(v):
     if v is None:
         return True
-    if type(v).__name__ in ('NAType', 'NaTType'):
+    # 'NaN': pandas_brython/pandas_mpy sin nan-sentinel
+    if type(v).__name__ in ('NAType', 'NaTType', 'NaN'):
         return True
     try:
         return isinstance(v, float) and math.isnan(v)
@@ -465,6 +466,16 @@ def multivariate_logrank_test(event_durations, groups, event_observed=None):
     G = _as_list(groups)
     E = ([1] * len(T) if event_observed is None
          else _events(event_observed))
+    # Review B11h: nan != nan, så hver manglende gruppeverdi ble sin egen
+    # gruppe og blåste opp frihetsgradene; ulike lengder ga IndexError.
+    if len(G) != len(T) or len(E) != len(T):
+        raise ValueError('logrank: varighet, gruppe og hendelse må ha samme '
+                         'lengde (fikk ' + str(len(T)) + ', ' + str(len(G)) +
+                         ', ' + str(len(E)) + ')')
+    for g in G:
+        if _is_missing(g):
+            raise ValueError('logrank: manglende gruppeverdi (NaN/None) — '
+                             'fjern eller kod radene uten gruppe først')
     labels = []
     for g in G:
         if g not in labels:
@@ -574,6 +585,10 @@ class CoxPHFitter:
         E = _events(data[event_col])
         n = len(T)
         p = len(covs)
+        if n == 0:
+            raise ValueError('CoxPHFitter.fit: datasettet har ingen rader')
+        if len(E) != n or any(len(data[c]) != n for c in covs):
+            raise ValueError('CoxPHFitter.fit: kolonnene har ulik lengde')
         X = []
         for i in range(n):
             row = []

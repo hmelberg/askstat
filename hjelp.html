@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenStat – Dokumentasjon</title>
+<title>AskStat – Dokumentasjon</title>
 <style>
   :root {
     --accent: #2563eb;
@@ -173,12 +173,12 @@
 <div class="page">
 
 <nav>
-  <div class="nav-logo">Script Runner</div>
+  <div class="nav-logo">AskStat</div>
   <a href="hjelp.en.html" style="font-size:12px;color:var(--text-muted)">In English</a>
   <div class="nav-section">Kom i gang</div>
   <a href="#intro">Hva er dette?</a>
   <a href="#running">Kjøre</a>
-  <a href="#microdata">Microdata-kommandoer</a>
+  <a href="#microdata">Microdata-kommandoer (utgått)</a>
   <div class="nav-section">Editoren</div>
   <a href="#editor">Editor og snarveier</a>
   <a href="#tab-intro">Tab-autocomplete</a>
@@ -204,20 +204,21 @@
 <main>
 
   <div class="doc-header">
-    <h1>OpenStat</h1>
-    <p class="lead">Skriv og kjør Python, R og SQL direkte i nettleseren — uten installasjon.</p>
+    <h1>AskStat</h1>
+    <p class="lead">Still spørsmål om åpen statistikk og få svar med kode — eller skriv og kjør Python, R og SQL direkte i nettleseren, uten installasjon.</p>
   </div>
 
   <!-- ── INTRO ── -->
   <section id="intro">
     <h2>Hva er dette?</h2>
-    <p>OpenStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv Python, R eller SQL, se resultater umiddelbart, og kjør hybridskript der ulike språk samarbeider.</p>
+    <p>I <strong>Ask</strong>-visningen skriver du et spørsmål på vanlig språk; AI-en finner en åpen statistikkilde (SSB, Eurostat, OWID, Verdensbanken, PxWeb, SDMX m.fl.), skriver og kjører koden i nettleseren og forklarer svaret.</p>
+    <p>AskStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv Python, R eller SQL, se resultater umiddelbart, og kjør hybridskript der ulike språk samarbeider.</p>
 
     <div class="callout">
-      <strong>NB:</strong> Dette er et hobbyprosjekt og er ikke laget av microdata.no selv. Siden inneholder ikke ekte tall, og det gis ingen garantier for at analysene er korrekt implementert.
+      <strong>NB:</strong> Dette er et hobbyprosjekt. AI-svar kan være feil — sjekk koden og kilden før du bruker tallene. Det gis ingen garantier for at analysene er korrekt implementert.
     </div>
 
-    <p>Alt skjer i nettleseren — ingen data forlater maskinen din.</p>
+    <p>Koden kjører i nettleseren. Når du bruker AI-funksjonene, sendes spørsmålet (og ev. kode og resultatsammendrag) via appens edge-funksjoner til AI-leverandøren du har valgt, med din egen API-nøkkel. Data fra åpne kilder hentes via en proxy (<code>/api/hent</code>) når kilden ikke tillater direkte henting. Se <a href="personvern.html">personvern</a>.</p>
 
     <div class="callout tip">
       <strong>Hurtigstart:</strong> Skriv kode i tekstfeltet, trykk <kbd>Ctrl</kbd>+<kbd>Enter</kbd> eller knappen <strong>Kjør</strong>. Bruk <kbd>Tab</kbd> for forslag til kommandoer og variabler.
@@ -239,6 +240,9 @@
   <!-- ── MICRODATA ── -->
   <section id="microdata">
     <h2>Microdata-kommandoer</h2>
+    <div class="callout">
+      <strong>Utgått:</strong> Microdata-modus og dataminimering-vurderingen er fjernet fra AskStat — kommandoene og funksjonene i denne seksjonen kjører ikke her. Øv på microdata.no-syntaks i <a href="https://hmelberg.github.io/microdata/" target="_blank" rel="noopener">microdata-appen</a>.
+    </div>
     <p>Microdata-syntaksen ligner på Stata. Her er de viktigste kommandoene:</p>
 
     <h3>Datainnlasting</h3>
@@ -547,7 +551,7 @@ df.columns = list(df.columns[:-1]) + ["verdi"]</code></pre>
     <ul>
       <li>Fungerer med <strong>GitHub «raw»-lenker</strong>, <strong>GitHub gist</strong> (raw) og <strong>Dropbox</strong>.</li>
       <li>Vanlige delelenker (f.eks. en Google Drive- eller GitHub-<em>side</em>) virker <em>ikke</em> — du må bruke den rå fil-lenken. Får du en feilmelding, er det nesten alltid fordi kilden ikke tillater direkte henting (CORS).</li>
-      <li>Filendelsen styrer modus: <code>.py</code> → Python, <code>.r</code> → R, ellers Microdata.</li>
+      <li>Filendelsen styrer modus: <code>.py</code> → Python, <code>.r</code> → R, <code>.sql</code> → DuckDB; ellers beholdes aktiv modus (<code>#options.mode</code> i scriptet overstyrer).</li>
     </ul>
 
     <h3>GitHub (for viderekomne)</h3>
@@ -739,8 +743,8 @@ summarize kjonn
 
     <div class="card-grid">
       <div class="card">
-        <div class="card-title"><span class="badge badge-micro">Microdata</span> Standard</div>
-        <div class="card-body">Microdata.no-syntaks. Laster registerdata, oppretter datasett, kjører statistikk og diagrammer.</div>
+        <div class="card-title"><span class="badge badge-py">DuckDB</span> SQL</div>
+        <div class="card-body">SQL i nettleseren via DuckDB-WASM. Kilder fra <code>ost.read</code>/<code>ost.connect</code> registreres som views.</div>
       </div>
       <div class="card">
         <div class="card-title"><span class="badge badge-py">Python</span> Pyodide</div>
@@ -772,7 +776,7 @@ summarize kjonn
       <thead><tr><th>Funksjon</th><th>Beskrivelse</th></tr></thead>
       <tbody>
         <tr><td><code>show(objekt)</code></td><td>Vis DataFrame, plot eller verdi i outputfeltet</td></tr>
-        <tr><td><code>to_microdata(df, "navn")</code></td><td>Send en pandas DataFrame tilbake til microdata-tolken som et navngitt datasett</td></tr>
+        <tr><td><code>to_microdata(df, "navn")</code></td><td>Registrer en pandas DataFrame som et navngitt datasett i appen (vises i datasett-panelet og kan hentes med <code>ost.use</code>)</td></tr>
       </tbody>
     </table>
 
@@ -802,20 +806,20 @@ summarize kjonn
   <!-- ── HYBRID ── -->
   <section id="hybrid">
     <h2>Hybrid-skript</h2>
-    <p>Du kan blande microdata, Python og R i samme script ved å bruke <strong>modusveksler-linjer</strong>.</p>
+    <p>Du kan blande Python, R og DuckDB (SQL) i samme script ved å bruke <strong>modusveksler-linjer</strong>.</p>
 
     <h3>Vekslerlinjer</h3>
     <table class="doc-table">
       <thead><tr><th>Linje</th><th>Effekt</th></tr></thead>
       <tbody>
-        <tr><td><code>## microdata</code> / <code>#micro</code> / <code>// microdata</code></td><td>Bytt til microdata-modus</td></tr>
         <tr><td><code>## python</code> / <code>#py</code></td><td>Bytt til Python-modus</td></tr>
         <tr><td><code>## r</code> / <code>#r</code></td><td>Bytt til R-modus</td></tr>
+        <tr><td><code>## duckdb</code> / <code>#duckdb</code></td><td>Bytt til DuckDB (SQL)</td></tr>
       </tbody>
     </table>
 
     <h3>Dele data mellom språk: <code>ost.use</code></h3>
-    <p>Microdata- og Python-blokker deler samme datasett automatisk (samme motor). Mellom <strong>ulike</strong> motorer — Python↔R, microdata→R, DuckDB↔andre — henter du et datasett eksplisitt med en <code>ost.use</code>-linje øverst i blokken:</p>
+    <p>Mellom <strong>ulike</strong> motorer — Python↔R, DuckDB↔andre — henter du et datasett eksplisitt med en <code>ost.use</code>-linje øverst i blokken:</p>
     <pre><code>#py
 df["ny"] = df["x"] * 2
 
@@ -824,35 +828,15 @@ df["ny"] = df["x"] * 2
 summary(df$ny)</code></pre>
     <p>Uten <code>source=</code> hentes datasettet fra nærmeste tidligere blokk med et annet språk; presiser med <code># df = ost.use("df", source="python")</code> (<code>python</code>, <code>r</code> eller <code>duckdb</code>) ved behov — må angis når kilden er en <em>tidligere kjøring</em>. Navnet må gjentas på begge sider: omdøping (<code># nytt = ost.use("df")</code>) er ikke støttet ennå og gir feilmelding. Kopisemantikk: blokken får et øyeblikksbilde — endringer smitter ikke tilbake til kildemotoren.</p>
 
-    <h3>Eksempel: microdata + Python</h3>
-    <pre><code>## microdata
-require no.ssb.fdb:52 as db
-create-dataset df
-import db/BEFOLKNING_FOEDSELS_AAR_MND as faarmnd
-import db/INNTEKT_WLONN 2022-01-01 as inntekt
-generate alder = 2022 - int(faarmnd / 100)
-keep if inrange(alder, 25, 67)
-keep if inntekt > 0
-
-## python
-import matplotlib.pyplot as plt
-df.plot.scatter(x="alder", y="inntekt", alpha=0.3, s=8)
-plt.tight_layout()
-show(plt.gcf())</code></pre>
-
-    <h3>Eksempel: microdata + R</h3>
-    <pre><code># microdata
-require no.ssb.fdb:52 as db
-create-dataset df
-import db/BEFOLKNING_KJOENN as kjonn
-import db/INNTEKT_WLONN 2022-01-01 as inntekt
+    <h3>Eksempel: Python + R</h3>
+    <pre><code>#py
+import pandas as pd
+df = pd.DataFrame({"gruppe": ["a", "b", "a", "b"], "x": [1, 2, 3, 4]})
 
 #r
+# df = ost.use("df")
 library(dplyr)
-df %>% group_by(kjonn) %>%
-  summarise(snitt = mean(inntekt, na.rm = TRUE))</code></pre>
-
-    <p>Datasettene fra microdata-seksjonen overføres automatisk til Python som pandas DataFrames og til R som data frames.</p>
+df %>% group_by(gruppe) %>% summarise(snitt = mean(x))</code></pre>
   </section>
 
   <!-- ── TAB FULL ── -->

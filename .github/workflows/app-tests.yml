@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: pip install pytest pandas numpy pyarrow plotly pyyaml duckdb
+        run: pip install pytest 'pandas<3' numpy pyarrow plotly pyyaml duckdb polars
       - name: Run app suite
         run: python -m pytest tests/ -q
 
@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: pip install pytest pandas numpy pyarrow scipy scikit-learn statsmodels lifelines
+        run: pip install pytest 'pandas<3' numpy pyarrow scipy scikit-learn statsmodels lifelines
       - name: Run brython suite
         run: python -m pytest brython/tests -q
       - name: Run micropython suite

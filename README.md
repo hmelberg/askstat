@@ -1,112 +1,178 @@
-# OpenStat — browser statistics workbench (public, BYOK-only build)
+# AskStat — ask questions, get answers backed by data and runnable code
 
-> Sister projects: [SafeStat](https://github.com/hmelberg/safestat) — the full
-> build with login, protected/encrypted data sources, restricted (strict)
-> execution, and server-side remote analysis — and
-> [Microdata](https://github.com/hmelberg/microdata) — the dedicated
-> microdata.no emulator (persona locked on, UI tracking microdata.no).
-> OpenStat is the open general workbench; engine fixes land in SafeStat first
-> and are ported to the siblings.
+AskStat is a browser statistics workbench built around one feature, **Ask**.
+You type a question in plain language. An AI pipeline finds a public
+statistics source (Statistics Norway/SSB, Eurostat, OWID, the World Bank,
+PxWeb and SDMX APIs, and others), writes code that fetches and analyses the
+data, **runs that code in your browser** (Pyodide, WebR or DuckDB-WASM), and
+writes an answer built on the real output. The script stays visible and
+editable, so you can check the answer yourself.
 
-A browser app for running statistics scripts in several languages — microdata,
-Python, R, DuckDB, Brython, jamovi, Statx — with the microdata language powered
-by an engine that emulates [microdata.no](https://microdata.no): it translates
-microdata scripts to Python and runs them in the browser via Pyodide, and
-generates synthetic register data from metadata. Around it: Python/R runners,
-Python/R → microdata translators, a step-by-step tutorial mode, and AI features
-(code generation, a data-minimization/privacy review, and result
-interpretation). Microdata is an ordinary mode here (its special UI shows only
-while microdata mode is active); the always-on emulator experience lives in the
-`microdata` sibling repo. The default mode is chosen per subdomain
-(`js/notebook-links.js` `hostnameMode()`: py.* → python, r.* → r,
-duck.* → duckdb, micro… → microdata), with **python** as the fallback.
+Behind Ask is a general workbench (`?view=editor`) with these modes:
+**Python** (Pyodide), **R** (WebR), **DuckDB** (SQL), **Brython**,
+**MicroPython**, **JavaScript** and **jamovi**. It also has notebook cells
+(`#%%`), hybrid scripts (`#py` / `#r` / `#duckdb` blocks that share data
+via `ost.use`), and data directives (`# x = ost.read("https://…")`).
 
-This is the **public, lite** version: no login, no accounts, no protected/
-sensitive data sources, and no server-side remote execution. The AI features
-work only via a user-supplied Anthropic API key (BYOK), pasted into the
-Settings dialog and stored only in the browser's `localStorage` — our Netlify
-edge functions relay each request straight to Anthropic and don't store the
-key or the request content. See `personvern.html` for the full privacy
-statement.
+- **No build step.** The site is static HTML/JS plus Netlify edge functions.
+- **BYOK AI.** The AI features need your own key: Anthropic, or a custom
+  provider (Anthropic-compatible, OpenAI-compatible chat completions, or the
+  OpenAI Responses API; see `_lib/providers/`). You add
+  the key in Settings, and it is stored only in the browser's
+  `localStorage`. The edge functions relay each request to the provider and
+  store neither the key nor the content. See `personvern.html` /
+  `personvern.en.html`.
+- **Optional login and sync.** You can log in by email through the Anvil
+  backend (`js/login.js`). Logging in never gates Ask; it only adds sync of
+  profiles, Ask history (without the answer text) and the key store
+  (encrypted client-side) across devices (`js/konto-sync.js`,
+  `js/keys-crypto.js`).
+
+AskStat was forked from **openstat** in July 2026, and microdata mode was
+removed on 2026-07-24. See [Sibling repos](#sibling-repos).
 
 ## Layout
 
 | Path | What |
 |------|------|
-| `index.html` | The front-end app shell (editor, runners, mode system, settings) + remaining inline modules. |
-| `app.css`, `js/` | Extracted front-end: `app.css` (styles); `js/ai-chat.js`, `js/github-storage.js`, `js/data-directives.js`, `js/data-loader.js`, `js/enc-crypto.js` (classic `<script src>` modules loaded after the inline block, sharing the `window.*` surface). |
-| `js/cells.js` | Notebook cells: `#%%` parsing/serialisering (ren halvdel, node-testet) + celle-rendrer for visningene + hover-verktøylinje (add/delete/move/type/split/merge) (spec `docs/superpowers/specs/2026-07-13-notebook-cells-design.md`). |
-| `m2py.py` | The interpreter: `MicroParser` + `MicroInterpreter` (engine, mock-data, stats, disclosure control). |
-| `functions.py` | microdata functions used in generate/replace/if expressions. |
-| `protect.py` | `scrub-*` data-protection verbs (noise, swap, k-anon, risk, …) — a local disclosure-control toolkit you can call on your own scripts; no server involved. |
-| `mockdata_export.py`, `static_source.py`, `build_static_data.py` | Static synthetic-data build (Parquet/DuckDB) + the static data source. |
-| `netlify/edge-functions/` | The AI endpoints (`dm-vurder`, `kode-svar`, `kode-svar-v2`, `tolk-resultat`, `data-svar`, `hent`) + shared `_lib/`. All accept a BYOK Anthropic key (`X-Anthropic-Key`) — no account/token required. |
-| `data/sources/<id>.md` | The data-source registry, canonical form (front matter + `## Kort`/`## Guide`/`## Om kilden`). `data/data-sources.json` and `data/source-guides/` are **generated** from these — edit the documents, not the generated files, then run `node tools/source_docs.mjs generate`. |
-| `manual_scripts/` | End-to-end example scripts run as a smoke suite. |
-| `tests/` | pytest suite (engine, regressions, equivalence, mock-data, performance). |
+| `index.html` | App shell: the Ask view, the editor, the mode system, run orchestration and settings. It still holds a ~640 KB inline script (see `docs/ARCHITECTURE.md` § Known debt). |
+| `app.css`, `css/ask.css`, `css/modes/` | Styles. |
+| `openstat.py` | The `ost` Python module (`connect`/`read`/`create`/`use`). Runs in Pyodide and in plain CPython. |
+| `duckdb_bridge.py`, `notebook_prose.py` | Pure-Python helpers for DuckDB mode and notebook prose rendering (pytest-covered). |
+| `shared/*_core.py` | Engine-neutral cores (`ost_core`, `ui_core`, altair/folium/lifelines/tabulator) shared by Pyodide, Brython and MicroPython. |
+| `pyodide/`, `webr/` | Runtime glue for Pyodide (`ui.py`, ipywidgets setup) and WebR (`ui.R`). |
+| `brython/`, `micropython/` | Lightweight Python engines: shims such as `pandas_brython.py`, `sklearn_brython.py` and `pandas_mpy.py`, plus their test suites. |
+| `data/sources/<id>.md` | **The source registry, in canonical form** (front matter plus `## Kort` / `## Guide` / `## Om kilden`). |
+| `data/data-sources.json`, `data/source-guides/` | **Generated** from `data/sources/`. Edit the `.md` files, then run `node tools/source_docs.mjs generate`. Never edit the generated files by hand. |
+| `data/packs/` | Country and community "source packs" (extra prompt context that the user can switch on). |
+| `data/*-catalog.json` | Harvested static catalogs (OWID, Eurostat, World Bank, APD, NADA) used by the catalog search tools. |
+| `examples/<mode>/` | Example scripts per mode. `examples/manifest.json` is generated by `python3 examples/generate_manifest.py`. |
+| `netlify/edge-functions/` | The server side (see below). |
+| `tools/` | Generators and harvesters (`source_docs.mjs`, `harvest_*_catalog.py`, `list_i18n_keys.mjs`, `gen_jmv_specs.py`, `build_norge_geojson.py`), plus the eval harness in `tools/harness/`. |
+| `static_data/` | Norwegian municipality and county GeoJSON (`norge:kommuner` / `norge:fylker` map layers). The `.parquet` files there are leftovers from the removed microdata generator. |
+| `sw.js` | Service worker (precaches Pyodide and the CDN assets). |
+| `hjelp.html`, `hjelp.en.html` | User documentation. |
+| `docs/` | Architecture (`docs/ARCHITECTURE.md`), roadmap, specs and plans (`docs/superpowers/`), eval reports (`docs/eval/`), archived plans (`docs/archive/`). |
 
-### Relationship to the full/advanced `m2py` repo
+### Front-end modules (`js/`)
 
-This repo was forked from the sibling `m2py` repo, which additionally supports
-protected/sensitive data sources, Anvil-hosted login and AI, and server-side
-remote execution. Those features (and their supporting files —
-`m2py_remote.py`, `m2py_protection.py`, `js/login.js`, `js/strict-worker.js`,
-`vendor/safepy.zip`, `sync_to_api.py`) were removed here on purpose; they are
-not needed for the public/lite use case.
+The modules are classic `<script src>` files that share a `window.*` surface.
+Most of them keep pure logic in their top half so it can be tested in node.
 
-The **three** repos (safestat, openstat, microdata) share a core engine —
-`m2py.py`, `functions.py`, `m2py_translate.py`, `m2py_runtime/`,
-`protect.py`, and most of `index.html`'s mode-switching/editor/
-run-pipeline logic. (The `py2m/`/`r2m/` translators and the Oversett button
-were removed from openstat/safestat 2026-07-10 — they live in the
-`microdata` repo only.) There is no shared package or submodule between them
-(deliberately, to avoid infrastructure this project doesn't need yet) — when
-you fix a bug in one of those files, check whether the sibling repos have the
-same bug. Engine fixes land in SafeStat first and are ported out. The
-`microdata` repo was cloned from this one 2026-07-10 with full git history
-(`git cherry-pick` works across them); its UI drifts toward microdata.no and
-should not be blind-synced.
+- **Ask:** `ask-view.js` (the Ask view: router → `/api/svar` loop → answer
+  rendering), `ask-history.js`, `profiles.js` (named prompt profiles),
+  `packs.js` (source packs), `sources-modal.js` + `source-doc.js` (user's
+  own source documents), `kilde-forslag.js` (AI-suggested improvements to
+  source docs, and admin "send as PR"), `feil-telemetri.js` (failure-only
+  telemetry), `rangeringsvern.js` (guard against label/value shuffling in
+  rankings).
+- **AI and keys:** `ai-chat.js` (AI side panel, `runSvarLoop`,
+  `mdAskExecuteScript`, provider config), `keys.js` (local key store),
+  `keys-crypto.js`, `login.js`, `konto-sync.js`.
+- **Data:** `directive-parser.js` + `data-directives.js` (parsing
+  `ost.read`/`ost.connect`/`ost.use` directive lines), `data-loader.js`
+  (resolve and fetch, with fallback to the `/api/hent` proxy), `read-bridge.js`
+  (`pd.read_csv("https://…")` URL bridge and byte cache), `api-kinds.js`,
+  `pxweb.js`, `enc-crypto.js` (encrypted sources), `meta-info.js`,
+  `sidebar-typemeta.js`, `dataset-order.js`, `ost-r.js`.
+- **DuckDB:** `duckdb-native.js`, `duckdb-views.js`, `assembly-duckdb.js`.
+- **Engines:** `brython-engine.js`, `micropython-engine.js`,
+  `javascript-engine.js`, `modes/jamovi.js` (+ `jmv_specs.js`,
+  `jmv_helpers.R`).
+- **Editor and notebook:** `cells.js`, `ui.js` (widgets), `param-forms.js`,
+  `ipywidgets-bridge.js`, `examples-menu.js`, `notebook-links.js`
+  (subdomain → start mode, deep links), `github-storage.js` (share link,
+  open from URL, GitHub storage), `portable-export.js`, `comments.js`,
+  `names.js`.
+- **i18n:** `i18n.js` + `i18n/*.js`. The source strings are Norwegian, and
+  `en.js` maps them to English.
 
-## Common commands
+### Edge functions (`netlify/edge-functions/`, routes in `netlify.toml`)
+
+| Route | What |
+|-------|------|
+| `/api/ask-ruter` | Classifies a question (`beregning` / `data` / `oppslag` / `utforsk` / `språk`) and writes an operational interpretation. |
+| `/api/svar` | The agentic Ask loop. It streams SSE and uses server tools (`search_catalog`, `table_metadata`, `probe`, `search_datasets`, `search_literature`, plus hosted `web_search` / `web_fetch` on Anthropic) and client tools (`run_code`, `get_pack`). It continues across POSTs using `resume` state. |
+| `/api/tolk-resultat` | Interprets the output of a run (the AI panel's "interpret" action). |
+| `/api/hent` | SSRF-hardened GET proxy for data sources without CORS. It injects server-side API keys for registry sources (matched by host). |
+| `/api/metadata` | Public, rate-limited table metadata lookup (registry source + table id) for the sidebar. |
+| `/api/kilde-forslag` | Suggests a revised user source document from a failed run's log. |
+| `/api/kilde-pr` | Admin only. Opens a GitHub PR or issue for an accepted source suggestion. |
+
+Shared code lives in `_lib/`: auth/gating, rate limiting, the Anthropic
+client and the OpenAI-compatible providers, the registry, the tools and
+catalogs, the prompt assembly, and SSRF checks. The prompts live in
+`prompts/*.md` and are inlined into the `.ts` files, so keep the two in
+sync. `netlify/edge-functions/README.md` documents the request bodies and the
+SSE protocol.
+
+## Running locally
 
 ```bash
-# Python tests (engine, regressions, equivalence, mock-data)
-.venv/bin/python -m pytest tests/
+# Static only: Ask and AI calls will fail (no /api), but the editor modes work
+python3 -m http.server 8000
 
-# End-to-end smoke suite (exits non-zero on any CRASH/PARTIAL)
-.venv/bin/python manual_scripts/run_manual_scripts.py
+# Full app incl. edge functions (port 8899, per netlify.toml [dev])
+cp .env.example .env    # optional, see Environment below
+netlify dev
+```
 
-# Edge functions (Deno)
+## Tests
+
+```bash
+python3 -m pytest tests/ -q                 # app suite (openstat.py, bridges, harvesters, examples…)
+node --test 'tests/js/*.test.js'            # front-end modules
+python3 -m pytest brython/tests -q          # Brython shims
+python3 -m pytest micropython/tests -q      # MicroPython shims
 cd netlify/edge-functions && deno check *.ts _lib/*.ts && deno test --allow-all _lib/
-
-# Build the static synthetic dataset (writes static_data/*.parquet + manifest.json)
-.venv/bin/python build_static_data.py --persons 100000 --from 2015 --to 2023
 ```
 
-CI lives in `.github/workflows/` (pytest + manual scripts, edge).
+CI (`.github/workflows/app-tests.yml`, `edge-tests.yml`) runs all of these.
+It also has a `generated` job, which regenerates the source registry, the
+examples manifest and the Ask i18n key list, and fails if they differ from
+what is committed.
 
-## Examples
-
-Built-in examples live in `examples/<mode>/` — one folder per editor mode
-(`micropython/`, `microdata/`, …), with an optional one level of `NN_category/`
-subfolders (e.g. `microdata/03_deskriptiv_statistikk/`) that become categories
-in the modal. Add or remove a file, then regenerate the manifest:
-
-```bash
-# Rebuild examples/manifest.json from the folder tree
-.venv/bin/python examples/generate_manifest.py
-```
-
-The «Eksempler» button opens a mode-scoped modal built from
-`examples/manifest.json` (fetched lazily the first time the modal opens — no
-startup cost). Each example's label comes from a `# label: <text>` line in the
-file (else `#options.title`, else the filename). No `index.html` edit is
-needed to add or remove examples.
+After you edit a source document, run `node tools/source_docs.mjs generate`
+and commit the generated files too.
 
 ## Deployment
 
-The site deploys on Netlify (`netlify.toml`): static files + the edge
-functions. Set `ANTHROPIC_API_KEY` only if you want a server-side fallback for
-non-BYOK requests — otherwise every AI request requires the caller's own key.
-`sw.js` precaches Pyodide — **bump `CACHE` whenever the precache list
-changes.**
+The app is deployed on Netlify with no build command. The site is served
+from the repo root, and the edge functions are declared in `netlify.toml`.
+That file also sets the cache headers for `sw.js` / `index.html` and a
+report-only CSP. Bump `window.M2PY_VERSION` and the `?v=` query strings in
+`index.html` when you ship changes to cached assets.
+
+## Environment (Netlify site settings / local `.env`)
+
+All of these are optional. A normal public deploy works with none of them set,
+because every AI request carries the user's own key.
+
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `ANTHROPIC_API_KEY` | AI endpoints | Server-side fallback key, used only when the request carries no BYOK key and passes the admin gate. |
+| `ANTHROPIC_MODEL` | AI endpoints | Default model (`claude-sonnet-4-6` if unset). |
+| `DATA_SVAR_MODEL` | `svar` | Model override for the Ask loop. |
+| `M2PY_ACCESS_TOKEN` | `_lib/auth.ts` | Shared admin/service bearer token (automation, local testing). |
+| `M2PY_ANVIL_VALIDATE_URL` | `_lib/auth.ts` | Override for the Anvil endpoint that validates login tokens. |
+| `GITHUB_PR_TOKEN`, `GITHUB_PR_REPO` | `kilde-pr` | Fine-grained PAT (Contents + Pull requests RW, and Issues RW for issue mode) and target repo (default `hmelberg/askstat`). |
+| `OPENALEX_MAILTO` | `svar` (`search_literature`) | Contact address for OpenAlex's polite pool. |
+| `DATACOMMONS_API_KEY` | `search_datasets`, `table_metadata`, `hent` | Data Commons key. |
+| `FRED_API_KEY`, `CENSUS_API_KEY`, `ESS_API_KEY` | `hent`, `svar` | Server-side keys for registry sources whose `auth.env` names them. Sources whose key is missing are hidden from the model. |
+
+## Sibling repos
+
+- **openstat** (`hmelberg/openstat`) is the general open workbench that
+  AskStat was forked from.
+- **microdata** (`hmelberg/microdata`) is the dedicated microdata.no
+  emulator. Practise microdata syntax there; it is no longer a mode here.
+
+AskStat is **upstream for the Ask/svar engine**: the router, `/api/svar`, the
+source registry, the source guides and packs, the eval harness and
+kilde-forslag. Workbench fixes flow both ways: recent commits port review
+fixes from openstat, and Ask-related fixes are ported back. No package or
+submodule is shared between the repos. When you fix a bug in a shared file
+(`index.html` run pipeline, `js/data-*.js`, `openstat.py`, `shared/`, the
+engines), check the sibling repos for the same bug. Some names still show the
+fork's history, for example the `M2PY_*` globals, the `openstat` Python
+module name and the `md_*` localStorage keys.

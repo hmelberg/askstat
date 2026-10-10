@@ -11,6 +11,12 @@
       var r = await fetchImpl('data/data-sources.json');
       _registryCache = r.ok ? await r.json() : [];
     } catch (e) { _registryCache = []; }
+    // B2: parseScript godtar «<id>.read()» uten argumenter bare for kjente
+    // kilde-id-er — ellers er «# html = resp.read()» en vanlig kommentar.
+    var DP = global.DirectiveParser;
+    if (DP && DP.setKnownSources && Array.isArray(_registryCache)) {
+      DP.setKnownSources(_registryCache.map(function (s) { return s && s.id; }));
+    }
     return _registryCache;
   }
 

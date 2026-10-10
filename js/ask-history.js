@@ -55,25 +55,39 @@
     function writeDoc(doc, opts) {
       pruneTombstones(doc);
       evict(doc);
-      try {
-        storage.setItem(LS, JSON.stringify(doc));
-      } catch (e) { // kvote: kast eldste, prøv ÉN gang til, deretter stille
-        var order = liveIdsNewestFirst(doc);
-        if (!order.length) return;
-        delete doc.entries[order.pop()];
-        try { storage.setItem(LS, JSON.stringify(doc)); } catch (e2) {}
+      // Kvote (B16): kast eldste levende i løkke til dokumentet passer —
+      // før ble ÉN kastet og så feilet skrivingen stille, så historikken
+      // sluttet å lagre uten et ord. Begrenset av antall oppføringer; den
+      // nyeste (typisk den som nettopp lagres) kastes aldri. Feiler det
+      // likevel, huskes feilen (lastError) og writeDoc returnerer false.
+      var order = null, err = null;
+      for (var tries = 0; tries <= MAX_ENTRIES + 1; tries++) {
+        try { storage.setItem(LS, JSON.stringify(doc)); err = null; break; }
+        catch (e) {
+          err = e;
+          if (!order) order = liveIdsNewestFirst(doc);
+          if (order.length <= 1) break;
+          delete doc.entries[order.pop()];
+        }
+      }
+      lastErr = err;
+      if (err) {
+        if (typeof console !== 'undefined' && console.warn) console.warn('AskHistory: kunne ikke lagre historikken:', err);
+        return false;
       }
       if (!opts || !opts.silent) fire();
+      return true;
     }
+    var lastErr = null;
     return {
       save: function (fields) {
         var doc = readDoc();
         var id = newId();
         var ts = now();
         doc.entries[id] = Object.assign({}, fields, { id: id, ts: ts, updated: ts });
-        writeDoc(doc);
-        return id;
+        return writeDoc(doc) ? id : null;   // null = ikke lagret (se lastError)
       },
+      lastError: function () { return lastErr; },
       list: function () {
         var doc = readDoc();
         return liveIdsNewestFirst(doc).map(function (i) { return doc.entries[i]; });

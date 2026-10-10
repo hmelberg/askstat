@@ -102,3 +102,31 @@ test('clear tombstoner alle; onChange fyrer på save/remove/clear, ikke merge', 
   assert.equal(fired, 3);                            // stille
   assert.equal(s.list().length, 1);
 });
+
+// B16: kvotefallbacken kastet ÉN oppføring og feilet så stille — med store
+// svar kunne historikken slutte å lagre uten at noen merket det.
+test('kvotefeil: kaster eldste i løkke til det passer', () => {
+  const st = fakeStorage(0);
+  const seq = makeSeq();
+  const s = makeStore(st, { now: seq });
+  for (let i = 0; i < 5; i++) s.save({ question: 'q' + i });
+  // tre påfølgende set-feil: må kaste minst tre eldre oppføringer
+  const s2 = makeStore(Object.assign({}, st, { setItem: (() => {
+    let fails = 3;
+    return (k, v) => { if (fails > 0) { fails--; throw new Error('quota'); } st.setItem(k, v); };
+  })() }), { now: seq });
+  const id = s2.save({ question: 'ny' });
+  assert.ok(id, 'lagret til slutt');
+  const qs = s.list().map((e) => e.question);
+  assert.ok(qs.includes('ny'));
+  assert.ok(!qs.includes('q0') && !qs.includes('q1') && !qs.includes('q2'), qs.join(','));
+});
+
+test('kvotefeil: når ingenting passer returnerer save null og lastError settes', () => {
+  const s = makeStore(fakeStorage(999), { now: makeSeq() });
+  assert.equal(s.save({ question: 'b' }), null);
+  assert.match(String(s.lastError()), /quota/);
+  const ok = makeStore(fakeStorage(0), { now: makeSeq() });
+  assert.ok(ok.save({ question: 'c' }));
+  assert.equal(ok.lastError(), null);
+});

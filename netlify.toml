@@ -43,33 +43,37 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# Content-Security-Policy-Report-Only (docs/REVIEW_2026-07-07.md §3, CSP item):
-# OBSERVE-ONLY — this is the "-Report-Only" header, not "Content-Security-Policy",
-# so nothing here can break production; browsers evaluate it and log console
-# violations but never block a request because of it. Allowlist derived from
-# what the app actually loads: sw.js CDN_HOSTS + PRECACHE_URLS (jsdelivr,
-# cdn.plot.ly), index.html's external <script>/<link> tags and dynamic
-# import()s (jsdelivr for pyodide/markdown-it/duckdb-wasm, webr.r-wasm.org for
-# WebR), and the same-origin /api/* edge functions (this build is BYOK-only —
-# no Anvil backend — so AI calls go through same-origin edge functions, which
-# in turn call the user's own provider key; no external AI API host needs an
-# explicit connect-src entry). The fact that Open-from-URL / connect / load
-# directives let a script fetch any user-supplied https: data source is why
-# connect-src https: is broad rather than a fixed host list.
-# Pyodide needs 'unsafe-eval'+'wasm-unsafe-eval' in script-src; the DuckDB-WASM
-# worker is spun up from a blob: URL (worker-src/script-src blob:); the app has
-# no build step and ships hand-written inline <script>/style attributes
-# throughout index.html, so 'unsafe-inline' is included to match current
-# reality rather than flood the console with expected-noise violations.
+# Content-Security-Policy-Report-Only (docs/REVIEW_2026-07-07.md §3, CSP item;
+# allowlist completed in review 2026-10-10). Still OBSERVE-ONLY: browsers log
+# violations but never block. Promoting it to an enforced
+# "Content-Security-Policy" is a separate decision for the owner (see the
+# 2026-10-10 review notes: verified with a local server + Playwright).
 #
-# To promote to enforcing later: watch the browser console (and/or wire up a
-# report-to endpoint) for a while, tighten anything unexpectedly broad, then
-# either add nonces/hashes to drop 'unsafe-inline' or accept it as a known
-# tradeoff, and rename this header to "Content-Security-Policy".
+# Allowlist = every external host the app actually loads:
+#   script-src: cdn.jsdelivr.net (pyodide, markdown-it, brython, duckdb-wasm
+#     +esm, katex, tabulator, leaflet, arquero/d3/Plot/…, ipywidgets
+#     embed-amd), cdn.plot.ly (Plotly), webr.r-wasm.org (webR, dynamic
+#     import), cdnjs.cloudflare.com (require.js for the ipywidgets bridge),
+#     www.lactame.com (ml.js in javascript mode), giscus.app (comments).
+#   style-src: jsdelivr (tabulator/leaflet/katex CSS), giscus.app.
+#   font-src: jsdelivr (KaTeX fonts).
+#   frame-src: giscus.app (the comments iframe).
+#   connect-src https: stays broad on purpose: scripts load user-chosen data
+#     URLs, micropip talks to pypi.org/files.pythonhosted.org, webR to
+#     repo.r-wasm.org, login/sync/telemetry to mdataapi.anvil.app, GitHub
+#     save/share to api.github.com / raw.githubusercontent.com.
+# Pyodide needs 'unsafe-eval'+'wasm-unsafe-eval'; DuckDB-WASM and webR spin
+# up workers from blob: URLs; index.html ships inline <script>/style, so
+# 'unsafe-inline' stays until nonces/hashes are introduced.
+# frame-ancestors is ignored in Report-Only mode, so clickjacking protection
+# comes from X-Frame-Options until the CSP is enforced.
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://cdn.plot.ly https://webr.r-wasm.org; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: data: blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://cdn.plot.ly https://webr.r-wasm.org https://cdnjs.cloudflare.com https://www.lactame.com https://giscus.app; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://giscus.app; img-src 'self' data: blob: https:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https: data: blob:; frame-src 'self' https://giscus.app; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
 
 [[edge_functions]]
   function = "dm-vurder"

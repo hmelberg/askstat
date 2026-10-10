@@ -740,3 +740,38 @@ Deno.test("stripServerVerktoy: fjerner web_search/web_fetch, beholder klientverk
   assertEquals(igjen.map((t) => t.name), ["run_code", "search_catalog"]);
   assertEquals(stripServerVerktoy(undefined), undefined);
 });
+
+Deno.test("runAgenticStream: verktøyfeil skrubbes for nøkler i URL før den går til modellen", async () => {
+  const toolTurn = streamedToolTurn("probe", "t", JSON.stringify({}));
+  const finalTurn = streamedTextTurn("ferdig");
+  const seen: string[] = [];
+  let call = 0;
+  await collectSse(runAgenticStream({
+    apiKey: "sk-ant-xxxxxxxxxxxx", model: "m", system: "s", userContent: "q", tools: [], turnsPerCall: 99,
+    executeTool: () => Promise.reject(new Error("fetch failed for https://api.datacommons.org/v2/resolve?key=DCSECRET99&nodes=x")),
+    deps: { fetchImpl: ((_u: string | URL | Request, init?: RequestInit) => {
+      seen.push(String(init?.body ?? ""));
+      return Promise.resolve(new Response(sseUpstream(call++ === 0 ? toolTurn : finalTurn), { status: 200 }));
+    }) as typeof fetch },
+  }));
+  if (seen[1].includes("DCSECRET99")) throw new Error("nøkkel lekket til modellen");
+  assertEquals(seen[1].includes("Verktøyfeil"), true);
+});
+
+// Review 2026-10-10: en timeout betyr at POST-en (et fakturert LLM-kall) som
+// regel ER sendt og behandles — å sende den 3 ganger tredobler kostnaden og
+// kan gi parallelle svar. Timeout får maks ÉTT nytt forsøk; tilkoblingsfeil
+// (ingen respons) prøves som før.
+Deno.test("fetchWithRetry: timeout prøves maks én gang til", async () => {
+  let calls = 0;
+  const fetchImpl = ((_u: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    return new Promise<Response>((_res, rej) => {
+      init?.signal?.addEventListener("abort", () => rej(new DOMException("aborted", "AbortError")));
+    });
+  }) as typeof fetch;
+  await assertRejects(
+    () => fetchWithRetry("https://x/", { method: "POST" }, { fetchImpl, sleep: noSleep, retries: 3, timeoutMs: 5 }),
+  );
+  assertEquals(calls, 2);
+});

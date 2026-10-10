@@ -45,7 +45,9 @@ Deno.test("opprettPr: fire kall i riktig rekkefølge; 422 på branch tolereres",
   assertEquals(kall.length, 5);
   assertStringIncludes(kall[0].url, "/git/ref/heads/main");
   assertStringIncludes(kall[1].url, "/git/refs");
-  assertStringIncludes(kall[2].url, "/contents/data/sources/ssb.md?ref=main");
+  // sha hentes fra BRANCHEN (som PUT-en skriver til) — en gjenbrukt branch
+  // (422) kan ha en nyere versjon av fila enn main.
+  assertStringIncludes(kall[2].url, "/contents/data/sources/ssb.md?ref=kilde%2Fssb-x");
   assertEquals(kall[3].method, "PUT");
   assertEquals((kall[3].body as Record<string, unknown>).sha, "filsha");
   assertEquals((kall[3].body as Record<string, unknown>).branch, "kilde/ssb-x");
@@ -53,18 +55,38 @@ Deno.test("opprettPr: fire kall i riktig rekkefølge; 422 på branch tolereres",
   assertEquals((kall[4].body as Record<string, unknown>).base, "main");
 });
 
-Deno.test("opprettPr: create=true henter ikke fil-sha (fire kall totalt)", async () => {
-  const kall: string[] = [];
-  const svar = [{ object: { sha: "abc" } }, {}, {}, { html_url: "u" }];
+// Review 2026-10-10: create=true over en fil som alt finnes (samme slug på
+// nytt, eller gjenbrukt branch) PUT-et uten sha → GitHub 422 → 502. sha
+// hentes nå i begge moduser; 404 = ny fil, PUT uten sha.
+Deno.test("opprettPr: create=true over eksisterende fil sender sha", async () => {
+  const kall: { url: string; method: string; body?: unknown }[] = [];
+  const svar = [{ object: { sha: "abc" } }, {}, { sha: "finnes" }, {}, { html_url: "u" }];
   let i = 0;
-  const fetchImpl = ((url: string) => {
-    kall.push(String(url));
+  const fetchImpl = ((url: string, init?: RequestInit) => {
+    kall.push({ url: String(url), method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : undefined });
     return Promise.resolve(new Response(JSON.stringify(svar[i++]), { status: 200 }));
   }) as typeof fetch;
   await opprettPr({ fetchImpl, token: "t", repo: "r/r" },
     { path: "data/packs/community/ny.md", create: true, innhold: "x", tittel: "T", kropp: "K", branch: "b" });
-  assertEquals(kall.length, 4);
-  assertEquals(kall.filter((u) => u.includes("?ref=main")).length, 0);
+  assertEquals(kall.length, 5);
+  assertStringIncludes(kall[2].url, "/contents/data/packs/community/ny.md?ref=b");
+  assertEquals((kall[3].body as Record<string, unknown>).sha, "finnes");
+});
+
+Deno.test("opprettPr: create=true og fila finnes ikke (404) → PUT uten sha", async () => {
+  const kall: { url: string; method: string; body?: unknown }[] = [];
+  const svar: [unknown, number][] = [[{ object: { sha: "abc" } }, 200], [{}, 200], [{ message: "Not Found" }, 404], [{}, 201], [{ html_url: "u" }, 201]];
+  let i = 0;
+  const fetchImpl = ((url: string, init?: RequestInit) => {
+    kall.push({ url: String(url), method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    const [b, st] = svar[i++];
+    return Promise.resolve(new Response(JSON.stringify(b), { status: st }));
+  }) as typeof fetch;
+  const r = await opprettPr({ fetchImpl, token: "t", repo: "r/r" },
+    { path: "data/packs/community/ny.md", create: true, innhold: "x", tittel: "T", kropp: "K", branch: "b" });
+  assertEquals(r.url, "u");
+  assertEquals(kall[3].method, "PUT");
+  assertEquals("sha" in (kall[3].body as Record<string, unknown>), false);
 });
 
 Deno.test("opprettIssue: ett POST /issues med title/body/labels", async () => {

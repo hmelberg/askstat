@@ -14,6 +14,9 @@ const REG = parseRegistry([{
   id: "kagglefri", navn: "KaggleFri", utgiver: "K", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
   base_url: "https://open.kagglefri.example/api/", cors: false,
   auth: { type: "api_key", user: true, valgfri: true, plassering: "basic" },
+}, {
+  id: "statfin", navn: "StatFin", utgiver: "SF", beskrivelse: "test", tillit: "etablert", tilgang: "rest",
+  base_url: "https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/", cors: true,
 }]);
 
 function fakeFetch(log: string[]): typeof fetch {
@@ -219,4 +222,75 @@ Deno.test("handleHent: envKeysAllowed=false injiserer aldri site-nøkkel (BYOK)"
   const r = await handleHent(req("url=" + encodeURIComponent("https://api.stlouisfed.org/fred/series?series_id=UNRATE")), d);
   assertEquals(r.status, 403);
   assertEquals(log.length, 0);
+});
+
+// ── Herding 2026-10-10 (review-funn) ───────────────────────────────────────
+Deno.test("handleHent: nøkkel injiseres aldri over http:// (kun https)", async () => {
+  const log: string[] = [];
+  const d = deps(log, { FRED_API_KEY: "K123SECRET" });
+  const r = await handleHent(req("url=" + encodeURIComponent("http://api.stlouisfed.org/fred/series?series_id=UNRATE")), d);
+  assertEquals(r.status, 400);
+  assertEquals(log.length, 0);
+  const t = await r.text();
+  if (t.includes("K123SECRET")) throw new Error("nøkkel i feilkropp");
+  // Brukernøkkel (Basic) samme regel.
+  const log2: string[] = [];
+  const r2 = await handleHent(reqWithKey("url=" + encodeURIComponent("http://www.kaggle.com/api/v1/x"), "user:pw-123456"),
+    { ...d, fetchImpl: fakeFetch(log2) });
+  assertEquals(r2.status, 400);
+  assertEquals(log2.length, 0);
+});
+
+Deno.test("handleHent: http:// mot valgfri kilde UTEN nøkkel er fortsatt lov (ingen injeksjon)", async () => {
+  const log: string[] = [];
+  const r = await handleHent(req("url=" + encodeURIComponent("http://open.kagglefri.example/api/x")), deps(log));
+  assertEquals(r.status, 200);
+  assertEquals(log.length, 1);
+});
+
+Deno.test("handleHent: POST (body=) kun mot registerverter", async () => {
+  const log: string[] = [];
+  const body = JSON.stringify({ a: 1 });
+  const r = await handleHent(req("url=" + encodeURIComponent("https://evil.example/collect") + "&body=" + encodeURIComponent(body)), deps(log));
+  assertEquals(r.status, 403);
+  assertEquals(log.length, 0);
+});
+
+Deno.test("handleHent: POST følger ikke redirect til en annen vert", async () => {
+  const calls: string[] = [];
+  const f = ((input: string | URL | Request) => {
+    calls.push(String(input));
+    if (calls.length === 1) {
+      return Promise.resolve(new Response(null, { status: 307, headers: { location: "https://evil.example/x" } }));
+    }
+    return Promise.resolve(new Response("ok", { status: 200 }));
+  }) as typeof fetch;
+  const body = JSON.stringify({ a: 1 });
+  const r = await handleHent(req("url=" + encodeURIComponent("https://statfin.stat.fi/PXWeb/api/v1/en/StatFin/t") + "&body=" + encodeURIComponent(body)),
+    { registry: REG, getEnv: () => undefined, fetchImpl: f });
+  assertEquals(r.status, 502);
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("handleHent: proxyrespons har nosniff + CSP sandbox", async () => {
+  const r = await handleHent(req("url=" + encodeURIComponent("https://example.org/d.csv")), deps([]));
+  assertEquals(r.headers.get("x-content-type-options"), "nosniff");
+  assertEquals(r.headers.get("content-security-policy"), "sandbox");
+});
+
+Deno.test("handleHent: proxy-feil logges med skrubbet nøkkel", async () => {
+  const rejectingFetch: typeof fetch = (() =>
+    Promise.reject(new TypeError(
+      "error sending request for url (https://api.stlouisfed.org/fred/series?series_id=UNRATE&api_key=K123SECRET): connect error",
+    ))) as unknown as typeof fetch;
+  const d = { registry: REG, getEnv: (k: string) => ({ FRED_API_KEY: "K123SECRET" } as Record<string, string>)[k], fetchImpl: rejectingFetch };
+  const orig = console.error;
+  const logged: string[] = [];
+  console.error = (...a: unknown[]) => { logged.push(a.map(String).join(" ")); };
+  try {
+    await handleHent(req("url=" + encodeURIComponent("https://api.stlouisfed.org/fred/series?series_id=UNRATE")), d);
+  } finally { console.error = orig; }
+  const all = logged.join("\n");
+  if (all.includes("K123SECRET")) throw new Error("nøkkel i logg: " + all);
+  assertEquals(all.includes("hent: proxy error"), true);
 });

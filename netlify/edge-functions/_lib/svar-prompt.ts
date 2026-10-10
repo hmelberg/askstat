@@ -1000,6 +1000,19 @@ kandidat, eller si ærlig at kilden ikke ble funnet. ALDRI lever en uprobet
 URL, og ALDRI merk noe «probe-verifisert» uten at probe faktisk returnerte
 ok=true for akkurat den URL-en.`;
 
+// B10 (review 2026-10-10): TS-konstantene ER kilden til sannhet for
+// prompt-teksten (det er dem modellen får). prompts/svar.md speiler hver
+// navngitte blokk under en `<!-- NAVN -->`-markør, og
+// svar-md-drift.test.ts låser at speilingen er byte-lik (etter trim).
+// META_SEARCH vises med discover=false (bryteren av, normaltilstanden).
+export const SVAR_BLOKKER: Readonly<Record<string, string>> = {
+  INTRO, DEPTH_STANDARD, DEPTH_DEEP, DELIVERY, QUERYLOGIC, SCIENCE, INLINE,
+  MULTI, MODE_PY, MODE_R, MODE_DUCK, ROUTING, META_SEARCH: metaSearch(false),
+  KODEBOK, RUN, PARTIAL, DISCOVER, INTRO_CALC, INTRO_LOOKUP, INTRO_UTFORSK,
+  DEPTH_UTFORSK_STANDARD, DEPTH_UTFORSK_DEEP, UTFORSK_DATA, MEMORY_URLS,
+  MIKRO_MAKRO,
+};
+
 export function buildSvarSystem(
   route: AskRoute,
   mode: DataMode,

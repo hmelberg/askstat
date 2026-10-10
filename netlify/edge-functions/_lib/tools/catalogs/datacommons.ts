@@ -1,4 +1,16 @@
 import type { DatasetHit } from "./static-catalog.ts";
+import { scrubKey, scrubUrlSecrets } from "../../providers/config.ts";
+
+// Data Commons tar nøkkelen i query-strengen (?key=). Fetch-feil (Deno,
+// fetchGuarded) bygger inn URL-en i meldingen, og den meldingen havner i
+// tool_result til modellen og i /api/metadata-feilsvar — skrubb før kast.
+async function dcFetch(url: string, apiKey: string, fetchImpl: typeof fetch): Promise<Response> {
+  try {
+    return await fetchImpl(url);
+  } catch (e) {
+    throw new Error(`datacommons: ${scrubUrlSecrets(scrubKey(String(e), apiKey))}`);
+  }
+}
 
 // Responsform verifisert mot docs.datacommons.org/api/rest/v2/resolve
 // (Task 6 Step 1, 2026-08-04 — INGEN live DATACOMMONS_API_KEY tilgjengelig
@@ -122,7 +134,7 @@ export async function dcCoverage(
     date: "LATEST",
   });
   for (const s of ["entity", "variable", "date", "value", "facet"]) params.append("select", s);
-  const resp = await fetchImpl(`${OBSERVATION}?${params.toString()}`);
+  const resp = await dcFetch(`${OBSERVATION}?${params.toString()}`, apiKey, fetchImpl);
   if (!resp.ok) throw new Error(`datacommons observation ${resp.status} for ${dcid}/${entity}`);
   const json = await resp.json() as DcObservationResponse;
   const facetsMeta = json.facets ?? {};
@@ -174,7 +186,7 @@ export async function dcSearch(
   fetchImpl: typeof fetch = fetch,
 ): Promise<DatasetHit[]> {
   const url = `${RESOLVE}?key=${encodeURIComponent(apiKey)}&nodes=${encodeURIComponent(query)}&resolver=indicator`;
-  const resp = await fetchImpl(url);
+  const resp = await dcFetch(url, apiKey, fetchImpl);
   if (!resp.ok) throw new Error(`datacommons resolve ${resp.status}`);
   const json = await resp.json() as DcResolveResponse;
   const candidates = (json.entities ?? []).flatMap((e) => e.candidates ?? []);

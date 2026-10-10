@@ -50,7 +50,26 @@ export function parseProviderConfig(
   };
 }
 
-/** Scrub a key out of upstream error text before it may be logged. */
+/** Scrub a key out of upstream error text before it may be logged or shown.
+ * Keys under 8 chars are not real keys (extractLlmKey requires ≥ 8) and are
+ * ignored, so a test/empty key can't mask ordinary letters in messages. The
+ * URL-encoded form is scrubbed too (query-string key injection). */
 export function scrubKey(text: string, key: string): string {
-  return key ? text.split(key).join("***") : text;
+  if (!key || key.length < 8) return text;
+  let out = text.split(key).join("***");
+  const enc = encodeURIComponent(key);
+  if (enc !== key) out = out.split(enc).join("***");
+  return out;
+}
+
+// Query-parametre som bærer nøkler i kjente kilde-URL-er (api_key=FRED,
+// key=Data Commons, token/access_token, subscription-key …). Generell
+// sikkerhetsnett-skrubb for feiltekst som kan inneholde en nøkkelinjisert URL
+// (Deno-fetch-feil og fetchGuarded-feil bygger inn URL-en).
+const SECRET_PARAM_RE =
+  /([?&](?:key|api_key|apikey|api-key|token|access_token|auth|registrationkey|subscription-key)=)[^&\s"'#)]+/gi;
+
+/** Mask key-like query-param values in every URL inside `text`. */
+export function scrubUrlSecrets(text: string): string {
+  return text.replace(SECRET_PARAM_RE, (_m, prefix: string) => `${prefix}***`);
 }

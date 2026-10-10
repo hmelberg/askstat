@@ -15,7 +15,7 @@ const MAX_TOKENS = 6_000;         // en DEL er sjelden >3k tegn — hele poenget
                                    // ikke plass i edge-vinduet (målt 2026-08-14)
 
 // Inlined from ./prompts/kilde-forslag.md (source of truth er .md-fila;
-// hold byte-lik — samme konvensjon som dm-vurder.ts).
+// hold byte-lik — samme konvensjon som tolk-resultat.ts).
 const KILDE_FORSLAG_SYSTEM = `\
 Du forbedrer BRUKERENS EGNE kildebeskrivelser i askstat. En kildebeskrivelse
 er et markdown-dokument (eventuelt med front matter øverst) som forteller en
@@ -159,10 +159,10 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     let stream: ReadableStream<Uint8Array>;
     if (provider && provider.type === "openai-compat") {
       const r = await messageOpenAiCompat(provider, { system: KILDE_FORSLAG_SYSTEM, prompt, maxTokens: MAX_TOKENS }, { timeoutMs: 120_000 });
-      stream = singleTextStream(r.text, r.usage);
+      stream = singleTextStream(r.text, r.usage, r.stop);
     } else if (provider && provider.type === "openai-responses") {
       const r = await messageOpenAiResponses(provider, { system: KILDE_FORSLAG_SYSTEM, prompt, maxTokens: MAX_TOKENS }, { timeoutMs: 120_000 });
-      stream = singleTextStream(r.text, r.usage);
+      stream = singleTextStream(r.text, r.usage, r.stop);
     } else {
       stream = await streamAnthropic({
         apiKey: provider ? provider.key : apiKey!,

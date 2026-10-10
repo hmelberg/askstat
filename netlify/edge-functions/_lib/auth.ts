@@ -1,5 +1,5 @@
-// Shared request gate for the AI edge functions (kode-svar, dm-vurder,
-// tolk-resultat). Consolidates what was ~40 lines of copy-pasted auth /
+// Shared request gate for the AI edge functions (ask-ruter, tolk-resultat,
+// kilde-forslag; adminGate: svar, hent, kilde-pr). Consolidates what was ~40 lines of copy-pasted auth /
 // rate-limit / body-guard logic in each handler, and fixes several issues the
 // duplicated version had:
 //   - rate-limit runs BEFORE the (network) Anvil validation, so an attacker
@@ -106,6 +106,9 @@ export interface GateOptions {
    * request that lacks a complete parsed `provider` body, or it would fall
    * through to the server's own env-configured API key as an anonymous
    * bypass. Never set this on an endpoint that doesn't perform that check.
+   * Documented exception (both flags): /api/hent, which never spends an LLM
+   * key and instead denies such callers the site's env keys (envKeysAllowed
+   * = false), bounded by the per-IP rate limit — see hent.ts.
    */
   allowLlmKey?: boolean;
 }

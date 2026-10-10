@@ -5,6 +5,7 @@
 // ingen SSRF-flate utover de allerede registrerte kildene selv.
 // Spec: docs/superpowers/specs/2026-07-25-metadata-sidebar-design.md §4.
 import { checkRateLimit } from "./_lib/rate-limit.ts";
+import { scrubUrlSecrets } from "./_lib/providers/config.ts";
 import { clientIp, type IpContext } from "./_lib/auth.ts";
 import { findSource, isSearchableSource, loadRegistry, type DataSource } from "./_lib/registry.ts";
 import { tableMetadata, type TableMeta } from "./_lib/tools/table-metadata.ts";
@@ -54,7 +55,8 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     try {
       tm = await tableMetadata(sourceId, table, { registry });
     } catch (e) {
-      return new Response(String(e), { status: 502 });
+      // Feilteksten kan bære en nøkkelinjisert URL (datacommons ?key=) — skrubb.
+      return new Response(scrubUrlSecrets(String(e)), { status: 502 });
     }
   }
 

@@ -2,13 +2,8 @@
 
 AI-endepunkter (se `netlify.toml` for path-mapping):
 
-- `dm-vurder` → `/api/dm-vurder` — personvern-/dataminimerings-vurdering av et script
-- `kode-svar` → `/api/kode-svar` — AI-assistent som genererer/forklarer microdata-kode
-- `kode-svar-v2` → `/api/kode-svar-v2` — eksperimentell 2-stegs variant: en
-  «variabel-velger»-modell (env `PICKER_MODEL`, standard rask Haiku) plukker
-  relevante variabler som vises med full kodeliste i generasjons-prompten;
-  klienten kjører én auto-rettingsrunde mot lokal Pyodide-validering. v1
-  (`kode-svar`) er urørt, og v2 degraderer til v1-lik oppførsel hvis velgeren feiler.
+- `ask-ruter` → `/api/ask-ruter` — ruter et spørsmål (beregning/data/oppslag)
+  før `svar` (single-shot).
 - `tolk-resultat` → `/api/tolk-resultat` — tolker output fra en kjøring
 - `svar` → `/api/svar` — samlet ask-pipeline (kun admin/BYOK): ETT agentisk
   løp for rutene fra `/api/ask-ruter` (beregning/data/oppslag), med
@@ -27,8 +22,15 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   headeren `X-Svar-Resume: 1` — den er unntatt rate-limiten (samme spørsmål
   telles kun én gang, ikke per hop); uten den spiser hvert hopp av samme
   per-IP-kvote som et nytt spørsmål.
+  Staten i hvert `continue`-event er HMAC-signert (`state.mac`, gyldig 2 t,
+  `_lib/resume-mac.ts`) og må ekkoes uendret: et hopp med forfalsket,
+  usignert eller utløpt state telles i tillegg i spørsmålsbøtta (`svar`), så
+  en fersk spørring ikke kan forkle seg som hopp. Nøkkel: env
+  `SVAR_RESUME_SECRET`, ellers avledet fra `ANTHROPIC_API_KEY`/
+  `M2PY_ACCESS_TOKEN`; uten noen av dem er signeringen av (som før).
   Erstatter de gamle `data-svar`- og `tolk-ask`-endepunktene (ett kall,
-  ingen eget tolke-steg). Prompt-kilde: `prompts/svar.md`; register:
+  ingen eget tolke-steg). Prompt-kilde: `_lib/svar-prompt.ts` (speilet i
+  `prompts/svar.md`, låst av `svar-md-drift.test.ts`); register:
   `data/data-sources.json`; evalsett: `docs/eval/ask-evalsett.md`.
 - `kilde-forslag` → `/api/kilde-forslag` — forslag til revidert egen
   kildebeskrivelse fra en kjørings feillogg (single-shot; klienten eier
@@ -41,9 +43,12 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   Body: `{id, name, of?, ny_tekst, evidens}` → `{url}`; issue-modus: body
   `{issue:{tittel,kropp}}` → GitHub-issue m/etikett kilde-kodesak (PAT trenger
   da også Issues RW).
-- `hent` → `/api/hent?url=…[&body=…]` — SSRF-herdet GET-proxy (kun admin).
-  Injiserer API-nøkler server-side for register-kilder (host-matchet);
-  `body` GET-innpakker POST-json (PxWeb v1 o.l.).
+- `hent` → `/api/hent?url=…[&body=…]` — SSRF-herdet GET-proxy (admin, eller
+  BYOK/X-Llm-Key — de to siste får aldri sitens env-nøkler). Injiserer
+  API-nøkler server-side for register-kilder (host-matchet, KUN over https);
+  `body` GET-innpakker POST-json (PxWeb v1 o.l.) og er kun tillatt mot
+  register-verter. Svar får `X-Content-Type-Options: nosniff` og
+  `Content-Security-Policy: sandbox`.
 - `metadata` → `/api/metadata` — offentlig MetaInfo-oppslag (kilde+tabell) for
   sidebaren, rate-limited.
 
@@ -68,25 +73,45 @@ Server starter typisk på `http://localhost:8888`.
 
 ## Auth
 
-Alle tre endepunktene krever `Authorization: Bearer <token>` (felles
+AI-endepunktene krever `Authorization: Bearer <token>` (felles
 `_lib/auth.ts`-gate: token-sjekk → metode → body-grense → rate-limit → Anvil-
-validering, med konstant-tid-sammenligning og positiv-cache). Bruk det delte
+validering, med konstant-tid-sammenligning og positiv-cache), eller brukerens
+egen nøkkel (`X-Anthropic-Key` / `X-Llm-Key` + `provider`). Bruk det delte
 `M2PY_ACCESS_TOKEN` lokalt, eller et gyldig brukertoken fra Anvil.
 
-## Test dm-vurder med curl
+## Test tolk-resultat med curl
 
 ```bash
-curl -N -X POST http://localhost:8888/api/dm-vurder \
+curl -N -X POST http://localhost:8888/api/tolk-resultat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $M2PY_ACCESS_TOKEN" \
-  -d '{
-    "script": "// personvern: formål: Studere inntektsforskjeller\nimport all from BEFOLKNING\nkeep if alder >= 18\nsummarize INNTEKT, by(kommune)"
-  }'
+  -d '{"script": "df.describe()", "output": "count 10\nmean 4.2", "språk": "python"}'
 ```
 
 Forventet output: en strøm av `data: {"type":"text","text":"..."}`-linjer,
-deretter en `data: {"type":"done","inputTokens":...,"outputTokens":...}`-linje.
-Innholdet er norsk markdown (Klassifisering, Samlet vurdering, Observasjoner).
+deretter ett terminal-event (se under).
+
+## SSE-terminalkontrakt
+
+Gjelder alle AI-strømmer (`svar`, `ask-ruter`, `tolk-resultat`,
+`kilde-forslag`), alle leverandører. Kilde til sannhet: toppen av
+`_lib/sse-util.ts`.
+
+- Strømmen ender med **nøyaktig ett** terminal-event: `{"type":"done", …usage}`
+  (suksess — svaret er helt) eller `{"type":"error","message":…,"code"?:…}`.
+  `svar` kan i stedet ende med `{"type":"continue", state}` (et hopp).
+  `done` og `error` sendes aldri i samme strøm.
+- **Avkortet svar** (token-taket nådd: Anthropic `stop_reason:"max_tokens"`,
+  OpenAI `finish_reason:"length"`, Responses `status:"incomplete"`,
+  uparsbare verktøyargumenter) gir aldri `done`, men
+  `{"type":"error","code":"AVKORTET","message":"Svaret ble avkortet …"}`.
+  Tekst/delta som alt er sendt står — klienten kan vise den med et
+  «avkortet»-merke.
+- `code:"AVVIST"` — modellen/leverandøren nektet (`refusal`/`content_filter`).
+- `code:"STROMFEIL"` — oppstrøms-strømmen feilet midt i (in-stream
+  `{"type":"error"}`) eller ble brutt uten `stop_reason`.
+- Uten `code` — øvrige feil (meldingen er skrubbet for nøkler).
+- En strøm som slutter uten terminal-event er en brutt forbindelse → feil.
 
 ## Feil-scenarioer
 
@@ -97,14 +122,16 @@ Innholdet er norsk markdown (Klassifisering, Samlet vurdering, Observasjoner).
 
 ## Struktur
 
-- `dm-vurder.ts`, `kode-svar.ts`, `tolk-resultat.ts`, `svar.ts` — endepunktene
+- `svar.ts`, `ask-ruter.ts`, `tolk-resultat.ts`, `kilde-forslag.ts`,
+  `kilde-pr.ts`, `hent.ts`, `metadata.ts` — endepunktene
 - `_lib/auth.ts` — felles request-gate (auth + rate-limit + body-guard)
 - `_lib/rate-limit.ts` — per-IP token-bucket (Netlify Blobs; failer åpent)
 - `_lib/anthropic.ts` — Anthropic streaming-klient (timeout + 429/529-retry)
-- `_lib/parse-script-context.ts` — personvern-kommentarer + språk-deteksjon
-- `prompts/` — kildefiler for prompt-tekstene (duplisert som TypeScript-
-  konstanter i endepunkt-filene siden Deno Deploy ikke bundler .md i runtime;
-  oppdater begge stedene ved endring)
+- `_lib/sse-util.ts` — SSE-hjelpere + terminalkontrakten (done/error-koder)
+- `_lib/tolk-prompt.ts` — brukerturen + språkdeteksjon for tolk-resultat
+- `prompts/` — lesbare speilinger av prompt-tekstene (TS-konstantene er det
+  som sendes, siden Deno Deploy ikke bundler .md i runtime; oppdater begge
+  stedene ved endring — for `svar` håndhever `svar-md-drift.test.ts` det)
 
 ## Tester
 

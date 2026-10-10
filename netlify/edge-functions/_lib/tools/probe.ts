@@ -21,11 +21,12 @@ export interface ProbeResult {
 
 const MAX_PROBE_BYTES = 256 * 1024;
 const PROBE_TIMEOUT_MS = 10_000;
-const PROBE_ORIGIN = "https://openstat.app";
 
 export async function probeUrl(
   url: string,
-  deps: { fetchImpl?: typeof fetch; registry?: DataSource[] } = {},
+  // origin: appens EGET origin (svar.ts sender forespørselens). Før var det
+  // hardkodet «https://openstat.app» — et søsterdomene (review 2026-10-10).
+  deps: { fetchImpl?: typeof fetch; registry?: DataSource[]; origin?: string } = {},
 ): Promise<ProbeResult> {
   const empty: ProbeResult = {
     ok: false, status: 0, contentType: "", cors: false,
@@ -44,7 +45,9 @@ export async function probeUrl(
   }
   // DST-klassen av kilder sender ACAO kun når forespørselen har Origin-header.
   // Uten denne sender vi ingen Origin, så betinget-ACAO-kilder rapporterer falsk cors:false.
-  const headers: Record<string, string> = { Origin: PROBE_ORIGIN };
+  // Det er nettleserens origin (appens) som avgjør CORS ved faktisk lasting.
+  const origin = deps.origin ?? "";
+  const headers: Record<string, string> = origin ? { Origin: origin } : {};
   const src = deps.registry ? sourceForUrl(deps.registry, url) : null;
   // Styrt kilder (2026-08-14): må bruke <id>.read(…) — avvis rå URL-er før fetch.
   if (src?.styrt) {
@@ -71,7 +74,7 @@ export async function probeUrl(
   }
   const contentType = res.headers.get("content-type") ?? "";
   const acao = res.headers.get("access-control-allow-origin");
-  const cors = acao === "*" || acao === PROBE_ORIGIN;
+  const cors = acao === "*" || (!!origin && acao === origin);
   if (res.status < 200 || res.status >= 300) {
     return { ...empty, status: res.status, contentType, cors, note: `HTTP ${res.status}` };
   }

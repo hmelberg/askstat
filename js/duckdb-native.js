@@ -165,6 +165,32 @@
     return null;
   }
 
+  var PREVIEW_TABLE = '__askstat_preview';
+
+  // Dobbeltsitert SQL-identifikator med innebygde '"' doblet — det ene stedet
+  // JS-siden siterer tabellnavn (Python-tvilling: duckdb_bridge.quote_ident).
+  function quoteIdent(name) {
+    return '"' + String(name).replace(/"/g, '""') + '"';
+  }
+
+  // Slik kjøres et script så preview-SELECT-en evalueres ÉN gang (B11a):
+  // body = alle setninger unntatt den forhåndsviste (skilt med linjeskift før
+  // ';' så en avsluttende -- kommentar ikke sluker skillet); preview
+  // materialiserer SELECT-en i en temp-tabell som kalleren leser count(*) og
+  // de første radene fra, og så dropper. Python-tvilling:
+  // duckdb_bridge.plan_preview_run — hold dem like.
+  function planPreviewRun(statements) {
+    var sel = buildPreviewSelect(statements);
+    var bodyStmts = sel !== null ? statements.slice(0, -1) : statements.slice();
+    return {
+      body: bodyStmts.join('\n;\n'),
+      preview: sel !== null
+        ? 'CREATE OR REPLACE TEMP TABLE ' + quoteIdent(PREVIEW_TABLE) + ' AS ' + sel + '\n'
+        : null,
+      table: PREVIEW_TABLE
+    };
+  }
+
   // Tekst-tabell fra __arrowToColumns-kolonner ({navn: [verdier]}) — erstatter
   // DataFrame.to_string(index=False) i den native veien: høyrejusterte
   // kolonner med to mellomrom imellom, null → "NaN" som pandas viser det.
@@ -199,6 +225,9 @@
     scrub: scrub,
     extractCreatedTables: extractCreatedTables,
     buildPreviewSelect: buildPreviewSelect,
+    planPreviewRun: planPreviewRun,
+    quoteIdent: quoteIdent,
+    PREVIEW_TABLE: PREVIEW_TABLE,
     formatColumnsText: formatColumnsText
   };
   global.DuckdbNative = api;

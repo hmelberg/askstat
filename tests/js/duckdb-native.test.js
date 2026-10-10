@@ -139,3 +139,39 @@ test('scrub: blanks dollar-quoted and E-string contents', () => {
 test('split: dollar-quote inside comment-only tail is dropped', () => {
   assert.deepEqual(DN.splitSqlStatements('SELECT 1; -- $$ ; $$'), ['SELECT 1']);
 });
+
+// B11a/B11d (review 2026-10): tvilling av plan_preview_run/quote_ident i
+// duckdb_bridge.py — samme oppførsel på begge sider.
+test('quoteIdent: dobler anførselstegn', () => {
+  assert.equal(DN.quoteIdent('a'), '"a"');
+  assert.equal(DN.quoteIdent('my"t'), '"my""t"');
+});
+
+test('planPreviewRun: preview-SELECT kjøres én gang inn i temp-tabell', () => {
+  const stmts = DN.splitSqlStatements('CREATE TABLE a AS SELECT 1 AS x; SELECT * FROM a');
+  const plan = DN.planPreviewRun(stmts);
+  assert.equal(plan.body, 'CREATE TABLE a AS SELECT 1 AS x');
+  assert.ok(plan.preview.startsWith('CREATE OR REPLACE TEMP TABLE ' + DN.quoteIdent(DN.PREVIEW_TABLE) + ' AS '));
+  assert.equal(plan.preview.split('SELECT * FROM a').length - 1, 1);
+  assert.ok(plan.body.indexOf('SELECT * FROM a') < 0);
+  assert.equal(plan.table, DN.PREVIEW_TABLE);
+});
+
+test('planPreviewRun: avsluttende linjekommentar får linjeskift', () => {
+  const plan = DN.planPreviewRun(DN.splitSqlStatements('SELECT * FROM iris -- kommentar'));
+  assert.equal(plan.body, '');
+  assert.ok(plan.preview.endsWith('-- kommentar\n'));
+});
+
+test('planPreviewRun: ingen preview når siste er DDL', () => {
+  const plan = DN.planPreviewRun(DN.splitSqlStatements('SELECT 1; CREATE TABLE a AS SELECT 1'));
+  assert.equal(plan.preview, null);
+  assert.equal(plan.body, 'SELECT 1\n;\nCREATE TABLE a AS SELECT 1');
+});
+
+test('planPreviewRun: body-skille overlever -- kommentar', () => {
+  const stmts = DN.splitSqlStatements('CREATE TABLE a AS SELECT 1 -- c\n; CREATE TABLE b AS SELECT 2; SELECT 3');
+  const plan = DN.planPreviewRun(stmts);
+  assert.equal(plan.body, 'CREATE TABLE a AS SELECT 1 -- c\n;\nCREATE TABLE b AS SELECT 2');
+  assert.deepEqual(DN.splitSqlStatements(plan.body), stmts.slice(0, 2));
+});

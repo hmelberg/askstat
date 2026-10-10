@@ -2442,10 +2442,18 @@
           const wurl = URL.createObjectURL(new Blob(['importScripts("' + bundle.mainWorker + '");'],
             { type: 'text/javascript' }));
           const worker = new Worker(wurl);
-          const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
-          await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-          URL.revokeObjectURL(wurl);
-          return db;
+          try {
+            const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            return db;
+          } catch (e) {
+            // Mislykket instantiate: terminer workeren, ellers lekker én
+            // worker per nytt forsøk (promiset nulles under) — review B11c.
+            try { worker.terminate(); } catch (e2) {}
+            throw e;
+          } finally {
+            URL.revokeObjectURL(wurl);
+          }
         })().catch(function (e) { __duckdbPromise = null; throw e; });
       }
       return __duckdbPromise;
@@ -2562,7 +2570,7 @@
       var db = await __ensureDuckDB();
       var conn = await db.connect();
       try {
-        var ident = String(name).replace(/"/g, '""');
+        var ident = window.DuckdbNative.quoteIdent(name);
         var chk = __arrowToColumns(await conn.query(
           "SELECT count(*) AS n FROM information_schema.tables WHERE table_schema = 'main' AND table_name = '" +
           String(name).replace(/'/g, "''") + "'"));
@@ -2570,7 +2578,7 @@
           throw new Error(t('use «{name}» from duckdb: fant ingen tabell/visning «{name}» i duckdb-økten — kjør duckdb-scriptet først', { name: name }));
         }
         var fname = '_use_' + String(name).replace(/'/g, "''") + '.parquet';
-        await conn.query('COPY (SELECT * FROM "' + ident + '") TO \'' + fname + "' (FORMAT PARQUET)");
+        await conn.query('COPY (SELECT * FROM ' + ident + ') TO \'' + fname + "' (FORMAT PARQUET)");
         var bytes = await db.copyFileToBuffer(fname);
         try { await db.dropFile(fname); } catch (e) {}
         return bytes;
@@ -2580,12 +2588,33 @@
 
     window.__duck = {
       conn: null,
+      // Én økt om gangen (review B11b): conn er delt, så et andre begin()
+      // mens et løp pågår erstattet conn uten close, og første end() nullet
+      // den under det andre løpet. begin() venter nå på forrige løps end()
+      // (løftekjede-mutex); begin() slipper låsen selv om den feiler.
+      // Kallerne (_run_duck_sql, maybeRunDuckNative) gjør begin → try →
+      // finally end og kaller aldri begin() nestet.
+      _lock: Promise.resolve(),
+      _release: null,
       // opts.fresh (fase B1, plan 2026-07-14): default true (uendret atferd
       // for alle eksisterende kallere — Kjør alle, native duckdb-veien).
       // begin({fresh:false}) hopper over drop-alt-blokken: brukt av per-celle-
       // kjøring (mdRunNotebookCell) slik at duck-tabeller nå lever på tvers av
       // CELLE-kjøringer helt til Kjør alle/Restart bygger en fersk økt.
       async begin(opts) {
+        let release;
+        const prev = this._lock;
+        this._lock = new Promise(function (r) { release = r; });
+        await prev;
+        this._release = release;
+        try {
+          await this._open(opts);
+        } catch (e) {
+          await this.end();
+          throw e;
+        }
+      },
+      async _open(opts) {
         const db = await __ensureDuckDB();
         this.conn = await db.connect();
         const fresh = !(opts && opts.fresh === false);
@@ -2601,8 +2630,7 @@
         const types = objs.table_type || [];
         for (let i = 0; i < names.length; i++) {
           const kind = /VIEW/i.test(types[i]) ? 'VIEW' : 'TABLE';
-          await this.conn.query('DROP ' + kind + ' IF EXISTS "' +
-            String(names[i]).replace(/"/g, '""') + '"');
+          await this.conn.query('DROP ' + kind + ' IF EXISTS ' + window.DuckdbNative.quoteIdent(names[i]));
         }
         // Re-registrer format(duckdb)-monterte views (view-registeret
         // {navn: sql}, js/duckdb-views.js): øktene er ferske per kjøring —
@@ -2622,27 +2650,32 @@
       async registerTable(name, parquetBytes, asTable) {
         if (!this.conn) throw new Error('__duck: call begin() before registerTable()');
         const db = await __ensureDuckDB();
-        const ident = String(name).replace(/"/g, '""');   // SQL identifier escape
+        const ident = window.DuckdbNative.quoteIdent(name);   // SQL identifier escape
         const fname = String(name).replace(/'/g, "''") + '.parquet';  // SQL string-literal escape
         await db.registerFileBuffer(String(name) + '.parquet', new Uint8Array(parquetBytes));
-        await this.conn.query('CREATE OR REPLACE ' + (asTable ? 'TABLE' : 'VIEW') + ' "' + ident +
-          '" AS SELECT * FROM read_parquet(\'' + fname + '\')');
+        await this.conn.query('CREATE OR REPLACE ' + (asTable ? 'TABLE' : 'VIEW') + ' ' + ident +
+          ' AS SELECT * FROM read_parquet(\'' + fname + '\')');
       },
       async exec(sql) { if (!this.conn) throw new Error('__duck: call begin() first'); await this.conn.query(sql); },
       // Native-veiens CSV-motstykke til registerTable (som tar parquet-bytes).
       async registerCsv(name, csvBytes) {
         if (!this.conn) throw new Error('__duck: call begin() before registerCsv()');
         const db = await __ensureDuckDB();
-        const ident = String(name).replace(/"/g, '""');
+        const ident = window.DuckdbNative.quoteIdent(name);
         const fname = String(name).replace(/'/g, "''") + '.csv';
         await db.registerFileBuffer(String(name) + '.csv', new Uint8Array(csvBytes));
-        await this.conn.query('CREATE OR REPLACE VIEW "' + ident +
-          '" AS SELECT * FROM read_csv_auto(\'' + fname + '\')');
+        await this.conn.query('CREATE OR REPLACE VIEW ' + ident +
+          ' AS SELECT * FROM read_csv_auto(\'' + fname + '\')');
       },
       async query(sql) { if (!this.conn) throw new Error('__duck: call begin() first'); return __arrowToColumns(await this.conn.query(sql)); },
       async end() {
         try { if (this.conn) await this.conn.close(); }
-        finally { this.conn = null; }
+        finally {
+          this.conn = null;
+          const r = this._release;
+          this._release = null;
+          if (r) r();
+        }
       }
     };
     function getTtsRate() {
@@ -7997,9 +8030,30 @@ class DatasetStore:
     def __init__(self):
         self.datasets = {}
         self.active_name = None
+        # id(navnerom) -> {navn: objektet vi sist skjøv dit} (review B1)
+        self._pushed = {}
     def sync_datasets_to_globals(self, g):
-        for _name, _df in self.datasets.items():
+        # Toveis (review B1): uten tilbakeskriving tilbakestilte synken før
+        # hvert segment en celle som tilordnet navnet på nytt
+        # (df = df[df.age > 30] -> neste celle så hele datasettet igjen).
+        # Regel per navn, mot det vi sist skjøv inn i g:
+        #  - registeret endret siden (ny # load/to_microdata/DuckDB CREATE
+        #    TABLE) -> registeret vinner;
+        #  - ellers brukeren har bundet navnet til en NY DataFrame -> den
+        #    skrives tilbake til registeret (DuckDB-/use-veiene ser den);
+        #  - bundet til noe annet enn en DataFrame -> la g være i fred.
+        _p = self._pushed.setdefault(id(g), {})
+        for _name, _df in list(self.datasets.items()):
+            _last = _p.get(_name)
+            if _name in g and _last is not None and _df is _last:
+                _cur = g[_name]
+                if _cur is not _last:
+                    if isinstance(_cur, pd.DataFrame):
+                        self.datasets[_name] = _cur
+                        _p[_name] = _cur
+                    continue
             g[_name] = _df
+            _p[_name] = _df
 e = DatasetStore()
 try:
     pd.set_option("display.float_format", ("{:." + str(${getDecimals()}) + "f}").format)
@@ -8503,35 +8557,67 @@ async def _run_duck_sql(_sql, _fresh=True):
             # «Existing object … is of type Table»). Bruk den levende tabellen
             # direkte i stedet; skjevheten mot en evt. FERSKERE pandas-kopi er
             # akseptert stale-by-design (spec §7 — ingen avhengighetssporing).
-            _existing_lower = set()
+            # Unntak fra unntaket (review B1): et navn VI selv la i katalogen
+            # (registrert fra pandas eller lest tilbake etter CREATE TABLE)
+            # der e.datasets nå har en ANNEN frame — en python-celle bandt
+            # df = df[...] på nytt — registreres på nytt, så SQL-en ser den
+            # nye framen. _duck_src: navn.lower() -> framen katalogen speiler.
+            if _fresh or not hasattr(e, "_duck_src"):
+                e._duck_src = {}
+            _existing_kind = {}
             if not _fresh:
                 try:
                     _chk = (await _duck_js.__duck.query(
-                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+                        "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'main'"
                     )).to_py()
-                    _existing_lower = {str(_n).lower() for _n in (_chk.get("table_name") or [])}
+                    _tn = _chk.get("table_name") or []
+                    _tt = _chk.get("table_type") or []
+                    for _ti in range(len(_tn)):
+                        _existing_kind[str(_tn[_ti]).lower()] = str(_tt[_ti] if _ti < len(_tt) else "")
                 except Exception:
-                    _existing_lower = set()
+                    _existing_kind = {}
             for _name in _refs:
-                if _name.lower() in _existing_lower:
-                    continue
+                _nl = _name.lower()
+                _as_table = _nl in _selfref_lower
+                if _nl in _existing_kind:
+                    if _nl not in e._duck_src or e._duck_src[_nl] is _datasets[_name]:
+                        continue
+                    _as_table = _as_table or "VIEW" not in _existing_kind[_nl].upper()
                 _buf = _duck_db.df_to_parquet_bytes(_datasets[_name])
-                await _duck_js.__duck.registerTable(_name, _duck_to_js(_buf), _name.lower() in _selfref_lower)
-            if _sql.strip():
-                await _duck_js.__duck.exec(_sql)
-            if _preview:
-                _cnt = (await _duck_js.__duck.query("SELECT count(*) AS n FROM (" + _preview + "\\n) _q")).to_py()
-                _nlist = _cnt.get("n") or [0]
-                _total = int(_nlist[0]) if _nlist else 0
-                _cols = (await _duck_js.__duck.query("SELECT * FROM (" + _preview + "\\n) _q LIMIT 400")).to_py()
+                await _duck_js.__duck.registerTable(_name, _duck_to_js(_buf), _as_table)
+                e._duck_src[_nl] = _datasets[_name]
+            # Preview-SELECT-en kjøres ÉN gang (review B11a): inn i en temp-
+            # tabell som count(*) og de første 400 radene leses fra — før
+            # kjørte den tre ganger (i scriptet, count, LIMIT), dyrt og
+            # ikke-deterministisk uten ORDER BY. Tvilling: maybeRunDuckNative.
+            _plan = _duck_db.plan_preview_run(_stmts) if _preview else None
+            if _plan is None:
+                if _sql.strip():
+                    await _duck_js.__duck.exec(_sql)
+            else:
+                if _duck_db._scrub(_plan["body"]).strip():
+                    await _duck_js.__duck.exec(_plan["body"])
+                _pt = _duck_db.quote_ident(_plan["table"])
+                await _duck_js.__duck.exec(_plan["preview"])
+                try:
+                    _cnt = (await _duck_js.__duck.query("SELECT count(*) AS n FROM " + _pt)).to_py()
+                    _nlist = _cnt.get("n") or [0]
+                    _total = int(_nlist[0]) if _nlist else 0
+                    _cols = (await _duck_js.__duck.query("SELECT * FROM " + _pt + " LIMIT 400")).to_py()
+                finally:
+                    try:
+                        await _duck_js.__duck.exec("DROP TABLE IF EXISTS " + _pt)
+                    except Exception:
+                        pass
                 _pv = pd.DataFrame(_cols)
                 _out.append(_pv.to_string(index=False) if len(_pv) else "(0 rader)")
                 if _total > 400:
                     _out.append(str(_total) + " rader — viser de første 400. Bruk CREATE TABLE navn AS … for å lagre som datasett.")
             for _name in _created:
-                _cc = (await _duck_js.__duck.query('SELECT * FROM "' + _name + '"')).to_py()
+                _cc = (await _duck_js.__duck.query("SELECT * FROM " + _duck_db.quote_ident(_name))).to_py()
                 _df = pd.DataFrame(_cc)
                 _datasets[_name] = _df
+                e._duck_src[_name.lower()] = _df
                 if not _preview:
                     _out.append("Opprettet datasett " + _name + " (" + str(len(_df)) + " rader × " + str(_df.shape[1]) + " kolonner)")
         finally:
@@ -9064,12 +9150,12 @@ if _asm.get('spec'):
           var info = {};
           for (var i = 0; i < names.length; i++) {
             var nm = String(names[i]);
-            var ident = nm.replace(/"/g, '""');
-            var desc = __arrowToColumns(await conn.query('DESCRIBE "' + ident + '"'));
+            var ident = window.DuckdbNative.quoteIdent(nm);
+            var desc = __arrowToColumns(await conn.query('DESCRIBE ' + ident));
             var cols = (desc.column_name || []).map(String);
             var dtypes = {};
             cols.forEach(function (c, j) { dtypes[c] = __duckTypeToPandas((desc.column_type || [])[j]); });
-            var cnt = __arrowToColumns(await conn.query('SELECT count(*) AS n FROM "' + ident + '"'));
+            var cnt = __arrowToColumns(await conn.query('SELECT count(*) AS n FROM ' + ident));
             info[nm] = { columns: cols, dtypes: dtypes, nrows: Number((cnt.n || [0])[0]), runtime: 'duckdb' };
           }
           window.lastDatasetInfo = info;
@@ -9152,13 +9238,25 @@ if _asm.get('spec'):
             if (_l.format === 'parquet') await window.__duck.registerTable(_l.alias, _l.bytes);
             else await window.__duck.registerCsv(_l.alias, _l.bytes);
           }
-          await window.__duck.exec(_sql);
           var _stmts = DN.splitSqlStatements(_sql);
           var _preview = DN.buildPreviewSelect(_stmts);
-          if (_preview) {
-            var _cnt = await window.__duck.query('SELECT count(*) AS n FROM (' + _preview + '\n) _q');
+          // Preview-SELECT-en kjøres ÉN gang inn i en temp-tabell (review
+          // B11a) — speiler _run_duck_sql (duckdb_bridge.plan_preview_run).
+          var _plan = _preview ? DN.planPreviewRun(_stmts) : null;
+          if (!_plan) {
+            await window.__duck.exec(_sql);
+          } else {
+            if (DN.scrub(_plan.body).trim()) await window.__duck.exec(_plan.body);
+            var _pt = DN.quoteIdent(_plan.table);
+            await window.__duck.exec(_plan.preview);
+            var _cnt, _cols;
+            try {
+              _cnt = await window.__duck.query('SELECT count(*) AS n FROM ' + _pt);
+              _cols = await window.__duck.query('SELECT * FROM ' + _pt + ' LIMIT 400');
+            } finally {
+              try { await window.__duck.exec('DROP TABLE IF EXISTS ' + _pt); } catch (e) {}
+            }
             var _total = Number((_cnt.n || [0])[0] || 0);
-            var _cols = await window.__duck.query('SELECT * FROM (' + _preview + '\n) _q LIMIT 400');
             var _keys = Object.keys(_cols);
             var _shown = _keys.length ? _cols[_keys[0]].length : 0;
             _out.push(_shown ? DN.formatColumnsText(_cols) : '(0 rader)');
@@ -9167,9 +9265,9 @@ if _asm.get('spec'):
           if (!_preview) {
             var _created = DN.extractCreatedTables(_stmts);
             for (var _ci = 0; _ci < _created.length; _ci++) {
-              var _ident = _created[_ci].replace(/"/g, '""');
-              var _cc = await window.__duck.query('SELECT count(*) AS n FROM "' + _ident + '"');
-              var _dd = await window.__duck.query('DESCRIBE "' + _ident + '"');
+              var _ident = DN.quoteIdent(_created[_ci]);
+              var _cc = await window.__duck.query('SELECT count(*) AS n FROM ' + _ident);
+              var _dd = await window.__duck.query('DESCRIBE ' + _ident);
               _out.push('Opprettet datasett ' + _created[_ci] + ' (' +
                 Number((_cc.n || [0])[0] || 0) + ' rader × ' + ((_dd.column_name || []).length) + ' kolonner)');
             }

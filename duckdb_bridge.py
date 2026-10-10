@@ -17,6 +17,9 @@ __all__ = [
     "extract_created_tables",
     "extract_self_referencing_created",
     "build_preview_select",
+    "plan_preview_run",
+    "quote_ident",
+    "PREVIEW_TABLE",
     "df_to_parquet_bytes",
 ]
 
@@ -290,6 +293,34 @@ def build_preview_select(statements):
     if head.startswith("SELECT") or head.startswith("WITH"):
         return last
     return None
+
+
+PREVIEW_TABLE = "__askstat_preview"
+
+
+def quote_ident(name):
+    """Double-quoted SQL identifier with embedded '"' doubled. The one place
+    the Python side quotes table names (JS twin: DuckdbNative.quoteIdent)."""
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def plan_preview_run(statements):
+    """How to run a script so the trailing preview SELECT executes ONCE.
+
+    Returns {"body": sql, "preview": sql|None, "table": PREVIEW_TABLE}. body
+    is every statement except the previewed one (joined with a newline before
+    each ';' so a trailing -- comment can't swallow the separator); preview
+    materializes the SELECT into a temp table that the caller reads count(*)
+    and the first rows from, then drops. Without a preview, body is the whole
+    script and preview is None. JS twin: DuckdbNative.planPreviewRun."""
+    sel = build_preview_select(statements)
+    body_stmts = statements[:-1] if sel is not None else list(statements)
+    body = "\n;\n".join(body_stmts)
+    preview = None
+    if sel is not None:
+        preview = ("CREATE OR REPLACE TEMP TABLE " + quote_ident(PREVIEW_TABLE) +
+                   " AS " + sel + "\n")
+    return {"body": body, "preview": preview, "table": PREVIEW_TABLE}
 
 
 def df_to_parquet_bytes(df):

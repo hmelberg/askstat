@@ -186,3 +186,46 @@ def test_split_drops_dollar_quoted_only_piece_like_plain_string():
 def test_referenced_tables_ignore_dollar_quoted_text():
     sql = "SELECT $$person$$ AS s FROM jobb"
     assert extract_referenced_tables([sql], ["person", "jobb"]) == ["jobb"]
+
+
+# ── B11a/B11d (review 2026-10): preview kjøres ÉN gang inn i en temp-tabell,
+# og identifikatorer siteres med én felles hjelper. ──────────────────────────
+from duckdb_bridge import plan_preview_run, quote_ident, PREVIEW_TABLE
+
+
+def test_quote_ident_escapes_double_quotes():
+    assert quote_ident("a") == '"a"'
+    assert quote_ident('my"t') == '"my""t"'
+
+
+def test_plan_preview_runs_select_once_into_temp_table():
+    stmts = split_sql_statements("CREATE TABLE a AS SELECT 1 AS x; SELECT * FROM a")
+    plan = plan_preview_run(stmts)
+    assert plan["body"] == "CREATE TABLE a AS SELECT 1 AS x"
+    assert plan["preview"].startswith("CREATE OR REPLACE TEMP TABLE " + quote_ident(PREVIEW_TABLE) + " AS ")
+    assert plan["preview"].count("SELECT * FROM a") == 1
+    # SELECT-en er IKKE med i body (ellers kjøres den to ganger).
+    assert "SELECT * FROM a" not in plan["body"]
+
+
+def test_plan_preview_keeps_trailing_line_comment_safe():
+    stmts = split_sql_statements("SELECT * FROM iris -- kommentar")
+    plan = plan_preview_run(stmts)
+    assert plan["body"] == ""
+    # linjekommentaren må avsluttes av et linjeskift så ingenting etter den svelges
+    assert plan["preview"].endswith("-- kommentar\n")
+
+
+def test_plan_preview_none_when_last_is_ddl():
+    stmts = split_sql_statements("SELECT 1; CREATE TABLE a AS SELECT 1")
+    plan = plan_preview_run(stmts)
+    assert plan["preview"] is None
+    assert plan["body"] == "SELECT 1\n;\nCREATE TABLE a AS SELECT 1"
+
+
+def test_plan_preview_body_joins_with_newline_so_comments_end():
+    stmts = split_sql_statements("CREATE TABLE a AS SELECT 1 -- c\n; CREATE TABLE b AS SELECT 2; SELECT 3")
+    plan = plan_preview_run(stmts)
+    # en -- kommentar i en body-setning må ikke svelge ';' som skiller dem
+    assert plan["body"] == "CREATE TABLE a AS SELECT 1 -- c\n;\nCREATE TABLE b AS SELECT 2"
+    assert split_sql_statements(plan["body"]) == stmts[:2]

@@ -29,7 +29,8 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   `SVAR_RESUME_SECRET`, ellers avledet fra `ANTHROPIC_API_KEY`/
   `M2PY_ACCESS_TOKEN`; uten noen av dem er signeringen av (som før).
   Erstatter de gamle `data-svar`- og `tolk-ask`-endepunktene (ett kall,
-  ingen eget tolke-steg). Prompt-kilde: `prompts/svar.md`; register:
+  ingen eget tolke-steg). Prompt-kilde: `_lib/svar-prompt.ts` (speilet i
+  `prompts/svar.md`, låst av `svar-md-drift.test.ts`); register:
   `data/data-sources.json`; evalsett: `docs/eval/ask-evalsett.md`.
 - `kilde-forslag` → `/api/kilde-forslag` — forslag til revidert egen
   kildebeskrivelse fra en kjørings feillogg (single-shot; klienten eier
@@ -128,9 +129,9 @@ Gjelder alle AI-strømmer (`svar`, `ask-ruter`, `tolk-resultat`,
 - `_lib/anthropic.ts` — Anthropic streaming-klient (timeout + 429/529-retry)
 - `_lib/sse-util.ts` — SSE-hjelpere + terminalkontrakten (done/error-koder)
 - `_lib/tolk-prompt.ts` — brukerturen + språkdeteksjon for tolk-resultat
-- `prompts/` — kildefiler for prompt-tekstene (duplisert som TypeScript-
-  konstanter i endepunkt-filene siden Deno Deploy ikke bundler .md i runtime;
-  oppdater begge stedene ved endring)
+- `prompts/` — lesbare speilinger av prompt-tekstene (TS-konstantene er det
+  som sendes, siden Deno Deploy ikke bundler .md i runtime; oppdater begge
+  stedene ved endring — for `svar` håndhever `svar-md-drift.test.ts` det)
 
 ## Tester
 

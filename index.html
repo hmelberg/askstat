@@ -8406,11 +8406,11 @@ def _exec_pyodide_block(code, g, show_commands=False, only_last=False):
             return
         if not tree.body:
             return
+        # only_last (Jupyter-semantikk, review B11f): kun når SISTE topp-nivå
+        # setning er et uttrykk vises verdien — "x\\ny = 1" viser ingenting.
         _last_expr_i = -1
-        if only_last:
-            for _i, _s in enumerate(tree.body):
-                if isinstance(_s, ast.Expr):
-                    _last_expr_i = _i
+        if only_last and isinstance(tree.body[-1], ast.Expr):
+            _last_expr_i = len(tree.body) - 1
         for _i, stmt in enumerate(tree.body):
             try:
                 _src = ast.get_source_segment(code, stmt) or ""

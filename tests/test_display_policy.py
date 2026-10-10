@@ -143,3 +143,17 @@ def test_bare_ui_control_call_suppressed_in_only_last_mode():
     ui = FakeUi()
     assert run_block("1 + 1\nui.slider(0, 100)", only_last=True, g={"ui": ui}) == []
     assert ui.calls == [(0, 100)]
+
+
+# ---- B11f (review 2026-10): Jupyter-semantikk — kun når SISTE setning er
+# et uttrykk vises verdien; et tidligere uttrykk etterfulgt av en tilordning
+# vises ikke. ----
+
+def test_only_last_nothing_when_final_statement_is_not_expression():
+    assert run_block("x = 5\nx\ny = 1", only_last=True) == []
+
+def test_only_last_nothing_when_final_statement_is_compound():
+    assert run_block("3\nfor _i in range(2):\n    pass", only_last=True) == []
+
+def test_all_mode_unchanged_by_final_statement():
+    assert run_block("x = 5\nx\ny = 1") == [5]

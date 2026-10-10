@@ -34,6 +34,20 @@
   // hard feil med kildens native alternativ — aldri stille passthrough
   // (2.1-API-ene svarer «vellykket» med ufiltrerte data). Ren funksjon:
   // -> { rest, params: [..], needsSdmxKey?, clientYears?, error? }
+  // B13: én filterverdi → URL-trygg form. encodeURIComponent lar
+  // seleksjonsuttrykkene (*, top(5), from(2020)) stå urørt.
+  function encVal(v) { return encodeURIComponent(String(v)); }
+  // pxweb-kodeliste: komma er PxWebs skilletegn og beholdes; hver kode
+  // enkodes for seg. F2: «ALL» (vanlig modellgjetning, 400 hos SSB) er
+  // PxWebs wildcard «*».
+  function pxCodes(v) {
+    var list = isArr(v) ? v : String(v).split(',');
+    return list.map(function (one) {
+      var s = String(one).trim();
+      return s === 'ALL' ? '*' : encVal(s);
+    }).join(',');
+  }
+
   function translateCanonical(kind, rest, c) {
     var params = [], out = { rest: rest, params: params };
     var y = c.years || null;
@@ -92,18 +106,26 @@
       // directive returned empty» i ledighets-verifiseringen (5 land bedt
       // om via filters). Samme mønster som countries()/regions() to linjer
       // over: én param PER verdi for liste-verdier; skalarverdier uendret.
+      // B13: verdiene URL-enkodes («PC ACT», «&» i en kode brøt spørringen).
       Object.keys(c.filters || {}).forEach(function (k) {
         var fv = c.filters[k];
-        if (isArr(fv)) fv.forEach(function (one) { params.push(k + '=' + one); });
-        else params.push(k + '=' + fv);
+        if (isArr(fv)) fv.forEach(function (one) { params.push(k + '=' + encVal(one)); });
+        else params.push(k + '=' + encVal(fv));
       });
       return out;
     }
     if (kind === 'pxweb') {
       if (c.all) out.all = true;   // lasteren (Task 3) ekspanderer uspesifiserte dimensjoner
       if (c.countries) return { error: 'countries() gjelder ikke pxweb-kilder (SSB er norske data) — bruk regions() eller filters(<variabel>=…)' };
-      if (c.regions) params.push('valueCodes[Region]=' + c.regions.join(','));
-      if (c.indicators) params.push('valueCodes[ContentsCode]=' + c.indicators.join(','));
+      // B13: regions=/indicators=/years= og filters= på SAMME dimensjon ga to
+      // valueCodes[Region]-parametre — PxWeb velger da stille én av dem.
+      var pxf = c.filters || {};
+      var pxDup = [['regions', 'Region'], ['indicators', 'ContentsCode'], ['years', 'Tid']].filter(function (d) {
+        return c[d[0]] && has(pxf, d[1]);
+      })[0];
+      if (pxDup) return { error: 'både ' + pxDup[0] + '= og filters={"' + pxDup[1] + '": …} angitt — samme dimensjon to ganger; velg én form' };
+      if (c.regions) params.push('valueCodes[Region]=' + pxCodes(c.regions));
+      if (c.indicators) params.push('valueCodes[ContentsCode]=' + pxCodes(c.indicators));
       if (y) {
         if (y.from && y.to) {
           // range() finnes ikke i PxWeb v2 (probet 2026-07-25: 400) —
@@ -119,7 +141,7 @@
           return { error: 'years(:' + y.to + ') for pxweb: angi startår også — from()-uttrykket har ingen bakover-variant' };
         }
       }
-      Object.keys(c.filters || {}).forEach(function (k) { params.push('valueCodes[' + k + ']=' + c.filters[k]); });
+      Object.keys(pxf).forEach(function (k) { params.push('valueCodes[' + k + ']=' + pxCodes(pxf[k])); });
       return out;
     }
     if (kind === 'sdmx') {
@@ -755,6 +777,11 @@
         var qi0 = rest.indexOf('?');
         var restPath = qi0 >= 0 ? rest.slice(0, qi0) : rest;
         var restQuery = qi0 >= 0 ? rest.slice(qi0 + 1) : '';
+        // F2: OECD-flowRef på slash-form («OECD.SDD.TPS/DSD_X@DF_Y», slik
+        // katalogsøk ofte viser den) 404-er — data-endepunktet krever komma.
+        // Bare den entydige formen: <agency med punktum>/<DSD@DF>. «@» finnes
+        // aldri i en SDMX-nøkkel, så flow/nøkkel-stier (EXR/M.USD…) røres ikke.
+        if (kind === 'sdmx') restPath = restPath.replace(/^([A-Za-z][\w-]*(?:\.[\w-]+)+)\/([\w-]+@[\w-]+)(?=\/|$)/, '$1,$2');
         var tr = null;
         if (lopts.canonical) {
           tr = translateCanonical(kind, restPath, lopts.canonical);

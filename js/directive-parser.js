@@ -46,11 +46,21 @@
     fail('uventet tegn «' + c + '»');
   }
 
+  // Pythons standard-escapes (B10a): «"a\\nb"» ga før «anb» fordi alle
+  // backslasher ble strøket. Ukjente escapes beholdes ordrett («C:\\dir»),
+  // som i python.
+  var ESC = { n: '\n', t: '\t', r: '\r', '0': '\0', '\\': '\\', "'": "'", '"': '"' };
   function parseString(s, i, quote) {
     var out = '', j = i + 1;
     while (j < s.length) {
       var ch = s.charAt(j);
-      if (ch === '\\' && j + 1 < s.length) { out += s.charAt(j + 1); j += 2; continue; }
+      if (ch === '\\' && j + 1 < s.length) {
+        var e = s.charAt(j + 1);
+        var hex = e === 'u' ? /^[0-9a-fA-F]{4}/.exec(s.slice(j + 2)) : (e === 'x' ? /^[0-9a-fA-F]{2}/.exec(s.slice(j + 2)) : null);
+        if (hex) { out += String.fromCharCode(parseInt(hex[0], 16)); j += 2 + hex[0].length; continue; }
+        if (Object.prototype.hasOwnProperty.call(ESC, e)) { out += ESC[e]; j += 2; continue; }
+        out += ch + e; j += 2; continue;
+      }
       if (ch === quote) return { value: out, pos: j + 1 };
       out += ch; j++;
     }
@@ -58,8 +68,12 @@
   }
 
   function parseNumber(s, i) {
-    var m = /^-?\d+(?:\.\d+)?/.exec(s.slice(i));
+    var m = /^-?(\d+)(?:\.\d+)?/.exec(s.slice(i));
     if (!m) fail('ugyldig tall');
+    // Ledende null (B10a): «0301» er en SSB-regionkode, ikke 301. Python
+    // avviser 0301 som tall-literal; her beholdes den som streng. «0» og
+    // «0.5» er fortsatt tall.
+    if (m[1].length > 1 && m[1].charAt(0) === '0') return { value: m[0], pos: i + m[0].length };
     return { value: parseFloat(m[0]), pos: i + m[0].length };
   }
 
@@ -149,6 +163,14 @@
     use: 'skriv «# <navn> = ost.use("<navn>")»'
   };
 
+  // Hale-kommentar etter en meta-verdi (B10a): «# meta.x = "a"  # note» var
+  // en feil mens samme hale etter et kall ble ignorert. Bare en ny
+  // kommentarmarkør er en hale — annen løs tekst er fortsatt en feil.
+  function isTail(s, i) {
+    var c = s.charAt(i), d = s.charAt(i + 1);
+    return c === '#' || (c === '-' && d === '-') || (c === '/' && d === '/');
+  }
+
   function parseArgs(s, i) {
     var args = [], kwargs = {};
     i = skipWs(s, i);
@@ -193,6 +215,7 @@
     var body = raw.slice(mk[0].length).replace(/[ \t\r]+$/, '');
     if (!body) return null;
 
+    var call = null;
     // Den NYE grammatikken prøves først. Motsatt rekkefølge lot
     // gammel-syntaks-vakten svelge gyldige linjer som «read = ost.read("x")».
     try {
@@ -207,22 +230,24 @@
         var rest = body.slice(ns[0].length);
         var first = parseLiteral(rest, 0);
         var after = skipWs(rest, first.pos);
+        if (isTail(rest, after)) after = rest.length;
         if (after >= rest.length) return { form: 'ns', ns: ns[1], path: path, value: first.value, augment: aug, raw: raw.trim() };
         if (rest.charAt(after) !== ',') fail('uventet tekst etter verdi');
         var tup = [first.value];
         while (rest.charAt(after) === ',') {
           var probe = skipWs(rest, after + 1);
-          if (probe >= rest.length) { after = probe; break; }   // trailing komma
+          if (probe >= rest.length || isTail(rest, probe)) { after = rest.length; break; }   // trailing komma
           var nx = parseLiteral(rest, probe);
           tup.push(nx.value);
           after = skipWs(rest, nx.pos);
+          if (isTail(rest, after)) after = rest.length;
         }
         if (after < rest.length) fail('uventet tekst etter verdi');
         return { form: 'ns', ns: ns[1], path: path, value: tup, augment: aug, raw: raw.trim() };
       }
 
       // Form 2: [<navn> =] <mottaker>.<verb>(<args>)
-      var call = /^(?:([A-Za-z_]\w*)[ \t]*=[ \t]*)?([A-Za-z_]\w*)\.([A-Za-z_]\w*)[ \t]*\(/.exec(body);
+      call = /^(?:([A-Za-z_]\w*)[ \t]*=[ \t]*)?([A-Za-z_]\w*)\.([A-Za-z_]\w*)[ \t]*\(/.exec(body);
       if (call) {
         var target = call[1] || null, recv = call[2], verb = call[3];
         if ((recv === 'ost') || METHODS[verb]) {
@@ -245,7 +270,9 @@
         }
       }
     } catch (e) {
-      return { error: e.message };
+      // recv/verb følger med slik at parseScript kan avgjøre om linja i det
+      // hele tatt var et direktiv (B2: «# seen.add(f"…")» er en kommentar).
+      return call ? { error: e.message, recv: call[2], verb: call[3] } : { error: e.message };
     }
 
     return oldSyntaxError(body);
@@ -264,7 +291,7 @@
 
   function parseScript(text) {
     var lines = String(text == null ? '' : text).split(/\r?\n/);
-    var items = [], errors = [];
+    var items = [], errors = [], errs = [];
     for (var i = 0; i < lines.length; i++) {
       var r = parseLine(lines[i]);
       if (!r) continue;
@@ -289,11 +316,79 @@
           if (r2 && r2.error && !UNBALANCED_RE.test(r2.error)) break;
         }
       }
-      if (r.error) { errors.push('linje ' + startLine + ': ' + r.error); continue; }
+      if (r.error) { errs.push({ msg: 'linje ' + startLine + ': ' + r.error, recv: r.recv, verb: r.verb }); continue; }
       r.lineNo = startLine;
       items.push(r);
     }
+    // B2: METHODS-formen (`<x>.add/.join/.read(…)`) er grammatisk identisk
+    // med helt vanlige kodekommentarer («# seen.add(code)», «# html =
+    // resp.read()»), og parseAssembly/resolve gjorde dem til harde
+    // Monteringsfeil som stoppet kjøringen. Mottakeren avgjør derfor:
+    //   .add/.join — bare på et datasett opprettet med ost.create i scriptet
+    //   .read      — på et connect-alias, en kjent kilde-id (setKnownSources),
+    //                eller når kallet bærer et streng-argument/kwargs (slik
+    //                at «ssbb.read("05839")» fortsatt gir «ukjent kilde-alias»
+    //                i stedet for å forsvinne stille).
+    // Alt annet er en vanlig kommentar. ost.* og meta.* berøres ikke.
+    var created = Object.create(null), aliases = Object.create(null);
+    items.forEach(function (it) {
+      if (it.form !== 'call' || it.recv !== 'ost' || !it.target) return;
+      if (it.verb === 'create') created[it.target] = true;
+      if (it.verb === 'connect') aliases[it.target] = true;
+    });
+    function nearCreated(name) {
+      return Object.keys(created).some(function (c) { return closeTypo(name, c); });
+    }
+    function isDirectiveCall(recv, verb, it) {
+      if (!recv || recv === 'ost') return true;
+      // En nær-skrivefeil («pnael» for «panel») er fortsatt et direktiv, så
+      // parseAssembly kan si «ukjent datasett» i stedet for å droppe stille.
+      // Det samme gjelder når argumentet peker på et connect-alias (add) eller
+      // et opprettet datasett (join): «# ghost.add(p, ["x"])» er et direktiv
+      // med glemt create, ikke prosa.
+      if (verb === 'add' || verb === 'join') {
+        if (created[recv] || nearCreated(recv)) return true;
+        var a0 = it && it.args[0] && it.args[0].__ref;
+        return !!a0 && (verb === 'add' ? !!aliases[a0] : !!created[a0]);
+      }
+      if (verb === 'read') {
+        if (aliases[recv] || (KNOWN && KNOWN[recv])) return true;
+        if (!it) return true;   // syntaksfeil i en read: behold feilen
+        return typeof it.args[0] === 'string' || Object.keys(it.kwargs).length > 0;
+      }
+      return true;
+    }
+    items = items.filter(function (it) {
+      return it.form !== 'call' || isDirectiveCall(it.recv, it.verb, it);
+    });
+    errs.forEach(function (e) { if (isDirectiveCall(e.recv, e.verb, null)) errors.push(e.msg); });
     return { items: items, errors: errors };
+  }
+
+  // Levenshtein ≤ 2 (og ikke for korte navn — «df» vs «d» er ingen skrivefeil).
+  function closeTypo(a, b) {
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 2) return false;
+    var prev = [], cur, i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur = [i];
+      for (j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[b.length] <= 2;
+  }
+
+  // Kjente kilde-id-er (registeret). data-loader.js setter dem når
+  // data-sources.json er lastet; null = ukjent (bare connect-alias og
+  // streng-arg/kwargs-heuristikken gjelder da).
+  var KNOWN = null;
+  function setKnownSources(ids) {
+    if (!ids) { KNOWN = null; return; }
+    KNOWN = Object.create(null);
+    ids.forEach(function (id) { if (typeof id === 'string') KNOWN[id] = true; });
   }
 
   function isDirectiveLine(line) {
@@ -301,5 +396,6 @@
   }
 
   global.DirectiveParser = { parseLiteral: parseLiteral, parseLine: parseLine,
-                             parseScript: parseScript, isDirectiveLine: isDirectiveLine };
+                             parseScript: parseScript, isDirectiveLine: isDirectiveLine,
+                             setKnownSources: setKnownSources };
 })(typeof window !== 'undefined' ? window : globalThis);

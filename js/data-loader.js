@@ -11,6 +11,12 @@
       var r = await fetchImpl('data/data-sources.json');
       _registryCache = r.ok ? await r.json() : [];
     } catch (e) { _registryCache = []; }
+    // B2: parseScript godtar «<id>.read()» uten argumenter bare for kjente
+    // kilde-id-er — ellers er «# html = resp.read()» en vanlig kommentar.
+    var DP = global.DirectiveParser;
+    if (DP && DP.setKnownSources && Array.isArray(_registryCache)) {
+      DP.setKnownSources(_registryCache.map(function (s) { return s && s.id; }));
+    }
     return _registryCache;
   }
 
@@ -21,9 +27,11 @@
   // how often a script gets tweaked and re-run during iteration. Keyed by
   // resolved URL; only raw bytes are cached (decryption still runs fresh
   // per item/run, and strict-source key authorization is deliberately never
-  // cached — see authorizeStrict below). No TTL/invalidation, same as
-  // _registryCache above — a page reload is the reset, by design (2026-07-07,
-  // docs/superpowers/2026-07-07-code-review.md §6 item 1).
+  // cached — see authorizeStrict below). Without a cache("<ttl>") option
+  // there is no TTL, same as _registryCache above — a page reload is the
+  // reset, by design (2026-07-07, docs/superpowers/2026-07-07-code-review.md
+  // §6 item 1). With one, entries expire after the TTL (B14).
+  // url -> { p: Promise<{resp, buf}>, at: ms }
   var _bufCache = {};
 
   // Proxy-auth: innloggingstoken har forrang; ellers BYOK-nøkkel (hent-
@@ -241,12 +249,59 @@
   var maksUttrekkOverstyring = null;
   function maksUttrekk() { return maksUttrekkOverstyring || MAKS_UTTREKK_BYTES; }
   function forStorUttrekkFeil(url, antall) {
-    return new Error('uttrekket fra ' + url + ' er ~' + Math.round(antall / (1024 * 1024)) +
+    return permanentFeil('uttrekket fra ' + url + ' er ~' + Math.round(antall / (1024 * 1024)) +
       ' MB — så store uttrekk OOM-er kjøremiljøet. Filtrer på de sentrale ' +
       'dimensjonene FØR henting (geo/tema/unit — se table_metadata; HICP: ' +
       'coicop="CP00" for totalindeksen) og hent kun det analysen trenger ' +
-      '(EVAL-regel 11).');
+      '(EVAL-regel 11).', 'FOR_STOR');
   }
+  // B7: content-length-sjekken over fanger ikke chunked/gzip-svar (ingen
+  // eller komprimert lengde) — arrayBuffer() leste da HELE kroppen inn før
+  // taket ble sjekket, nettopp OOM-en vakta skal hindre. Strøm med løpende
+  // byte-telling og avbryt så snart taket passeres (samme getReader-mønster
+  // som sdmxForsteLinje). Uten strøm-API (eldre miljøer): som før.
+  async function lesKroppMedTak(resp, url) {
+    var max = maksUttrekk();
+    if (!resp.body || typeof resp.body.getReader !== 'function') {
+      var ab = await resp.arrayBuffer();
+      if (ab.byteLength > max) throw forStorUttrekkFeil(url, ab.byteLength);
+      return new Uint8Array(ab);
+    }
+    var reader = resp.body.getReader(), deler = [], total = 0;
+    for (;;) {
+      var del = await reader.read();
+      if (del.done) break;
+      total += del.value.byteLength;
+      if (total > max) {
+        try { reader.cancel(); } catch (eC) {}
+        throw forStorUttrekkFeil(url, total);
+      }
+      deler.push(del.value);
+    }
+    var ut = new Uint8Array(total), pos = 0;
+    deler.forEach(function (d) { ut.set(d, pos); pos += d.byteLength; });
+    return ut;
+  }
+
+  // Tomt-vakt for bro-veien (spec fase 3 / sluttreview F4): OWID-hintets
+  // vei er ren pd.read_csv(url) — en feilslått slug/filter gir header-only
+  // CSV som ellers ville blitt en stille tom ramme. KUN csv (content-type
+  // eller .csv-endelse) vaktes — json/html/parquet har legitime én-linjers.
+  // Delt med read-bridge.js sin sync-XHR-vei (B6). -> feilmelding | null.
+  function tomCsvFeil(url, contentType, bytes) {
+    var ct = String(contentType || '').toLowerCase();
+    if (ct.indexOf('csv') < 0 && !/\.csv(\?|$)/.test(url)) return null;
+    var prefiks = new TextDecoder().decode(bytes.slice(0, 2048));
+    var rader = prefiks.split('\n').filter(function (l) { return l.trim(); });
+    if (rader.length >= 2) return null;
+    return '«' + url + '»: uttrekket kom TOMT tilbake (0 datarader) — ' +
+      'sjekk slug/filtre (land- og tidsparametre) før ny kjøring';
+  }
+
+  // Feilklasser som er PERMANENTE for samme URL (B6): read-bridge cacher dem
+  // og lar sync-veien respektere dem i stedet for å hente på nytt.
+  function permanentFeil(msg, kode) { var e = new Error(msg); e.permanent = kode; return e; }
+
   function sjekkAnnonsertStorrelse(resp, url) {
     var cl = Number((resp.headers && resp.headers.get && resp.headers.get('content-length')) || 0);
     if (cl > maksUttrekk()) throw forStorUttrekkFeil(url, cl);
@@ -301,7 +356,7 @@
     // resolveAndFetchLoads/fetchRawUrl-kjøring alt lastet den.
     var registry = deps.registry || await loadRegistry(fetchImpl);
     var styrtHit = styrtKildeFor(url, registry);
-    if (styrtHit) throw new Error(styrtMelding(styrtHit.id));
+    if (styrtHit) throw permanentFeil(styrtMelding(styrtHit.id), 'STYRT');
     async function viaProxy() {
       // /api/hent er auth-portet (Bearer eller X-Anthropic-Key) — uten samme
       // headere som direktiv-veien er fallbacken død (401, målt i smoke 6).
@@ -326,22 +381,10 @@
     }
     assertNotTruncated(resp, url);
     sjekkAnnonsertStorrelse(resp, url);
-    var buf = await resp.arrayBuffer();
-    if (buf.byteLength > maksUttrekk()) throw forStorUttrekkFeil(url, buf.byteLength);
-    // Tomt-vakt for bro-veien (spec fase 3 / sluttreview F4): OWID-hintets
-    // vei er ren pd.read_csv(url) — en feilslått slug/filter gir header-only
-    // CSV som ellers ville blitt en stille tom ramme. KUN csv (content-type
-    // eller .csv-endelse) vaktes — json/html/parquet har legitime én-linjers.
-    var ct = (resp.headers.get('content-type') || '').toLowerCase();
-    if (ct.indexOf('csv') >= 0 || /\.csv(\?|$)/.test(url)) {
-      var prefiks = new TextDecoder().decode(buf.slice(0, 2048));
-      var rader = prefiks.split('\n').filter(function (l) { return l.trim(); });
-      if (rader.length < 2) {
-        throw new Error('«' + url + '»: uttrekket kom TOMT tilbake (0 datarader) — ' +
-          'sjekk slug/filtre (land- og tidsparametre) før ny kjøring');
-      }
-    }
-    return { bytes: new Uint8Array(buf), contentType: resp.headers.get('content-type') || '' };
+    var buf = await lesKroppMedTak(resp, url);
+    var tom = tomCsvFeil(url, resp.headers.get('content-type'), buf);
+    if (tom) throw permanentFeil(tom, 'TOMT');
+    return { bytes: buf, contentType: resp.headers.get('content-type') || '' };
   }
 
   // cache(<ttl>)-opsjonen (plan 2026-07-25 Task 1): '90'/'90s'/'30m'/'2h'/'1d'
@@ -380,7 +423,7 @@
               // aldri leveres stille fra L2-cachen heller.
               assertNotTruncated(hit, item.url);
               var ab0 = await hit.arrayBuffer();
-              return { resp: hit, buf: new Uint8Array(ab0) };
+              return { resp: hit, buf: new Uint8Array(ab0), at: at };
             }
           }
         }
@@ -388,18 +431,17 @@
     }
     var resp = await fetchLoadTarget(item, fetchImpl, deps.authToken || null, deps.anthropicKey || null, registry, deps.keysApi || null);
     sjekkAnnonsertStorrelse(resp, item.url);
-    var ab = await resp.arrayBuffer();
-    if (ab.byteLength > maksUttrekk()) throw forStorUttrekkFeil(item.url, ab.byteLength);
-    var buf = new Uint8Array(ab);
+    var buf = await lesKroppMedTak(resp, item.url);
+    var hentetAt = Date.now();
     if (canDisk && ttl > 0) {
       try {
-        var hdrs = { 'x-m2py-fetched-at': String(Date.now()) };
+        var hdrs = { 'x-m2py-fetched-at': String(hentetAt) };
         var ct = resp.headers.get('content-type');
         if (ct) hdrs['content-type'] = ct;
         await (await caches.open(DATA_CACHE)).put(item.url, new Response(buf, { headers: hdrs }));
       } catch (e2) {}
     }
-    return { resp: resp, buf: buf };
+    return { resp: resp, buf: buf, at: hentetAt };
   }
 
   // ESS-klassen (funn 2026-08-13): formatet ligger i en URL-KODET
@@ -508,16 +550,23 @@
       // cache(0)/cache(no) skal buste BEGGE lag: minne-L1 ville ellers
       // skygget for både re-fetch og disk-slettingen (funnet i
       // browser-verifiseringen 2026-07-25).
-      if (parseCacheTtl(item.cache) === 0) delete _bufCache[k];
-      if (!_bufCache[k]) {
-        _bufCache[k] = fetchViaDiskCache(item, fetchImpl, deps, registry);
+      // B14: cache("1h") gjelder også minne-L1 — før holdt L1 bytes hele
+      // økten og skygget disk-L2-ens TTL. Uten cache-opsjon: som før (hele
+      // økten, reload er reset).
+      var ttl = parseCacheTtl(item.cache);
+      var hit = _bufCache[k];
+      if (ttl === 0 || (hit && ttl && (Date.now() - hit.at) >= ttl)) { delete _bufCache[k]; hit = null; }
+      if (!hit) {
+        var entry = { p: fetchViaDiskCache(item, fetchImpl, deps, registry), at: Date.now() };
+        _bufCache[k] = entry;
         // A failed fetch must NOT poison future runs — _bufCache is now
         // module-scoped (persists across runs, not just within one), so a
         // transient network error would otherwise be "cached" forever until
         // a page reload. Drop the entry on rejection so the next run retries.
-        _bufCache[k].catch(function () { delete _bufCache[k]; });
+        entry.p.catch(function () { if (_bufCache[k] === entry) delete _bufCache[k]; });
+        hit = entry;
       }
-      return _bufCache[k];
+      return hit.p;
     }
     return Promise.all(localItems.map(async function (item) {
       // pxweb (spec 2026-07-24-pxweb-sources-design §2): hent json-stat2
@@ -568,6 +617,8 @@
           throw ePx;
         }
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
+        noteProvenance({ url: item.url, alias: item.alias, fetchedAt: fetchedPx.at,
+                         updated: typeof dsPx.updated === 'string' ? dsPx.updated : null });
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
         // Typet kanonisk vei (plan 2026-07-27): CSV-en mister typesystemet
         // json-stat2 bærer — typemeta følger med SEPARAT så Pyodide-preamblet
@@ -678,6 +729,7 @@
                  format: 'csv', table: item.table, kind: item.kind };
       }
       var fetched = await fetchBytes(item);
+      noteProvenance({ url: item.url, alias: item.alias, fetchedAt: fetched.at });
       var format = sniffFormat(fetched.resp, item.url, item.kind, fetched.buf);
       var dec = await maybeDecrypt(item, fetched.buf, format, deps);
       var out = { alias: item.alias, bytes: dec.bytes, format: dec.format };
@@ -699,6 +751,30 @@
       }
       return out;
     }));
+  }
+
+  // F3: proveniens per svar — hvilke data-URL-er som ble BRUKT (usedAt),
+  // når bytene faktisk ble hentet (fetchedAt; et cache-treff bærer den
+  // opprinnelige hentetiden) og, der kilden selv oppgir det (json-stat2
+  // «updated» hos pxweb/eurostat), når dataene sist ble oppdatert.
+  // Ask-visningen leser provenanceSince(<flytstart>). Begrenset ringbuffer.
+  var _proveniens = [];
+  function noteProvenance(rec) {
+    if (!rec || !rec.url) return;
+    _proveniens.push({ url: String(rec.url), alias: rec.alias || null, usedAt: Date.now(),
+                       fetchedAt: rec.fetchedAt || Date.now(), updated: rec.updated || null });
+    if (_proveniens.length > 200) _proveniens.splice(0, _proveniens.length - 200);
+  }
+  function provenanceSince(ts) {
+    var byUrl = Object.create(null), out = [];
+    _proveniens.forEach(function (p) {
+      if (p.usedAt < ts) return;
+      var cur = byUrl[p.url];
+      if (!cur) { byUrl[p.url] = cur = Object.assign({}, p); out.push(cur); return; }
+      if (p.updated) cur.updated = p.updated;
+      if (p.fetchedAt > cur.fetchedAt) cur.fetchedAt = p.fetchedAt;
+    });
+    return out;
   }
 
   function fetchSourceAccess(item, deps, fetchImpl) {
@@ -833,6 +909,7 @@
 
   global.DataLoader = { proxyHeaders: proxyHeaders, resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
+    tomCsvFeil: tomCsvFeil, noteProvenance: noteProvenance, provenanceSince: provenanceSince,
     _setMaksUttrekkBytes: function (n) { maksUttrekkOverstyring = n; },
     _parseCacheTtl: parseCacheTtl,
     // styrte kilder (2026-08-14): styrtKildeFor er den delte, testede

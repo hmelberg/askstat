@@ -584,6 +584,38 @@
     }).catch(function () { /* CDN nede → rå LaTeX står igjen */ });
   }
 
+  // F3: proveniens-/ferskhetslinje per svar. records fra
+  // DataLoader.provenanceSince(<flytstart>): {url, fetchedAt, updated?}.
+  // Liten med vilje: tidligste hentetid + inntil tre «sist oppdatert»-datoer
+  // der kilden selv oppgir dem (json-stat2 «updated»). -> streng | null.
+  function tr(s, p) {
+    if (typeof window !== 'undefined' && typeof window.t === 'function') return window.t(s, p);
+    return p ? s.replace(/\{(\w+)\}/g, function (m, k) { return k in p ? p[k] : m; }) : s;
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtTid(ms) {
+    var d = new Date(ms);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' +
+      pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function kortKilde(url) {
+    var u = String(url || '').replace(/^https?:\/\//, '').split('?')[0];
+    var deler = u.split('/').filter(Boolean);
+    return deler.length > 2 ? deler[0] + '/…/' + deler[deler.length - 1] : deler.join('/');
+  }
+  function formatProvenance(records) {
+    var rs = (records || []).filter(function (r) { return r && r.url && r.fetchedAt; });
+    if (!rs.length) return null;
+    var forst = Math.min.apply(null, rs.map(function (r) { return r.fetchedAt; }));
+    var deler = [tr('Data fetched {time}', { time: fmtTid(forst) })];
+    var med = rs.filter(function (r) { return r.updated; });
+    med.slice(0, 3).forEach(function (r) {
+      deler.push(tr('{source}: updated {date}', { source: kortKilde(r.url), date: String(r.updated).slice(0, 10) }));
+    });
+    if (med.length > 3) deler.push('+' + (med.length - 3));
+    return deler.join(' · ');
+  }
+
   /* ── DOM wiring (browser only; bails in the node test stub) ─────── */
   function sseAccumulate(resp, onText, signal) {
     // Minimal SSE-leser for tolk-/ruter-endepunktene ({type:'text'|'error'}).
@@ -591,21 +623,32 @@
       var reader = resp.body.getReader();
       var decoder = new TextDecoder();
       var buffer = '', accumulated = '';
+      // -> true når strømmen er avsluttet (avvist) og pumpen skal stoppe.
+      function handle(event) {
+        var dataLine = event.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
+        if (!dataLine) return false;
+        var obj;
+        try { obj = JSON.parse(dataLine.slice(5).trim()); } catch (_) { return false; }
+        if (obj.type === 'text') { accumulated += obj.text; if (onText) onText(accumulated); }
+        else if (obj.type === 'error') { try { reader.cancel(); } catch (_) {} reject(new Error(obj.message || 'Unknown server error')); return true; }
+        return false;
+      }
       function pump() {
         reader.read().then(function (r) {
           if (signal && signal.aborted) { try { reader.cancel(); } catch (_) {} return reject(Object.assign(new Error('Stopped'), { name: 'AbortError' })); }
-          if (r.done) return resolve(accumulated);
+          // B15: en siste hendelse uten avsluttende blank linje ble droppet
+          // stille — flush resten av bufferen når strømmen lukkes.
+          if (r.done) {
+            buffer += decoder.decode();
+            if (buffer.trim() && handle(buffer)) return;
+            return resolve(accumulated);
+          }
           buffer += decoder.decode(r.value, { stream: true });
           var nl;
           while ((nl = buffer.indexOf('\n\n')) >= 0) {
             var event = buffer.slice(0, nl);
             buffer = buffer.slice(nl + 2);
-            var dataLine = event.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
-            if (!dataLine) continue;
-            var obj;
-            try { obj = JSON.parse(dataLine.slice(5).trim()); } catch (_) { continue; }
-            if (obj.type === 'text') { accumulated += obj.text; if (onText) onText(accumulated); }
-            else if (obj.type === 'error') { try { reader.cancel(); } catch (_) {} return reject(new Error(obj.message || 'Unknown server error')); }
+            if (handle(event)) return;
           }
           pump();
         }, reject);
@@ -1087,6 +1130,7 @@
       lastAnswerMd = '';
       actionsRow.hidden = true;
       var ctrl = new AbortController();
+      var flowStart = Date.now();   // F3: proveniens = data BRUKT etter dette
       var onAbort = function () { ctrl.abort(); };
       abortBtn.addEventListener('click', onAbort);
       var uiLang = window.M2PY_LANG || 'en';
@@ -1110,12 +1154,21 @@
       function saveHistory(markdown, badge, badgeText, badgeWarn, script, sources) {
         if (!window.AskHistory) return;
         try {
-          window.AskHistory.save(buildHistoryEntry({
+          var savedId = window.AskHistory.save(buildHistoryEntry({
             question: question, route: route.rute, tolkning: route.tolkning,
             markdown: markdown, script: script, sources: sources,
             badge: badge, badgeText: badgeText, badgeWarn: badgeWarn,
             depth: askDepth(), mode: currentAskMode(), profile: activeProfile,
           }));
+          // B16: lagringen kan feile (kvote) — si det i detaljsporet i
+          // stedet for å late som svaret ligger i historikken.
+          if (savedId === null && processBox) {
+            var hf = document.createElement('div');
+            hf.className = 'ai-progress-line';
+            hf.textContent = '⚠️ ' + t('This answer could not be saved to the history (browser storage is full).');
+            processBox.appendChild(hf);
+            detailsEl.hidden = false;
+          }
           if (typeof renderHistoryList === 'function') renderHistoryList();
         } catch (e) {}
       }
@@ -1255,6 +1308,30 @@
         });
 
         lastSources = (res.sources || []).map(function (s) { return s.url; });
+        // F3: kilder vises allerede (renderSources); proveniens-linja under
+        // legger til hentetid og — der kilden oppgir det — sist oppdatert.
+        function renderProvenance() {
+          var DLp = window.DataLoader;
+          var linje = DLp && DLp.provenanceSince ? formatProvenance(DLp.provenanceSince(flowStart)) : null;
+          if (!linje) return;
+          var pv = document.createElement('div');
+          pv.className = 'ai-sources ask-provenance';
+          pv.textContent = linje;
+          answerBox.appendChild(pv);
+        }
+        // B3: et avkortet svar (ingen done / error AVKORTET) skal aldri få
+        // grønt merke eller lagres som ok — vis det delvise svaret med en
+        // tydelig advarsel (runSvarLoop har også lagt merknaden i teksten).
+        if (res.truncated) {
+          var avkBadge = t('⚠ The answer was cut off before it was finished — it may be incomplete');
+          showAnswer(stripRefs(res.markdown), avkBadge, true);
+          renderSources(res.sources);
+          renderProvenance();
+          maybeRenderMath(res.markdown);
+          saveHistory(res.markdown, 'avkortet', avkBadge, true, null, res.sources || []);
+          sendTelemetri('avkortet: ' + (res.truncatedCode || ''));
+          return;
+        }
 
         // Forbedringsknappen (spec §1): registrer kjøringskonteksten —
         // modulen eier vilkåret (skalViseKnapp) og knappens synlighet.
@@ -1281,6 +1358,7 @@
             case 'ok':
               showAnswer(res.markdown, null, false);
               renderSources(res.sources);
+              renderProvenance();
               // Kuratert svar (spec 2026-07-31): plassholdere → levende noder.
               // ≥1 resolvet → resten bak «Full output»-folden; 0 → dagens
               // synlige mount (trygg degradering når modellen ignorerer
@@ -1305,6 +1383,7 @@
               showAnswer(stripRefs(res.markdown),
                 t('⚠ Last polish run failed — the numbers come from an earlier successful run'), false);
               renderSources(res.sources);
+              renderProvenance();
               maybeRenderMath(res.markdown);
               saveHistory(res.markdown, 'feilet-etter-suksess',
                 t('⚠ Last polish run failed — the numbers come from an earlier successful run'), false,
@@ -1317,6 +1396,7 @@
               showAnswer(stripRefs(res.markdown),
                 t('⚠ The code did not run successfully — treat numbers with caution'), true);
               renderSources(res.sources);
+              renderProvenance();
               maybeRenderMath(res.markdown);
               saveHistory(res.markdown, 'feilet',
                 t('⚠ The code did not run successfully — treat numbers with caution'), true,
@@ -1330,6 +1410,7 @@
               : null,
             true);
           renderSources(res.sources);
+          renderProvenance();
           maybeRenderMath(res.markdown);
           saveHistory(res.markdown, 'ingen-kjøring',
             (res.sources && res.sources.length
@@ -1384,6 +1465,8 @@
       injectPackSaveButtons: injectPackSaveButtons,
       scanSecretAccess: scanSecretAccess,
       sourceLinkHtml: sourceLinkHtml,
+      sseAccumulate: sseAccumulate,
+      formatProvenance: formatProvenance,
     };
   }
 })();

@@ -263,9 +263,13 @@ test('parseAssembly: tilordning på add/join gir feil, ikke stille dropp', () =>
   assert.match(a.errors[0], /returnerer ingenting/);
 });
 
-test('parseAssembly: add til ukjent datasett gir feil', () => {
-  const a = DD.parseAssembly('# ukjent.add(p, "x")');
-  assert.match(a.errors[0], /ukjent datasett «ukjent»/);
+test('parseAssembly: add til feilstavet datasett gir feil', () => {
+  // B2: uten noe ost.create er «# ukjent.add(p, "x")» en vanlig kommentar
+  // (se directive-receivers.test.js); en nær-skrivefeil av et opprettet
+  // datasett er fortsatt en feil, ikke et stille dropp.
+  const a = DD.parseAssembly('# panel = ost.create(key="k")\n# pnael.add(p, "x")');
+  assert.match(a.errors[0], /ukjent datasett «pnael»/);
+  assert.deepEqual(DD.parseAssembly('# ukjent.add(p, "x")').errors, []);
 });
 
 test('parseAssembly: duplikat create gir feil', () => {
@@ -423,7 +427,7 @@ test('makeLoad: gir nøyaktig samme form som parse().loads', () => {
 
 test('makeLoad: uten tabell', () => {
   const made = DD.makeLoad({ alias: 'df', source: 'h', table: null });
-  const parsed = DD.parse('# df = h.read()').loads[0];
+  const parsed = DD.parse('# h = ost.connect("x")\n# df = h.read()').loads[0];
   assert.deepEqual(made, parsed);
 });
 

@@ -7,7 +7,7 @@ tilgang: fil
 base_url: https://en.wikipedia.org/wiki/
 cors: false
 oppskrift:
-  python: "# load /api/hent?url=<url-enkodet artikkel-URL> as raw_html  →  import micropip; await micropip.install('lxml'); tabeller = pd.read_html(io.StringIO(raw_html)); df = tabeller[i]"
+  python: "# raw_html = ost.read('/api/hent?url=<url-enkodet artikkel-URL>')  →  import lxml; tabeller = pd.read_html(io.StringIO(raw_html)); df = tabeller[i]"
 order: 11
 ---
 

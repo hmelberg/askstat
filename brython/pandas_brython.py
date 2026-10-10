@@ -190,6 +190,29 @@ def _is_na(v):
     return isinstance(v, float) and v != v
 
 
+def _norm_na(values):
+    """None/float('nan') i en verdiliste -> nan-sentinelen (review B11g).
+    pandas gjør [1.0, None, 3.0] til float64 med NaN; uten dette så
+    isna()/mean()/count() bare shimens egen nan og None ga TypeError. None
+    i en ikke-numerisk liste beholdes (objekt-dtype) — _is_na ser den."""
+    has_na = seen_num = False
+    numeric = True
+    for v in values:
+        if v is None or (isinstance(v, float) and v != v):
+            has_na = True
+        elif v is nan:
+            pass
+        elif isinstance(v, bool) or not isinstance(v, (int, float)):
+            numeric = False
+        else:
+            seen_num = True
+    if not has_na:
+        return values
+    numeric = numeric and seen_num
+    return [nan if ((v is None and numeric) or (isinstance(v, float) and v != v)) else v
+            for v in values]
+
+
 def _infer_dtype(values):
     """Verdiliste → pandas-dtype-navn som streng."""
     seen_bool = seen_int = seen_float = seen_str = seen_dt = seen_other = False
@@ -1454,7 +1477,7 @@ class Series:
             name = data.name
             view = data.view
         elif isinstance(data, (list, set, tuple)):
-            data = list(data)
+            data = _norm_na(list(data))
             view = slice(0, len(data), 1)
         elif isinstance(data, dict):
             name, data = next(iter(data.items()))
@@ -2017,7 +2040,7 @@ class Series:
         if method in ("ffill", "pad"):
             last_valid = None
             for i in range(len(cp)):
-                if cp.data[i] is nan:
+                if _is_na(cp.data[i]):
                     if last_valid is not None:
                         cp.data[i] = last_valid
                 else:
@@ -2026,7 +2049,7 @@ class Series:
         if method in ("bfill", "backfill"):
             next_valid = None
             for i in range(len(cp) - 1, -1, -1):
-                if cp.data[i] is nan:
+                if _is_na(cp.data[i]):
                     if next_valid is not None:
                         cp.data[i] = next_valid
                 else:
@@ -2035,7 +2058,7 @@ class Series:
 
         # Scalar fill
         for i in range(len(cp)):
-            if cp.data[i] is nan:
+            if _is_na(cp.data[i]):
                 cp.data[i] = value
         return cp
 
@@ -2045,14 +2068,14 @@ class Series:
         :return: Series
         """
         cp = self.copy()
-        cp.data = [item is nan for item in self.values]
+        cp.data = [_is_na(item) for item in self.values]
         return cp
 
     def clip(self, lower=None, upper=None):
         cp = self.copy()
         for i in range(len(cp)):
             val = cp.data[i]
-            if val is nan:
+            if _is_na(val):
                 continue
             if lower is not None and val < lower:
                 val = lower
@@ -2067,7 +2090,7 @@ class Series:
         cp = self.copy()
         out = []
         for val in cp.values:
-            if val is nan:
+            if _is_na(val):
                 out.append(False)
                 continue
             ok_left = val >= left if include_left else val > left
@@ -2993,6 +3016,8 @@ class DataFrame:
                     self._cats[_k] = _v._cat
             data = {k: (v.tolist() if hasattr(v, 'tolist')
                         and not isinstance(v, (Series, DataFrame)) else v)
+                    for k, v in data.items()}
+            data = {k: (_norm_na(list(v)) if isinstance(v, (list, tuple)) else v)
                     for k, v in data.items()}
             self.step = len(data[list(data.keys())[0]])
             self.data = list(itertools.chain(*data.values()))
@@ -3991,7 +4016,7 @@ class DataFrame:
 
     def isna(self):
         cp = self.copy()
-        cp.data = [item is nan for item in cp.data]
+        cp.data = [_is_na(item) for item in cp.data]
         return cp
 
     def notna(self):

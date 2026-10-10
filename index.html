@@ -1323,7 +1323,7 @@
           scriptInput.selectionStart = scriptInput.selectionEnd = 0;
         }).catch(function(err) {
           if (window.location.protocol === 'file:') {
-            alert(t('Filen er åpnet direkte i nettleseren (file://). Start en lokal webserver og åpne via http://localhost for å laste eksempler.\n\nEks: åpne terminal i m2py-mappen og kjør:\npython -m http.server 8000\n\nÅpne deretter http://localhost:8000/microdata_runner.html'));
+            alert(t('Filen er åpnet direkte i nettleseren (file://). Start en lokal webserver og åpne via http://localhost for å laste eksempler.\n\nEks: åpne terminal i prosjektmappen og kjør:\npython -m http.server 8000\n\nÅpne deretter http://localhost:8000/'));
           } else {
             alert(t('Kunne ikke laste eksempel: {file}\nFeil: {msg}\n\nSjekk at examples-mappen ligger i samme mappe som index.html og at serveren har tilgang til den.', { file: file, msg: err && err.message ? err.message : String(err) }));
           }
@@ -2363,9 +2363,11 @@
     // Lazy katalog (plan 2026-07-23-lazy-microdata-assets): variable_metadata.json
     // (640 KB) hentes først når microdata-språket faktisk er i spill (statx-/
     // microdata-modus aktiveres, eller en kjøring har microdata-segmenter) —
-    // aldri ved sideoppstart. microdataFunctions (autocomplete) fylles av
-    // _loadPyodideAndM2pyImpl, som uansett henter functions.py.
-    // Memo nullstilles ved feil så neste kall prøver på nytt.
+    // aldri ved sideoppstart. Memo nullstilles ved feil så neste kall prøver
+    // på nytt. MERK (review 2026-10): etter at microdata-modusen ble fjernet
+    // kalles ensureMicrodataCatalog() ikke lenger, og variable_metadata.json
+    // ligger ikke i repoet — katalogen og microdataFunctions/-VariableNames
+    // er alltid tomme (kandidat for opprydding sammen med tab-fullføringen).
     let __microdataCatalogPromise = null;
     function ensureMicrodataCatalog() {
       if (!__microdataCatalogPromise) {
@@ -2452,10 +2454,18 @@
           const wurl = URL.createObjectURL(new Blob(['importScripts("' + bundle.mainWorker + '");'],
             { type: 'text/javascript' }));
           const worker = new Worker(wurl);
-          const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
-          await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-          URL.revokeObjectURL(wurl);
-          return db;
+          try {
+            const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            return db;
+          } catch (e) {
+            // Mislykket instantiate: terminer workeren, ellers lekker én
+            // worker per nytt forsøk (promiset nulles under) — review B11c.
+            try { worker.terminate(); } catch (e2) {}
+            throw e;
+          } finally {
+            URL.revokeObjectURL(wurl);
+          }
         })().catch(function (e) { __duckdbPromise = null; throw e; });
       }
       return __duckdbPromise;
@@ -2572,7 +2582,7 @@
       var db = await __ensureDuckDB();
       var conn = await db.connect();
       try {
-        var ident = String(name).replace(/"/g, '""');
+        var ident = window.DuckdbNative.quoteIdent(name);
         var chk = __arrowToColumns(await conn.query(
           "SELECT count(*) AS n FROM information_schema.tables WHERE table_schema = 'main' AND table_name = '" +
           String(name).replace(/'/g, "''") + "'"));
@@ -2580,7 +2590,7 @@
           throw new Error(t('use «{name}» from duckdb: fant ingen tabell/visning «{name}» i duckdb-økten — kjør duckdb-scriptet først', { name: name }));
         }
         var fname = '_use_' + String(name).replace(/'/g, "''") + '.parquet';
-        await conn.query('COPY (SELECT * FROM "' + ident + '") TO \'' + fname + "' (FORMAT PARQUET)");
+        await conn.query('COPY (SELECT * FROM ' + ident + ') TO \'' + fname + "' (FORMAT PARQUET)");
         var bytes = await db.copyFileToBuffer(fname);
         try { await db.dropFile(fname); } catch (e) {}
         return bytes;
@@ -2590,12 +2600,33 @@
 
     window.__duck = {
       conn: null,
+      // Én økt om gangen (review B11b): conn er delt, så et andre begin()
+      // mens et løp pågår erstattet conn uten close, og første end() nullet
+      // den under det andre løpet. begin() venter nå på forrige løps end()
+      // (løftekjede-mutex); begin() slipper låsen selv om den feiler.
+      // Kallerne (_run_duck_sql, maybeRunDuckNative) gjør begin → try →
+      // finally end og kaller aldri begin() nestet.
+      _lock: Promise.resolve(),
+      _release: null,
       // opts.fresh (fase B1, plan 2026-07-14): default true (uendret atferd
       // for alle eksisterende kallere — Kjør alle, native duckdb-veien).
       // begin({fresh:false}) hopper over drop-alt-blokken: brukt av per-celle-
       // kjøring (mdRunNotebookCell) slik at duck-tabeller nå lever på tvers av
       // CELLE-kjøringer helt til Kjør alle/Restart bygger en fersk økt.
       async begin(opts) {
+        let release;
+        const prev = this._lock;
+        this._lock = new Promise(function (r) { release = r; });
+        await prev;
+        this._release = release;
+        try {
+          await this._open(opts);
+        } catch (e) {
+          await this.end();
+          throw e;
+        }
+      },
+      async _open(opts) {
         const db = await __ensureDuckDB();
         this.conn = await db.connect();
         const fresh = !(opts && opts.fresh === false);
@@ -2611,8 +2642,7 @@
         const types = objs.table_type || [];
         for (let i = 0; i < names.length; i++) {
           const kind = /VIEW/i.test(types[i]) ? 'VIEW' : 'TABLE';
-          await this.conn.query('DROP ' + kind + ' IF EXISTS "' +
-            String(names[i]).replace(/"/g, '""') + '"');
+          await this.conn.query('DROP ' + kind + ' IF EXISTS ' + window.DuckdbNative.quoteIdent(names[i]));
         }
         // Re-registrer format(duckdb)-monterte views (view-registeret
         // {navn: sql}, js/duckdb-views.js): øktene er ferske per kjøring —
@@ -2632,27 +2662,32 @@
       async registerTable(name, parquetBytes, asTable) {
         if (!this.conn) throw new Error('__duck: call begin() before registerTable()');
         const db = await __ensureDuckDB();
-        const ident = String(name).replace(/"/g, '""');   // SQL identifier escape
+        const ident = window.DuckdbNative.quoteIdent(name);   // SQL identifier escape
         const fname = String(name).replace(/'/g, "''") + '.parquet';  // SQL string-literal escape
         await db.registerFileBuffer(String(name) + '.parquet', new Uint8Array(parquetBytes));
-        await this.conn.query('CREATE OR REPLACE ' + (asTable ? 'TABLE' : 'VIEW') + ' "' + ident +
-          '" AS SELECT * FROM read_parquet(\'' + fname + '\')');
+        await this.conn.query('CREATE OR REPLACE ' + (asTable ? 'TABLE' : 'VIEW') + ' ' + ident +
+          ' AS SELECT * FROM read_parquet(\'' + fname + '\')');
       },
       async exec(sql) { if (!this.conn) throw new Error('__duck: call begin() first'); await this.conn.query(sql); },
       // Native-veiens CSV-motstykke til registerTable (som tar parquet-bytes).
       async registerCsv(name, csvBytes) {
         if (!this.conn) throw new Error('__duck: call begin() before registerCsv()');
         const db = await __ensureDuckDB();
-        const ident = String(name).replace(/"/g, '""');
+        const ident = window.DuckdbNative.quoteIdent(name);
         const fname = String(name).replace(/'/g, "''") + '.csv';
         await db.registerFileBuffer(String(name) + '.csv', new Uint8Array(csvBytes));
-        await this.conn.query('CREATE OR REPLACE VIEW "' + ident +
-          '" AS SELECT * FROM read_csv_auto(\'' + fname + '\')');
+        await this.conn.query('CREATE OR REPLACE VIEW ' + ident +
+          ' AS SELECT * FROM read_csv_auto(\'' + fname + '\')');
       },
       async query(sql) { if (!this.conn) throw new Error('__duck: call begin() first'); return __arrowToColumns(await this.conn.query(sql)); },
       async end() {
         try { if (this.conn) await this.conn.close(); }
-        finally { this.conn = null; }
+        finally {
+          this.conn = null;
+          const r = this._release;
+          this._release = null;
+          if (r) r();
+        }
       }
     };
     function getTtsRate() {
@@ -2894,7 +2929,7 @@
             );
 
             await py.runPythonAsync(
-              'to_microdata(_upload_df, ' + JSON.stringify(name) + ', make_active=True)\n' +
+              'register_dataset(_upload_df, ' + JSON.stringify(name) + ', make_active=True)\n' +
               'del _upload_df'
             );
 
@@ -3708,12 +3743,15 @@
       nbNotifyStateChange();
     }
     // ── Editor mode (always-on, controlled by bottom-bar dropdown) ──────
-    let activeEditorMode  = 'microdata'; // 'microdata' | 'python' | 'r'
+    // '' = ingen modus ennå (var 'microdata' før microdata-modusen ble
+    // fjernet 2026-07-24): lik ingen ekte modus, så restoreEditorMode() under
+    // alltid kaller switchEditorMode(); currentMode() faller til python.
+    let activeEditorMode  = ''; // 'python' | 'r' | 'duckdb' | 'jamovi' | …
     const editorContent   = { python: '', r: '', jamovi: '', duckdb: '', brython: '', micropython: '', javascript: '' };
     const editorBP        = { python: new Set(), r: new Set(), jamovi: new Set(), duckdb: new Set(), brython: new Set(), micropython: new Set(), javascript: new Set() };
     // B4/B5 (docs/REVIEW_2026-07-07.md §3): switchEditorMode() persists
     // md_editor_mode but nothing ever read it back, so a reload always
-    // landed on 'microdata'. Restore it here, synchronously, as part of this
+    // landed on the boot default. Restore it here, synchronously, as part of this
     // inline script's top-level execution — which is what makes B5 work too:
     // js/i18n.js (loaded near the top of <head>, long before this script)
     // only restores its language-switch script stash on the page's 'load'
@@ -3722,9 +3760,9 @@
     // So by the time restoreStash() runs, activeEditorMode already reflects
     // the persisted mode, and the stashed script — dispatched via the
     // scriptInput 'input' event — lands in the correct mode's buffer instead
-    // of always in 'microdata'. Falls back to 'microdata' for an unknown/
-    // unregistered mode (e.g. 'jamovi', which is only registered lazily on
-    // first activation and isn't in modeRegistry yet at boot).
+    // of always in the boot default. An unknown/unregistered mode (e.g.
+    // 'jamovi', which is only registered lazily on first activation and isn't
+    // in modeRegistry yet at boot) is handled by the lazy branch below.
     // When no persisted mode exists, fall back to the hostname's default
     // mode via NotebookLinks.hostnameMode() (js/notebook-links.js, loaded
     // synchronously in <head> before this script, so window.NotebookLinks
@@ -4254,7 +4292,7 @@
 
     // Lag en liste gyldige importdatoer innenfor [start, end] på måned-dagen `mmdd`
     // ('-MM-DD'). Tverrsnitt validerer mot et årlig rutenett på STARTdatoens
-    // måned-dag (se _valid_import_dates_for i m2py.py) — IKKE sluttdatoens.
+    // måned-dag (som _valid_import_dates_for i den fjernede m2py.py) — IKKE sluttdatoens.
     // Akkumulert godtar i tillegg årsslutt-datoen, og den er mest intuitiv
     // (helårstall), så for Akkumulert sender vi inn sluttdatoens måned-dag.
     function buildDateList(start, end, mmdd) {
@@ -7996,7 +8034,7 @@ for _wl in json.loads(${JSON.stringify(JSON.stringify(loads))}):
             _wl_df = pd.read_csv(_wl_path, dtype={str(_k): str for _k in ((_wl_tm or {}).get("dims") or {})})
         if _wl_tm:
             _wl_df = _ost_apply_typemeta(_wl_df, _wl_tm)
-        to_microdata(_wl_df, name=_wl_alias, make_active=False)
+        register_dataset(_wl_df, name=_wl_alias, make_active=False)
 `;
     }
 
@@ -8021,14 +8059,35 @@ import builtins
 ` + (window.PxWeb && window.PxWeb.pyApplyTypemetaSource ? window.PxWeb.pyApplyTypemetaSource() : '') + `
 class DatasetStore:
     """Slankt datasett-register (erstattet MicroInterpreter 2026-07-24, scope B):
-    limet bak # load-aliaser, # use på tvers av moduser/celler, to_microdata()
+    limet bak # load-aliaser, # use på tvers av moduser/celler, register_dataset()
     Ingen tolking — bare navn -> DataFrame."""
     def __init__(self):
         self.datasets = {}
         self.active_name = None
+        # id(navnerom) -> {navn: objektet vi sist skjøv dit} (review B1)
+        self._pushed = {}
     def sync_datasets_to_globals(self, g):
-        for _name, _df in self.datasets.items():
+        # Toveis (review B1): uten tilbakeskriving tilbakestilte synken før
+        # hvert segment en celle som tilordnet navnet på nytt
+        # (df = df[df.age > 30] -> neste celle så hele datasettet igjen).
+        # Regel per navn, mot det vi sist skjøv inn i g:
+        #  - registeret endret siden (ny # load/register_dataset/DuckDB CREATE
+        #    TABLE) -> registeret vinner;
+        #  - ellers brukeren har bundet navnet til en NY DataFrame -> den
+        #    skrives tilbake til registeret (DuckDB-/use-veiene ser den);
+        #  - bundet til noe annet enn en DataFrame -> la g være i fred.
+        _p = self._pushed.setdefault(id(g), {})
+        for _name, _df in list(self.datasets.items()):
+            _last = _p.get(_name)
+            if _name in g and _last is not None and _df is _last:
+                _cur = g[_name]
+                if _cur is not _last:
+                    if isinstance(_cur, pd.DataFrame):
+                        self.datasets[_name] = _cur
+                        _p[_name] = _cur
+                    continue
             g[_name] = _df
+            _p[_name] = _df
 e = DatasetStore()
 try:
     pd.set_option("display.float_format", ("{:." + str(${getDecimals()}) + "f}").format)
@@ -8322,8 +8381,11 @@ def _show_one(obj):
 def show(*args):
     for _a in args:
         _show_one(_a)
-def to_microdata(df, name=None, make_active=True):
-    """Legg DataFrame inn i e.datasets slik at påfølgende microdata ser den. name=None bruker aktivt datasett."""
+def register_dataset(df, name=None, make_active=True):
+    """Legg DataFrame inn i e.datasets (datasett-registeret bak # load/# use,
+    DuckDB-blokker og sidepanelet). name=None bruker aktivt datasett.
+    to_microdata er et bakoverkompatibelt alias (navnet er fra før
+    microdata-modusen ble fjernet 2026-07-24)."""
     if not isinstance(df, pd.DataFrame):
         # Polars/pyarrow/cudf-aktige: konverter via .to_pandas() i stedet for
         # å kaste — pyarrow.Table er tilgjengelig i Pyodide og dukker opp når
@@ -8332,21 +8394,22 @@ def to_microdata(df, name=None, make_active=True):
         if callable(_conv):
             df = _conv()
         else:
-            raise TypeError("to_microdata: forventet pandas.DataFrame (eller et objekt med .to_pandas(), f.eks. polars/pyarrow)")
+            raise TypeError("register_dataset: forventet pandas.DataFrame (eller et objekt med .to_pandas(), f.eks. polars/pyarrow)")
     if name is None:
         name = e.active_name
     if not name:
-        raise ValueError("to_microdata: angi name='datasett' eller kjør microdata som setter aktivt datasett først.")
+        raise ValueError("register_dataset: angi name='datasett' (ingen aktivt datasett ennå).")
     name = str(name)
     e.datasets[name] = df
     if make_active:
         e.active_name = name
     e.sync_datasets_to_globals(_g)
     _g["show"] = show
-    _g["to_microdata"] = to_microdata
+    _g["register_dataset"] = _g["to_microdata"] = register_dataset
+to_microdata = register_dataset   # bakoverkompatibelt alias
 _g = {"__name__": "__main__", "__builtins__": builtins, "e": e, "micro_interpreter": e, "pd": pd, "np": np, "numpy": np, "pandas": pd}
 _g["show"] = show
-_g["to_microdata"] = to_microdata
+_g["register_dataset"] = _g["to_microdata"] = register_dataset
 # Bare-alias-binding i RIKTIG navnerom (sluttreview 2026-08-15 funn 1): ALL
 # brukerkode kjører i _g (se _exec_pyodide_block(code, g) under og
 # kjøreveiene som kaller den), IKKE i pyodide.globals (__main__). Boot-
@@ -8435,11 +8498,11 @@ def _exec_pyodide_block(code, g, show_commands=False, only_last=False):
             return
         if not tree.body:
             return
+        # only_last (Jupyter-semantikk, review B11f): kun når SISTE topp-nivå
+        # setning er et uttrykk vises verdien — "x\\ny = 1" viser ingenting.
         _last_expr_i = -1
-        if only_last:
-            for _i, _s in enumerate(tree.body):
-                if isinstance(_s, ast.Expr):
-                    _last_expr_i = _i
+        if only_last and isinstance(tree.body[-1], ast.Expr):
+            _last_expr_i = len(tree.body) - 1
         for _i, stmt in enumerate(tree.body):
             try:
                 _src = ast.get_source_segment(code, stmt) or ""
@@ -8532,35 +8595,67 @@ async def _run_duck_sql(_sql, _fresh=True):
             # «Existing object … is of type Table»). Bruk den levende tabellen
             # direkte i stedet; skjevheten mot en evt. FERSKERE pandas-kopi er
             # akseptert stale-by-design (spec §7 — ingen avhengighetssporing).
-            _existing_lower = set()
+            # Unntak fra unntaket (review B1): et navn VI selv la i katalogen
+            # (registrert fra pandas eller lest tilbake etter CREATE TABLE)
+            # der e.datasets nå har en ANNEN frame — en python-celle bandt
+            # df = df[...] på nytt — registreres på nytt, så SQL-en ser den
+            # nye framen. _duck_src: navn.lower() -> framen katalogen speiler.
+            if _fresh or not hasattr(e, "_duck_src"):
+                e._duck_src = {}
+            _existing_kind = {}
             if not _fresh:
                 try:
                     _chk = (await _duck_js.__duck.query(
-                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+                        "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'main'"
                     )).to_py()
-                    _existing_lower = {str(_n).lower() for _n in (_chk.get("table_name") or [])}
+                    _tn = _chk.get("table_name") or []
+                    _tt = _chk.get("table_type") or []
+                    for _ti in range(len(_tn)):
+                        _existing_kind[str(_tn[_ti]).lower()] = str(_tt[_ti] if _ti < len(_tt) else "")
                 except Exception:
-                    _existing_lower = set()
+                    _existing_kind = {}
             for _name in _refs:
-                if _name.lower() in _existing_lower:
-                    continue
+                _nl = _name.lower()
+                _as_table = _nl in _selfref_lower
+                if _nl in _existing_kind:
+                    if _nl not in e._duck_src or e._duck_src[_nl] is _datasets[_name]:
+                        continue
+                    _as_table = _as_table or "VIEW" not in _existing_kind[_nl].upper()
                 _buf = _duck_db.df_to_parquet_bytes(_datasets[_name])
-                await _duck_js.__duck.registerTable(_name, _duck_to_js(_buf), _name.lower() in _selfref_lower)
-            if _sql.strip():
-                await _duck_js.__duck.exec(_sql)
-            if _preview:
-                _cnt = (await _duck_js.__duck.query("SELECT count(*) AS n FROM (" + _preview + "\\n) _q")).to_py()
-                _nlist = _cnt.get("n") or [0]
-                _total = int(_nlist[0]) if _nlist else 0
-                _cols = (await _duck_js.__duck.query("SELECT * FROM (" + _preview + "\\n) _q LIMIT 400")).to_py()
+                await _duck_js.__duck.registerTable(_name, _duck_to_js(_buf), _as_table)
+                e._duck_src[_nl] = _datasets[_name]
+            # Preview-SELECT-en kjøres ÉN gang (review B11a): inn i en temp-
+            # tabell som count(*) og de første 400 radene leses fra — før
+            # kjørte den tre ganger (i scriptet, count, LIMIT), dyrt og
+            # ikke-deterministisk uten ORDER BY. Tvilling: maybeRunDuckNative.
+            _plan = _duck_db.plan_preview_run(_stmts) if _preview else None
+            if _plan is None:
+                if _sql.strip():
+                    await _duck_js.__duck.exec(_sql)
+            else:
+                if _duck_db._scrub(_plan["body"]).strip():
+                    await _duck_js.__duck.exec(_plan["body"])
+                _pt = _duck_db.quote_ident(_plan["table"])
+                await _duck_js.__duck.exec(_plan["preview"])
+                try:
+                    _cnt = (await _duck_js.__duck.query("SELECT count(*) AS n FROM " + _pt)).to_py()
+                    _nlist = _cnt.get("n") or [0]
+                    _total = int(_nlist[0]) if _nlist else 0
+                    _cols = (await _duck_js.__duck.query("SELECT * FROM " + _pt + " LIMIT 400")).to_py()
+                finally:
+                    try:
+                        await _duck_js.__duck.exec("DROP TABLE IF EXISTS " + _pt)
+                    except Exception:
+                        pass
                 _pv = pd.DataFrame(_cols)
                 _out.append(_pv.to_string(index=False) if len(_pv) else "(0 rader)")
                 if _total > 400:
                     _out.append(str(_total) + " rader — viser de første 400. Bruk CREATE TABLE navn AS … for å lagre som datasett.")
             for _name in _created:
-                _cc = (await _duck_js.__duck.query('SELECT * FROM "' + _name + '"')).to_py()
+                _cc = (await _duck_js.__duck.query("SELECT * FROM " + _duck_db.quote_ident(_name))).to_py()
                 _df = pd.DataFrame(_cc)
                 _datasets[_name] = _df
+                e._duck_src[_name.lower()] = _df
                 if not _preview:
                     _out.append("Opprettet datasett " + _name + " (" + str(len(_df)) + " rader × " + str(_df.shape[1]) + " kolonner)")
         finally:
@@ -9045,14 +9140,14 @@ async def _run_duck_sql(_sql, _fresh=True):
 # ── Variabel-montering (# connect/create-dataset/import/join) ──
 _asm = json.loads(${JSON.stringify(JSON.stringify(payload))})
 for _an in (_asm.get('cols') or {}):
-    to_microdata(pd.DataFrame(_asm['cols'][_an]), name=_an, make_active=False)
+    register_dataset(pd.DataFrame(_asm['cols'][_an]), name=_an, make_active=False)
 if _asm.get('spec'):
     _asrc = {}
     for _f in _asm['files']:
         _asrc[_f['alias']] = pd.read_parquet(_f['path']) if _f['format'] == 'parquet' else pd.read_csv(_f['path'])
     for _ds in _asm['spec']['datasets']:
         if _ds.get('load'):
-            to_microdata(_asrc[_ds['load']].copy(), name=_ds['name'], make_active=False)
+            register_dataset(_asrc[_ds['load']].copy(), name=_ds['name'], make_active=False)
             continue
         _key = list(_ds.get('key') or [])   # composite keys: alltid liste
         _acc = None
@@ -9065,7 +9160,7 @@ if _asm.get('spec'):
                 if _acc is None:
                     raise ValueError('join krever minst én import først i «' + _ds['name'] + '»')
                 _acc = _acc.merge(e.datasets[_st['from']], on=list(_st['on']), how=_st['how'])
-        to_microdata(_acc, name=_ds['name'], make_active=False)
+        register_dataset(_acc, name=_ds['name'], make_active=False)
 `;
     }
 
@@ -9093,12 +9188,12 @@ if _asm.get('spec'):
           var info = {};
           for (var i = 0; i < names.length; i++) {
             var nm = String(names[i]);
-            var ident = nm.replace(/"/g, '""');
-            var desc = __arrowToColumns(await conn.query('DESCRIBE "' + ident + '"'));
+            var ident = window.DuckdbNative.quoteIdent(nm);
+            var desc = __arrowToColumns(await conn.query('DESCRIBE SELECT * FROM ' + ident));
             var cols = (desc.column_name || []).map(String);
             var dtypes = {};
             cols.forEach(function (c, j) { dtypes[c] = __duckTypeToPandas((desc.column_type || [])[j]); });
-            var cnt = __arrowToColumns(await conn.query('SELECT count(*) AS n FROM "' + ident + '"'));
+            var cnt = __arrowToColumns(await conn.query('SELECT count(*) AS n FROM ' + ident));
             info[nm] = { columns: cols, dtypes: dtypes, nrows: Number((cnt.n || [0])[0]), runtime: 'duckdb' };
           }
           window.lastDatasetInfo = info;
@@ -9181,13 +9276,25 @@ if _asm.get('spec'):
             if (_l.format === 'parquet') await window.__duck.registerTable(_l.alias, _l.bytes);
             else await window.__duck.registerCsv(_l.alias, _l.bytes);
           }
-          await window.__duck.exec(_sql);
           var _stmts = DN.splitSqlStatements(_sql);
           var _preview = DN.buildPreviewSelect(_stmts);
-          if (_preview) {
-            var _cnt = await window.__duck.query('SELECT count(*) AS n FROM (' + _preview + '\n) _q');
+          // Preview-SELECT-en kjøres ÉN gang inn i en temp-tabell (review
+          // B11a) — speiler _run_duck_sql (duckdb_bridge.plan_preview_run).
+          var _plan = _preview ? DN.planPreviewRun(_stmts) : null;
+          if (!_plan) {
+            await window.__duck.exec(_sql);
+          } else {
+            if (DN.scrub(_plan.body).trim()) await window.__duck.exec(_plan.body);
+            var _pt = DN.quoteIdent(_plan.table);
+            await window.__duck.exec(_plan.preview);
+            var _cnt, _cols;
+            try {
+              _cnt = await window.__duck.query('SELECT count(*) AS n FROM ' + _pt);
+              _cols = await window.__duck.query('SELECT * FROM ' + _pt + ' LIMIT 400');
+            } finally {
+              try { await window.__duck.exec('DROP TABLE IF EXISTS ' + _pt); } catch (e) {}
+            }
             var _total = Number((_cnt.n || [0])[0] || 0);
-            var _cols = await window.__duck.query('SELECT * FROM (' + _preview + '\n) _q LIMIT 400');
             var _keys = Object.keys(_cols);
             var _shown = _keys.length ? _cols[_keys[0]].length : 0;
             _out.push(_shown ? DN.formatColumnsText(_cols) : '(0 rader)');
@@ -9196,9 +9303,9 @@ if _asm.get('spec'):
           if (!_preview) {
             var _created = DN.extractCreatedTables(_stmts);
             for (var _ci = 0; _ci < _created.length; _ci++) {
-              var _ident = _created[_ci].replace(/"/g, '""');
-              var _cc = await window.__duck.query('SELECT count(*) AS n FROM "' + _ident + '"');
-              var _dd = await window.__duck.query('DESCRIBE "' + _ident + '"');
+              var _ident = DN.quoteIdent(_created[_ci]);
+              var _cc = await window.__duck.query('SELECT count(*) AS n FROM ' + _ident);
+              var _dd = await window.__duck.query('DESCRIBE SELECT * FROM ' + _ident);
               _out.push('Opprettet datasett ' + _created[_ci] + ' (' +
                 Number((_cc.n || [0])[0] || 0) + ' rader × ' + ((_dd.column_name || []).length) + ' kolonner)');
             }
@@ -10108,36 +10215,6 @@ json.dumps(out)
       }
 
       const normalized = normalizeBlockMarkers(src, 'r');
-      var hasMarkers = /^##\s*(r|microdata|micro|pyodide|python)\s*$/im.test(normalized);
-      // Notatbok aktiv (browser-diagnostisert, plassfase Task 2): legacy-
-      // heuristikken "hasMarkers ? 'microdata' : 'r'" er fra FØR notatbok-
-      // cellemodellen (f46c169, opprinnelig fork) — designet for håndskrevne
-      // flate R+microdata-hybridscript der UMARKERT tekst FØR første eksplisitt
-      // ##-markør konvensjonelt var microdata-oppsett. I en notatbok er `src`
-      // ALLTID Cells.executableSource()-output: HVER kodecelle får sin egen
-      // '## <kind>'-markør UNNTATT den underforståtte preambelen (celle 0,
-      // headerRaw null) — Cells.alignPlan sin egen expectedKind() forventer
-      // DERFOR at preambelen kjører som docMode ('r'), ALDRI 'microdata'.
-      // Uten dette unntaket klassifiseres preambelen (typisk kun # label:/
-      // #options.*/# load-direktiv-linjer) som 'microdata' så snart NOEN
-      // annen celle har en eksplisitt markør (så godt som alltid sant for
-      // notatbøker) — _rUiPlan under blir da ALLTID null (segmentKinds sin
-      // lengde OG element 0 stemmer ikke med alignPlan sine forventninger),
-      // og ui-verdi-injeksjonen lenger ned kan aldri finne en celleindeks.
-      // Verifisert i nettleser: dette var ROTÅRSAKEN til at rex_widgets_ui.txt
-      // sin Kjør alle ikke rendret kontroller under selve implementeringen.
-      //
-      // Gates KUN på Cells.active() (UI_R_REGEX-tillegget fjernet 2026-07-18):
-      // den gamle ekstra-gaten fantes for plasserings-fasens «byte-identisk
-      // med før»-krav, men R per-celle-attribusjonen (spec 2026-07-18) gjør
-      // kind-klassifiseringen LASTBÆRENDE for alle notatbøker — med gaten på
-      // fikk et ui-FRITT notatbok-dokument preamblen klassifisert 'microdata',
-      // alignPlan feilet, og beginRun purget cellene men returnerte null →
-      // tomme cellebokser + alt output i trailing (brukerrapportert). I et
-      // #%%-notatbok-dokument i R-modus er en umarkert preambel R (samme
-      // docMode-default som pyodide-familien) — legacy ##-hybridskript uten
-      // Cells.active() beholder microdata-heuristikken uendret.
-      var _rNbActiveForDefault = !!(window.Cells && window.Cells.active());
       // Umerket kode i R-modus er R — den gamle heuristikken «markør-script ⇒
       // umerket preamble er microdata» utgikk med microdata-blokkene (2026-07-24).
       const segments = parseHybridScript(normalized, 'r');
@@ -10162,7 +10239,6 @@ json.dumps(out)
       var _rUses = [];
       _rSegsAll.forEach(function (s) { if (s.kind === 'r') _rUses.push.apply(_rUses, s.uses || []); });
 
-      var microdataSegs = _rSegsAll.filter(function(s) { return s.kind === 'microdata' && (s.text || '').trim(); });
       // rSegOrigIdx (plassfase Task 2): rSegs er et FILTER av _rSegsAll (dropper
       // microdata + blanke tekster) — parallell indeks rSegOrigIdx[ri] peker
       // tilbake til rSegs[ri] sin posisjon i _rSegsAll, som er ARRAYET
@@ -10221,13 +10297,11 @@ json.dumps(out)
           }
           await ensurePyarrowFor(py);
           py.globals.set('_use_r_name', _u5.name);
-          py.globals.set('_use_er_ok', microdataSegs.length > 0);
           var _uRes = JSON.parse(String(await py.runPythonAsync([
             'import __main__ as _m_u, json as _ju, base64 as _b64u, io as _iou, pandas as _pdu',
             '_df_u = None',
-            '_er_src = getattr(getattr(_m_u, "_e_r", None), "datasets", None) if _use_er_ok else None',
             '_mi_src = getattr(getattr(_m_u, "micro_interpreter", None), "datasets", None)',
-            'for _srcd in (_er_src, _mi_src, getattr(_m_u, "_g", None)):',
+            'for _srcd in (_mi_src, getattr(_m_u, "_g", None)):',
             '    if isinstance(_srcd, dict) and _use_r_name in _srcd and isinstance(_srcd[_use_r_name], _pdu.DataFrame):',
             '        _df_u = _srcd[_use_r_name]',
             '        break',
@@ -10866,9 +10940,9 @@ json.dumps(out)
           }
         } catch (e) { pyInterruptBuf = null; }
       }
-      // Pyodide-bundlede pakker som m2py.py + functions.py trenger ved import-tid:
-      // numpy/pandas/scipy/micropip/setuptools. statsmodels er nå lazy i m2py.py
-      // (se _ensure_statsmodels) og prefetches etter Ready.
+      // Pyodide-bundlede pakker som kjernen (getInterpreterCorePython) og
+      // vanlig brukerkode trenger: numpy/pandas/scipy/micropip/setuptools.
+      // statsmodels prefetches i bakgrunn etter Ready.
       setStatus(leftStatus, 'Loading numpy, pandas, scipy, micropip, setuptools...');
       try {
         await pyodide.loadPackage([
@@ -10899,8 +10973,8 @@ json.dumps(out)
         });
         await pyodide.runPythonAsync('import pyodide_http\npyodide_http.patch_urllib()');
       } catch (e) { console.warn('patch_urllib hoppet over:', e); }
-      // plotly er PyPI (ikke bundlet) og importeres inne i figurkommandoer i m2py.py
-      // — auto-install i run-handler ser ikke disse, så vi installerer eager.
+      // plotly er PyPI (ikke bundlet) og brukes av kjernens visning (_show_one,
+      // plotly-show-patchen) — installeres eager.
       // matplotlib, lifelines og linearmodels prefetches i bakgrunn etter Ready (B2).
       try {
         setStatus(leftStatus, 'Installing plotly...');
@@ -11440,7 +11514,7 @@ async def _m2py_run_segment(_seg_json):
     if _k == "pyodide":
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
         # _nb (satt av JS-segmentløkken, kun for notatbok-celler): overstyrer
         # echo/only_last per segment — spec §4 "Display policy". Fraværende
         # _nb (preambel, ikke-notatbok, #options.display=all) → dagens atferd.
@@ -11449,7 +11523,7 @@ async def _m2py_run_segment(_seg_json):
         _exec_pyodide_block(_st, _g, _sc, bool(_nb.get("last")))
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
     elif _k == "duckdb":
         e.sync_datasets_to_globals(_g)
         try:
@@ -11462,7 +11536,7 @@ async def _m2py_run_segment(_seg_json):
             return "stop"
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
     return "ok"
 `;
         setStatus(rightStatus, 'Running...');
@@ -12108,8 +12182,8 @@ async def _m2py_run_segment(_seg_json):
             if (py && typeof py.setStdout === 'function') py.setStdout();
             if (py && typeof py.setStderr === 'function') py.setStderr();
             if (_capErr) console.warn('[stderr]', _capErr.trim());
-            // microdata-DSL-feil ("FEIL:"/oversatt "ERROR:") stopper IKKE
-            // _m2py_run_segment (ikke-fatalt per design, se m2py.py _log) —
+            // Tekstlige feilmarkører ("FEIL:"/oversatt "ERROR:") stopper IKKE
+            // _m2py_run_segment (arv fra den fjernede microdata-tolken) —
             // egen tekst-skanning her oppdager at en TIDLIGERE celle feilet
             // under kjøring fra toppen. rc === 'stop' dekker DuckDB-grenen;
             // ekte unntak (f.eks. en '## python'-celle i dokumentet) dekkes
@@ -12749,10 +12823,10 @@ async def _m2py_run_segment(_seg_json):
             await py.runPythonAsync(
               'import json\n_st = json.loads(' + JSON.stringify(JSON.stringify(block.code)) + ')\n' +
               'e.sync_datasets_to_globals(_g)\n' +
-              '_g["show"] = show\n_g["to_microdata"] = to_microdata\n' +
+              '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n' +
               '_exec_pyodide_block(_st, _g)\n' +
               'e.sync_datasets_to_globals(_g)\n' +
-              '_g["show"] = show\n_g["to_microdata"] = to_microdata\n'
+              '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n'
             );
             await new Promise(function(resolve) { setTimeout(resolve, 0); });
           } finally {
@@ -12985,10 +13059,10 @@ async def _m2py_run_segment(_seg_json):
                 await py.runPythonAsync(
                   'import json\n_st = json.loads(' + JSON.stringify(JSON.stringify(block.code)) + ')\n' +
                   'e.sync_datasets_to_globals(_g)\n' +
-                  '_g["show"] = show\n_g["to_microdata"] = to_microdata\n' +
+                  '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n' +
                   '_exec_pyodide_block(_st, _g)\n' +
                   'e.sync_datasets_to_globals(_g)\n' +
-                  '_g["show"] = show\n_g["to_microdata"] = to_microdata\n'
+                  '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n'
                 );
                 await new Promise(function(resolve) { setTimeout(resolve, 0); });
               } finally {

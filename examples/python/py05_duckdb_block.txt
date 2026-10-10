@@ -6,7 +6,7 @@ people = pd.DataFrame({
     "gender": ["Male", "Female", "Male", "Female", "Male", "Female"],
     "income": [450000, 620000, 810000, 530000, 210000, 690000],
 })
-to_microdata(people, "people")
+register_dataset(people, "people")
 
 #duckdb
 CREATE OR REPLACE TABLE summary AS

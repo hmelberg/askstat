@@ -28,6 +28,31 @@ def test_logrank_nan_varighet():
         L.multivariate_logrank_test([1, NAN, 3, 4], ["a", "a", "b", "b"])
 
 
+def test_logrank_manglende_gruppe():
+    # B11h: hver NaN-gruppe var sin egen gruppe (nan != nan) og blåste opp df
+    with pytest.raises(ValueError, match="gruppe"):
+        L.multivariate_logrank_test([1, 2, 3, 4, 5], ["a", NAN, "b", NAN, "b"])
+    with pytest.raises(ValueError, match="gruppe"):
+        L.multivariate_logrank_test([1, 2, 3, 4], ["a", None, "b", "b"])
+
+
+def test_logrank_lengdeavvik():
+    with pytest.raises(ValueError, match="lengde"):
+        L.multivariate_logrank_test([1, 2, 3, 4], ["a", "a", "b"])
+    with pytest.raises(ValueError, match="lengde"):
+        L.multivariate_logrank_test([1, 2, 3, 4], ["a", "a", "b", "b"], [1, 0, 1])
+
+
+def test_logrank_nan_gruppe_ga_ikke_ekstra_frihetsgrader():
+    r = L.multivariate_logrank_test([1, 2, 3, 4], ["a", "a", "b", "b"])
+    assert r.degrees_of_freedom == 1
+
+
+def test_cox_tomt_datasett():
+    with pytest.raises(ValueError, match="rader"):
+        L.CoxPHFitter().fit({"T": [], "E": [], "x": []}, duration_col="T", event_col="E")
+
+
 def test_km_uten_nan_virker_som_for():
     k = L.KaplanMeierFitter().fit([1, 2, 3, 4], [1, 0, 1, 1])
     assert k is not None

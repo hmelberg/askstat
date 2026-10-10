@@ -24,7 +24,60 @@
     // the latest refresh's promise so openJmvAnalysis can await it first.
     var jmvPickerP = null;
 
-    // Write a single edited cell back to the engine's pandas DataFrame.
+    // Skriv én redigert celle tilbake (review B11i): verdien tvinges til
+    // kolonnens dtype — Tabulator gir ofte tekst («7», «3,25») — og en
+    // int-kolonne oppkastes til float for 2.5 / til Int64 for tom celle i
+    // stedet for at .at kaster. Ugyldig verdi -> ValueError med kolonnenavn.
+    // Testet mot ekte pandas i tests/test_jamovi_writeback.py.
+    var JMV_WRITEBACK_PY = [
+      'import pandas as _pd',
+      '_df = e.datasets[e.active_name]',
+      '_s = _df[_wb_col]',
+      '_v = _wb_val',
+      'if isinstance(_v, str) and _v.strip() == "":',
+      '    _v = None',
+      '_ext = _pd.api.types.is_extension_array_dtype(_s)',
+      'def _jmv_num(v):',
+      '    if isinstance(v, bool):',
+      '        return int(v)',
+      '    if isinstance(v, (int, float)):',
+      '        return v',
+      '    try:',
+      '        return float(str(v).strip().replace(",", "."))',
+      '    except ValueError:',
+      '        raise ValueError("Kolonnen «" + str(_wb_col) + "» er numerisk — «" + str(v) + "» er ikke et tall") from None',
+      'if _v is None:',
+      '    if _pd.api.types.is_integer_dtype(_s) and not _ext:',
+      '        _df[_wb_col] = _s.astype("Int64")',
+      '    elif _pd.api.types.is_bool_dtype(_s) and not _ext:',
+      '        _df[_wb_col] = _s.astype("boolean")',
+      '    if _pd.api.types.is_float_dtype(_s) and not _ext:',
+      '        _v = float("nan")',
+      '    elif _pd.api.types.is_datetime64_any_dtype(_s):',
+      '        _v = _pd.NaT',
+      '    else:',
+      '        _v = _pd.NA',
+      'elif _pd.api.types.is_bool_dtype(_s):',
+      '    _t = str(_v).strip().lower()',
+      '    if _t in ("true", "1", "ja", "yes", "sann"):',
+      '        _v = True',
+      '    elif _t in ("false", "0", "nei", "no", "usann"):',
+      '        _v = False',
+      '    else:',
+      '        raise ValueError("Kolonnen «" + str(_wb_col) + "» er sann/usann — «" + str(_v) + "» er ikke gyldig")',
+      'elif _pd.api.types.is_integer_dtype(_s):',
+      '    _v = _jmv_num(_v)',
+      '    if float(_v).is_integer():',
+      '        _v = int(_v)',
+      '    else:',
+      '        _df[_wb_col] = _s.astype("Float64" if _ext else "float64")',
+      'elif _pd.api.types.is_float_dtype(_s):',
+      '    _v = float(_jmv_num(_v))',
+      'elif _pd.api.types.is_datetime64_any_dtype(_s):',
+      '    _v = _pd.Timestamp(_v)',
+      '_df.at[_wb_id, _wb_col] = _v'
+    ].join('\n');
+
     async function jamoviWriteBack(cell) {
       try {
         var py = await M.loadPyodideAndM2py();
@@ -32,16 +85,39 @@
         py.globals.set('_wb_id', cell.getRow().getData().__rowid__);
         py.globals.set('_wb_col', cell.getField());
         py.globals.set('_wb_val', (v === '' ? null : v));
-        await py.runPythonAsync(
-          'import pandas as _pd\n' +
-          '_df = e.datasets[e.active_name]\n' +
-          '_df.at[_wb_id, _wb_col] = (_pd.NA if _wb_val is None else _wb_val)'
-        );
+        await py.runPythonAsync(JMV_WRITEBACK_PY);
       } catch (e) {
-        M.setStatus(M.rightStatus, 'Lagring feilet: ' + (e.message || e));
-        setTimeout(function(){ M.setStatus(M.rightStatus, ''); }, 2500);
+        // Ikke bare et blink i statuslinjen: rull cellen tilbake så tabellen
+        // ikke viser en verdi som aldri ble lagret, og la feilen bli stående.
+        var msg = String((e && e.message) || e);
+        var lines = msg.trim().split('\n');
+        var last = lines[lines.length - 1].replace(/^\w*Error:\s*/, '');
+        try { if (cell.restoreOldValue) cell.restoreOldValue(); } catch (e2) {}
+        M.setStatus(M.rightStatus, T('Lagring feilet: {msg}', { msg: last }));
       }
     }
+
+    // Ny tom rad med ferskt indeks-label. Heltallsindeks -> max+1; ellers
+    // (tekst-/blandet indeks, review B11i) første ledige heltall fra len(df)
+    // — int(index.max()) kastet for en tekstindeks.
+    var JMV_ADDROW_PY = [
+      'import pandas as _pd',
+      '_df = e.datasets[e.active_name]',
+      'for _c in _df.columns:',
+      '    if not _pd.api.types.is_extension_array_dtype(_df[_c]):',
+      '        if _pd.api.types.is_integer_dtype(_df[_c]): _df[_c] = _df[_c].astype("Int64")',
+      '        elif _pd.api.types.is_bool_dtype(_df[_c]): _df[_c] = _df[_c].astype("boolean")',
+      'if len(_df) == 0:',
+      '    _ni = 0',
+      'elif _pd.api.types.is_integer_dtype(_df.index):',
+      '    _ni = int(_df.index.max()) + 1',
+      'else:',
+      '    _ni = len(_df)',
+      '    while _ni in _df.index:',
+      '        _ni += 1',
+      '_df.loc[_ni] = _pd.NA',
+      '_ni'
+    ].join('\n');
 
     // Data tab actions: add row, delete selected row(s), compute a new variable.
     async function jamoviAddRow() {
@@ -50,12 +126,7 @@
       // append an all-missing row at the end with a fresh index, return its id
       // int/bool-kolonner gjøres nullable først: en NA-rad ville ellers gjort
       // dem om til object, og jamoviVariables() ville da vist dem som nominal.
-      var newId = await py.runPythonAsync('import pandas as _pd\n_df = e.datasets[e.active_name]\n' +
-        'for _c in _df.columns:\n' +
-        '    if not _pd.api.types.is_extension_array_dtype(_df[_c]):\n' +
-        '        if _pd.api.types.is_integer_dtype(_df[_c]): _df[_c] = _df[_c].astype("Int64")\n' +
-        '        elif _pd.api.types.is_bool_dtype(_df[_c]): _df[_c] = _df[_c].astype("boolean")\n' +
-        '_ni = (int(_df.index.max())+1) if len(_df) else 0\n_df.loc[_ni] = _pd.NA\n_ni');
+      var newId = await py.runPythonAsync(JMV_ADDROW_PY);
       // re-render and bring the new (empty) row into view + highlight it
       renderDataView(typeof newId === 'number' ? newId : Number(newId));
     }
@@ -256,9 +327,11 @@
       if (!name) return;
       var py = await M.loadPyodideAndM2py();
       py.globals.set('_ds_name', name);
+      // Synk inn i _g — navnerommet ALL brukerkode kjører i (se
+      // getInterpreterCorePython) — ikke __main__ sin globals() (review B11i).
       var infoJson = String(await py.runPythonAsync(
         'e.active_name = _ds_name\n' +
-        'try:\n    e.sync_datasets_to_globals(globals())\nexcept Exception:\n    pass\n' +
+        'try:\n    e.sync_datasets_to_globals(_g if "_g" in globals() else globals())\nexcept Exception:\n    pass\n' +
         'import json as _j\n_df = e.datasets[_ds_name]\n_j.dumps({"columns": list(map(str,_df.columns)), "dtypes": {str(c): str(_df[c].dtype) for c in _df.columns}, "nrows": int(len(_df))})'
       ));
       window.activeDatasetName = name;
@@ -591,7 +664,7 @@
           '_df = _pd.read_csv(_io.StringIO(' + JSON.stringify(csv) + '))\n' +
           'e.datasets[' + JSON.stringify(ex.name) + '] = _df\n' +
           'e.active_name = ' + JSON.stringify(ex.name) + '\n' +
-          'try:\n    e.sync_datasets_to_globals(globals())\nexcept Exception:\n    pass\n' +
+          'try:\n    e.sync_datasets_to_globals(_g if "_g" in globals() else globals())\nexcept Exception:\n    pass\n' +
           '_j.dumps({"columns": list(map(str,_df.columns)), "dtypes": {str(c): str(_df[c].dtype) for c in _df.columns}, "nrows": int(len(_df))})'
         ));
         var info = JSON.parse(infoJson);

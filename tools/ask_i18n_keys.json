@@ -195,5 +195,6 @@
   "← Back to list",
   "⚠ Last polish run failed — the numbers come from an earlier successful run",
   "⚠ Not verified with code or data — plain model answer",
-  "⚠ The code did not run successfully — treat numbers with caution"
+  "⚠ The code did not run successfully — treat numbers with caution",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it."
 ]

@@ -216,3 +216,59 @@ test('buildHistoryEntry: defaults uten profil/script', () => {
   assert.equal(e.badgeText, null);
   assert.equal(e.badgeWarn, false);
 });
+
+// S3 (review 2026-10-10): modellskrevet kode auto-kjøres i app-originen.
+// Med websøk på kan en prompt-injeksjon få modellen til å lese nøkler fra
+// nettleserlagringen — scanSecretAccess flagger slike mønstre så Ask krever
+// eksplisitt bekreftelse før kjøring.
+test('scanSecretAccess: vanlig analysekode → ingen treff', () => {
+  assert.deepStrictEqual(askView.scanSecretAccess('import pandas as pd\ndf = pd.read_csv("x.csv")\nprint(df.describe())'), []);
+  assert.deepStrictEqual(askView.scanSecretAccess('library(ggplot2)\nsummary(lm(y ~ x, data = d))'), []);
+  assert.deepStrictEqual(askView.scanSecretAccess('SELECT count(*) FROM t'), []);
+  assert.deepStrictEqual(askView.scanSecretAccess("r = requests.get(url, headers={'k': KEYS['fred']})"), []);
+  assert.deepStrictEqual(askView.scanSecretAccess('import json\nfrom jsonschema import validate'), []);
+  assert.deepStrictEqual(askView.scanSecretAccess(''), []);
+  assert.deepStrictEqual(askView.scanSecretAccess(null), []);
+});
+
+test('scanSecretAccess: nettleserlagring og JS-broer flagges', () => {
+  const cases = [
+    'x = localStorage.getItem("md_keys")',
+    'window.sessionStorage.key(0)',
+    'indexedDB.open("x")',
+    'const c = document.cookie',
+    'caches.open("m2py")',
+    'import js\nprint(js.window.name)',
+    'from js import localStorage',
+    'from js import fetch',
+    'import pyodide.code\npyodide.code.run_js("1")',
+    'from pyodide.code import run_js',
+    'webr::eval_js("1+1")',
+    'eval(await (await fetch(u)).text())',
+    'new Function(src)()',
+    'navigator.sendBeacon(u, d)',
+    'window.Keys.getAll()',
+  ];
+  for (const c of cases) {
+    assert.ok(askView.scanSecretAccess(c).length > 0, c);
+  }
+});
+
+test('scanSecretAccess: returnerer unike etiketter', () => {
+  const hits = askView.scanSecretAccess('localStorage.a; localStorage.b; document.cookie');
+  assert.deepStrictEqual(hits, ['localStorage', 'document.cookie']);
+});
+
+// S4: kilde-URL-er kan være prompt-injisert — bare http(s) blir lenke.
+test('sourceLinkHtml: http(s) blir lenke, javascript: blir ren tekst', () => {
+  const ok = askView.sourceLinkHtml({ url: 'https://ssb.no/x?a=1&b=2', ok: true });
+  assert.match(ok, /<a href="https:\/\/ssb\.no\/x\?a=1&amp;b=2"/);
+  const bad = askView.sourceLinkHtml({ url: 'javascript:alert(1)', ok: false });
+  assert.doesNotMatch(bad, /<a /);
+  assert.match(bad, /javascript:alert\(1\)/);
+  const bad2 = askView.sourceLinkHtml({ url: ' JaVaScRiPt:alert(1)' });
+  assert.doesNotMatch(bad2, /<a /);
+  const proxy = askView.sourceLinkHtml({ url: 'http://x.org', viaProxy: true });
+  assert.match(proxy, /\(via proxy\)/);
+  assert.doesNotMatch(askView.sourceLinkHtml({ url: null }), /<a /);
+});

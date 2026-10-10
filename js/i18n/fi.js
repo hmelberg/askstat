@@ -121,6 +121,7 @@ window.M2PY_I18N.fi = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Viimeinen viimeistelyajo epäonnistui — luvut ovat aiemmasta onnistuneesta ajosta",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ei todennettu koodilla tai datalla — pelkkä mallivastaus",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koodi ei ajautunut onnistuneesti — suhtaudu lukuihin varauksella",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Luotu koodi käsittelee selaimen tallennustilaa tai JavaScript-siltaa ({what}). Se voi lukea tallennetut API-avaimesi tai kirjautumisesi. Suorita se vain, jos olet tarkistanut sen.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Muiden käyttäjien jakamia kuratoituja paketteja. Lue esikatselu ja tuo oma kopiosi — tuodut paketit näkyvät lähdepakettivalitsimessa.",
   "Import": "Tuo",

@@ -130,6 +130,7 @@ window.M2PY_I18N.no = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Siste poleringskjøring feilet — tallene kommer fra en tidligere vellykket kjøring",
   "⚠ Not verified with code or data — plain model answer": "⚠ Ikke verifisert med kode eller data — rent modellsvar",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Koden kjørte ikke vellykket — behandle tallene med varsomhet",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Den genererte koden berører nettleserlagring eller JavaScript-broen ({what}). Den kan lese de lagrede API-nøklene eller innloggingen din. Kjør den bare hvis du har sjekket den.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuraterte pakker delt av andre brukere. Les forhåndsvisningen og importer din egen kopi — importerte pakker dukker opp i kildepakke-velgeren.",
   "Import": "Importer",

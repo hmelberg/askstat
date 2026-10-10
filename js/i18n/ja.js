@@ -121,6 +121,7 @@ window.M2PY_I18N.ja = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ 最後の仕上げ実行が失敗——数字は以前の成功した実行に基づきます",
   "⚠ Not verified with code or data — plain model answer": "⚠ コードやデータで検証されていません——モデルの回答のみ",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ コードが正常に実行されませんでした——数字は慎重に扱ってください",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ 生成されたコードはブラウザのストレージまたは JavaScript ブリッジ（{what}）にアクセスします。保存済みの API キーやログイン情報を読み取る可能性があります。確認した場合のみ実行してください。",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "他のユーザーが共有した厳選パック。プレビューを読んでから自分用のコピーをインポートしてください——インポートしたパックはソースパック選択に表示されます。",
   "Import": "インポート",

@@ -121,6 +121,7 @@ window.M2PY_I18N.de = {
   "⚠ Last polish run failed — the numbers come from an earlier successful run": "⚠ Letzter Feinschliff-Lauf fehlgeschlagen — die Zahlen stammen aus einem früheren erfolgreichen Lauf",
   "⚠ Not verified with code or data — plain model answer": "⚠ Nicht mit Code oder Daten verifiziert — reine Modellantwort",
   "⚠ The code did not run successfully — treat numbers with caution": "⚠ Der Code lief nicht fehlerfrei — behandle die Zahlen mit Vorsicht",
+  "⚠ The generated code touches browser storage or the JavaScript bridge ({what}). It could read your stored API keys or login. Run it only if you have checked it.": "⚠ Der generierte Code greift auf den Browserspeicher oder die JavaScript-Brücke zu ({what}). Er könnte deine gespeicherten API-Schlüssel oder deine Anmeldung lesen. Führe ihn nur aus, wenn du ihn geprüft hast.",
 
   "Curated packs shared by other users. Read the preview, then import your own copy — imported packs appear in the source-pack picker.": "Kuratierte Pakete anderer Nutzer. Lies die Vorschau und importiere deine eigene Kopie — importierte Pakete erscheinen im Quellenpaket-Wähler.",
   "Import": "Importieren",

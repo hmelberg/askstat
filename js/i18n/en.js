@@ -2,12 +2,12 @@
 // whitespace-collapsed — exactly what the DOM/t() sees). Missing entry = the
 // UI shows the Norwegian source; nothing breaks. Values for elements marked
 // data-i18n-html may contain HTML (authored here, in-repo).
-window.M2PY_I18N = window.M2PY_I18N || {  "OpenStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv i Python, R eller SQL (DuckDB); kjør i nettleseren.": "OpenStat is an engine for asking questions that can be answered with code and statistics — and for seeing and revising the code behind the answer. Write in Python, R or SQL (DuckDB); run in the browser.",
-  "Statx/Stata-modus er fjernet fra OpenStat — bruk python eller R.": "Statx/Stata mode has been removed from OpenStat — use python or R.",
+window.M2PY_I18N = window.M2PY_I18N || {  "AskStat er en motor for å stille spørsmål som kan besvares med kode og statistikk — og for å se og endre koden som gir svaret. Skriv i Python, R eller SQL (DuckDB); kjør i nettleseren.": "AskStat is an engine for asking questions that can be answered with code and statistics — and for seeing and revising the code behind the answer. Write in Python, R or SQL (DuckDB); run in the browser.",
+  "Statx/Stata-modus er fjernet fra AskStat — bruk python eller R.": "Statx/Stata mode has been removed from AskStat — use python or R.",
   "Gjenopprettet ulagret utkast.": "Restored unsaved draft.",
   "Monterer datasett (DuckDB)…": "Assembling datasets (DuckDB)…",
   "Monterer datasett…": "Assembling datasets…",
-  "Montering støtter ikke beskyttede kilder i OpenStat.": "Assembly does not support protected sources in OpenStat.",
+  "Montering støtter ikke beskyttede kilder i AskStat.": "Assembly does not support protected sources in AskStat.",
   "Montering i denne modusen krever parquet/csv-kilder — bruk python-modus for andre formater.": "Assembly in this mode requires parquet/csv sources — use python mode for other formats.",
   "Tilkoblede kilder": "Connected sources",
   "variabler (ikke nedlastet)": "variables (not downloaded)",
@@ -798,7 +798,7 @@ window.M2PY_I18N.en = {
   "Kunne ikke eksportere: {msg}": "Could not export: {msg}",
   "Eksportert med {n} merknader — se kommentarene i scriptet": "Exported with {n} notes — see the comments in the script",
   "Portabelt script kopiert til utklippstavlen": "Portable script copied to the clipboard",
-  "Microdata-blokker støttes ikke i OpenStat. Bruk microdata-appen (https://hmelberg.github.io/microdata/) for å øve på microdata.no-syntaks.": "Microdata blocks are not supported in OpenStat. Use the microdata app (https://hmelberg.github.io/microdata/) to practice microdata.no syntax.",
+  "Microdata-blokker støttes ikke i AskStat. Bruk microdata-appen (https://hmelberg.github.io/microdata/) for å øve på microdata.no-syntaks.": "Microdata blocks are not supported in AskStat. Use the microdata app (https://hmelberg.github.io/microdata/) to practice microdata.no syntax.",
   "Kjør skrittvis støttes ikke i denne modusen — bruk Kjør.": "Step-by-step run is not supported in this mode — use Run.",
 
   // ── Metadata-sidebar (spec 2026-07-25-metadata-sidebar-design) ──

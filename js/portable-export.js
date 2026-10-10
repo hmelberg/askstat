@@ -8,7 +8,7 @@
   'use strict';
 
   var HEADER = [
-    '# ── Portabel eksport fra OpenStat ──',
+    '# ── Portabel eksport fra AskStat ──',
     '# «# read»-direktivene er oversatt til frittstående lastekode.',
     '# Generert av appen — rediger fritt.',
   ];
@@ -45,7 +45,7 @@
   var _EO_VAL = '(?:"[^"]*"|\'[^\']*\'|[^,)\\s]+)';
   var EDITOR_ONLY_COMMA_RE = new RegExp(',[ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL, 'gi');
   var EDITOR_ONLY_PAREN_RE = new RegExp('\\([ \\t]*(?:secret_key|exec|cache)[ \\t]*=[ \\t]*' + _EO_VAL + '[ \\t]*,?[ \\t]*', 'gi');
-  var EDITOR_ONLY_NOTE = '# editor-argumenter (secret_key/exec/cache) er fjernet — de virker bare i OpenStat';
+  var EDITOR_ONLY_NOTE = '# editor-argumenter (secret_key/exec/cache) er fjernet — de virker bare i AskStat';
 
   function scrubDirectiveLine(line, DD, state) {
     if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) {
@@ -171,7 +171,7 @@
     // ikke noe .url-felt i det hele tatt (se DataDirectives.resolve), så en
     // decodeHentUrl(undefined) lenger ned ville kastet TypeError.
     if (item.anvil || item.exec === 'remote' || item.key) {
-      out.lines.push('# (denne kilden krever OpenStat-appen — hopp over eller erstatt manuelt: «' + item.alias + '»)');
+      out.lines.push('# (denne kilden krever AskStat-appen — hopp over eller erstatt manuelt: «' + item.alias + '»)');
       warnings.push('«' + item.alias + '»: kilden krever appen (kryptert/registrert/remote) og ble ikke transpilert');
       return out.lines;
     }

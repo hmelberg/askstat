@@ -3560,11 +3560,11 @@
     // not here — referencing activeEditorMode this early would hit the TDZ
     // (ReferenceError) and abort this whole inline script. This block only
     // builds the per-mode example map (pure data, no such dependency).
-    // Repo raw base for committed sample data (OpenStat).
+    // Repo raw base for committed sample data (AskStat).
     const _DATA_RAW = 'https://raw.githubusercontent.com/hmelberg/openstat/main/data/';
 
     const _STARTUP_PY = [
-      '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
+      '# AskStat — a quick example. Edit it freely, or pick another under "Examples".',
       '# Two ways to load data: the `ost.read` directive (below), or plain pandas.',
       '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris = pd.read_csv("' + _DATA_RAW + 'iris.csv"))',
@@ -3579,7 +3579,7 @@
     ].join('\n');
 
     const _STARTUP_R = [
-      '# OpenStat — a quick example. Edit it freely, or pick another under "Examples".',
+      '# AskStat — a quick example. Edit it freely, or pick another under "Examples".',
       '# Two ways to load data: the `ost.read` directive (below), or plain read.csv().',
       '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
       '# (equivalent: iris <- read.csv("' + _DATA_RAW + 'iris.csv"))',
@@ -3592,7 +3592,7 @@
     ].join('\n');
 
     const _STARTUP_BRYTHON = [
-      '# OpenStat — try the controls: the chart updates instantly.',
+      '# AskStat — try the controls: the chart updates instantly.',
       '# This is lightweight Python (Brython); full Python, R and SQL live in the mode menu.',
       '# penguins = ost.read("' + _DATA_RAW + 'penguins.csv")',
       'import ui',
@@ -3619,7 +3619,7 @@
     ].join('\n');
 
     const _STARTUP_JS = [
-      '// OpenStat — JavaScript: kjører direkte i nettleseren, ingen nedlasting.',
+      '// AskStat — JavaScript: kjører direkte i nettleseren, ingen nedlasting.',
       '// Biblioteker lastes automatisk når de brukes: aq/op (Arquero, dataframes),',
       '// ss (simple-statistics), jStat (fordelinger), ML (ml.js), Plot, Plotly.',
       '# iris = ost.read("' + _DATA_RAW + 'iris.csv")',
@@ -7433,7 +7433,7 @@ json.dumps(out)
     // denne meldingen i stedet for å stille-kjøre microdata-kode eller gi en
     // kryptisk syntaksfeil. Øving på microdata.no-syntaks hører til microdata-appen.
     function microdataBlocksRemovedError() {
-      return new Error(t('Microdata-blokker støttes ikke i OpenStat. Bruk microdata-appen (https://hmelberg.github.io/microdata/) for å øve på microdata.no-syntaks.'));
+      return new Error(t('Microdata-blokker støttes ikke i AskStat. Bruk microdata-appen (https://hmelberg.github.io/microdata/) for å øve på microdata.no-syntaks.'));
     }
     function matchHybridMarker(trimmed) {
       if (!trimmed) return null;
@@ -11436,7 +11436,7 @@ options(width = 200)
           throw microdataBlocksRemovedError();
         }
         if (segments.some(function (s) { return s.kind === 'stata'; })) {
-          throw new Error(t('Statx/Stata-modus er fjernet fra OpenStat — bruk python eller R.'));
+          throw new Error(t('Statx/Stata-modus er fjernet fra AskStat — bruk python eller R.'));
         }
         // If any segment is DuckDB SQL, make sure the bridge module + pyarrow are
         // ready before the Pyodide run loop reaches a #duckdb segment.
@@ -11477,7 +11477,7 @@ options(width = 200)
             setStatus(rightStatus, t('Monterer datasett…'));
             var _ra = await window.DataLoader.resolveAndAssemble(effectiveScript, _asmDeps);
             if (_ra.remote && _ra.remote.length) {
-              throw new Error(t('Montering støtter ikke beskyttede kilder i OpenStat.'));
+              throw new Error(t('Montering støtter ikke beskyttede kilder i AskStat.'));
             }
             if (_ra.sources.some(function (l) { return l.bytes; })) py.FS.mkdirTree('/home/pyodide/_webasm');
             var _afiles = _ra.sources.map(function (l) {

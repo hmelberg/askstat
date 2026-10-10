@@ -423,7 +423,7 @@
               // aldri leveres stille fra L2-cachen heller.
               assertNotTruncated(hit, item.url);
               var ab0 = await hit.arrayBuffer();
-              return { resp: hit, buf: new Uint8Array(ab0) };
+              return { resp: hit, buf: new Uint8Array(ab0), at: at };
             }
           }
         }
@@ -432,15 +432,16 @@
     var resp = await fetchLoadTarget(item, fetchImpl, deps.authToken || null, deps.anthropicKey || null, registry, deps.keysApi || null);
     sjekkAnnonsertStorrelse(resp, item.url);
     var buf = await lesKroppMedTak(resp, item.url);
+    var hentetAt = Date.now();
     if (canDisk && ttl > 0) {
       try {
-        var hdrs = { 'x-m2py-fetched-at': String(Date.now()) };
+        var hdrs = { 'x-m2py-fetched-at': String(hentetAt) };
         var ct = resp.headers.get('content-type');
         if (ct) hdrs['content-type'] = ct;
         await (await caches.open(DATA_CACHE)).put(item.url, new Response(buf, { headers: hdrs }));
       } catch (e2) {}
     }
-    return { resp: resp, buf: buf };
+    return { resp: resp, buf: buf, at: hentetAt };
   }
 
   // ESS-klassen (funn 2026-08-13): formatet ligger i en URL-KODET
@@ -616,6 +617,8 @@
           throw ePx;
         }
         var dsPx = JSON.parse(new TextDecoder().decode(fetchedPx.buf));
+        noteProvenance({ url: item.url, alias: item.alias, fetchedAt: fetchedPx.at,
+                         updated: typeof dsPx.updated === 'string' ? dsPx.updated : null });
         var csvPx = PX.columnsToCsv(PX.columnsFromJsonStat(dsPx));
         // Typet kanonisk vei (plan 2026-07-27): CSV-en mister typesystemet
         // json-stat2 bærer — typemeta følger med SEPARAT så Pyodide-preamblet
@@ -726,6 +729,7 @@
                  format: 'csv', table: item.table, kind: item.kind };
       }
       var fetched = await fetchBytes(item);
+      noteProvenance({ url: item.url, alias: item.alias, fetchedAt: fetched.at });
       var format = sniffFormat(fetched.resp, item.url, item.kind, fetched.buf);
       var dec = await maybeDecrypt(item, fetched.buf, format, deps);
       var out = { alias: item.alias, bytes: dec.bytes, format: dec.format };
@@ -747,6 +751,30 @@
       }
       return out;
     }));
+  }
+
+  // F3: proveniens per svar — hvilke data-URL-er som ble BRUKT (usedAt),
+  // når bytene faktisk ble hentet (fetchedAt; et cache-treff bærer den
+  // opprinnelige hentetiden) og, der kilden selv oppgir det (json-stat2
+  // «updated» hos pxweb/eurostat), når dataene sist ble oppdatert.
+  // Ask-visningen leser provenanceSince(<flytstart>). Begrenset ringbuffer.
+  var _proveniens = [];
+  function noteProvenance(rec) {
+    if (!rec || !rec.url) return;
+    _proveniens.push({ url: String(rec.url), alias: rec.alias || null, usedAt: Date.now(),
+                       fetchedAt: rec.fetchedAt || Date.now(), updated: rec.updated || null });
+    if (_proveniens.length > 200) _proveniens.splice(0, _proveniens.length - 200);
+  }
+  function provenanceSince(ts) {
+    var byUrl = Object.create(null), out = [];
+    _proveniens.forEach(function (p) {
+      if (p.usedAt < ts) return;
+      var cur = byUrl[p.url];
+      if (!cur) { byUrl[p.url] = cur = Object.assign({}, p); out.push(cur); return; }
+      if (p.updated) cur.updated = p.updated;
+      if (p.fetchedAt > cur.fetchedAt) cur.fetchedAt = p.fetchedAt;
+    });
+    return out;
   }
 
   function fetchSourceAccess(item, deps, fetchImpl) {
@@ -881,7 +909,7 @@
 
   global.DataLoader = { proxyHeaders: proxyHeaders, resolveAndFetchLoads: resolveAndFetchLoads, resolveAndAssemble: resolveAndAssemble,
     resolveSourcesOnly: resolveSourcesOnly, fetchResolvedItems: fetchResolvedItems, fetchRawUrl: fetchRawUrl, _sniffFormat: sniffFormat,
-    tomCsvFeil: tomCsvFeil,
+    tomCsvFeil: tomCsvFeil, noteProvenance: noteProvenance, provenanceSince: provenanceSince,
     _setMaksUttrekkBytes: function (n) { maksUttrekkOverstyring = n; },
     _parseCacheTtl: parseCacheTtl,
     // styrte kilder (2026-08-14): styrtKildeFor er den delte, testede

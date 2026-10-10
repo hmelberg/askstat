@@ -159,3 +159,40 @@ test('F2 encodeNonAscii er eksportert og idempotent', () => {
   assert.equal(RB.encodeNonAscii('https://x/ø'), 'https://x/%C3%B8');
   assert.equal(RB.encodeNonAscii(RB.encodeNonAscii('https://x/ø')), 'https://x/%C3%B8');
 });
+
+// ── F3: proveniens per svar ─────────────────────────────────────────────────
+test('F3 provenanceSince: brukte URL-er med hentetid; cache-treff bærer opprinnelig hentetid', async () => {
+  DL._resetCacheForTests();
+  const t0 = Date.now();
+  await DL.fetchResolvedItems([{ alias: 'x', url: 'https://x.example/prov.csv' }],
+    { fetchImpl: async () => csvResp('a\n1'), registry: [] });
+  const p1 = DL.provenanceSince(t0).find((p) => p.url === 'https://x.example/prov.csv');
+  assert.ok(p1 && p1.fetchedAt >= t0);
+  const t1 = Date.now() + 1;
+  await new Promise((r) => setTimeout(r, 5));
+  await DL.fetchResolvedItems([{ alias: 'x', url: 'https://x.example/prov.csv' }],
+    { fetchImpl: async () => csvResp('a\n1'), registry: [] });
+  const p2 = DL.provenanceSince(t1).find((p) => p.url === 'https://x.example/prov.csv');
+  assert.ok(p2, 'brukt igjen etter t1');
+  assert.equal(p2.fetchedAt, p1.fetchedAt, 'cache-treff: samme hentetid');
+});
+
+test('F3 pxweb: json-stat2 «updated» følger med i proveniensen', async () => {
+  require('../../js/pxweb.js');
+  DL._resetCacheForTests();
+  const t0 = Date.now();
+  const ds = { version: '2.0', class: 'dataset', id: ['Tid'], size: [1], updated: '2026-02-12T07:00:00Z',
+               dimension: { Tid: { category: { index: { '2020': 0 } } } }, value: [5] };
+  await DL.fetchResolvedItems([{ alias: 'b', url: 'https://data.ssb.no/api/pxwebapi/v2/tables/05839', kind: 'pxweb', table: '05839' }],
+    { fetchImpl: async () => new Response(JSON.stringify(ds), { status: 200, headers: { 'content-type': 'application/json' } }), registry: [] });
+  const p = DL.provenanceSince(t0).find((r) => /05839/.test(r.url));
+  assert.equal(p.updated, '2026-02-12T07:00:00Z');
+});
+
+test('F3 bro: forPyodideSync-lesing registreres som brukt kilde', () => {
+  RB._reset();
+  const t0 = Date.now();
+  RB._setXhr(() => ({ status: 200, bytes: new Uint8Array([97, 10, 49]) }));
+  RB.forPyodideSync('https://x.example/bro-prov.csv');
+  assert.ok(DL.provenanceSince(t0).some((p) => p.url === 'https://x.example/bro-prov.csv'));
+});

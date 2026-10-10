@@ -49,7 +49,7 @@
     if (c && !c.error) return Promise.resolve(c);
     if (inflight[url]) return inflight[url];
     inflight[url] = fetcher(url).then(function (r) {
-      cache[url] = { bytes: r.bytes, contentType: r.contentType };
+      cache[url] = { bytes: r.bytes, contentType: r.contentType, at: Date.now() };
       return cache[url];
     }, function (e) {
       // Feil CACHES — et kast her ville forsvunnet i fire-and-forget-
@@ -174,6 +174,13 @@
     return hdrs ? Object.assign({}, hdrs, ph) : ph;
   }
 
+  // F3: proveniens (DataLoader.noteProvenance) — broens lesinger teller som
+  // brukte kilder i svarets «hentet»-linje.
+  function noteBruk(url, at) {
+    var DL = global.DataLoader;
+    if (DL && DL.noteProvenance) DL.noteProvenance({ url: url, fetchedAt: at });
+  }
+
   function forPyodideSync(url, headersJson, fraAdapter) {
     // Styrt-avvisning (spec 2026-08-14-styrte-kilder, hook b): pd.read_csv(url)
     // i Pyodide ruter HIT (synkron — kan ikke avvente ensure/fetchRawUrl),
@@ -232,7 +239,7 @@
       if (!hdrs || typeof hdrs !== 'object' || Array.isArray(hdrs) || Object.keys(hdrs).length === 0) hdrs = null;
     }
     var c = hdrs ? null : cache[url];
-    if (c && !c.error) return { bytes: c.bytes, error: null };
+    if (c && !c.error) { noteBruk(url, c.at); return { bytes: c.bytes, error: null }; }
     // B6: en PERMANENT cachet feil (tomt uttrekk, for stort, styrt) gjelder
     // fortsatt — før ble den behandlet som miss, sync-XHR hentet på nytt og
     // leverte de tomme bytene ukontrollert (stille tom ramme), og et for
@@ -283,7 +290,9 @@
     var tom = (DL && DL.tomCsvFeil && typeof r.contentType === 'string')
       ? DL.tomCsvFeil(url, r.contentType, r.bytes) : null;
     if (tom) return { bytes: null, error: tom };
-    if (!hdrs) cache[url] = { bytes: r.bytes, contentType: r.contentType || '' };
+    var at = Date.now();
+    if (!hdrs) cache[url] = { bytes: r.bytes, contentType: r.contentType || '', at: at };
+    noteBruk(url, at);
     return { bytes: r.bytes, error: null };
   }
 

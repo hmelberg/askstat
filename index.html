@@ -9160,7 +9160,7 @@ if _asm.get('spec'):
           for (var i = 0; i < names.length; i++) {
             var nm = String(names[i]);
             var ident = window.DuckdbNative.quoteIdent(nm);
-            var desc = __arrowToColumns(await conn.query('DESCRIBE ' + ident));
+            var desc = __arrowToColumns(await conn.query('DESCRIBE SELECT * FROM ' + ident));
             var cols = (desc.column_name || []).map(String);
             var dtypes = {};
             cols.forEach(function (c, j) { dtypes[c] = __duckTypeToPandas((desc.column_type || [])[j]); });
@@ -9276,7 +9276,7 @@ if _asm.get('spec'):
             for (var _ci = 0; _ci < _created.length; _ci++) {
               var _ident = DN.quoteIdent(_created[_ci]);
               var _cc = await window.__duck.query('SELECT count(*) AS n FROM ' + _ident);
-              var _dd = await window.__duck.query('DESCRIBE ' + _ident);
+              var _dd = await window.__duck.query('DESCRIBE SELECT * FROM ' + _ident);
               _out.push('Opprettet datasett ' + _created[_ci] + ' (' +
                 Number((_cc.n || [0])[0] || 0) + ' rader × ' + ((_dd.column_name || []).length) + ' kolonner)');
             }

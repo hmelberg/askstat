@@ -4,7 +4,7 @@
 // by provider choice; the provider call is a runTurn callback so this module
 // knows no wire formats. State stays in Anthropic message format — adapters
 // translate at their boundary.
-import type { AgenticResumeState, RetryDeps } from "../anthropic.ts";
+import { type AgenticResumeState, type RetryDeps, scrubErrorText } from "../anthropic.ts";
 
 export interface ProviderTurnResult {
   text: string;
@@ -200,7 +200,7 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
                 try {
                   out = await opts.executeTool(tu.name, tu.input);
                 } catch (e) {
-                  out = `Verktøyfeil: ${String(e).slice(0, 300)}`;
+                  out = `Verktøyfeil: ${scrubErrorText(e).slice(0, 300)}`;
                 }
               }
               results.push({ tool_use_id: tu.id, content: out });
@@ -239,7 +239,7 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
         controller.close();
         return;
       } catch (e) {
-        emit({ type: "error", message: String(e) });
+        emit({ type: "error", message: scrubErrorText(e) });
         controller.close();
       }
     },

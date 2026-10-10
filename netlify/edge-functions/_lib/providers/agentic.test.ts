@@ -225,3 +225,20 @@ Deno.test("løkka: veggklokke-fristen yielder continue etter påbegynt tur (aldr
   if (!cont) throw new Error("mangler continue: " + JSON.stringify(events));
   assertEquals((cont.state as { turn: number }).turn, 1);
 });
+
+Deno.test("løkka: verktøyfeil skrubbes for nøkler i URL før den går til modellen", async () => {
+  const turns: ProviderTurnResult[] = [
+    { text: "", toolUses: [{ id: "c1", name: "probe", input: {} }], searchNotes: [], stop: "tool_use",
+      usage: { inputTokens: 1, outputTokens: 1 } },
+    { text: "Svar.", toolUses: [], searchNotes: [], stop: "end", usage: { inputTokens: 1, outputTokens: 1 } },
+  ];
+  let seen = "";
+  await collect(runProviderAgenticStream({
+    runTurn: (state) => { seen = JSON.stringify(state.messages); return Promise.resolve(turns.shift()!); },
+    system: "SYS", userContent: "Q?", tools: [{ name: "probe" }],
+    executeTool: () => Promise.reject(new Error("GET https://h.example/x?api_key=APISECRET77 failed")),
+    turnsPerCall: 2,
+  }));
+  if (seen.includes("APISECRET77")) throw new Error("nøkkel lekket til modellen");
+  assert(seen.includes("Verktøyfeil"));
+});

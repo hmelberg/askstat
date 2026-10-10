@@ -99,6 +99,9 @@ export interface GuardedOptions {
   // dev) som slipper offentlig-vert-sjekken. Kun for statiske filer på vårt
   // eget origin — redirects videre derfra sjekkes som normalt.
   trustedOrigin?: string;
+  // true = en redirect til en annen vert enn den opprinnelige avvises (brukt
+  // for POST via /api/hent, så kroppen ikke videresendes til en fremmed vert).
+  sameHostRedirectsOnly?: boolean;
 }
 
 function originOf(raw: string): string | null {
@@ -135,6 +138,9 @@ export async function fetchGuarded(rawUrl: string, opts: GuardedOptions = {}): P
         await resp.body?.cancel();
         if (!loc) throw new Error(`redirect uten Location fra ${url}`);
         url = new URL(loc, url).toString();
+        if (opts.sameHostRedirectsOnly && new URL(url).host !== initialHost) {
+          throw new Error(`redirect til annen vert avvist (${new URL(url).host})`);
+        }
         continue;
       }
       // size-capped body read

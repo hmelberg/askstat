@@ -3,6 +3,7 @@
 // registry sources. Keys never reach the browser (spec §5).
 import { fetchGuarded, isPublicHttpUrl } from "./ssrf.ts";
 import { sourceForUrl, type DataSource } from "./registry.ts";
+import { scrubKey, scrubUrlSecrets } from "./providers/config.ts";
 
 const MAX_BODY_PARAM = 20_000;      // chars, URL-decoded
 const MAX_RESPONSE = 50 * 1024 * 1024;
@@ -49,6 +50,14 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
   let finalUrl = target;
   const headers: Record<string, string> = {};
   const src = sourceForUrl(deps.registry, target);
+  // POST (body=) KUN mot registerverter (review 2026-10-10): ellers kunne
+  // hvem som helst med en format-gyldig BYOK-nøkkel få Netlify til å POSTe
+  // vilkårlig JSON til vilkårlige verter (åpen relé).
+  if (bodyParam && !src) {
+    return new Response(
+      "POST via /api/hent (body=) er kun tillatt mot kilder i kilderegisteret", { status: 403 });
+  }
+  let injectedKey = "";
   if (src?.auth) {
     const a = src.auth;
     let key: string;
@@ -72,6 +81,12 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
       if (!key) return new Response(`Nøkkel for ${src.id} er ikke konfigurert`, { status: 502 });
     }
     if (key) {
+      // sourceForUrl matcher bare vert — en http://-URL mot registerverten
+      // ville sendt nøkkelen i klartekst. Nøkkelinjeksjon krever https.
+      if (new URL(target).protocol !== "https:") {
+        return new Response(`Kilden ${src.id} krever https når en nøkkel brukes`, { status: 400 });
+      }
+      injectedKey = key;
       if (a.plassering === "basic") {
         try {
           headers["authorization"] = "Basic " + btoa(key);
@@ -116,10 +131,16 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
       timeoutMs: TIMEOUT_MS,
       maxBytes: MAX_RESPONSE,
       fetchImpl: deps.fetchImpl,
+      // En POST skal ikke kunne «sprettes» videre til en fremmed vert.
+      sameHostRedirectsOnly: !!bodyParam,
     });
+    // Oppstrøms innhold serveres fra VÅRT origin: nosniff + CSP sandbox
+    // hindrer at en HTML/SVG-respons tolkes som aktivt innhold her.
     const out = new Headers({
       "content-type": res.headers.get("content-type") ?? "application/octet-stream",
       "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "sandbox",
     });
     if (res.truncated) out.set("x-hent-truncated", "1");
     return new Response(res.body as BodyInit, { status: res.status, headers: out });
@@ -128,7 +149,7 @@ export async function handleHent(request: Request, deps: HentDeps): Promise<Resp
     // own fetchGuarded errors embed the request URL, which may carry a
     // server-injected api_key (query-string key injection above). Log
     // server-side only; return a fixed, non-interpolated body.
-    console.error("hent: proxy error:", String(e));
+    console.error("hent: proxy error:", scrubUrlSecrets(scrubKey(String(e), injectedKey)));
     return new Response("Proxy-feil ved henting av kilden", { status: 502 });
   }
 }

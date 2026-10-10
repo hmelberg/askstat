@@ -1,3 +1,5 @@
+import { scrubKey, scrubUrlSecrets } from "./providers/config.ts";
+
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -12,7 +14,14 @@ function apiTarget(apiBase?: string): { url: string; init: Pick<RequestInit, "re
 // (including the x-api-key header), so scrub the key out before it is
 // logged. No-op for the default path (empty/undefined key never matches).
 function scrubDetail(detail: string, key: string): string {
-  return key ? detail.split(key).join("***") : detail;
+  return scrubKey(detail, key);
+}
+
+/** Feiltekst som går til MODELLEN (tool_result) eller klienten (error-event):
+ * LLM-nøkkelen og nøkkelaktige query-parametre (datacommons ?key=, FRED
+ * api_key=, …) skrubbes — Deno-fetch-feil og fetchGuarded bygger inn URL-en. */
+export function scrubErrorText(e: unknown, key = ""): string {
+  return scrubUrlSecrets(scrubKey(String(e), key));
 }
 
 export interface AnthropicStreamOptions {
@@ -808,7 +817,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
                 try {
                   out = await opts.executeTool(tu.name, tu.input ?? {});
                 } catch (e) {
-                  out = `Verktøyfeil: ${String(e).slice(0, 300)}`;
+                  out = `Verktøyfeil: ${scrubErrorText(e, opts.apiKey).slice(0, 300)}`;
                 }
               }
               results.push({ tool_use_id: tu.id, content: out });
@@ -851,7 +860,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
         controller.close();
         return;
       } catch (e) {
-        emit({ type: "error", message: String(e) });
+        emit({ type: "error", message: scrubErrorText(e, opts.apiKey) });
         controller.close();
       }
     },

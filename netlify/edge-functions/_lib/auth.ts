@@ -106,6 +106,9 @@ export interface GateOptions {
    * request that lacks a complete parsed `provider` body, or it would fall
    * through to the server's own env-configured API key as an anonymous
    * bypass. Never set this on an endpoint that doesn't perform that check.
+   * Documented exception (both flags): /api/hent, which never spends an LLM
+   * key and instead denies such callers the site's env keys (envKeysAllowed
+   * = false), bounded by the per-IP rate limit — see hent.ts.
    */
   allowLlmKey?: boolean;
 }

@@ -136,3 +136,11 @@ Deno.test("dcSearch: kun Topic-treff → tom liste, ikke kast", async () => {
   const hits = await dcSearch("q", "TESTKEY", f);
   assertEquals(hits, []);
 });
+
+Deno.test("dcSearch: fetch-feil med nøkkel i URL skrubbes før kast", async () => {
+  const f = ((u: string) => Promise.reject(new TypeError(`error sending request for url (${u})`))) as unknown as typeof fetch;
+  let msg = "";
+  try { await dcSearch("x", "DCKEY-SECRET-123", f); } catch (e) { msg = String(e); }
+  if (!msg) throw new Error("skulle kastet");
+  if (msg.includes("DCKEY-SECRET-123")) throw new Error("nøkkel lekket: " + msg);
+});

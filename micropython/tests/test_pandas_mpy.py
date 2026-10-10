@@ -128,6 +128,40 @@ def test_read_csv_dtype_scalar_object_string_accepted():
     assert list(df['b']) == ['0301']
 
 
+# ── B11g (review 2026-10): None og ekte float('nan') er manglende verdier,
+# ikke bare shimens egen nan-sentinel. ────────────────────────────────────
+def test_series_none_in_numeric_is_na():
+    s = pd.Series([1.0, None, 3.0])
+    assert list(s.isna()) == [False, True, False]
+    assert list(s.notna()) == [True, False, True]
+    assert s.mean() == 2.0
+    assert s.sum() == 4.0
+    assert s.count() == 2
+
+
+def test_series_float_nan_is_na():
+    s = pd.Series([1.0, float('nan'), 3.0])
+    assert list(s.isna()) == [False, True, False]
+    assert s.mean() == 2.0
+    assert s.count() == 2
+    assert s.max() == 3.0
+    assert list(s.between(0, 5)) == [True, False, True]
+
+
+def test_series_object_none_isna_keeps_value():
+    s = pd.Series(['a', None, 'c'])
+    assert list(s.isna()) == [False, True, False]
+    assert s.count() == 2
+
+
+def test_dataframe_column_none_and_nan_are_na():
+    df = pd.DataFrame({'a': [1.0, None, 3.0], 'b': [float('nan'), 2.0, 4.0]})
+    assert df['a'].mean() == 2.0
+    assert df['b'].mean() == 3.0
+    assert list(df['b'].isna()) == [True, False, False]
+    assert len(df.dropna()) == 1
+
+
 if __name__ == '__main__':
     for name, fn in sorted(globals().items()):
         if name.startswith('test_'):

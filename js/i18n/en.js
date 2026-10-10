@@ -184,6 +184,8 @@ window.M2PY_I18N.en = {
   "‹ Vis kode": "‹ Show code",
   "Kjøre scriptet fra {src}? Det kjører kode i nettleseren din.": "Run the script from {src}? It runs code in your browser.",
   "lenken": "the link",
+  "OK = kjør nå. Avbryt = vis koden uten å kjøre den.": "OK = run now. Cancel = show the code without running it.",
+  "Advarsel: denne nettleseren har lagrede nøkler/innlogging. Kode fra lenken kan lese dem. Kjør bare lenker du stoler på.": "Warning: this browser has stored keys/login. Code from the link can read them. Only run links you trust.",
   "Kunne ikke hente notebook-lenken: {msg}": "Could not fetch the notebook link: {msg}",
   "Ikke vis denne meldingen igjen": "Don't show this message again",
   "Vis et nytt tips": "Show another tip",

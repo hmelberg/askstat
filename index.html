@@ -1692,20 +1692,21 @@
       }
       window.mdClearOutput = clearOutput;
 
+      // S2 (review 2026-10-10): sjekken bor i NotebookLinks.hasStoredSecret
+      // (dekker md_keys, login-token/-kode, md_kek og GitHub-PAT/-profiler).
       window.mdHasStoredSecret = function () {
-        try {
-          if (window.Keys && window.Keys.registered().length) return true;
-          if (localStorage.getItem('m2py_github_pat')) return true;
-          var p = localStorage.getItem('m2py_github_profiles');
-          if (p && /"pat"\s*:\s*"[^"]/.test(p)) return true;
-        } catch (_) {}
-        return false;
+        try { return window.NotebookLinks.hasStoredSecret(window.localStorage); }
+        catch (_) { return false; }
       };
 
-      window.mdConfirmRun = function (sourceLabel) {
+      // Alltid kalt før et delt lenke-script auto-kjøres. Avbryt = scriptet
+      // står i editoren, synlig og ukjørt (brukeren kan lese det og trykke Kjør).
+      window.mdConfirmRun = function (sourceLabel, hasSecret) {
         return new Promise(function (resolve) {
-          var ok = window.confirm(
-            t('Kjøre scriptet fra {src}? Det kjører kode i nettleseren din.', { src: sourceLabel || t('lenken') }));
+          var msg = t('Kjøre scriptet fra {src}? Det kjører kode i nettleseren din.', { src: sourceLabel || t('lenken') }) +
+            '\n\n' + t('OK = kjør nå. Avbryt = vis koden uten å kjøre den.');
+          if (hasSecret) msg += '\n\n' + t('Advarsel: denne nettleseren har lagrede nøkler/innlogging. Kode fra lenken kan lese dem. Kjør bare lenker du stoler på.');
+          var ok = window.confirm(msg);
           resolve(!!ok);
         });
       };
@@ -1722,10 +1723,14 @@
         if (!req) return;
         window.mdNotebookAutorun = null;                 // consume once
         var app = window.M2PY_APP || 'openstat';
-        var needGate = window.NotebookLinks.autorunNeedsGate(app, window.mdHasStoredSecret());
+        var hasSecret = window.mdHasStoredSecret();
+        var needGate = window.NotebookLinks.autorunNeedsGate(app, hasSecret);
         if (needGate) {
-          var ok = await window.mdConfirmRun(req.url);
-          if (!ok) return;                               // declined: leave input/button untouched
+          var ok = await window.mdConfirmRun(req.url, hasSecret);
+          if (!ok) {                                     // declined: vis koden, ikke kjør
+            if (window.mdSetInputHidden) window.mdSetInputHidden(false);
+            return;
+          }
         }
         if (window.mdSetInputHidden) window.mdSetInputHidden(true);   // output-only
         if (window.mdShowCodeAffordance) window.mdShowCodeAffordance();

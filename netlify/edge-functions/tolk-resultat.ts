@@ -1,4 +1,3 @@
-import { detectLanguage } from "./_lib/parse-script-context.ts";
 import { streamAnthropic } from "./_lib/anthropic.ts";
 import { extractByokKey, extractLlmKey, gate, readJsonCapped, upstreamErrorResponse, type IpContext } from "./_lib/auth.ts";
 import { parseProviderConfig } from "./_lib/providers/config.ts";
@@ -6,6 +5,7 @@ import { messageOpenAiCompat } from "./_lib/providers/openai-compat.ts";
 import { messageOpenAiResponses } from "./_lib/providers/openai-responses.ts";
 import { singleTextStream } from "./_lib/sse-util.ts";
 import { coerceUiLang, LANG_NAME } from "./_lib/ui-lang.ts";
+import { buildTolkPrompt } from "./_lib/tolk-prompt.ts";
 
 interface RequestBody {
   script?: string;
@@ -64,27 +64,6 @@ REGLER
 - Ikke overdriv; si fra om noe er uklart eller mangler.
 - Ikke gjenta hele outputen — tolk den.`;
 
-const TOLK_USER_TEMPLATE = `\
-{{OUTPUT_LANGUAGE}}
-
-SPRÅK
-{{LANGUAGE}}
-{{OUTPUTS}}
-SCRIPT (kommandoer)
-
-{{SCRIPT}}
-
-OUTPUT (resultater)
-
-{{OUTPUT}}`;
-
-function languageInstruction(requested: string, detected: string): string {
-  if (requested === "microdata") return "Output er fra microdata.no-DSL.";
-  if (requested === "python") return "Output er fra Python.";
-  if (requested === "r") return "Output er fra R.";
-  return `Detektert språk: ${detected}.`;
-}
-
 export default async (request: Request, context: IpContext): Promise<Response> => {
   const gateResp = await gate(request, {
     endpoint: "tolk-resultat",
@@ -131,14 +110,7 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     : `Answer in ${LANG_NAME[uiLang]} (overriding the Norwegian scaffold above).
 Translate the section headings («Hva analysen gjorde», «Resultater»,
 «Forbehold») into natural ${LANG_NAME[uiLang]} equivalents.`;
-  const detected = detectLanguage(output || script);
-
-  const prompt = TOLK_USER_TEMPLATE
-    .replaceAll("{{OUTPUT_LANGUAGE}}", () => outputLanguage)
-    .replaceAll("{{LANGUAGE}}", () => languageInstruction(requested, detected))
-    .replace("{{OUTPUTS}}", outputs ? `\nOUTPUTS (allerede vist i appen)\n\n${outputs}\n` : "")
-    .replaceAll("{{SCRIPT}}", () => script || "(ingen kommandoer sendt)")
-    .replaceAll("{{OUTPUT}}", () => output);
+  const prompt = buildTolkPrompt({ outputLanguage, requested, script, output, outputs });
 
   try {
     let stream: ReadableStream<Uint8Array>;

@@ -1613,13 +1613,24 @@
           if (ptype === 'anthropic') {
             localStorage.removeItem(LS_PROVIDER);
           } else {
-            localStorage.setItem(LS_PROVIDER, JSON.stringify({
+            var prevProv = null;
+            try { prevProv = JSON.parse(localStorage.getItem(LS_PROVIDER) || 'null'); } catch (e) {}
+            var nextProv = {
               type: ptype,
               base_url: (dom.aiCfgProviderUrl ? dom.aiCfgProviderUrl.value.trim() : ''),
               model: (dom.aiCfgProviderModel ? dom.aiCfgProviderModel.value.trim() : ''),
-            }));
+            };
+            localStorage.setItem(LS_PROVIDER, JSON.stringify(nextProv));
             var lk = dom.aiCfgLlmKey ? dom.aiCfgLlmKey.value.trim() : '';
             if (lk && window.Keys) window.Keys.set('llm', lk);
+            // S9b: ÉTT 'llm'-felt deles av alle egne leverandører. Ny vert uten
+            // ny nøkkel → den gamle nøkkelen ville gått til den nye verten.
+            // Fjern den og si fra (portet fra microdata baseUrlMismatch).
+            else if (window.Keys && window.Keys.get('llm') && window.Keys.llmEndpointChanged &&
+                     window.Keys.llmEndpointChanged(prevProv, nextProv)) {
+              window.Keys.remove('llm');
+              alert(T('The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.'));
+            }
           }
         }
         // Telemetri (opt-in): avkrysset → md_telemetri_pa='1'; ellers fjernes

@@ -48,6 +48,20 @@
   }
   function onChange(cb) { listeners.push(cb); }
 
+  // S9b (review 2026-10-10): egne leverandører deler ÉTT 'llm'-nøkkelfelt.
+  // Sant når den lagrede nøkkelen ble lagt inn for en ANNEN vert enn den nye
+  // base_url-en — da må den ikke følge med (ai-chat.js saveSettings fjerner
+  // den og ber om ny). prev/next: {type, base_url} fra md_llm_provider.
+  function hostOf(u) {
+    try { return new URL(String(u || '').trim()).host.toLowerCase(); } catch (e) { return null; }
+  }
+  function llmEndpointChanged(prev, next) {
+    if (!prev || !prev.base_url) return false;
+    var a = hostOf(prev.base_url), b = hostOf(next && next.base_url);
+    if (!a || !b) return true;
+    return a !== b;
+  }
+
   // Engangsmigrering fra md_anthropic_key (før 2026-07-23).
   var legacy = global.localStorage.getItem('md_anthropic_key');
   if (legacy) {
@@ -58,7 +72,7 @@
   global.Keys = {
     get: get, set: set, remove: remove, registered: registered,
     getAll: getAll, replaceAll: replaceAll, updatedAt: updatedAt,
-    onChange: onChange,
+    onChange: onChange, llmEndpointChanged: llmEndpointChanged,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = global.Keys;
 })(typeof window !== 'undefined' ? window : globalThis);

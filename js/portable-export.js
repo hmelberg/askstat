@@ -48,7 +48,14 @@
   var EDITOR_ONLY_NOTE = '# editor-argumenter (secret_key/exec/cache) er fjernet — de virker bare i OpenStat';
 
   function scrubDirectiveLine(line, DD, state) {
-    if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) return line;
+    if (!DD.isDirectiveLine(line) && !LEGACY_DIRECTIVE_RE.test(line)) {
+      // Review 2026-10-10 (S9a): også ikke-direktivlinjer skrubbes —
+      // KEYS = {...}-linja fra ai-chat.js (rå egne nøkler) og secret_key=
+      // utenfor direktiver ville ellers lekket i eksport/kopi.
+      var plain = DD.scrubKeys(line);
+      if (plain !== line) state.masked = true;
+      return plain;
+    }
     var scrubbed = DD.scrubKeys(line).replace(LEGACY_KEY_RE, 'key(***)');
     if (scrubbed !== line) state.masked = true;
     var stripped = scrubbed.replace(EDITOR_ONLY_COMMA_RE, '').replace(EDITOR_ONLY_PAREN_RE, '(');

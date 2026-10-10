@@ -13233,10 +13233,11 @@ async def _m2py_run_segment(_seg_json):
     <div class="ai-modal" style="max-width: 560px;">
       <h3 style="font-size: 1.25em;" data-i18n>GitHub-innstillinger</h3>
       <p style="font-size: 13px; color: var(--text-muted); margin-top: -4px;" data-i18n-html>
-        Lagre og hent scripts i ditt eget GitHub-repo. Krever et fine-grained personal access token (PAT)
-        med <strong>Contents: Read and write</strong> p&aring; repoet
-        (<a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">lag token</a>).
-        Tokenet lagres kun lokalt i nettleseren din.
+        Lagre og hent scripts i ditt eget GitHub-repo. Bruk et fine-grained personal access token (PAT)
+        begrenset til <strong>&eacute;tt repo</strong> (&laquo;Only select repositories&raquo;) og kun
+        <strong>Contents: Read and write</strong> &mdash; ingen andre tillatelser, og gjerne en utl&oslash;psdato
+        (<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">lag token</a>).
+        Tokenet lagres ukryptert lokalt i nettleseren din og kan leses av kode som kj&oslash;rer i appen.
       </p>
       <div style="margin:10px 0; display:flex; gap:8px; align-items:flex-end;">
         <div style="flex:1;">

@@ -651,7 +651,7 @@
     };
 
     // Jamovi ANALYSIS icons (16×16 line SVGs), keyed by jmv spec name.
-    // Copied (not referenced) from the frozen js/modes/jamovi_v1.js JAMOVI_ICONS set.
+    // Originally copied from the JAMOVI_ICONS set of the old jamovi_v1 mode (deleted 2026-10).
     var JMV_AN_ICONS = {
       descriptives: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="#2b3a55" stroke-width="1.3"><rect x="2" y="9" width="3" height="5" rx=".5"/><rect x="6.5" y="6" width="3" height="8" rx=".5"/><rect x="11" y="3" width="3" height="11" rx=".5"/></svg>',
       ttestIS: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="#2b3a55" stroke-width="1.3"><path d="M2 3h6M5 3v10M10 5h4M12 5v6" stroke-linecap="round"/></svg>',

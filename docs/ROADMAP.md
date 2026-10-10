@@ -82,7 +82,7 @@ prioritert idéliste. Kilder: designdok/reviews fra jamovi 2.0 fase 1–3
       captureGraphics; robust nok, men skjørt ved fremtidige jmv-endringer)
 - [ ] `console.warn` ved bilde-underskudd i renderJmvResults (feilsøkingshjelp)
 - [ ] Bayes factor-opsjonene (bf/bfPrior): krever wasm-bygg eller stub av `deSolve`
-- [ ] Måle minnebruk på svake maskiner; `jamovi_v1`/«Jamovi light» er nødbrems
+- [ ] Måle minnebruk på svake maskiner (den gamle `jamovi_v1`/«Jamovi light»-nødbremsen ble slettet 2026-10; hentes fra git-historikken ved behov)
 
 **Avklaringer (Hans bestemmer):**
 - [ ] Output-rens ved modusbytte: jamovi-resultater tømmes også ved

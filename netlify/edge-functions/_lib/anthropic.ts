@@ -56,6 +56,9 @@ export interface StreamEvent {
 
 const ANTHROPIC_TIMEOUT_MS = 30_000;
 const ANTHROPIC_RETRIES = 2;
+// Se catch-grenen i fetchWithRetry: en timeout på en ikke-idempotent POST
+// får maks dette antallet nye forsøk.
+const MAX_TIMEOUT_RETRIES = 1;
 
 export interface RetryDeps {
   fetchImpl?: typeof fetch;
@@ -66,8 +69,9 @@ export interface RetryDeps {
 
 /**
  * POST with an abort timeout and retry/backoff on 429 (rate limited) and 529
- * (overloaded). Honours a numeric Retry-After when present. Network errors are
- * retried too; the final error propagates. Injectable for tests.
+ * (overloaded). Honours a numeric Retry-After when present. Connection errors
+ * are retried too; a timeout (request likely already sent and billed) at most
+ * once. The final error propagates. Injectable for tests.
  */
 export async function fetchWithRetry(
   url: string,
@@ -80,6 +84,7 @@ export async function fetchWithRetry(
   const timeoutMs = deps.timeoutMs ?? ANTHROPIC_TIMEOUT_MS;
 
   let lastError: unknown;
+  let timeouts = 0;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -98,7 +103,12 @@ export async function fetchWithRetry(
     } catch (e) {
       clearTimeout(timer);
       lastError = e;
-      if (attempt < retries) {
+      // Timeout (vår egen abort): POST-en er som regel alt mottatt og
+      // fakturert oppstrøms — maks ÉTT nytt forsøk, ikke `retries` stk.
+      // (review 2026-10-10). Øvrige nettverksfeil prøves som før.
+      const varTimeout = ctrl.signal.aborted;
+      if (varTimeout) timeouts++;
+      if (attempt < retries && (!varTimeout || timeouts <= MAX_TIMEOUT_RETRIES)) {
         await sleep(Math.min(1000 * 2 ** attempt, 8000));
         continue;
       }

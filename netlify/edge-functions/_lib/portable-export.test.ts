@@ -16,7 +16,7 @@ Deno.test("passthrough: script uten direktiver er byte-identisk", () => {
 Deno.test("GET csv: direkte URL → pd.read_csv, original som kommentar, header + import lagt til", () => {
   const s = '# co2 = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")\nprint(co2.head())\n';
   const out = PE.transpile(s, "python", []);
-  if (!out.code.includes("Portabel eksport fra OpenStat")) throw new Error("mangler header:\n" + out.code);
+  if (!out.code.includes("Portabel eksport fra AskStat")) throw new Error("mangler header:\n" + out.code);
   if (!out.code.includes("import pandas as pd")) throw new Error("mangler pandas-import");
   if (!out.code.includes('# co2 = ost.read("https://ourworldindata.org/grapher/life-expectancy.csv")')) {
     throw new Error("originaldirektivet mangler som kommentar");
@@ -213,7 +213,7 @@ Deno.test("key(<literal>) på connect-linje maskeres også", () => {
 Deno.test("anvil-kilde og exec(remote) → ikke-portabel kommentarblokk, resten eksporteres", () => {
   const s = "# minkilde = ost.connect(\"minkilde\")\n# d = minkilde.read()\nprint('etterpå')\n";
   const out = PE.transpile(s, "python", []);   // tomt register → anvil-gren
-  if (!out.code.includes("krever OpenStat-appen")) throw new Error("mangler ikke-portabel-blokk:\n" + out.code);
+  if (!out.code.includes("krever AskStat-appen")) throw new Error("mangler ikke-portabel-blokk:\n" + out.code);
   if (!out.code.includes("print('etterpå')")) throw new Error("resten av scriptet mangler");
   if (!out.warnings.length) throw new Error("mangler warning");
 });

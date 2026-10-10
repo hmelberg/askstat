@@ -4661,7 +4661,7 @@
               });
               _dRows.push(_rec);
             }
-            var _dDesc = __arrowToColumns(await _dconn.query('DESCRIBE "' + _dIdent + '"'));
+            var _dDesc = __arrowToColumns(await _dconn.query('DESCRIBE SELECT * FROM "' + _dIdent + '"'));
             var _dDtypes = {};
             (_dDesc.column_name || []).forEach(function (c, j) {
               _dDtypes[String(c)] = __duckTypeToPandas((_dDesc.column_type || [])[j]);

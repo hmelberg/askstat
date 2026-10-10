@@ -1,7 +1,9 @@
 // /api/svar — samlet ask-pipeline: ETT agentisk løp med run_code som
 // klientutført verktøy. Erstatter data-svar + tolk-ask.
 // Spec: docs/superpowers/specs/2026-07-29-samlet-ask-pipeline-design.md
-import { adminGate, extractByokKey, extractLlmKey, type IpContext, readJsonCapped } from "./_lib/auth.ts";
+import { adminGate, clientIp, extractByokKey, extractLlmKey, type IpContext, readJsonCapped } from "./_lib/auth.ts";
+import { checkRateLimit } from "./_lib/rate-limit.ts";
+import { hopMaTellesSomSporsmal, resumeKey, signContinueEvents } from "./_lib/resume-mac.ts";
 import { type AgenticResumeState, runAgenticStream } from "./_lib/anthropic.ts";
 import { coerceSourcesOff, filtrerAvslatte, loadRegistry, renderRegistryBlock, synligeKilder } from "./_lib/registry.ts";
 import { coerceGuidesOverride, makeGuideAttacher, medGuideVedFeil } from "./_lib/source-guides.ts";
@@ -104,10 +106,10 @@ export function rebuildResumeState(s: AgenticResumeState): AgenticResumeState {
 export default async (request: Request, context: IpContext): Promise<Response> => {
   // Ratelimiten teller SPØRSMÅL i "svar"-bøtta: continuation-hops er samme
   // spørsmål og telles i en egen, rausere "svar-hop"-bøtte (rate-limit.ts).
-  // Hops kan ikke hoppe helt over limiten: resume-state er usignert (ingen
-  // HMAC), så en forfalsket resume-body ville ellers gitt ubegrenset
-  // verktøykjøring. At en fersk spørring med kun headeren ikke slipper inn
-  // i hop-bøtta håndheves rett etter JSON-parsingen nedenfor.
+  // Hops kan ikke hoppe helt over limiten (hop-bøtta har også et tak). At en
+  // fersk spørring ikke slipper inn i hop-bøtta håndheves etter JSON-
+  // parsingen nedenfor: kun header → 400; forfalsket/usignert resume-state
+  // → telles OGSÅ i "svar"-bøtta (signert state, _lib/resume-mac.ts).
   const svarResumeHeader = request.headers.get("x-svar-resume") === "1";
   const gateResp = await adminGate(request, {
     endpoint: svarResumeHeader ? "svar-hop" : "svar",
@@ -136,6 +138,18 @@ export default async (request: Request, context: IpContext): Promise<Response> =
       return new Response("Invalid resume payload", { status: 400 });
     }
     resumeState = rebuildResumeState(body.resume.state);
+  }
+  // Rate-limit-bypass (review 2026-10-10): et hop må bære en state SERVEREN
+  // har signert i et continue-event. Ellers (forfalsket, utløpt, rotert
+  // nøkkel) telles det i "svar"-bøtta som et nytt spørsmål — ikke-brytende.
+  const resumeMacKey = await resumeKey((k) => Deno.env.get(k));
+  if (await hopMaTellesSomSporsmal(svarResumeHeader, resumeMacKey, body.resume?.state)) {
+    const rate = await checkRateLimit("svar", clientIp(request, context));
+    if (!rate.allowed) {
+      return new Response("Rate limited", {
+        status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      });
+    }
   }
   const runResult = typeof body.run_result === "string"
     ? body.run_result.slice(0, 30_000)
@@ -352,8 +366,8 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     });
   }
 
-  const stream = injectBeforeDone(inner, () =>
-    probed.length ? { type: "sources", sources: probed } : null);
+  const stream = signContinueEvents(injectBeforeDone(inner, () =>
+    probed.length ? { type: "sources", sources: probed } : null), resumeMacKey);
 
   return new Response(stream, {
     headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },

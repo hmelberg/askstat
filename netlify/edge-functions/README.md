@@ -27,6 +27,12 @@ AI-endepunkter (se `netlify.toml` for path-mapping):
   headeren `X-Svar-Resume: 1` — den er unntatt rate-limiten (samme spørsmål
   telles kun én gang, ikke per hop); uten den spiser hvert hopp av samme
   per-IP-kvote som et nytt spørsmål.
+  Staten i hvert `continue`-event er HMAC-signert (`state.mac`, gyldig 2 t,
+  `_lib/resume-mac.ts`) og må ekkoes uendret: et hopp med forfalsket,
+  usignert eller utløpt state telles i tillegg i spørsmålsbøtta (`svar`), så
+  en fersk spørring ikke kan forkle seg som hopp. Nøkkel: env
+  `SVAR_RESUME_SECRET`, ellers avledet fra `ANTHROPIC_API_KEY`/
+  `M2PY_ACCESS_TOKEN`; uten noen av dem er signeringen av (som før).
   Erstatter de gamle `data-svar`- og `tolk-ask`-endepunktene (ett kall,
   ingen eget tolke-steg). Prompt-kilde: `prompts/svar.md`; register:
   `data/data-sources.json`; evalsett: `docs/eval/ask-evalsett.md`.

@@ -55,6 +55,9 @@
       // Feil CACHES — et kast her ville forsvunnet i fire-and-forget-
       // prefetchen, og sync-oppslaget etterpå må kunne rapportere den.
       cache[url] = { error: (e && e.message) || String(e) };
+      // B6: tomt/for stort/styrt er PERMANENT for samme URL (fetchRawUrl
+      // merker dem) — forPyodideSync skal ikke hente dem på nytt.
+      if (e && e.permanent) cache[url].permanent = e.permanent;
       return cache[url];
     }).finally(function () { delete inflight[url]; });
     return inflight[url];
@@ -103,6 +106,14 @@
     });
   }
 
+  // F2: ikke-ASCII i en URL (DST: «OMRÅDE=101») ga UnicodeEncodeError i
+  // python-stacken og varierende oppførsel i XHR. Prosentkod KUN tegn
+  // utenfor ASCII samt mellomrom — eksisterende %XX-sekvenser og alle
+  // reserverte tegn (?&=/*) står urørt, så funksjonen er idempotent.
+  function encodeNonAscii(url) {
+    return String(url).replace(/[^\x21-\x7e]+/g, function (m) { return encodeURIComponent(m); });
+  }
+
   function getCached(url) { return cache[url] || null; }
 
   // Synkron XHR for cache-miss i Pyodide (dynamisk bygde URL-er). Kun
@@ -129,6 +140,7 @@
     var u8 = new Uint8Array(t.length);
     for (var i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i) & 0xff;
     return { status: xhr.status, bytes: u8,
+             contentType: xhr.getResponseHeader('content-type') || '',
              truncated: xhr.getResponseHeader('x-hent-truncated') === '1' };
   }
 
@@ -221,7 +233,13 @@
     }
     var c = hdrs ? null : cache[url];
     if (c && !c.error) return { bytes: c.bytes, error: null };
-    // En cachet FEIL behandles som miss: sync-veien får prøve selv.
+    // B6: en PERMANENT cachet feil (tomt uttrekk, for stort, styrt) gjelder
+    // fortsatt — før ble den behandlet som miss, sync-XHR hentet på nytt og
+    // leverte de tomme bytene ukontrollert (stille tom ramme), og et for
+    // stort uttrekk ble lastet ned to ganger.
+    if (c && c.error && c.permanent) return { bytes: null, error: c.error };
+    // En transient cachet FEIL behandles som miss: sync-veien får prøve selv.
+    var reqUrl = encodeNonAscii(url);   // F2 — cache-nøkkelen forblir url
     var canXhr = xhrImpl || typeof XMLHttpRequest !== 'undefined';
     if (!canXhr) {
       return { bytes: null, error: (c && c.error) || ('ingen cache-oppføring og ingen XHR for ' + url) };
@@ -230,7 +248,7 @@
     // send auth-headerne på første forsøk (retry-grenen under hopper over
     // slike URL-er, så de fikk ellers alltid 401).
     var isProxyUrl = url.indexOf('/api/hent?') === 0;
-    var r = xhr(url, isProxyUrl ? proxyAuthHeaders(hdrs) : (hdrs || undefined));
+    var r = xhr(reqUrl, isProxyUrl ? proxyAuthHeaders(hdrs) : (hdrs || undefined));
     // Proxy KUN ved status 0 (CORS/nettverk) — samme konvensjon som
     // fetchRawUrl/fetchLoadTarget. En ekte 404 er like ekte via proxyen,
     // og «HTTP 404» er en klarere melding enn «proxy 404».
@@ -240,7 +258,7 @@
       // api-kinds-spec §4.4 — andre custom-headere dør i proxyen, dokumentert
       // i runtime-ost-spec §1). Auth VINNER kollisjoner (slutt-review): en
       // caller-«Authorization» skal aldri stille slå ut nøkkelen mot porten.
-      r = xhr('/api/hent?url=' + encodeURIComponent(url), proxyAuthHeaders(hdrs));
+      r = xhr('/api/hent?url=' + encodeURIComponent(reqUrl), proxyAuthHeaders(hdrs));
     }
     // x-hent-truncated (R-URL-bro-oppfølging §2): dekker begge legg
     // (direkte OG proxy-retry) — en avkortet CSV er feil data og skal
@@ -259,7 +277,13 @@
       return { bytes: null, error: (r.status ? 'HTTP ' + r.status : 'CORS/nettverksfeil') + ' for ' + url +
         (r.body ? ': ' + r.body : '') };
     }
-    if (!hdrs) cache[url] = { bytes: r.bytes, contentType: '' };
+    // B6: samme tomt-vakt som fetchRawUrl (header-only CSV → høylytt feil).
+    // Gjelder når transporten rapporterer headere (syncXhr gir alltid en
+    // streng, evt. ''); en test-transport uten header-info hoppes over.
+    var tom = (DL && DL.tomCsvFeil && typeof r.contentType === 'string')
+      ? DL.tomCsvFeil(url, r.contentType, r.bytes) : null;
+    if (tom) return { bytes: null, error: tom };
+    if (!hdrs) cache[url] = { bytes: r.bytes, contentType: r.contentType || '' };
     return { bytes: r.bytes, error: null };
   }
 
@@ -575,6 +599,7 @@
     rPatchSource: rPatchSource,
     exportTags: exportTags, seedFromDocument: seedFromDocument, _seedEntries: _seedEntries,
     insertBytes: insertBytes,
+    encodeNonAscii: encodeNonAscii,
     _reset: function () { cache = Object.create(null); inflight = Object.create(null); xhrImpl = null; fetcher = defaultFetcher; depsFn = null; },
     _setFetcher: function (f) { fetcher = f; },
     _setXhr: function (f) { xhrImpl = f; },

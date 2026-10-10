@@ -1,30 +1,14 @@
-name: app tests (python + node)
+name: app tests (python + node + brython/micropython shims)
 
-# Scope B (2026-07-24): motoren (m2py m.fl.) er fjernet fra openstat —
-# motor-/ekvivalens-testene bor i safestat/microdata. Denne kjører appens
-# gjenværende pytest-suite + node-testene for js-laget.
+# Runs on every push/PR (no `paths:` filter): the app is a no-build static
+# site where index.html, sw.js, shared/**, pyodide/**, brython/**,
+# micropython/**, data/** and tools/** all feed the same runtime, so a path
+# filter kept silently skipping relevant changes. The edge functions have
+# their own workflow (edge-tests.yml).
 
 on:
   push:
-    paths:
-      - '*.py'
-      - 'js/**'
-      - 'index.html'
-      - 'examples/**'
-      - 'data/**'
-      - 'tests/**'
-      - 'tools/**'
-      - '.github/workflows/app-tests.yml'
   pull_request:
-    paths:
-      - '*.py'
-      - 'js/**'
-      - 'index.html'
-      - 'examples/**'
-      - 'data/**'
-      - 'tests/**'
-      - 'tools/**'
-      - '.github/workflows/app-tests.yml'
 
 jobs:
   pytest:
@@ -38,6 +22,28 @@ jobs:
         run: pip install pytest pandas numpy pyarrow
       - name: Run app suite
         run: python -m pytest tests/ -q
+
+  shims:
+    # Brython + MicroPython shim suites (pandas_brython, sklearn_brython,
+    # pandas_mpy, …). The *_diff tests compare against the real libraries and
+    # importorskip them, so install those too. test_engine_scan shells out to
+    # node.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: pip install pytest pandas numpy pyarrow scipy scikit-learn statsmodels lifelines
+      - name: Run brython suite
+        run: python -m pytest brython/tests -q
+      - name: Run micropython suite
+        run: python -m pytest micropython/tests -q
+
   node:
     runs-on: ubuntu-latest
     steps:
@@ -47,3 +53,37 @@ jobs:
           node-version: '22'
       - name: Run js tests
         run: node --test 'tests/js/*.test.js'
+
+  generated:
+    # Offline Ask smoke check (no secrets): the source registry and other
+    # generated artefacts the Ask pipeline reads must match their sources.
+    # Regenerates data/data-sources.json + data/source-guides/ from
+    # data/sources/*.md, examples/manifest.json from examples/**, and
+    # tools/ask_i18n_keys.json from index.html, then fails on any diff.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regenerate source registry
+        run: node tools/source_docs.mjs generate
+      - name: Regenerate examples manifest
+        run: python examples/generate_manifest.py
+      - name: Regenerate ask i18n key list
+        run: node tools/list_i18n_keys.mjs
+      - name: Fail if anything changed
+        run: |
+          if ! git diff --exit-code --stat; then
+            echo "::error::Generated files are out of date. Run the three commands above locally and commit the result."
+            exit 1
+          fi
+          untracked="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$untracked" ]; then
+            echo "$untracked"
+            echo "::error::Generation produced untracked files."
+            exit 1
+          fi

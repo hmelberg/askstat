@@ -1,13 +1,21 @@
 name: edge function tests
 
+# data/** and js/**: _lib tests read data/data-sources.json + data/source-guides/
+# and share modules with js/ (data-directives, data-loader, enc-crypto, …).
 on:
   push:
     paths:
       - 'netlify/edge-functions/**'
+      - 'netlify.toml'
+      - 'data/**'
+      - 'js/**'
       - '.github/workflows/edge-tests.yml'
   pull_request:
     paths:
       - 'netlify/edge-functions/**'
+      - 'netlify.toml'
+      - 'data/**'
+      - 'js/**'
       - '.github/workflows/edge-tests.yml'
 
 jobs:

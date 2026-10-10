@@ -735,7 +735,7 @@ def _translate_canonical(kind, rest, c):
         if kind != "pxweb":
             raise ValueError("all() støttes foreløpig kun for pxweb-kilder — for andre kilder, "
                              "angi utvalg eksplisitt")
-        raise ValueError("all=True ekspanderes foreløpig bare i OpenStat-editoren, som leser "
+        raise ValueError("all=True ekspanderes foreløpig bare i AskStat-editoren, som leser "
                          "kildens json-stat2-metadata for å liste dimensjonsverdiene. Angi "
                          "utvalget eksplisitt her, f.eks. regions(…), indicators(…) eller "
                          "filters(<variabel>=…)")
@@ -1000,7 +1000,7 @@ class Source:
             if _bad in query:
                 raise ValueError(
                     "«%s» er et editor-argument uten mening utenfor nettleseren (%s). "
-                    "Fjern det, eller kjør scriptet i OpenStat." % (_bad, _EDITOR_ONLY[_bad]))
+                    "Fjern det, eller kjør scriptet i AskStat." % (_bad, _EDITOR_ONLY[_bad]))
         kind = self.kind or _sniff_kind(self.url)
         kind = _KIND_ALIAS.get(str(kind).lower(), kind)
         if kind in ("sdmx", "worldbank", "dbnomics"):
@@ -1240,7 +1240,7 @@ def _deliver(df, fmt):
             raise ValueError('format="duckdb" krever duckdb — pip install duckdb')
         return duckdb.from_df(df)
     if fmt in ("data.table", "tibble"):
-        raise ValueError('format="%s" finnes bare i R-modus i OpenStat — bruk %s her'
+        raise ValueError('format="%s" finnes bare i R-modus i AskStat — bruk %s her'
                          % (fmt, " eller ".join(_FORMATS)))
     raise ValueError('ukjent format «%s» — gyldige: %s' % (fmt, ", ".join(_FORMATS)))
 
@@ -1301,7 +1301,7 @@ def use(name, source=None):
     """ost.use finnes bare i editoren — her er datasettet allerede en variabel."""
     raise ValueError(
         "ost.use kopierer datasett MELLOM kjøretider (python/r/duckdb) i "
-        "OpenStat-editoren og har ingen mening i pakken — «%s» er allerede en "
+        "AskStat-editoren og har ingen mening i pakken — «%s» er allerede en "
         "variabel i dette scriptet." % name)
 
 

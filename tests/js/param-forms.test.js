@@ -383,7 +383,7 @@ test('parse: //@title and //@markdown recognized (javascript dialect, lang-indep
 
 // Marker-toleranse: planens Global Constraints ber oss speile LINE_RE sin
 // EKSISTERENDE toleranse ("# @param" med mellomrom matcher) for
-// #@title/#@markdown også, for konsistens INNAD i OpenStat — dette er en
+// #@title/#@markdown også, for konsistens INNAD i AskStat — dette er en
 // BEVISST AVVIK fra spec-teksten ("# @title stays a comment"/Colab-strict),
 // se code-kommentar ved TITLE_RE/MD_RE.
 test('parse: "# @title" (mellomrom etter #) matches — MIRRORS LINE_RE tolerance, deviates from spec text', () => {

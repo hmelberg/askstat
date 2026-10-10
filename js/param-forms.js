@@ -52,7 +52,7 @@
   // Global Constraints ber oss i stedet SPEILE LINE_RE sin EKSISTERENDE
   // toleranse for #@param (som med viten og vilje tillater mellomrom:
   // `(?:#|\/\/)\s*@param\b` matcher BÅDE "#@param" og "# @param") — for
-  // KONSISTENS INNAD i OpenStat, ikke for Colab-troskap. Denne
+  // KONSISTENS INNAD i AskStat, ikke for Colab-troskap. Denne
   // implementasjonen følger PLANEN (ikke spec-ordlyden): `\s*` mellom
   // #/// og @title/@markdown under, slik at "# @title"/"# @markdown" også
   // matcher. Se Task 1-rapporten for hvorfor (kontrolløren bes forsone

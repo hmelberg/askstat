@@ -295,7 +295,7 @@ export default async (request: Request, context: IpContext): Promise<Response> =
       const url = String(input.url ?? "");
       // registry: probe må sende samme Accept som lasteren for sdmx-kilder,
       // ellers observerer den XML der scriptet får CSV (målt 2026-08-01).
-      const r = await probeUrl(url, { registry: registry ?? undefined });
+      const r = await probeUrl(url, { registry: registry ?? undefined, origin });
       probed.push({ url, ok: r.ok, cors: r.cors, viaProxy: r.ok && !r.cors });
       return JSON.stringify(r);
     }

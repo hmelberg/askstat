@@ -59,8 +59,20 @@ Deno.test("probe sends Origin header in fetch request", async () => {
     }));
   }) as typeof fetch;
 
+  // Appens EGET origin (trådet fra forespørselen i svar.ts) — ikke et
+  // hardkodet søsterdomene (review 2026-10-10: var «https://openstat.app»).
+  await probeUrl("https://x.example/data", { fetchImpl: fake, origin: "https://askstat.test" });
+  assertEquals(capturedOrigin, "https://askstat.test");
+});
+
+Deno.test("probe uten origin sender ingen Origin-header (aldri et fremmed domene)", async () => {
+  let captured: string | null | undefined;
+  const fake = ((_url: string | URL | Request, init?: RequestInit) => {
+    captured = (init?.headers as Record<string, string>)?.["Origin"] ?? null;
+    return Promise.resolve(new Response("[]", { status: 200, headers: { "content-type": "application/json" } }));
+  }) as typeof fetch;
   await probeUrl("https://x.example/data", { fetchImpl: fake });
-  assertEquals(capturedOrigin, "https://openstat.app");
+  assertEquals(captured, null);
 });
 
 Deno.test("probe accepts ACAO that echoes sent origin as CORS:true", async () => {
@@ -70,11 +82,11 @@ Deno.test("probe accepts ACAO that echoes sent origin as CORS:true", async () =>
       status: 200,
       headers: {
         "content-type": "text/csv",
-        "access-control-allow-origin": "https://openstat.app",
+        "access-control-allow-origin": "https://askstat.test",
       },
     }))) as typeof fetch;
 
-  const r = await probeUrl("https://x.example/data.csv", { fetchImpl: fake });
+  const r = await probeUrl("https://x.example/data.csv", { fetchImpl: fake, origin: "https://askstat.test" });
   assertEquals(r.cors, true);
 });
 

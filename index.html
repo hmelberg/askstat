@@ -1318,7 +1318,7 @@
           scriptInput.selectionStart = scriptInput.selectionEnd = 0;
         }).catch(function(err) {
           if (window.location.protocol === 'file:') {
-            alert(t('Filen er åpnet direkte i nettleseren (file://). Start en lokal webserver og åpne via http://localhost for å laste eksempler.\n\nEks: åpne terminal i m2py-mappen og kjør:\npython -m http.server 8000\n\nÅpne deretter http://localhost:8000/microdata_runner.html'));
+            alert(t('Filen er åpnet direkte i nettleseren (file://). Start en lokal webserver og åpne via http://localhost for å laste eksempler.\n\nEks: åpne terminal i prosjektmappen og kjør:\npython -m http.server 8000\n\nÅpne deretter http://localhost:8000/'));
           } else {
             alert(t('Kunne ikke laste eksempel: {file}\nFeil: {msg}\n\nSjekk at examples-mappen ligger i samme mappe som index.html og at serveren har tilgang til den.', { file: file, msg: err && err.message ? err.message : String(err) }));
           }
@@ -2353,9 +2353,11 @@
     // Lazy katalog (plan 2026-07-23-lazy-microdata-assets): variable_metadata.json
     // (640 KB) hentes først når microdata-språket faktisk er i spill (statx-/
     // microdata-modus aktiveres, eller en kjøring har microdata-segmenter) —
-    // aldri ved sideoppstart. microdataFunctions (autocomplete) fylles av
-    // _loadPyodideAndM2pyImpl, som uansett henter functions.py.
-    // Memo nullstilles ved feil så neste kall prøver på nytt.
+    // aldri ved sideoppstart. Memo nullstilles ved feil så neste kall prøver
+    // på nytt. MERK (review 2026-10): etter at microdata-modusen ble fjernet
+    // kalles ensureMicrodataCatalog() ikke lenger, og variable_metadata.json
+    // ligger ikke i repoet — katalogen og microdataFunctions/-VariableNames
+    // er alltid tomme (kandidat for opprydding sammen med tab-fullføringen).
     let __microdataCatalogPromise = null;
     function ensureMicrodataCatalog() {
       if (!__microdataCatalogPromise) {
@@ -2917,7 +2919,7 @@
             );
 
             await py.runPythonAsync(
-              'to_microdata(_upload_df, ' + JSON.stringify(name) + ', make_active=True)\n' +
+              'register_dataset(_upload_df, ' + JSON.stringify(name) + ', make_active=True)\n' +
               'del _upload_df'
             );
 
@@ -3731,12 +3733,15 @@
       nbNotifyStateChange();
     }
     // ── Editor mode (always-on, controlled by bottom-bar dropdown) ──────
-    let activeEditorMode  = 'microdata'; // 'microdata' | 'python' | 'r'
+    // '' = ingen modus ennå (var 'microdata' før microdata-modusen ble
+    // fjernet 2026-07-24): lik ingen ekte modus, så restoreEditorMode() under
+    // alltid kaller switchEditorMode(); currentMode() faller til python.
+    let activeEditorMode  = ''; // 'python' | 'r' | 'duckdb' | 'jamovi' | …
     const editorContent   = { python: '', r: '', jamovi: '', duckdb: '', brython: '', micropython: '', javascript: '' };
     const editorBP        = { python: new Set(), r: new Set(), jamovi: new Set(), duckdb: new Set(), brython: new Set(), micropython: new Set(), javascript: new Set() };
     // B4/B5 (docs/REVIEW_2026-07-07.md §3): switchEditorMode() persists
     // md_editor_mode but nothing ever read it back, so a reload always
-    // landed on 'microdata'. Restore it here, synchronously, as part of this
+    // landed on the boot default. Restore it here, synchronously, as part of this
     // inline script's top-level execution — which is what makes B5 work too:
     // js/i18n.js (loaded near the top of <head>, long before this script)
     // only restores its language-switch script stash on the page's 'load'
@@ -3745,9 +3750,9 @@
     // So by the time restoreStash() runs, activeEditorMode already reflects
     // the persisted mode, and the stashed script — dispatched via the
     // scriptInput 'input' event — lands in the correct mode's buffer instead
-    // of always in 'microdata'. Falls back to 'microdata' for an unknown/
-    // unregistered mode (e.g. 'jamovi', which is only registered lazily on
-    // first activation and isn't in modeRegistry yet at boot).
+    // of always in the boot default. An unknown/unregistered mode (e.g.
+    // 'jamovi', which is only registered lazily on first activation and isn't
+    // in modeRegistry yet at boot) is handled by the lazy branch below.
     // When no persisted mode exists, fall back to the hostname's default
     // mode via NotebookLinks.hostnameMode() (js/notebook-links.js, loaded
     // synchronously in <head> before this script, so window.NotebookLinks
@@ -4258,7 +4263,7 @@
 
     // Lag en liste gyldige importdatoer innenfor [start, end] på måned-dagen `mmdd`
     // ('-MM-DD'). Tverrsnitt validerer mot et årlig rutenett på STARTdatoens
-    // måned-dag (se _valid_import_dates_for i m2py.py) — IKKE sluttdatoens.
+    // måned-dag (som _valid_import_dates_for i den fjernede m2py.py) — IKKE sluttdatoens.
     // Akkumulert godtar i tillegg årsslutt-datoen, og den er mest intuitiv
     // (helårstall), så for Akkumulert sender vi inn sluttdatoens måned-dag.
     function buildDateList(start, end, mmdd) {
@@ -8000,7 +8005,7 @@ for _wl in json.loads(${JSON.stringify(JSON.stringify(loads))}):
             _wl_df = pd.read_csv(_wl_path, dtype={str(_k): str for _k in ((_wl_tm or {}).get("dims") or {})})
         if _wl_tm:
             _wl_df = _ost_apply_typemeta(_wl_df, _wl_tm)
-        to_microdata(_wl_df, name=_wl_alias, make_active=False)
+        register_dataset(_wl_df, name=_wl_alias, make_active=False)
 `;
     }
 
@@ -8025,7 +8030,7 @@ import builtins
 ` + (window.PxWeb && window.PxWeb.pyApplyTypemetaSource ? window.PxWeb.pyApplyTypemetaSource() : '') + `
 class DatasetStore:
     """Slankt datasett-register (erstattet MicroInterpreter 2026-07-24, scope B):
-    limet bak # load-aliaser, # use på tvers av moduser/celler, to_microdata()
+    limet bak # load-aliaser, # use på tvers av moduser/celler, register_dataset()
     Ingen tolking — bare navn -> DataFrame."""
     def __init__(self):
         self.datasets = {}
@@ -8037,7 +8042,7 @@ class DatasetStore:
         # hvert segment en celle som tilordnet navnet på nytt
         # (df = df[df.age > 30] -> neste celle så hele datasettet igjen).
         # Regel per navn, mot det vi sist skjøv inn i g:
-        #  - registeret endret siden (ny # load/to_microdata/DuckDB CREATE
+        #  - registeret endret siden (ny # load/register_dataset/DuckDB CREATE
         #    TABLE) -> registeret vinner;
         #  - ellers brukeren har bundet navnet til en NY DataFrame -> den
         #    skrives tilbake til registeret (DuckDB-/use-veiene ser den);
@@ -8347,8 +8352,11 @@ def _show_one(obj):
 def show(*args):
     for _a in args:
         _show_one(_a)
-def to_microdata(df, name=None, make_active=True):
-    """Legg DataFrame inn i e.datasets slik at påfølgende microdata ser den. name=None bruker aktivt datasett."""
+def register_dataset(df, name=None, make_active=True):
+    """Legg DataFrame inn i e.datasets (datasett-registeret bak # load/# use,
+    DuckDB-blokker og sidepanelet). name=None bruker aktivt datasett.
+    to_microdata er et bakoverkompatibelt alias (navnet er fra før
+    microdata-modusen ble fjernet 2026-07-24)."""
     if not isinstance(df, pd.DataFrame):
         # Polars/pyarrow/cudf-aktige: konverter via .to_pandas() i stedet for
         # å kaste — pyarrow.Table er tilgjengelig i Pyodide og dukker opp når
@@ -8357,21 +8365,22 @@ def to_microdata(df, name=None, make_active=True):
         if callable(_conv):
             df = _conv()
         else:
-            raise TypeError("to_microdata: forventet pandas.DataFrame (eller et objekt med .to_pandas(), f.eks. polars/pyarrow)")
+            raise TypeError("register_dataset: forventet pandas.DataFrame (eller et objekt med .to_pandas(), f.eks. polars/pyarrow)")
     if name is None:
         name = e.active_name
     if not name:
-        raise ValueError("to_microdata: angi name='datasett' eller kjør microdata som setter aktivt datasett først.")
+        raise ValueError("register_dataset: angi name='datasett' (ingen aktivt datasett ennå).")
     name = str(name)
     e.datasets[name] = df
     if make_active:
         e.active_name = name
     e.sync_datasets_to_globals(_g)
     _g["show"] = show
-    _g["to_microdata"] = to_microdata
+    _g["register_dataset"] = _g["to_microdata"] = register_dataset
+to_microdata = register_dataset   # bakoverkompatibelt alias
 _g = {"__name__": "__main__", "__builtins__": builtins, "e": e, "micro_interpreter": e, "pd": pd, "np": np, "numpy": np, "pandas": pd}
 _g["show"] = show
-_g["to_microdata"] = to_microdata
+_g["register_dataset"] = _g["to_microdata"] = register_dataset
 # Bare-alias-binding i RIKTIG navnerom (sluttreview 2026-08-15 funn 1): ALL
 # brukerkode kjører i _g (se _exec_pyodide_block(code, g) under og
 # kjøreveiene som kaller den), IKKE i pyodide.globals (__main__). Boot-
@@ -9102,14 +9111,14 @@ async def _run_duck_sql(_sql, _fresh=True):
 # ── Variabel-montering (# connect/create-dataset/import/join) ──
 _asm = json.loads(${JSON.stringify(JSON.stringify(payload))})
 for _an in (_asm.get('cols') or {}):
-    to_microdata(pd.DataFrame(_asm['cols'][_an]), name=_an, make_active=False)
+    register_dataset(pd.DataFrame(_asm['cols'][_an]), name=_an, make_active=False)
 if _asm.get('spec'):
     _asrc = {}
     for _f in _asm['files']:
         _asrc[_f['alias']] = pd.read_parquet(_f['path']) if _f['format'] == 'parquet' else pd.read_csv(_f['path'])
     for _ds in _asm['spec']['datasets']:
         if _ds.get('load'):
-            to_microdata(_asrc[_ds['load']].copy(), name=_ds['name'], make_active=False)
+            register_dataset(_asrc[_ds['load']].copy(), name=_ds['name'], make_active=False)
             continue
         _key = list(_ds.get('key') or [])   # composite keys: alltid liste
         _acc = None
@@ -9122,7 +9131,7 @@ if _asm.get('spec'):
                 if _acc is None:
                     raise ValueError('join krever minst én import først i «' + _ds['name'] + '»')
                 _acc = _acc.merge(e.datasets[_st['from']], on=list(_st['on']), how=_st['how'])
-        to_microdata(_acc, name=_ds['name'], make_active=False)
+        register_dataset(_acc, name=_ds['name'], make_active=False)
 `;
     }
 
@@ -10177,36 +10186,6 @@ json.dumps(out)
       }
 
       const normalized = normalizeBlockMarkers(src, 'r');
-      var hasMarkers = /^##\s*(r|microdata|micro|pyodide|python)\s*$/im.test(normalized);
-      // Notatbok aktiv (browser-diagnostisert, plassfase Task 2): legacy-
-      // heuristikken "hasMarkers ? 'microdata' : 'r'" er fra FØR notatbok-
-      // cellemodellen (f46c169, opprinnelig fork) — designet for håndskrevne
-      // flate R+microdata-hybridscript der UMARKERT tekst FØR første eksplisitt
-      // ##-markør konvensjonelt var microdata-oppsett. I en notatbok er `src`
-      // ALLTID Cells.executableSource()-output: HVER kodecelle får sin egen
-      // '## <kind>'-markør UNNTATT den underforståtte preambelen (celle 0,
-      // headerRaw null) — Cells.alignPlan sin egen expectedKind() forventer
-      // DERFOR at preambelen kjører som docMode ('r'), ALDRI 'microdata'.
-      // Uten dette unntaket klassifiseres preambelen (typisk kun # label:/
-      // #options.*/# load-direktiv-linjer) som 'microdata' så snart NOEN
-      // annen celle har en eksplisitt markør (så godt som alltid sant for
-      // notatbøker) — _rUiPlan under blir da ALLTID null (segmentKinds sin
-      // lengde OG element 0 stemmer ikke med alignPlan sine forventninger),
-      // og ui-verdi-injeksjonen lenger ned kan aldri finne en celleindeks.
-      // Verifisert i nettleser: dette var ROTÅRSAKEN til at rex_widgets_ui.txt
-      // sin Kjør alle ikke rendret kontroller under selve implementeringen.
-      //
-      // Gates KUN på Cells.active() (UI_R_REGEX-tillegget fjernet 2026-07-18):
-      // den gamle ekstra-gaten fantes for plasserings-fasens «byte-identisk
-      // med før»-krav, men R per-celle-attribusjonen (spec 2026-07-18) gjør
-      // kind-klassifiseringen LASTBÆRENDE for alle notatbøker — med gaten på
-      // fikk et ui-FRITT notatbok-dokument preamblen klassifisert 'microdata',
-      // alignPlan feilet, og beginRun purget cellene men returnerte null →
-      // tomme cellebokser + alt output i trailing (brukerrapportert). I et
-      // #%%-notatbok-dokument i R-modus er en umarkert preambel R (samme
-      // docMode-default som pyodide-familien) — legacy ##-hybridskript uten
-      // Cells.active() beholder microdata-heuristikken uendret.
-      var _rNbActiveForDefault = !!(window.Cells && window.Cells.active());
       // Umerket kode i R-modus er R — den gamle heuristikken «markør-script ⇒
       // umerket preamble er microdata» utgikk med microdata-blokkene (2026-07-24).
       const segments = parseHybridScript(normalized, 'r');
@@ -10231,7 +10210,6 @@ json.dumps(out)
       var _rUses = [];
       _rSegsAll.forEach(function (s) { if (s.kind === 'r') _rUses.push.apply(_rUses, s.uses || []); });
 
-      var microdataSegs = _rSegsAll.filter(function(s) { return s.kind === 'microdata' && (s.text || '').trim(); });
       // rSegOrigIdx (plassfase Task 2): rSegs er et FILTER av _rSegsAll (dropper
       // microdata + blanke tekster) — parallell indeks rSegOrigIdx[ri] peker
       // tilbake til rSegs[ri] sin posisjon i _rSegsAll, som er ARRAYET
@@ -10290,13 +10268,11 @@ json.dumps(out)
           }
           await ensurePyarrowFor(py);
           py.globals.set('_use_r_name', _u5.name);
-          py.globals.set('_use_er_ok', microdataSegs.length > 0);
           var _uRes = JSON.parse(String(await py.runPythonAsync([
             'import __main__ as _m_u, json as _ju, base64 as _b64u, io as _iou, pandas as _pdu',
             '_df_u = None',
-            '_er_src = getattr(getattr(_m_u, "_e_r", None), "datasets", None) if _use_er_ok else None',
             '_mi_src = getattr(getattr(_m_u, "micro_interpreter", None), "datasets", None)',
-            'for _srcd in (_er_src, _mi_src, getattr(_m_u, "_g", None)):',
+            'for _srcd in (_mi_src, getattr(_m_u, "_g", None)):',
             '    if isinstance(_srcd, dict) and _use_r_name in _srcd and isinstance(_srcd[_use_r_name], _pdu.DataFrame):',
             '        _df_u = _srcd[_use_r_name]',
             '        break',
@@ -10935,9 +10911,9 @@ json.dumps(out)
           }
         } catch (e) { pyInterruptBuf = null; }
       }
-      // Pyodide-bundlede pakker som m2py.py + functions.py trenger ved import-tid:
-      // numpy/pandas/scipy/micropip/setuptools. statsmodels er nå lazy i m2py.py
-      // (se _ensure_statsmodels) og prefetches etter Ready.
+      // Pyodide-bundlede pakker som kjernen (getInterpreterCorePython) og
+      // vanlig brukerkode trenger: numpy/pandas/scipy/micropip/setuptools.
+      // statsmodels prefetches i bakgrunn etter Ready.
       setStatus(leftStatus, 'Loading numpy, pandas, scipy, micropip, setuptools...');
       try {
         await pyodide.loadPackage([
@@ -10968,8 +10944,8 @@ json.dumps(out)
         });
         await pyodide.runPythonAsync('import pyodide_http\npyodide_http.patch_urllib()');
       } catch (e) { console.warn('patch_urllib hoppet over:', e); }
-      // plotly er PyPI (ikke bundlet) og importeres inne i figurkommandoer i m2py.py
-      // — auto-install i run-handler ser ikke disse, så vi installerer eager.
+      // plotly er PyPI (ikke bundlet) og brukes av kjernens visning (_show_one,
+      // plotly-show-patchen) — installeres eager.
       // matplotlib, lifelines og linearmodels prefetches i bakgrunn etter Ready (B2).
       try {
         setStatus(leftStatus, 'Installing plotly...');
@@ -11509,7 +11485,7 @@ async def _m2py_run_segment(_seg_json):
     if _k == "pyodide":
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
         # _nb (satt av JS-segmentløkken, kun for notatbok-celler): overstyrer
         # echo/only_last per segment — spec §4 "Display policy". Fraværende
         # _nb (preambel, ikke-notatbok, #options.display=all) → dagens atferd.
@@ -11518,7 +11494,7 @@ async def _m2py_run_segment(_seg_json):
         _exec_pyodide_block(_st, _g, _sc, bool(_nb.get("last")))
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
     elif _k == "duckdb":
         e.sync_datasets_to_globals(_g)
         try:
@@ -11531,7 +11507,7 @@ async def _m2py_run_segment(_seg_json):
             return "stop"
         e.sync_datasets_to_globals(_g)
         _g["show"] = show
-        _g["to_microdata"] = to_microdata
+        _g["register_dataset"] = _g["to_microdata"] = register_dataset
     return "ok"
 `;
         setStatus(rightStatus, 'Running...');
@@ -12177,8 +12153,8 @@ async def _m2py_run_segment(_seg_json):
             if (py && typeof py.setStdout === 'function') py.setStdout();
             if (py && typeof py.setStderr === 'function') py.setStderr();
             if (_capErr) console.warn('[stderr]', _capErr.trim());
-            // microdata-DSL-feil ("FEIL:"/oversatt "ERROR:") stopper IKKE
-            // _m2py_run_segment (ikke-fatalt per design, se m2py.py _log) —
+            // Tekstlige feilmarkører ("FEIL:"/oversatt "ERROR:") stopper IKKE
+            // _m2py_run_segment (arv fra den fjernede microdata-tolken) —
             // egen tekst-skanning her oppdager at en TIDLIGERE celle feilet
             // under kjøring fra toppen. rc === 'stop' dekker DuckDB-grenen;
             // ekte unntak (f.eks. en '## python'-celle i dokumentet) dekkes
@@ -12818,10 +12794,10 @@ async def _m2py_run_segment(_seg_json):
             await py.runPythonAsync(
               'import json\n_st = json.loads(' + JSON.stringify(JSON.stringify(block.code)) + ')\n' +
               'e.sync_datasets_to_globals(_g)\n' +
-              '_g["show"] = show\n_g["to_microdata"] = to_microdata\n' +
+              '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n' +
               '_exec_pyodide_block(_st, _g)\n' +
               'e.sync_datasets_to_globals(_g)\n' +
-              '_g["show"] = show\n_g["to_microdata"] = to_microdata\n'
+              '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n'
             );
             await new Promise(function(resolve) { setTimeout(resolve, 0); });
           } finally {
@@ -13054,10 +13030,10 @@ async def _m2py_run_segment(_seg_json):
                 await py.runPythonAsync(
                   'import json\n_st = json.loads(' + JSON.stringify(JSON.stringify(block.code)) + ')\n' +
                   'e.sync_datasets_to_globals(_g)\n' +
-                  '_g["show"] = show\n_g["to_microdata"] = to_microdata\n' +
+                  '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n' +
                   '_exec_pyodide_block(_st, _g)\n' +
                   'e.sync_datasets_to_globals(_g)\n' +
-                  '_g["show"] = show\n_g["to_microdata"] = to_microdata\n'
+                  '_g["show"] = show\n_g["register_dataset"] = _g["to_microdata"] = register_dataset\n'
                 );
                 await new Promise(function(resolve) { setTimeout(resolve, 0); });
               } finally {

@@ -7,7 +7,7 @@ folk = pd.DataFrame({
     "gender": ["Male", "Female", "Male", "Female", "Male", "Female"],
     "income": [450000, 620000, 810000, 530000, 210000, 690000],
 })
-to_microdata(folk, "folk")
+register_dataset(folk, "folk")
 
 #duckdb
 -- DuckDB/SQL uses -- for comments, not #.

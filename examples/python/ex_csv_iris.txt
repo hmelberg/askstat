@@ -1,5 +1,5 @@
 # label: Load a CSV from GitHub
-# OpenStat — a quick example. Edit it freely, or pick another under "Examples".
+# AskStat — a quick example. Edit it freely, or pick another under "Examples".
 # A plain GET URL that returns a table needs no directive — read it with
 # plain pandas, exactly as you would outside the app. `ost.read(...)` exists
 # for sources that need more than a URL (registries, secret_key, canonical

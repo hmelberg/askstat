@@ -1,5 +1,5 @@
 # label: Load a CSV from GitHub
-# OpenStat — a quick example. Edit it freely, or pick another under "Examples".
+# AskStat — a quick example. Edit it freely, or pick another under "Examples".
 # Two ways to load data: the `# load` directive (below), or plain read.csv().
 # iris = ost.read("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv")
 # (equivalent: iris <- read.csv("https://raw.githubusercontent.com/hmelberg/openstat/main/data/iris.csv"))

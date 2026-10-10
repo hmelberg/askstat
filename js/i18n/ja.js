@@ -221,4 +221,7 @@ window.M2PY_I18N.ja = {
   "Issue created:": "Issueを作成しました：",
   "Issue failed — try again": "Issueに失敗しました——もう一度お試しください",
   "Suggest short section (AI)": "短縮版を提案する（AI）",
+  "This answer could not be saved to the history (browser storage is full).": "この回答を履歴に保存できませんでした（ブラウザのストレージがいっぱいです）。",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ 回答は完了する前に途切れました — 不完全な可能性があります",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI のアドレスが別のサーバーを指すようになったため、以前のサーバー用に保存されていたキーは削除されました。新しいプロバイダーのキーを貼り付けてください。",
 };

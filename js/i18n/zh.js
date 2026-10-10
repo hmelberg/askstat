@@ -221,4 +221,7 @@ window.M2PY_I18N.zh = {
   "Issue created:": "Issue 已创建：",
   "Issue failed — try again": "Issue 失败——请重试",
   "Suggest short section (AI)": "建议简短版（AI）",
+  "This answer could not be saved to the history (browser storage is full).": "无法将此回答保存到历史记录（浏览器存储已满）。",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ 回答在完成前被截断——可能不完整",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI 地址现在指向另一台服务器，因此已删除为先前服务器保存的密钥。请粘贴新提供方的密钥。",
 };

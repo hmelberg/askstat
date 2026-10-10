@@ -221,4 +221,7 @@ window.M2PY_I18N.is = {
   "Issue created:": "Issue búið til:",
   "Issue failed — try again": "Issue mistókst — reyndu aftur",
   "Suggest short section (AI)": "Leggja til stutta útgáfu (gervigreind)",
+  "This answer could not be saved to the history (browser storage is full).": "Ekki tókst að vista svarið í ferlinum (vafrageymslan er full).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Svarið var skorið af áður en það kláraðist — það gæti verið ófullkomið",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI-vistfangið vísar nú á annan netþjón, svo vistaði lykillinn fyrir fyrri netþjóninn var fjarlægður. Límdu inn lykilinn fyrir nýju þjónustuna.",
 };

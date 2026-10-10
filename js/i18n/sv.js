@@ -221,4 +221,7 @@ window.M2PY_I18N.sv = {
   "Issue created:": "Issue skapad:",
   "Issue failed — try again": "Issue misslyckades — försök igen",
   "Suggest short section (AI)": "Föreslå kort avsnitt (AI)",
+  "This answer could not be saved to the history (browser storage is full).": "Svaret kunde inte sparas i historiken (webbläsarens lagring är full).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Svaret avbröts innan det var klart — det kan vara ofullständigt",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI-adressen pekar nu på en annan server, så den sparade nyckeln för den tidigare servern togs bort. Klistra in nyckeln för den nya leverantören.",
 };

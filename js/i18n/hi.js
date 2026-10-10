@@ -221,4 +221,7 @@ window.M2PY_I18N.hi = {
   "Issue created:": "Issue बनाया गया:",
   "Issue failed — try again": "Issue विफल हुआ — फिर से प्रयास करें",
   "Suggest short section (AI)": "संक्षिप्त भाग सुझाएँ (AI)",
+  "This answer could not be saved to the history (browser storage is full).": "यह उत्तर इतिहास में सहेजा नहीं जा सका (ब्राउज़र स्टोरेज भर गया है)।",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ उत्तर पूरा होने से पहले ही कट गया — यह अधूरा हो सकता है",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI पता अब किसी दूसरे सर्वर की ओर इशारा करता है, इसलिए पिछले सर्वर के लिए सहेजी गई कुंजी हटा दी गई। नए प्रदाता की कुंजी चिपकाएँ।",
 };

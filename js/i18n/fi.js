@@ -221,4 +221,7 @@ window.M2PY_I18N.fi = {
   "Issue created:": "Issue luotu:",
   "Issue failed — try again": "Issue epäonnistui — yritä uudelleen",
   "Suggest short section (AI)": "Ehdota lyhyttä osiota (tekoäly)",
+  "This answer could not be saved to the history (browser storage is full).": "Vastausta ei voitu tallentaa historiaan (selaimen tallennustila on täynnä).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Vastaus katkesi ennen kuin se valmistui — se voi olla puutteellinen",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI-osoite osoittaa nyt toiseen palvelimeen, joten edellisen palvelimen tallennettu avain poistettiin. Liitä uuden palveluntarjoajan avain.",
 };

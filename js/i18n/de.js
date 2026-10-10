@@ -221,4 +221,7 @@ window.M2PY_I18N.de = {
   "Issue created:": "Issue erstellt:",
   "Issue failed — try again": "Issue fehlgeschlagen — erneut versuchen",
   "Suggest short section (AI)": "Kurzfassung vorschlagen (KI)",
+  "This answer could not be saved to the history (browser storage is full).": "Diese Antwort konnte nicht im Verlauf gespeichert werden (Browserspeicher ist voll).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Die Antwort wurde abgeschnitten, bevor sie fertig war — sie ist möglicherweise unvollständig",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "Die KI-Adresse zeigt jetzt auf einen anderen Server, daher wurde der gespeicherte Schlüssel für den vorherigen Server entfernt. Füge den Schlüssel für den neuen Anbieter ein.",
 };

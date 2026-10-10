@@ -221,4 +221,7 @@ window.M2PY_I18N.da = {
   "Issue created:": "Issue oprettet:",
   "Issue failed — try again": "Issue mislykkedes — prøv igen",
   "Suggest short section (AI)": "Foreslå kort afsnit (AI)",
+  "This answer could not be saved to the history (browser storage is full).": "Svaret kunne ikke gemmes i historikken (browserlageret er fuldt).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Svaret blev afbrudt, før det var færdigt — det kan være ufuldstændigt",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI-adressen peger nu på en anden server, så den gemte nøgle til den forrige server blev fjernet. Indsæt nøglen til den nye udbyder.",
 };

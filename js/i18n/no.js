@@ -228,4 +228,7 @@ window.M2PY_I18N.no = {
   "Issue created:": "Issue opprettet:",
   "Issue failed — try again": "Issue feilet — prøv igjen",
   "Suggest short section (AI)": "Foreslå Kort (KI)",
+  "This answer could not be saved to the history (browser storage is full).": "Svaret kunne ikke lagres i historikken (nettleserlagringen er full).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ Svaret ble avkortet før det var ferdig — det kan være ufullstendig",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "AI-adressen peker nå til en annen server, så den lagrede nøkkelen for den forrige serveren ble fjernet. Lim inn nøkkelen for den nye leverandøren.",
 };

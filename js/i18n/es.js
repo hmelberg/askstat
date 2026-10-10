@@ -221,4 +221,7 @@ window.M2PY_I18N.es = {
   "Issue created:": "Issue creada:",
   "Issue failed — try again": "Issue fallida — inténtalo de nuevo",
   "Suggest short section (AI)": "Sugerir versión corta (IA)",
+  "This answer could not be saved to the history (browser storage is full).": "No se pudo guardar esta respuesta en el historial (el almacenamiento del navegador está lleno).",
+  "⚠ The answer was cut off before it was finished — it may be incomplete": "⚠ La respuesta se cortó antes de terminar — puede estar incompleta",
+  "The AI address now points to a different server, so the stored key for the previous server was removed. Paste the key for the new provider.": "La dirección de la IA apunta ahora a otro servidor, así que se eliminó la clave guardada del servidor anterior. Pega la clave del nuevo proveedor.",
 };

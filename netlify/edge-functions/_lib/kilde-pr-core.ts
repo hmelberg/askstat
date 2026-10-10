@@ -72,11 +72,17 @@ export async function opprettPr(deps: PrDeps, inn: PrInn): Promise<{ url: string
   if (!brRes.ok && brRes.status !== 422) throw new Error(`GitHub branch: ${brRes.status}`);
   await brRes.body?.cancel();
 
+  // sha hentes i BEGGE moduser (review 2026-10-10): create=true over en fil
+  // som alt finnes (samme slug, eller gjenbrukt branch) PUT-et før uten sha
+  // → GitHub 422 → 502. Og den hentes fra BRANCHEN PUT-en skriver til — en
+  // gjenbrukt branch (422 over) kan ha en nyere versjon enn main.
+  // 404 = fila finnes ikke ennå → PUT uten sha.
   let filSha: string | undefined;
-  if (!inn.create) {
-    const fRes = await gh(`/contents/${inn.path}?ref=main`);
-    if (fRes.ok) filSha = ((await fRes.json()) as { sha: string }).sha;
-    else await fRes.body?.cancel();
+  const fRes = await gh(`/contents/${inn.path}?ref=${encodeURIComponent(inn.branch)}`);
+  if (fRes.ok) filSha = ((await fRes.json()) as { sha: string }).sha;
+  else {
+    await fRes.body?.cancel();
+    if (fRes.status !== 404) throw new Error(`GitHub contents (les): ${fRes.status}`);
   }
 
   const putRes = await gh(`/contents/${inn.path}`, {

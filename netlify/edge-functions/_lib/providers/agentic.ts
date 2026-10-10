@@ -5,12 +5,16 @@
 // knows no wire formats. State stays in Anthropic message format — adapters
 // translate at their boundary.
 import { type AgenticResumeState, type RetryDeps, scrubErrorText } from "../anthropic.ts";
+import { errorEvent, feilForStopp } from "../sse-util.ts";
 
 export interface ProviderTurnResult {
   text: string;
   toolUses: { id: string; name: string; input: Record<string, unknown> }[];
   searchNotes: string[];
-  stop: "tool_use" | "end";
+  /** "max_tokens": avkortet tur (finish_reason length / status incomplete,
+   *  eller uparsbare verktøyargumenter) — aldri et svar, aldri et kall.
+   *  "refusal": leverandøren nektet (content_filter). */
+  stop: "tool_use" | "end" | "max_tokens" | "refusal";
   usage: { inputTokens: number; outputTokens: number };
   responseId?: string;
 }
@@ -154,6 +158,12 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
           if (turn.responseId) state.prevResponseId = turn.responseId;
           for (const note of turn.searchNotes) emit({ type: "progress", text: note });
 
+          // Speiler anthropic.ts: en avkortet/avvist tur er verken et ferdig
+          // svar eller et gyldig verktøykall (terminalkontrakten i sse-util.ts).
+          if (turn.stop === "max_tokens" || turn.stop === "refusal") {
+            throw feilForStopp(turn.stop, !!turn.text)!;
+          }
+
           if (turn.stop === "tool_use" && turn.toolUses.length) {
             const content: Record<string, unknown>[] = [];
             if (turn.text) content.push({ type: "text", text: turn.text });
@@ -239,7 +249,7 @@ export function runProviderAgenticStream(opts: ProviderAgenticOptions): Readable
         controller.close();
         return;
       } catch (e) {
-        emit({ type: "error", message: scrubErrorText(e) });
+        emit(errorEvent(e, (t) => scrubErrorText(t)));
         controller.close();
       }
     },

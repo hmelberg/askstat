@@ -1,4 +1,5 @@
 import { scrubKey, scrubUrlSecrets } from "./providers/config.ts";
+import { errorEvent, feilForStopp, SseFeil, STROM_BRUTT } from "./sse-util.ts";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -154,7 +155,7 @@ export async function streamAnthropic(
     throw new Error(`Anthropic API error ${upstream.status}`);
   }
 
-  return transformAnthropicStream(upstream.body);
+  return transformAnthropicStream(upstream.body, opts.apiKey);
 }
 
 export interface AnthropicMessageResult {
@@ -230,8 +231,13 @@ export async function messageAnthropic(
   };
 }
 
-function transformAnthropicStream(
+// Single-shot-strømmen (ask-ruter, tolk-resultat, kilde-forslag). Følger
+// terminalkontrakten i sse-util.ts: stop_reason max_tokens → AVKORTET,
+// refusal → AVVIST, in-stream {"type":"error"} eller strøm uten stop_reason
+// → STROMFEIL — aldri `done` for et svar som ikke er helt. Eksportert for test.
+export function transformAnthropicStream(
   upstream: ReadableStream<Uint8Array>,
+  apiKey = "",
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -240,68 +246,67 @@ function transformAnthropicStream(
   let outputTokens = 0;
   let cacheReadTokens = 0;
   let cacheCreationTokens = 0;
+  let stopReason = "";
+  let hadText = false;
+  let feil: SseFeil | null = null;
 
   return new ReadableStream({
     async start(controller) {
+      const send = (ev: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+      const handleEvent = (event: string) => {
+        const dataLine = event.split("\n").find((l) => l.startsWith("data:"));
+        if (!dataLine) return;
+        const payload = dataLine.slice(5).trim();
+        if (!payload || payload === "[DONE]") return;
+        let obj;
+        try { obj = JSON.parse(payload); } catch (_e) { return; } // ignore non-JSON event data
+        if (obj.type === "content_block_delta" && obj.delta?.type === "text_delta") {
+          hadText = true;
+          const out: StreamEvent = { type: "text", text: obj.delta.text };
+          send(out);
+        } else if (obj.type === "message_start" && obj.message?.usage) {
+          inputTokens = obj.message.usage.input_tokens ?? 0;
+          cacheReadTokens = obj.message.usage.cache_read_input_tokens ?? 0;
+          cacheCreationTokens = obj.message.usage.cache_creation_input_tokens ?? 0;
+        } else if (obj.type === "message_delta") {
+          if (obj.usage) outputTokens = obj.usage.output_tokens ?? outputTokens;
+          if (obj.delta?.stop_reason) stopReason = String(obj.delta.stop_reason);
+        } else if (obj.type === "error") {
+          // Midt-strøm-feil (overloaded_error o.l.) kommer som et SSE-event
+          // ETTER 200 — de ble før svelget og meldt som `done`.
+          feil = new SseFeil("STROMFEIL",
+            `Anthropic-strømmen feilet: ${String(obj.error?.type ?? "error").slice(0, 80)}`);
+        }
+      };
       const reader = upstream.getReader();
       try {
-        while (true) {
+        while (feil === null) {
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-
           let nlIdx;
-          while ((nlIdx = buffer.indexOf("\n\n")) >= 0) {
+          while (feil === null && (nlIdx = buffer.indexOf("\n\n")) >= 0) {
             const event = buffer.slice(0, nlIdx);
             buffer = buffer.slice(nlIdx + 2);
-            const dataLine = event.split("\n").find((l) => l.startsWith("data:"));
-            if (!dataLine) continue;
-            const payload = dataLine.slice(5).trim();
-            if (!payload || payload === "[DONE]") continue;
-            try {
-              const obj = JSON.parse(payload);
-              if (obj.type === "content_block_delta" && obj.delta?.type === "text_delta") {
-                const out: StreamEvent = { type: "text", text: obj.delta.text };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
-              } else if (obj.type === "message_start" && obj.message?.usage) {
-                inputTokens = obj.message.usage.input_tokens ?? 0;
-                cacheReadTokens = obj.message.usage.cache_read_input_tokens ?? 0;
-                cacheCreationTokens = obj.message.usage.cache_creation_input_tokens ?? 0;
-              } else if (obj.type === "message_delta" && obj.usage) {
-                outputTokens = obj.usage.output_tokens ?? outputTokens;
-              }
-            } catch (_e) {
-              // ignore non-JSON event data
-            }
+            handleEvent(event);
           }
         }
         // Drain any residual buffer content not yet terminated by \n\n
-        if (buffer.trim()) {
-          buffer += "\n\n";
-          let nlIdx;
-          while ((nlIdx = buffer.indexOf("\n\n")) >= 0) {
-            const event = buffer.slice(0, nlIdx);
-            buffer = buffer.slice(nlIdx + 2);
-            const dataLine = event.split("\n").find((l) => l.startsWith("data:"));
-            if (!dataLine) continue;
-            const payload = dataLine.slice(5).trim();
-            if (!payload || payload === "[DONE]") continue;
-            try {
-              const obj = JSON.parse(payload);
-              if (obj.type === "content_block_delta" && obj.delta?.type === "text_delta") {
-                const out: StreamEvent = { type: "text", text: obj.delta.text };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
-              } else if (obj.type === "message_start" && obj.message?.usage) {
-                inputTokens = obj.message.usage.input_tokens ?? 0;
-                cacheReadTokens = obj.message.usage.cache_read_input_tokens ?? 0;
-                cacheCreationTokens = obj.message.usage.cache_creation_input_tokens ?? 0;
-              } else if (obj.type === "message_delta" && obj.usage) {
-                outputTokens = obj.usage.output_tokens ?? outputTokens;
-              }
-            } catch (_e) {
-              // ignore non-JSON event data
-            }
+        if (feil === null && buffer.trim()) {
+          for (const event of buffer.split("\n\n")) {
+            if (feil !== null) break;
+            handleEvent(event);
           }
+        }
+        if (feil === null) {
+          if (stopReason === "max_tokens") feil = feilForStopp("max_tokens", hadText);
+          else if (stopReason === "refusal") feil = feilForStopp("refusal");
+          else if (!stopReason) feil = new SseFeil("STROMFEIL", STROM_BRUTT);
+        }
+        if (feil !== null) {
+          send(errorEvent(feil));
+          await reader.cancel().catch(() => {});
+          return;
         }
         const done: StreamEvent = {
           type: "done",
@@ -310,12 +315,11 @@ function transformAnthropicStream(
           cacheReadTokens,
           cacheCreationTokens,
         };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(done)}\n\n`));
+        send(done);
       } catch (e) {
-        const err: StreamEvent = { type: "error", message: String(e) };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(err)}\n\n`));
+        send(errorEvent(e, (t) => scrubErrorText(t, apiKey)));
       } finally {
-        reader.releaseLock();
+        try { reader.releaseLock(); } catch { /* allerede lukket */ }
         controller.close();
       }
     },
@@ -579,7 +583,7 @@ async function streamOneTurn(
       if (u?.output_tokens !== undefined) usage.outputTokens = u.output_tokens;
     } else if (t === "error") {
       const e = obj.error as Record<string, unknown> | undefined;
-      throw new Error(`Anthropic stream error: ${e?.message ?? "ukjent"}`);
+      throw new SseFeil("STROMFEIL", `Anthropic stream error: ${e?.message ?? "ukjent"}`);
     }
   };
 
@@ -848,6 +852,15 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
             });
             continue;
           }
+          // Ikke-vellykket stopp er ALDRI et svar (terminalkontrakten i
+          // sse-util.ts): max_tokens → AVKORTET, refusal → AVVIST, og en tur
+          // uten stop_reason (strømmen brutt før message_delta) → STROMFEIL.
+          // Før ble alle tre meldt som `done` med et halvt/tomt svar.
+          if (turn.stopReason === "max_tokens") {
+            throw feilForStopp("max_tokens", turnHadText || carryHadText)!;
+          }
+          if (turn.stopReason === "refusal") throw feilForStopp("refusal")!;
+          if (!turn.stopReason) throw new SseFeil("STROMFEIL", STROM_BRUTT);
           // Final answer — its deltas were already forwarded live above.
           carryHadText = false;
           emit({ type: "done", ...state.usage });
@@ -860,7 +873,7 @@ export function runAgenticStream(opts: AgenticOptions): ReadableStream<Uint8Arra
         controller.close();
         return;
       } catch (e) {
-        emit({ type: "error", message: scrubErrorText(e, opts.apiKey) });
+        emit(errorEvent(e, (t) => scrubErrorText(t, opts.apiKey)));
         controller.close();
       }
     },

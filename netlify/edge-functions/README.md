@@ -88,6 +88,28 @@ Forventet output: en strøm av `data: {"type":"text","text":"..."}`-linjer,
 deretter en `data: {"type":"done","inputTokens":...,"outputTokens":...}`-linje.
 Innholdet er norsk markdown (Klassifisering, Samlet vurdering, Observasjoner).
 
+## SSE-terminalkontrakt
+
+Gjelder alle AI-strømmer (`svar`, `ask-ruter`, `tolk-resultat`,
+`kilde-forslag`), alle leverandører. Kilde til sannhet: toppen av
+`_lib/sse-util.ts`.
+
+- Strømmen ender med **nøyaktig ett** terminal-event: `{"type":"done", …usage}`
+  (suksess — svaret er helt) eller `{"type":"error","message":…,"code"?:…}`.
+  `svar` kan i stedet ende med `{"type":"continue", state}` (et hopp).
+  `done` og `error` sendes aldri i samme strøm.
+- **Avkortet svar** (token-taket nådd: Anthropic `stop_reason:"max_tokens"`,
+  OpenAI `finish_reason:"length"`, Responses `status:"incomplete"`,
+  uparsbare verktøyargumenter) gir aldri `done`, men
+  `{"type":"error","code":"AVKORTET","message":"Svaret ble avkortet …"}`.
+  Tekst/delta som alt er sendt står — klienten kan vise den med et
+  «avkortet»-merke.
+- `code:"AVVIST"` — modellen/leverandøren nektet (`refusal`/`content_filter`).
+- `code:"STROMFEIL"` — oppstrøms-strømmen feilet midt i (in-stream
+  `{"type":"error"}`) eller ble brutt uten `stop_reason`.
+- Uten `code` — øvrige feil (meldingen er skrubbet for nøkler).
+- En strøm som slutter uten terminal-event er en brutt forbindelse → feil.
+
 ## Feil-scenarioer
 
 - Mangler/ugyldig token → 401

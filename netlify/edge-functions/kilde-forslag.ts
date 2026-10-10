@@ -159,10 +159,10 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     let stream: ReadableStream<Uint8Array>;
     if (provider && provider.type === "openai-compat") {
       const r = await messageOpenAiCompat(provider, { system: KILDE_FORSLAG_SYSTEM, prompt, maxTokens: MAX_TOKENS }, { timeoutMs: 120_000 });
-      stream = singleTextStream(r.text, r.usage);
+      stream = singleTextStream(r.text, r.usage, r.stop);
     } else if (provider && provider.type === "openai-responses") {
       const r = await messageOpenAiResponses(provider, { system: KILDE_FORSLAG_SYSTEM, prompt, maxTokens: MAX_TOKENS }, { timeoutMs: 120_000 });
-      stream = singleTextStream(r.text, r.usage);
+      stream = singleTextStream(r.text, r.usage, r.stop);
     } else {
       stream = await streamAnthropic({
         apiKey: provider ? provider.key : apiKey!,

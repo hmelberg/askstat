@@ -68,7 +68,9 @@ Deno.test("senere tur: previous_response_id + kun function_call_output", async (
     }, captured) },
   });
   assertEquals(captured.body?.previous_response_id, "resp_1");
-  assertEquals(captured.body?.instructions, undefined);
+  // OpenAI viderefører IKKE instructions over previous_response_id — de må
+  // sendes på hver tur (review 2026-10-10).
+  assertEquals(captured.body?.instructions, "SYS");
   assertEquals(captured.body?.input, [{ type: "function_call_output", call_id: "c1", output: "ok=true" }]);
   assertEquals(res.text, "Svar.");
   assertEquals(res.stop, "end");
